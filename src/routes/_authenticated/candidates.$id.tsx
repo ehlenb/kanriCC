@@ -86,6 +86,7 @@ type Candidate = {
   notes_pitch: string | null;
   notes_closing: string | null;
   notes_internal: string | null;
+  cv_url?: string | null;
   updated_at: string;
 };
 
@@ -320,20 +321,24 @@ function CandidateProfile() {
       </div>
 
       {/* Pages */}
-      {page === "registration" ? (
+      {page === "registration" && (
         <RegistrationPage
           candidateId={id}
+          recruiterId={user!.id}
           candidate={c}
           motivations={motivations}
           blockers={blockers}
           roles={roles}
           competing={competing}
         />
-      ) : page === "timeline" ? (
+      )}
+      {page === "timeline" && (
         <CandidateTimelineTab interactions={interactions} processes={processes} />
-      ) : page === "notes" ? (
+      )}
+      {page === "notes" && (
         <NotesTab candidateId={id} candidate={c} />
-      ) : (
+      )}
+      {page === "processes" && (
         <ProcessesPage
           candidate={c}
           motivations={motivations}
@@ -350,6 +355,7 @@ function CandidateProfile() {
 
 function RegistrationPage({
   candidateId,
+  recruiterId,
   candidate: c,
   motivations,
   blockers,
@@ -357,6 +363,7 @@ function RegistrationPage({
   competing,
 }: {
   candidateId: string;
+  recruiterId: string;
   candidate: Candidate;
   motivations: Motivation[];
   blockers: Blocker[];
@@ -369,6 +376,8 @@ function RegistrationPage({
 
   return (
     <div className="space-y-3">
+      {/* CV Upload */}
+      <CvUploadZone candidateId={candidateId} recruiterId={recruiterId} cvUrl={c.cv_url ?? null} />
       {/* Language + Status — two columns */}
       <div className="grid grid-cols-2 gap-3">
         <Card>
@@ -2535,5 +2544,269 @@ function CandidateTimelineTab({
         );
       })}
     </div>
+  );
+}
+
+// ─── CV upload zone ───────────────────────────────────────────────────────────
+
+type ExtractedCandidate = {
+  full_name: string | null;
+  full_name_japanese: string | null;
+  current_title: string | null;
+  current_company: string | null;
+  age: number | null;
+  japanese_level: string | null;
+  english_level: string | null;
+  notice_period_months: number | null;
+  current_base: number | null;
+  current_total: number | null;
+  roles: Array<{
+    company_name: string;
+    title: string;
+    start_date: string | null;
+    end_date: string | null;
+    is_current: boolean;
+    description: string | null;
+  }>;
+};
+
+function CvUploadZone({
+  candidateId,
+  recruiterId,
+  cvUrl,
+}: {
+  candidateId: string;
+  recruiterId: string;
+  cvUrl: string | null;
+}) {
+  const qc = useQueryClient();
+  const [state, setState] = useState<"idle" | "uploading" | "extracting" | "done" | "error">("idle");
+  const [extracted, setExtracted] = useState<ExtractedCandidate | null>(null);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  async function handleFile(file: File) {
+    if (!file || file.type !== "application/pdf") {
+      toast.error("Please upload a PDF file.");
+      return;
+    }
+    setState("uploading");
+    try {
+      const path = `${recruiterId}/${candidateId}/${Date.now()}_${file.name.replace(/\s+/g, "_")}`;
+      const { error: uploadErr } = await supabase.storage.from("resumes").upload(path, file);
+      if (uploadErr) throw uploadErr;
+
+      // Store cv_url on candidate (field added in migration 006)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await supabase.from("candidates").update({ cv_url: path } as any).eq("id", candidateId);
+      void qc.invalidateQueries({ queryKey: ["candidate-profile", candidateId] });
+
+      setState("extracting");
+
+      const resp = await fetch("/api/ai/extract-candidate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ candidateId, storageKey: path }),
+      });
+      const data = (await resp.json()) as ExtractedCandidate;
+      setExtracted(data);
+      setState("done");
+      setReviewOpen(true);
+    } catch (err) {
+      console.error(err);
+      toast.error("Upload or extraction failed. Please try again.");
+      setState("error");
+    }
+  }
+
+  return (
+    <>
+      <div
+        className="rounded-xl px-4 py-3 flex items-center gap-3 transition-colors"
+        style={{
+          background: dragging ? "#e6f1fb" : "#f5f5f3",
+          border: `0.5px dashed ${dragging ? "#185fa5" : "rgba(26,26,24,0.2)"}`,
+          cursor: state === "uploading" || state === "extracting" ? "default" : "pointer",
+        }}
+        onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragging(false);
+          const f = e.dataTransfer.files[0];
+          if (f) void handleFile(f);
+        }}
+        onClick={() => {
+          if (state !== "uploading" && state !== "extracting") inputRef.current?.click();
+        }}
+      >
+        <IconFileText size={16} style={{ color: "#888780", flexShrink: 0 }} />
+        <div className="flex-1 min-w-0">
+          {state === "idle" && (
+            <p className="text-[12px]" style={{ color: "#5f5e5a" }}>
+              {cvUrl
+                ? "CV on file — drop a new PDF to re-extract"
+                : "Drop a PDF CV here or click to upload"}
+            </p>
+          )}
+          {state === "uploading" && (
+            <p className="text-[12px]" style={{ color: "#185fa5" }}>Uploading…</p>
+          )}
+          {state === "extracting" && (
+            <p className="text-[12px]" style={{ color: "#185fa5" }}>Extracting with AI…</p>
+          )}
+          {state === "done" && (
+            <p className="text-[12px]" style={{ color: "#27500a" }}>Extraction complete</p>
+          )}
+          {state === "error" && (
+            <p className="text-[12px]" style={{ color: "#a32d2d" }}>Failed — click to retry</p>
+          )}
+        </div>
+        {state === "done" && extracted && (
+          <button
+            className="ab"
+            onClick={(e) => { e.stopPropagation(); setReviewOpen(true); }}
+          >
+            Review
+          </button>
+        )}
+        <input
+          ref={inputRef}
+          type="file"
+          accept="application/pdf"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) void handleFile(f);
+            e.target.value = "";
+          }}
+        />
+      </div>
+
+      {extracted && (
+        <ExtractionReviewModal
+          open={reviewOpen}
+          onClose={() => setReviewOpen(false)}
+          extracted={extracted}
+          candidateId={candidateId}
+        />
+      )}
+    </>
+  );
+}
+
+// ─── extraction review modal ──────────────────────────────────────────────────
+
+function ExtractionReviewModal({
+  open,
+  onClose,
+  extracted: x,
+  candidateId,
+}: {
+  open: boolean;
+  onClose: () => void;
+  extracted: ExtractedCandidate;
+  candidateId: string;
+}) {
+  const qc = useQueryClient();
+  const [applying, setApplying] = useState(false);
+
+  async function applyFields() {
+    setApplying(true);
+    try {
+      const patch: Record<string, unknown> = {};
+      if (x.full_name)           patch.full_name = x.full_name;
+      if (x.full_name_japanese)  patch.full_name_japanese = x.full_name_japanese;
+      if (x.current_title)       patch.current_title = x.current_title;
+      if (x.current_company)     patch.current_company = x.current_company;
+      if (x.age != null)         patch.age = x.age;
+      if (x.japanese_level)      patch.japanese_level = x.japanese_level;
+      if (x.english_level)       patch.english_level = x.english_level;
+      if (x.notice_period_months != null) patch.notice_period_months = x.notice_period_months;
+      if (x.current_base != null)  patch.current_base = x.current_base;
+      if (x.current_total != null) patch.current_total = x.current_total;
+
+      if (Object.keys(patch).length > 0) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { error } = await supabase.from("candidates").update(patch as any).eq("id", candidateId);
+        if (error) throw error;
+      }
+      void qc.invalidateQueries({ queryKey: ["candidate-profile", candidateId] });
+      toast.success("Fields applied from CV extraction.");
+      onClose();
+    } catch {
+      toast.error("Failed to apply fields.");
+    } finally {
+      setApplying(false);
+    }
+  }
+
+  function row(label: string, value: string | number | null | undefined) {
+    if (value == null) return null;
+    return (
+      <div key={label} className="flex items-baseline justify-between gap-4 py-1.5"
+        style={{ borderBottom: "0.5px solid rgba(26,26,24,0.08)" }}>
+        <span className="text-[12px]" style={{ color: "#888780" }}>{label}</span>
+        <span className="text-[13px] font-medium">{String(value)}</span>
+      </div>
+    );
+  }
+
+  const formatSalary = (n: number | null) => n ? `¥${(n / 1_000_000).toFixed(1)}M` : null;
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent style={{ maxWidth: 520 }}>
+        <DialogHeader>
+          <DialogTitle>CV extraction review</DialogTitle>
+        </DialogHeader>
+
+        <p className="text-[12px] mb-3" style={{ color: "#888780" }}>
+          Review the extracted data below. Click "Apply fields" to merge into the candidate record.
+          Work history must be added manually.
+        </p>
+
+        <div className="mb-4">
+          {row("Full name", x.full_name)}
+          {row("Japanese name", x.full_name_japanese)}
+          {row("Current title", x.current_title)}
+          {row("Current company", x.current_company)}
+          {row("Age", x.age)}
+          {row("Japanese level", x.japanese_level)}
+          {row("English level", x.english_level)}
+          {row("Notice period", x.notice_period_months != null ? `${x.notice_period_months} months` : null)}
+          {row("Current base", formatSalary(x.current_base))}
+          {row("Current total", formatSalary(x.current_total))}
+        </div>
+
+        {x.roles && x.roles.length > 0 && (
+          <div className="mb-4">
+            <p className="sl mb-2">Work history (add manually)</p>
+            <div className="space-y-1.5">
+              {x.roles.map((r, i) => (
+                <div key={i} className="rounded-lg px-3 py-2"
+                  style={{ background: "#f5f5f3", border: "0.5px solid rgba(26,26,24,0.08)" }}>
+                  <p className="text-[12px] font-medium">{r.company_name} — {r.title}</p>
+                  <p className="text-[11px]" style={{ color: "#888780" }}>
+                    {r.start_date ?? "?"} – {r.is_current ? "Present" : (r.end_date ?? "?")}
+                  </p>
+                  {r.description && (
+                    <p className="text-[11px] mt-0.5" style={{ color: "#5f5e5a" }}>{r.description}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <DialogFooter className="gap-2">
+          <Button variant="outline" size="sm" onClick={onClose}>Dismiss</Button>
+          <Button size="sm" onClick={() => void applyFields()} disabled={applying}>
+            {applying ? "Applying…" : "Apply fields"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
