@@ -70,8 +70,8 @@ type Contact = {
   title: string | null;
   notes: string | null;
   relationship_score: number | null;
-  bypass_hr_warning: boolean;
-  is_primary_contact: boolean;
+  bypass_hr_warning: boolean | null;
+  is_primary: boolean | null;
 };
 
 type PipelineProcess = {
@@ -135,10 +135,9 @@ function useClientDetail(id: string) {
         { data: interactions },
       ] = await Promise.all([
         supabase.from("clients").select("*").eq("id", id).single(),
-        // TODO: narrow select after migration 007 adds role/notes/relationship_score/etc.
         supabase
           .from("client_contacts")
-          .select("*")
+          .select("id, name, role, title, notes, relationship_score, bypass_hr_warning, is_primary")
           .eq("client_id", id)
           .order("created_at"),
         supabase
@@ -163,7 +162,7 @@ function useClientDetail(id: string) {
       if (error) throw error;
       return {
         client: client as ClientRecord,
-        contacts: (contacts ?? []) as unknown as Contact[],
+        contacts: (contacts ?? []) as Contact[],
         reqs: (reqs ?? []) as ReqWithPipeline[],
         interactions: (interactions ?? []) as Interaction[],
       };
@@ -1142,16 +1141,14 @@ function ContactsCard({
   const [editingNote, setEditingNote] = useState<{ contactId: string; value: string } | null>(null);
 
   const updateScore = async (contactId: string, score: number) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await supabase.from("client_contacts").update({ relationship_score: score } as any).eq("id", contactId);
+    await supabase.from("client_contacts").update({ relationship_score: score }).eq("id", contactId);
     void qc.invalidateQueries({ queryKey: ["client", clientId] });
   };
 
   async function saveNote() {
     if (!editingNote) return;
     const trimmed = editingNote.value.trim();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await supabase.from("client_contacts").update({ notes: trimmed || null } as any).eq("id", editingNote.contactId);
+    await supabase.from("client_contacts").update({ notes: trimmed || null }).eq("id", editingNote.contactId);
     void qc.invalidateQueries({ queryKey: ["client", clientId] });
     setEditingNote(null);
   }
@@ -1211,7 +1208,7 @@ function ContactsCard({
                       >
                         {badge.label}
                       </span>
-                      {contact.is_primary_contact && (
+                      {contact.is_primary && (
                         <span
                           className="text-[11px] font-medium px-[7px] py-[2px] rounded border"
                           style={{ background: "#faeeda", color: "#633806", borderColor: "#fac775" }}
@@ -1797,29 +1794,28 @@ function AddContactDialog({
     role: "" as ContactRole | "",
     title: "",
     notes: "",
-    is_primary_contact: false,
+    is_primary: false,
     bypass_hr_warning: false,
   });
 
   const mutation = useMutation({
     mutationFn: async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { error } = await supabase.from("client_contacts").insert({
         client_id: clientId,
         recruiter_id: recruiterId,
         name: form.name.trim(),
-        role: form.role as ContactRole,
+        role: form.role,
         title: form.title.trim() || null,
         notes: form.notes.trim() || null,
-        is_primary_contact: form.is_primary_contact,
+        is_primary: form.is_primary,
         bypass_hr_warning: form.bypass_hr_warning,
-      } as any);
+      });
       if (error) throw error;
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["client", clientId] });
       toast.success("Contact added");
-      setForm({ name: "", role: "", title: "", notes: "", is_primary_contact: false, bypass_hr_warning: false });
+      setForm({ name: "", role: "", title: "", notes: "", is_primary: false, bypass_hr_warning: false });
       onClose();
     },
     onError: () => toast.error("Failed to add contact"),
@@ -1864,8 +1860,8 @@ function AddContactDialog({
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
-                checked={form.is_primary_contact}
-                onChange={(e) => setForm((p) => ({ ...p, is_primary_contact: e.target.checked }))}
+                checked={form.is_primary}
+                onChange={(e) => setForm((p) => ({ ...p, is_primary: e.target.checked }))}
               />
               Primary contact
             </label>

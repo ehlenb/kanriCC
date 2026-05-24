@@ -231,35 +231,50 @@ export type Database = {
       }
       client_contacts: {
         Row: {
+          bypass_hr_warning: boolean | null
           client_id: string
           created_at: string | null
           email: string | null
           id: string
           is_primary: boolean | null
           name: string
+          notes: string | null
           phone: string | null
+          recruiter_id: string | null
+          relationship_score: number | null
+          role: string | null
           title: string | null
           updated_at: string | null
         }
         Insert: {
+          bypass_hr_warning?: boolean | null
           client_id: string
           created_at?: string | null
           email?: string | null
           id?: string
           is_primary?: boolean | null
           name: string
+          notes?: string | null
           phone?: string | null
+          recruiter_id?: string | null
+          relationship_score?: number | null
+          role?: string | null
           title?: string | null
           updated_at?: string | null
         }
         Update: {
+          bypass_hr_warning?: boolean | null
           client_id?: string
           created_at?: string | null
           email?: string | null
           id?: string
           is_primary?: boolean | null
           name?: string
+          notes?: string | null
           phone?: string | null
+          recruiter_id?: string | null
+          relationship_score?: number | null
+          role?: string | null
           title?: string | null
           updated_at?: string | null
         }
