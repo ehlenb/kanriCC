@@ -40,6 +40,7 @@ import {
   IconSparkles,
   IconPhone,
   IconMail,
+  IconCalendar,
   IconFileText,
   IconShield,
   IconMessage,
@@ -151,6 +152,7 @@ function useCandidateProfile(id: string) {
         { data: roles },
         { data: competing },
         { data: processes },
+        { data: interactions },
       ] = await Promise.all([
         supabase
           .from("candidates")
@@ -190,6 +192,12 @@ function useCandidateProfile(id: string) {
           .eq("candidate_id", id)
           .not("stage", "in", '("Placed","Closed lost")')
           .order("updated_at", { ascending: false }),
+        supabase
+          .from("interactions")
+          .select("id, interaction_type, summary, full_notes, interacted_at, client_id")
+          .eq("candidate_id", id)
+          .order("interacted_at", { ascending: false })
+          .limit(50),
       ]);
 
       if (cErr) throw cErr;
@@ -201,6 +209,14 @@ function useCandidateProfile(id: string) {
         roles: (roles ?? []) as Role[],
         competing: (competing ?? []) as CompetingInterview[],
         processes: (processes ?? []) as Process[],
+        interactions: (interactions ?? []) as Array<{
+          id: string;
+          interaction_type: string;
+          summary: string | null;
+          full_notes: string | null;
+          interacted_at: string;
+          client_id: string | null;
+        }>,
       };
     },
   });
@@ -212,7 +228,7 @@ function CandidateProfile() {
   const { id } = Route.useParams();
   const { user } = useAuth();
   const { data, isLoading } = useCandidateProfile(id);
-  const [page, setPage] = useState<"registration" | "notes" | "processes">("registration");
+  const [page, setPage] = useState<"registration" | "timeline" | "notes" | "processes">("registration");
 
   if (isLoading) {
     return (
@@ -235,7 +251,7 @@ function CandidateProfile() {
     );
   }
 
-  const { candidate: c, motivations, blockers, roles, competing, processes } = data;
+  const { candidate: c, motivations, blockers, roles, competing, processes, interactions } = data;
   const lastContact = relativeTime(c.updated_at);
   const daysAgo = daysSince(c.updated_at);
 
@@ -281,9 +297,10 @@ function CandidateProfile() {
       >
         {(
           [
-            { key: "registration", label: "Registration notes" },
-            { key: "notes", label: "Notes" },
-            { key: "processes", label: "Processes" },
+            { key: "registration", label: "Registration" },
+            { key: "timeline",     label: "Timeline" },
+            { key: "notes",        label: "Candidate notes" },
+            { key: "processes",    label: "Candidate intelligence" },
           ] as const
         ).map(({ key, label }) => (
           <button
@@ -312,6 +329,8 @@ function CandidateProfile() {
           roles={roles}
           competing={competing}
         />
+      ) : page === "timeline" ? (
+        <CandidateTimelineTab interactions={interactions} processes={processes} />
       ) : page === "notes" ? (
         <NotesTab candidateId={id} candidate={c} />
       ) : (
@@ -2382,5 +2401,139 @@ function AddToProcessModal({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ─── candidate timeline tab ───────────────────────────────────────────────────
+
+const CAND_INTERACTION_ICON: Record<string, React.ElementType> = {
+  call: IconPhone,
+  email: IconMail,
+  meeting: IconCalendar,
+};
+const CAND_INTERACTION_COLORS: Record<string, { bg: string; color: string }> = {
+  call:    { bg: "#e6f1fb", color: "#185fa5" },
+  email:   { bg: "#f5f5f3", color: "#5f5e5a" },
+  meeting: { bg: "#eaf3de", color: "#3b6d11" },
+};
+
+type CandidateInteraction = {
+  id: string;
+  interaction_type: string;
+  summary: string | null;
+  full_notes: string | null;
+  interacted_at: string;
+  client_id: string | null;
+};
+
+function CandidateTimelineTab({
+  interactions,
+  processes,
+}: {
+  interactions: CandidateInteraction[];
+  processes: Process[];
+}) {
+  // Build a unified feed: interactions + process milestone entries
+  type FeedEntry =
+    | { kind: "interaction"; data: CandidateInteraction; ts: string }
+    | { kind: "process"; data: Process; ts: string };
+
+  const feed: FeedEntry[] = [
+    ...interactions.map((i) => ({ kind: "interaction" as const, data: i, ts: i.interacted_at })),
+    ...processes.map((p) => ({ kind: "process" as const, data: p, ts: p.updated_at })),
+  ].sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime());
+
+  function formatDate(iso: string) {
+    return new Date(iso).toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  }
+
+  if (feed.length === 0) {
+    return (
+      <div
+        className="rounded-xl px-5 py-12 text-center"
+        style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.12)" }}
+      >
+        <p className="text-[13px] font-medium" style={{ color: "#1a1a18" }}>No activity recorded yet.</p>
+        <p className="text-[12px] mt-1" style={{ color: "#888780" }}>
+          Interactions linked to this candidate and their active processes will appear here.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      {feed.map((entry) => {
+        if (entry.kind === "interaction") {
+          const i = entry.data;
+          const type = i.interaction_type ?? "call";
+          const Icon = CAND_INTERACTION_ICON[type] ?? IconPhone;
+          const colors = CAND_INTERACTION_COLORS[type] ?? CAND_INTERACTION_COLORS.call;
+          return (
+            <div
+              key={`i-${i.id}`}
+              className="rounded-xl p-[14px_18px]"
+              style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.12)" }}
+            >
+              <div className="flex items-start gap-3">
+                <div
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg mt-0.5"
+                  style={{ background: colors.bg }}
+                >
+                  <Icon size={14} style={{ color: colors.color }} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span
+                      className="text-[11px] font-medium capitalize px-[6px] py-[2px] rounded"
+                      style={{ background: colors.bg, color: colors.color }}
+                    >
+                      {type}
+                    </span>
+                    <span className="text-[11px]" style={{ color: "#b8b7b2" }}>
+                      {formatDate(i.interacted_at)}
+                    </span>
+                  </div>
+                  {i.summary && (
+                    <p className="text-[13px] font-medium mb-0.5">{i.summary}</p>
+                  )}
+                  {i.full_notes && (
+                    <p className="text-[12px] leading-relaxed" style={{ color: "#5f5e5a" }}>
+                      {i.full_notes}
+                    </p>
+                  )}
+                  {!i.summary && !i.full_notes && (
+                    <p className="text-[12px]" style={{ color: "#b8b7b2" }}>No notes recorded.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        // process milestone entry
+        const p = entry.data;
+        return (
+          <div
+            key={`p-${p.id}`}
+            className="flex items-center gap-3 rounded-xl px-4 py-3"
+            style={{ background: "#f5f5f3", border: "0.5px solid rgba(26,26,24,0.08)" }}
+          >
+            <StageBadge stage={p.stage} className="text-[11px]" />
+            <span className="flex-1 text-[12px]" style={{ color: "#5f5e5a" }}>
+              {p.requisitions?.clients?.company_name ?? "—"}
+              {p.requisitions?.title ? ` — ${p.requisitions.title}` : ""}
+            </span>
+            <span className="text-[11px]" style={{ color: "#b8b7b2" }}>
+              {formatDate(p.updated_at)}
+            </span>
+          </div>
+        );
+      })}
+    </div>
   );
 }

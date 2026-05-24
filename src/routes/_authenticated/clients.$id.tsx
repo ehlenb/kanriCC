@@ -32,6 +32,8 @@ import {
   IconArrowLeft,
   IconSparkles,
   IconPhone,
+  IconMail,
+  IconCalendar,
   IconPencil,
   IconPlus,
   IconFileText,
@@ -155,7 +157,7 @@ function useClientDetail(id: string) {
           .select("id, interaction_type, summary, full_notes, interacted_at, candidate_id")
           .eq("client_id", id)
           .order("interacted_at", { ascending: false })
-          .limit(12),
+          .limit(50),
       ]);
       if (error) throw error;
       return {
@@ -452,6 +454,7 @@ function ClientDetail() {
   const { data, isLoading } = useClientDetail(id);
   const qc = useQueryClient();
 
+  const [clientTab, setClientTab] = useState<"timeline" | "info" | "contract">("timeline");
   const [addContactOpen, setAddContactOpen] = useState(false);
   const [addReqOpen, setAddReqOpen] = useState(false);
   const [logInteractionOpen, setLogInteractionOpen] = useState(false);
@@ -720,70 +723,130 @@ function ClientDetail() {
         )}
       </div>
 
-      {/* Two-column grid */}
+      {/* Tab switcher */}
       <div
-        className="grid gap-[14px] px-6 pb-8"
-        style={{
-          gridTemplateColumns: "minmax(0,1fr) 272px",
-          paddingTop: 14,
-          alignItems: "start",
-        }}
+        className="flex gap-0 mx-6 mt-4"
+        style={{ borderBottom: "0.5px solid rgba(26,26,24,0.12)" }}
       >
-        {/* ── LEFT COLUMN ── */}
-        <div className="space-y-3">
-          {/* Company header card */}
-          <CompanyHeaderCard
-            client={c}
-            completeness={completeness}
-            stats={{ cvsSent, interviews, placements, feedbackOverdue }}
-            openReqsCount={openReqs.length}
-            onSaveStrategy={(notes) => {
-              void supabase
-                .from("clients")
-                .update({ strategy_notes: notes })
-                .eq("id", id)
-                .then(() => qc.invalidateQueries({ queryKey: ["client", id] }));
+        {(
+          [
+            { key: "timeline", label: "Timeline" },
+            { key: "info",     label: "Client info" },
+            { key: "contract", label: "Contract" },
+          ] as const
+        ).map(({ key, label }) => (
+          <button
+            key={key}
+            onClick={() => setClientTab(key)}
+            className="px-4 py-2 text-[13px] transition-colors"
+            style={{
+              borderBottom: clientTab === key ? "2px solid #1a1a18" : "2px solid transparent",
+              color: clientTab === key ? "#1a1a18" : "#5f5e5a",
+              fontWeight: clientTab === key ? 500 : 400,
+              marginBottom: -1,
             }}
-          />
-
-          {/* Contacts card */}
-          <ContactsCard
-            contacts={contacts}
-            clientId={id}
-            onAdd={() => setAddContactOpen(true)}
-          />
-
-          {/* Open jobs */}
-          <OpenRequisitionsCard
-            reqs={openReqs}
-            closedReqs={closedReqs}
-            contacts={contacts}
-            onAdd={() => setAddReqOpen(true)}
-          />
-        </div>
-
-        {/* ── RIGHT COLUMN ── */}
-        <div className="space-y-3">
-          {/* Recommended actions */}
-          <RecommendedActionsPanel
-            actions={actions}
-            onLogCall={() => setLogInteractionOpen(true)}
-            onCtaClick={(item) => void handleCtaClick(item)}
-            draftLoading={draftLoading}
-          />
-
-          {/* Quick actions */}
-          <QuickActionsCard
-            onLogReq={() => setAddReqOpen(true)}
-            onLogEvent={(type) => { setLogEventType(type); setLogInteractionOpen(true); }}
-            onMeetingPrep={() => void generateMeetingPrep()}
-            draftLoading={draftLoading}
-          />
-
-          {/* Japan market context */}
-          <JapanMarketContextCard client={c} />
-        </div>
+          >
+            {label}
+          </button>
+        ))}
       </div>
+
+      {/* ── TIMELINE TAB ── */}
+      {clientTab === "timeline" && (
+        <div
+          className="grid gap-[14px] px-6 pb-8"
+          style={{
+            gridTemplateColumns: "minmax(0,1fr) 272px",
+            paddingTop: 14,
+            alignItems: "start",
+          }}
+        >
+          <ClientTimelineTab interactions={interactions} />
+          <div className="space-y-3">
+            <RecommendedActionsPanel
+              actions={actions}
+              onLogCall={() => setLogInteractionOpen(true)}
+              onCtaClick={(item) => void handleCtaClick(item)}
+              draftLoading={draftLoading}
+            />
+            <QuickActionsCard
+              onLogReq={() => setAddReqOpen(true)}
+              onLogEvent={(type) => { setLogEventType(type); setLogInteractionOpen(true); }}
+              onMeetingPrep={() => void generateMeetingPrep()}
+              draftLoading={draftLoading}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* ── CLIENT INFO TAB ── */}
+      {clientTab === "info" && (
+        <div
+          className="grid gap-[14px] px-6 pb-8"
+          style={{
+            gridTemplateColumns: "minmax(0,1fr) 272px",
+            paddingTop: 14,
+            alignItems: "start",
+          }}
+        >
+          {/* ── LEFT COLUMN ── */}
+          <div className="space-y-3">
+            {/* Company header card */}
+            <CompanyHeaderCard
+              client={c}
+              completeness={completeness}
+              stats={{ cvsSent, interviews, placements, feedbackOverdue }}
+              openReqsCount={openReqs.length}
+              onSaveStrategy={(notes) => {
+                void supabase
+                  .from("clients")
+                  .update({ strategy_notes: notes })
+                  .eq("id", id)
+                  .then(() => qc.invalidateQueries({ queryKey: ["client", id] }));
+              }}
+            />
+
+            {/* Contacts card */}
+            <ContactsCard
+              contacts={contacts}
+              clientId={id}
+              onAdd={() => setAddContactOpen(true)}
+            />
+
+            {/* Open jobs */}
+            <OpenRequisitionsCard
+              reqs={openReqs}
+              closedReqs={closedReqs}
+              contacts={contacts}
+              onAdd={() => setAddReqOpen(true)}
+            />
+          </div>
+
+          {/* ── RIGHT COLUMN ── */}
+          <div className="space-y-3">
+            <RecommendedActionsPanel
+              actions={actions}
+              onLogCall={() => setLogInteractionOpen(true)}
+              onCtaClick={(item) => void handleCtaClick(item)}
+              draftLoading={draftLoading}
+            />
+            <QuickActionsCard
+              onLogReq={() => setAddReqOpen(true)}
+              onLogEvent={(type) => { setLogEventType(type); setLogInteractionOpen(true); }}
+              onMeetingPrep={() => void generateMeetingPrep()}
+              draftLoading={draftLoading}
+            />
+            <JapanMarketContextCard client={c} />
+          </div>
+        </div>
+      )}
+
+      {/* ── CONTRACT TAB ── */}
+      {clientTab === "contract" && (
+        <div className="px-6 pt-4 pb-8 max-w-xl">
+          <ClientContractTab client={c} />
+        </div>
+      )}
 
       {/* Dialogs */}
       <AddContactDialog
@@ -2614,6 +2677,125 @@ function F({
     <div className="space-y-1.5">
       <Label className="text-xs">{label}</Label>
       {children}
+    </div>
+  );
+}
+
+// ─── client timeline tab ──────────────────────────────────────────────────────
+
+const INTERACTION_ICON: Record<string, React.ElementType> = {
+  call: IconPhone,
+  email: IconMail,
+  meeting: IconCalendar,
+};
+
+const INTERACTION_COLORS: Record<string, { bg: string; color: string }> = {
+  call:    { bg: "#e6f1fb", color: "#185fa5" },
+  email:   { bg: "#f5f5f3", color: "#5f5e5a" },
+  meeting: { bg: "#eaf3de", color: "#3b6d11" },
+};
+
+function formatInteractionDate(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+}
+
+function ClientTimelineTab({ interactions }: { interactions: Interaction[] }) {
+  if (interactions.length === 0) {
+    return (
+      <div
+        className="rounded-xl px-5 py-12 text-center"
+        style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.12)" }}
+      >
+        <p className="text-[13px] font-medium" style={{ color: "#1a1a18" }}>No interactions logged yet.</p>
+        <p className="text-[12px] mt-1" style={{ color: "#888780" }}>
+          Use "Log event" to record calls, emails, and meetings with this client.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      {interactions.map((item) => {
+        const type = item.interaction_type ?? "call";
+        const Icon = INTERACTION_ICON[type] ?? IconPhone;
+        const colors = INTERACTION_COLORS[type] ?? INTERACTION_COLORS.call;
+        return (
+          <div
+            key={item.id}
+            className="rounded-xl p-[14px_18px]"
+            style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.12)" }}
+          >
+            <div className="flex items-start gap-3">
+              {/* Icon */}
+              <div
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg mt-0.5"
+                style={{ background: colors.bg }}
+              >
+                <Icon size={14} style={{ color: colors.color }} />
+              </div>
+
+              {/* Content */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <span
+                    className="text-[11px] font-medium capitalize px-[6px] py-[2px] rounded"
+                    style={{ background: colors.bg, color: colors.color }}
+                  >
+                    {type}
+                  </span>
+                  <span className="text-[11px]" style={{ color: "#b8b7b2" }}>
+                    {formatInteractionDate(item.interacted_at)}
+                  </span>
+                </div>
+
+                {item.summary && (
+                  <p className="text-[13px] font-medium mb-0.5">{item.summary}</p>
+                )}
+                {item.full_notes && (
+                  <p className="text-[12px] leading-relaxed" style={{ color: "#5f5e5a" }}>
+                    {item.full_notes}
+                  </p>
+                )}
+                {!item.summary && !item.full_notes && (
+                  <p className="text-[12px]" style={{ color: "#b8b7b2" }}>No notes recorded.</p>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── client contract tab ──────────────────────────────────────────────────────
+
+function ClientContractTab({ client: c }: { client: ClientRecord }) {
+  const fields: Array<{ label: string; value: string | null }> = [
+    { label: "Fee %",          value: c.fee_pct != null ? `${c.fee_pct}%` : null },
+    { label: "Client since",   value: c.started_at ? new Date(c.started_at).toLocaleDateString("en-GB", { month: "long", year: "numeric" }) : null },
+    { label: "KK entity",      value: c.kk_entity == null ? null : c.kk_entity ? "Yes — KK registered" : "No" },
+    { label: "Account status", value: c.is_active ? "Active" : "Inactive" },
+  ];
+
+  return (
+    <div
+      className="rounded-xl p-[18px_20px]"
+      style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.12)" }}
+    >
+      <p className="sl mb-4">Contract details</p>
+      <div className="space-y-3">
+        {fields.map(({ label, value }) => (
+          <div key={label} className="flex items-baseline justify-between gap-4">
+            <span className="text-[12px]" style={{ color: "#888780" }}>{label}</span>
+            <span className="text-[13px] font-medium" style={{ color: value ? "#1a1a18" : "#b8b7b2" }}>
+              {value ?? "—"}
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
