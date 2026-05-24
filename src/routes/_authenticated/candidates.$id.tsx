@@ -2580,7 +2580,8 @@ function CvUploadZone({
   cvUrl: string | null;
 }) {
   const qc = useQueryClient();
-  const [state, setState] = useState<"idle" | "uploading" | "extracting" | "done" | "error">("idle");
+  const [state, setState] = useState<"idle" | "uploading" | "uploaded" | "extracting" | "done" | "error">("idle");
+  const [uploadedPath, setUploadedPath] = useState<string | null>(null);
   const [extracted, setExtracted] = useState<ExtractedCandidate | null>(null);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -2595,27 +2596,55 @@ function CvUploadZone({
     try {
       const path = `${recruiterId}/${candidateId}/${Date.now()}_${file.name.replace(/\s+/g, "_")}`;
       const { error: uploadErr } = await supabase.storage.from("resumes").upload(path, file);
-      if (uploadErr) throw uploadErr;
+      if (uploadErr) {
+        const msg = uploadErr.message ?? String(uploadErr);
+        if (msg.toLowerCase().includes("bucket")) {
+          toast.error('Storage bucket not found. Create a private bucket named "resumes" in Supabase Dashboard → Storage.');
+        } else {
+          toast.error(`Upload failed: ${msg}`);
+        }
+        setState("error");
+        return;
+      }
 
       // Store cv_url on candidate
       await supabase.from("candidates").update({ cv_url: path }).eq("id", candidateId);
       void qc.invalidateQueries({ queryKey: ["candidate-profile", candidateId] });
+      setUploadedPath(path);
+      setState("uploaded");
+    } catch (err) {
+      console.error(err);
+      toast.error("Upload failed. Check the browser console for details.");
+      setState("error");
+    }
+  }
 
-      setState("extracting");
-
+  async function runExtraction(path: string) {
+    setState("extracting");
+    try {
       const resp = await fetch("/api/ai/extract-candidate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ candidateId, storageKey: path }),
       });
+      if (!resp.ok) {
+        const errText = await resp.text();
+        if (resp.status === 404) {
+          toast.error("API route not found. Run the app with `vercel dev` instead of `npm run dev` to use AI features locally.");
+        } else {
+          toast.error(`Extraction failed (${resp.status}): ${errText.slice(0, 120)}`);
+        }
+        setState("uploaded");
+        return;
+      }
       const data = (await resp.json()) as ExtractedCandidate;
       setExtracted(data);
       setState("done");
       setReviewOpen(true);
     } catch (err) {
       console.error(err);
-      toast.error("Upload or extraction failed. Please try again.");
-      setState("error");
+      toast.error("Extraction failed. Check the browser console for details.");
+      setState("uploaded");
     }
   }
 
@@ -2652,6 +2681,9 @@ function CvUploadZone({
           {state === "uploading" && (
             <p className="text-[12px]" style={{ color: "#185fa5" }}>Uploading…</p>
           )}
+          {state === "uploaded" && (
+            <p className="text-[12px]" style={{ color: "#27500a" }}>Uploaded — ready to extract</p>
+          )}
           {state === "extracting" && (
             <p className="text-[12px]" style={{ color: "#185fa5" }}>Extracting with AI…</p>
           )}
@@ -2662,6 +2694,14 @@ function CvUploadZone({
             <p className="text-[12px]" style={{ color: "#a32d2d" }}>Failed — click to retry</p>
           )}
         </div>
+        {state === "uploaded" && uploadedPath && (
+          <button
+            className="ab"
+            onClick={(e) => { e.stopPropagation(); void runExtraction(uploadedPath); }}
+          >
+            <IconSparkles size={11} /> Extract
+          </button>
+        )}
         {state === "done" && extracted && (
           <button
             className="ab"

@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite dev",
+    "dev": "vercel dev",
+    "dev:ui": "vite dev",
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit"
@@ -47,6 +48,7 @@
     "@vercel/node": "^5.1.0",
     "@vitejs/plugin-react": "^5.0.4",
     "typescript": "^5.8.3",
+    "vercel": "^54.4.1",
     "vite": "^6.3.5",
     "vite-tsconfig-paths": "^6.0.2"
   }
