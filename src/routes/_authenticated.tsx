@@ -10,6 +10,7 @@ import {
   IconLayoutDashboard,
   IconUsers,
   IconBuilding,
+  IconBriefcase,
   IconLogout,
 } from "@tabler/icons-react";
 import { useEffect } from "react";
@@ -58,6 +59,7 @@ const navItems = [
   { to: "/dashboard", icon: IconLayoutDashboard, label: "Dashboard" },
   { to: "/candidates", icon: IconUsers, label: "Candidates" },
   { to: "/clients", icon: IconBuilding, label: "Clients" },
+  { to: "/jobs", icon: IconBriefcase, label: "Jobs" },
 ];
 
 function Sidebar({

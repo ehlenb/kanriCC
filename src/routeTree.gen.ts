@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedJobsRouteImport } from './routes/_authenticated/jobs'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedClientsRouteImport } from './routes/_authenticated/clients'
 import { Route as AuthenticatedCandidatesRouteImport } from './routes/_authenticated/candidates'
@@ -31,6 +32,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedJobsRoute = AuthenticatedJobsRouteImport.update({
+  id: '/jobs',
+  path: '/jobs',
+  getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
@@ -65,6 +71,7 @@ export interface FileRoutesByFullPath {
   '/candidates': typeof AuthenticatedCandidatesRouteWithChildren
   '/clients': typeof AuthenticatedClientsRouteWithChildren
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/jobs': typeof AuthenticatedJobsRoute
   '/candidates/$id': typeof AuthenticatedCandidatesIdRoute
   '/clients/$id': typeof AuthenticatedClientsIdRoute
 }
@@ -74,6 +81,7 @@ export interface FileRoutesByTo {
   '/candidates': typeof AuthenticatedCandidatesRouteWithChildren
   '/clients': typeof AuthenticatedClientsRouteWithChildren
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/jobs': typeof AuthenticatedJobsRoute
   '/candidates/$id': typeof AuthenticatedCandidatesIdRoute
   '/clients/$id': typeof AuthenticatedClientsIdRoute
 }
@@ -85,6 +93,7 @@ export interface FileRoutesById {
   '/_authenticated/candidates': typeof AuthenticatedCandidatesRouteWithChildren
   '/_authenticated/clients': typeof AuthenticatedClientsRouteWithChildren
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/jobs': typeof AuthenticatedJobsRoute
   '/_authenticated/candidates/$id': typeof AuthenticatedCandidatesIdRoute
   '/_authenticated/clients/$id': typeof AuthenticatedClientsIdRoute
 }
@@ -96,6 +105,7 @@ export interface FileRouteTypes {
     | '/candidates'
     | '/clients'
     | '/dashboard'
+    | '/jobs'
     | '/candidates/$id'
     | '/clients/$id'
   fileRoutesByTo: FileRoutesByTo
@@ -105,6 +115,7 @@ export interface FileRouteTypes {
     | '/candidates'
     | '/clients'
     | '/dashboard'
+    | '/jobs'
     | '/candidates/$id'
     | '/clients/$id'
   id:
@@ -115,6 +126,7 @@ export interface FileRouteTypes {
     | '/_authenticated/candidates'
     | '/_authenticated/clients'
     | '/_authenticated/dashboard'
+    | '/_authenticated/jobs'
     | '/_authenticated/candidates/$id'
     | '/_authenticated/clients/$id'
   fileRoutesById: FileRoutesById
@@ -147,6 +159,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/jobs': {
+      id: '/_authenticated/jobs'
+      path: '/jobs'
+      fullPath: '/jobs'
+      preLoaderRoute: typeof AuthenticatedJobsRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/dashboard': {
       id: '/_authenticated/dashboard'
@@ -215,12 +234,14 @@ interface AuthenticatedRouteChildren {
   AuthenticatedCandidatesRoute: typeof AuthenticatedCandidatesRouteWithChildren
   AuthenticatedClientsRoute: typeof AuthenticatedClientsRouteWithChildren
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedJobsRoute: typeof AuthenticatedJobsRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedCandidatesRoute: AuthenticatedCandidatesRouteWithChildren,
   AuthenticatedClientsRoute: AuthenticatedClientsRouteWithChildren,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedJobsRoute: AuthenticatedJobsRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
