@@ -7,13 +7,12 @@ import {
   greetingByHour,
   todayFormatted,
   stageOrder,
-  formatYen,
   relativeTime,
   initials,
 } from "@/lib/candidate-utils";
 import { StageBadge } from "@/components/shared/StageBadge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { IconSearch, IconSparkles } from "@tabler/icons-react";
+import { IconSparkles } from "@tabler/icons-react";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
@@ -36,10 +35,11 @@ type PriorityProcess = {
 };
 
 type StatCards = {
-  activeCandidates: number;
-  openReqs: number;
-  riskFlags: number;
-  overdueFollowUps: number;
+  buyIn: number;
+  cvsSent: number;
+  activeInterviews: number;
+  offers: number;
+  placed: number;
 };
 
 // ─── data hooks ──────────────────────────────────────────────────────────────
@@ -47,38 +47,25 @@ type StatCards = {
 function useDashboardStats(recruiterId: string) {
   return useQuery({
     queryKey: ["dashboard-stats", recruiterId],
+    staleTime: 30_000,
+    retry: 1,
     queryFn: async (): Promise<StatCards> => {
-      const [{ count: activeCandidates }, { count: openReqs }, { data: processes }] =
-        await Promise.all([
-          supabase
-            .from("candidates")
-            .select("*", { count: "exact", head: true })
-            .eq("recruiter_id", recruiterId),
-          supabase
-            .from("requisitions")
-            .select("*", { count: "exact", head: true })
-            .eq("recruiter_id", recruiterId)
-            .eq("is_open", true),
-          supabase
-            .from("processes")
-            .select("id, stage, updated_at")
-            .eq("owner_recruiter_id", recruiterId)
-            .not("stage", "in", '("Closed won","Closed lost")'),
-        ]);
+      const { data: processes } = await supabase
+        .from("processes")
+        .select("id, stage")
+        .eq("owner_recruiter_id", recruiterId);
 
-      const now = Date.now();
-      const day = 86_400_000;
-      const overdueFollowUps =
-        processes?.filter((p) => {
-          const d = p.updated_at ? now - new Date(p.updated_at).getTime() : Infinity;
-          return d > 7 * day;
-        }).length ?? 0;
+      const all = processes ?? [];
+      const INTERVIEW_STAGES = ["1st interview", "2nd interview", "Final interview"];
 
       return {
-        activeCandidates: activeCandidates ?? 0,
-        openReqs: openReqs ?? 0,
-        riskFlags: 0,
-        overdueFollowUps,
+        buyIn: all.filter((p) => p.stage === "Buy-in targeting").length,
+        cvsSent: all.filter(
+          (p) => !["Buy-in targeting", "Closed won", "Closed lost"].includes(p.stage),
+        ).length,
+        activeInterviews: all.filter((p) => INTERVIEW_STAGES.includes(p.stage)).length,
+        offers: all.filter((p) => p.stage === "Offer").length,
+        placed: all.filter((p) => p.stage === "Closed won").length,
       };
     },
   });
@@ -168,65 +155,62 @@ function Dashboard() {
         &nbsp;&middot;&nbsp;Here is what needs your attention today
       </p>
 
-      {/* Stat cards */}
-      <div className="grid grid-cols-4 gap-2 mb-4">
+      {/* Stat cards — 7 pipeline metrics */}
+      <div className="grid grid-cols-7 gap-2 mb-4">
+        <StatCard loading={false} value="—" label="Specs sent" />
         <StatCard
           loading={stats.isLoading}
-          value={stats.data?.activeCandidates ?? 0}
-          label="Active candidates"
+          value={stats.data?.buyIn ?? 0}
+          label="Buy-in"
         />
         <StatCard
           loading={stats.isLoading}
-          value={stats.data?.openReqs ?? 0}
-          label="Open requisitions"
+          value={stats.data?.cvsSent ?? 0}
+          label="CVs sent"
         />
         <StatCard
           loading={stats.isLoading}
-          value={stats.data?.riskFlags ?? 0}
-          label="Risk flags"
-          tone="danger"
+          value={stats.data?.activeInterviews ?? 0}
+          label="Interviews"
+          tone="info"
         />
         <StatCard
           loading={stats.isLoading}
-          value={stats.data?.overdueFollowUps ?? 0}
-          label="Follow-ups overdue"
-          tone="warning"
+          value={stats.data?.offers ?? 0}
+          label="Offers"
+          tone={stats.data?.offers ? "gold" : undefined}
         />
+        <StatCard
+          loading={stats.isLoading}
+          value={stats.data?.placed ?? 0}
+          label="Placed"
+          tone={stats.data?.placed ? "success" : undefined}
+        />
+        <StatCard loading={false} value="—" label="Billing (QTD)" />
       </div>
 
-      {/* Two-column layout */}
-      <div className="grid gap-3" style={{ gridTemplateColumns: "1.85fr 1fr" }}>
-        {/* Left — priority actions */}
-        <div>
-          <div
-            className="bg-card rounded-xl p-5"
-            style={{ border: "0.5px solid rgba(26,26,24,0.12)" }}
-          >
-            <p className="sl mb-3">Priority actions — ranked by urgency</p>
+      {/* Priority actions — full width */}
+      <div
+        className="bg-card rounded-xl p-5"
+        style={{ border: "0.5px solid rgba(26,26,24,0.12)" }}
+      >
+        <p className="sl mb-3">Priority actions — ranked by urgency</p>
 
-            {priority.isLoading && (
-              <div className="space-y-4">
-                {[0, 1, 2].map((i) => (
-                  <Skeleton key={i} className="h-20 w-full" />
-                ))}
-              </div>
-            )}
-
-            {!priority.isLoading && priority.data?.length === 0 && (
-              <EmptyPriority />
-            )}
-
-            {priority.data?.map((p) => (
-              <CandidateRow key={p.processId} process={p} />
+        {priority.isLoading && (
+          <div className="space-y-4">
+            {[0, 1, 2].map((i) => (
+              <Skeleton key={i} className="h-20 w-full" />
             ))}
           </div>
-        </div>
+        )}
 
-        {/* Right — market data + client intel */}
-        <div className="space-y-3">
-          <MarketSalaries />
-          <ClientPackageIntel recruiterId={recruiterId} />
-        </div>
+        {!priority.isLoading && priority.data?.length === 0 && (
+          <EmptyPriority />
+        )}
+
+        {priority.data?.map((p) => (
+          <CandidateRow key={p.processId} process={p} />
+        ))}
       </div>
     </div>
   );
@@ -241,16 +225,17 @@ function StatCard({
   tone,
 }: {
   loading: boolean;
-  value: number;
+  value: number | string;
   label: string;
-  tone?: "danger" | "warning";
+  tone?: "danger" | "warning" | "info" | "success" | "gold";
 }) {
   const valueColor =
-    tone === "danger"
-      ? "#a32d2d"
-      : tone === "warning"
-        ? "#633806"
-        : "#1a1a18";
+    tone === "danger" ? "#a32d2d"
+    : tone === "warning" ? "#633806"
+    : tone === "info" ? "#185fa5"
+    : tone === "success" ? "#27500a"
+    : tone === "gold" ? "#633806"
+    : "#1a1a18";
 
   return (
     <div
@@ -258,13 +243,13 @@ function StatCard({
       style={{ background: "#f5f5f3" }}
     >
       {loading ? (
-        <Skeleton className="h-7 w-10 mb-1" />
+        <Skeleton className="h-7 w-8 mb-1" />
       ) : (
-        <div className="text-2xl font-medium" style={{ color: valueColor }}>
+        <div className="text-xl font-medium leading-tight" style={{ color: valueColor }}>
           {value}
         </div>
       )}
-      <div className="text-[11px]" style={{ color: "#5f5e5a", marginTop: 2 }}>
+      <div className="text-[11px] mt-0.5" style={{ color: "#5f5e5a" }}>
         {label}
       </div>
     </div>
@@ -411,138 +396,3 @@ function EmptyPriority() {
   );
 }
 
-// ─── right column ─────────────────────────────────────────────────────────────
-
-const MARKET_RANGES = [
-  { role: "Finance Manager, banking", range: "¥8–15M" },
-  { role: "Financial Planning Manager", range: "¥12–18M" },
-  { role: "SCM Director, East Japan", range: "¥15–40M" },
-  { role: "Marketing Director, FMCG", range: "¥15–25M" },
-  { role: "Data Engineer, tech", range: "¥8–16M" },
-  { role: "Robotics / Mfg Engineer", range: "¥8–16M" },
-  { role: "Software Engineer (SWE3), tech", range: "¥10–22M" },
-  { role: "HR Business Partner", range: "¥9–18M" },
-];
-
-function MarketSalaries() {
-  return (
-    <div
-      className="bg-card rounded-xl p-5"
-      style={{ border: "0.5px solid rgba(26,26,24,0.12)" }}
-    >
-      <p className="sl mb-1">Japan market salary ranges</p>
-      <p className="text-[11px] mb-3" style={{ color: "#888780" }}>
-        Source: Robert Walters Japan 2026 + your placements
-      </p>
-
-      {MARKET_RANGES.map((r) => (
-        <div
-          key={r.role}
-          className="flex justify-between text-[12px] py-1.5"
-          style={{ borderBottom: "0.5px solid rgba(26,26,24,0.08)" }}
-        >
-          <span style={{ color: "#5f5e5a" }}>{r.role}</span>
-          <span className="font-medium ml-3 shrink-0">{r.range}</span>
-        </div>
-      ))}
-
-      <button
-        className="ab w-full justify-center mt-3"
-      >
-        <IconSearch size={12} />
-        Look up a role
-      </button>
-    </div>
-  );
-}
-
-function ClientPackageIntel({ recruiterId }: { recruiterId: string }) {
-  const { data: clients } = useQuery({
-    queryKey: ["client-package-intel", recruiterId],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("clients")
-        .select(`
-          id,
-          company_name,
-          client_package_intelligence (
-            base_pct_of_total,
-            bonus_type,
-            last_bonus_payout_pct,
-            has_rsu,
-            confirmed_stretch
-          )
-        `)
-        .eq("recruiter_id", recruiterId)
-        .limit(3);
-      return data ?? [];
-    },
-  });
-
-  return (
-    <div
-      className="bg-card rounded-xl p-5"
-      style={{ border: "0.5px solid rgba(26,26,24,0.12)" }}
-    >
-      <p className="sl mb-3">Client package intelligence</p>
-
-      {!clients || clients.length === 0 ? (
-        <p className="text-[12px]" style={{ color: "#888780" }}>
-          No clients yet. Add a client and log a meeting note to auto-fill
-          package intelligence.
-        </p>
-      ) : (
-        clients.map((c, i) => {
-          const pkg = Array.isArray(c.client_package_intelligence)
-            ? c.client_package_intelligence[0]
-            : c.client_package_intelligence;
-
-          return (
-            <div key={c.id}>
-              {i > 0 && (
-                <div
-                  className="my-3"
-                  style={{ borderTop: "0.5px solid rgba(26,26,24,0.12)" }}
-                />
-              )}
-              <p className="text-[12px] font-medium mb-2">{c.company_name}</p>
-              <PkgRow label="Base %" value={pkg?.base_pct_of_total ? `${pkg.base_pct_of_total}% of total` : null} />
-              <PkgRow label="Bonus" value={pkg?.bonus_type} />
-              <PkgRow
-                label="Last bonus payout"
-                value={pkg?.last_bonus_payout_pct ? `${pkg.last_bonus_payout_pct}% of target` : null}
-              />
-              <PkgRow
-                label="RSU / equity"
-                value={pkg?.has_rsu === true ? "Yes" : pkg?.has_rsu === false ? "Not at this level" : null}
-              />
-              <PkgRow
-                label="Stretch confirmed"
-                value={formatYen(pkg?.confirmed_stretch)}
-              />
-              {!pkg && (
-                <p className="text-[11px] mt-2" style={{ color: "#888780" }}>
-                  Log a client meeting note to auto-fill missing fields
-                </p>
-              )}
-            </div>
-          );
-        })
-      )}
-    </div>
-  );
-}
-
-function PkgRow({ label, value }: { label: string; value: string | null | undefined }) {
-  return (
-    <div
-      className="flex justify-between text-[13px] py-1.5"
-      style={{ borderBottom: "0.5px solid rgba(26,26,24,0.08)" }}
-    >
-      <span style={{ color: "#5f5e5a" }}>{label}</span>
-      <span style={{ color: value ? "#1a1a18" : "#888780" }}>
-        {value ?? "N/A — not yet logged"}
-      </span>
-    </div>
-  );
-}

@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
@@ -26,21 +26,14 @@ import {
 import {
   formatYen,
   initials,
-  relativeTime,
-  daysSince,
 } from "@/lib/candidate-utils";
 import type { ContactRole } from "@/integrations/supabase/types";
 import {
   IconArrowLeft,
   IconSparkles,
   IconPhone,
-  IconBuilding,
-  IconSend,
-  IconUserCheck,
-  IconAlertTriangle,
   IconPencil,
   IconPlus,
-  IconFile,
   IconFileText,
   IconCopy,
   IconCheck,
@@ -462,6 +455,7 @@ function ClientDetail() {
   const [addContactOpen, setAddContactOpen] = useState(false);
   const [addReqOpen, setAddReqOpen] = useState(false);
   const [logInteractionOpen, setLogInteractionOpen] = useState(false);
+  const [logEventType, setLogEventType] = useState<"call" | "email" | "meeting">("call");
   const [snapshotData, setSnapshotData] = useState<{
     whereThingsStand: string;
     watchOut: string;
@@ -761,16 +755,13 @@ function ClientDetail() {
             onAdd={() => setAddContactOpen(true)}
           />
 
-          {/* Open requisitions */}
+          {/* Open jobs */}
           <OpenRequisitionsCard
             reqs={openReqs}
             closedReqs={closedReqs}
             contacts={contacts}
             onAdd={() => setAddReqOpen(true)}
           />
-
-          {/* Recent activity */}
-          <RecentActivityCard interactions={interactions} />
         </div>
 
         {/* ── RIGHT COLUMN ── */}
@@ -786,7 +777,7 @@ function ClientDetail() {
           {/* Quick actions */}
           <QuickActionsCard
             onLogReq={() => setAddReqOpen(true)}
-            onLogCall={() => setLogInteractionOpen(true)}
+            onLogEvent={(type) => { setLogEventType(type); setLogInteractionOpen(true); }}
             onMeetingPrep={() => void generateMeetingPrep()}
             draftLoading={draftLoading}
           />
@@ -814,6 +805,7 @@ function ClientDetail() {
         recruiterId={user!.id}
         open={logInteractionOpen}
         onClose={() => setLogInteractionOpen(false)}
+        initialType={logEventType}
       />
       <DraftModal
         draft={draftModal}
@@ -905,7 +897,7 @@ function CompanyHeaderCard({
             )}
             {openReqsCount > 0 && (
               <MetaPill style={{ background: "#faeeda", color: "#633806", borderColor: "#fac775" }}>
-                {openReqsCount} open req{openReqsCount !== 1 ? "s" : ""}
+                {openReqsCount} open job{openReqsCount !== 1 ? "s" : ""}
               </MetaPill>
             )}
           </div>
@@ -1328,7 +1320,7 @@ function OpenRequisitionsCard({
     <Card>
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <SL>Open requisitions</SL>
+          <SL>Open jobs</SL>
           {reqs.length > 0 && (
             <span
               className="text-[11px] px-1.5 py-0.5 rounded -mt-2"
@@ -1345,7 +1337,7 @@ function OpenRequisitionsCard({
 
       {reqs.length === 0 && (
         <p className="text-[13px]" style={{ color: "#888780" }}>
-          No open requisitions. Add one to start building the pipeline.
+          No open jobs. Add one to start building the pipeline.
         </p>
       )}
 
@@ -1467,67 +1459,6 @@ function PipelineBadge({
   );
 }
 
-// ─── recent activity card ─────────────────────────────────────────────────────
-
-const ACTIVITY_ICON: Record<
-  string,
-  { Icon: React.FC<{ size?: number }>; style: React.CSSProperties }
-> = {
-  call: { Icon: IconPhone, style: { background: "#e6f1fb", color: "#185fa5" } },
-  meeting: { Icon: IconBuilding, style: { background: "#e6f1fb", color: "#185fa5" } },
-  email: { Icon: IconFile, style: { background: "#e6f1fb", color: "#185fa5" } },
-  cv_submitted: { Icon: IconSend, style: { background: "#eaf3de", color: "#27500a" } },
-  interview: { Icon: IconUserCheck, style: { background: "#faeeda", color: "#633806" } },
-  risk_flag: { Icon: IconAlertTriangle, style: { background: "#fcebeb", color: "#a32d2d" } },
-  note: { Icon: IconPencil, style: { background: "#f5f5f3", color: "#888780" } },
-};
-
-function RecentActivityCard({ interactions }: { interactions: Interaction[] }) {
-  return (
-    <Card>
-      <SL>Recent activity</SL>
-      {interactions.length === 0 ? (
-        <p className="text-[13px]" style={{ color: "#888780" }}>
-          No interactions logged yet.
-        </p>
-      ) : (
-        <div className="space-y-3">
-          {interactions.map((item) => {
-            const config = ACTIVITY_ICON[item.interaction_type] ?? ACTIVITY_ICON.note;
-            const { Icon, style: iconStyle } = config;
-            const text = item.summary ?? item.full_notes ?? "No notes";
-            const dAgo = daysSince(item.interacted_at);
-            const timeStr =
-              dAgo < 7
-                ? relativeTime(item.interacted_at)
-                : new Date(item.interacted_at).toLocaleDateString("en-GB", {
-                    day: "numeric",
-                    month: "short",
-                    year: "numeric",
-                  });
-
-            return (
-              <div key={item.id} className="flex gap-2.5">
-                <div
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
-                  style={iconStyle}
-                >
-                  <Icon size={13} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[13px] leading-snug">{text}</p>
-                  <p className="text-[11px] mt-0.5" style={{ color: "#888780" }}>
-                    {timeStr}
-                  </p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </Card>
-  );
-}
 
 // ─── recommended actions panel ────────────────────────────────────────────────
 
@@ -1639,53 +1570,93 @@ function RecommendedActionsPanel({
 
 function QuickActionsCard({
   onLogReq,
-  onLogCall,
+  onLogEvent,
   onMeetingPrep,
   draftLoading,
 }: {
   onLogReq: () => void;
-  onLogCall: () => void;
+  onLogEvent: (type: "call" | "email" | "meeting") => void;
   onMeetingPrep: () => void;
   draftLoading: boolean;
 }) {
-  const actions = [
-    {
-      icon: IconSparkles,
-      label: "Prep for client meeting ↗",
-      action: onMeetingPrep,
-      isAi: true,
-    },
-    { icon: IconPlus, label: "Log new requisition", action: onLogReq, isAi: false },
-    { icon: IconPhone, label: "Log call note", action: onLogCall, isAi: false },
-  ];
+  const [showEventMenu, setShowEventMenu] = useState(false);
+
+  const btnBase: React.CSSProperties = {
+    border: "0.5px solid rgba(26,26,24,0.12)",
+    background: "#fff",
+  };
 
   return (
     <Card>
       <SL>Quick actions</SL>
       <div className="space-y-1.5">
-        {actions.map(({ icon: Icon, label, action, isAi }) => (
+
+        {/* Prep for client meeting */}
+        <button
+          onClick={onMeetingPrep}
+          disabled={draftLoading}
+          className="flex items-center gap-2 w-full text-left text-[13px] px-3 py-2 rounded-[6px]"
+          style={{ ...btnBase, opacity: draftLoading ? 0.6 : 1 }}
+          onMouseEnter={(e) => { if (!draftLoading) e.currentTarget.style.background = "#f5f5f3"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "#fff"; }}
+        >
+          <IconSparkles size={14} style={{ color: "#5f5e5a" }} />
+          {draftLoading ? "Generating…" : "Prep for client meeting ↗"}
+        </button>
+
+        {/* Log new job */}
+        <button
+          onClick={onLogReq}
+          className="flex items-center gap-2 w-full text-left text-[13px] px-3 py-2 rounded-[6px]"
+          style={btnBase}
+          onMouseEnter={(e) => { e.currentTarget.style.background = "#f5f5f3"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "#fff"; }}
+        >
+          <IconPlus size={14} style={{ color: "#5f5e5a" }} />
+          Log new job
+        </button>
+
+        {/* Log event — dropdown */}
+        <div className="relative">
           <button
-            key={label}
-            onClick={action}
-            disabled={isAi && draftLoading}
-            className="flex items-center gap-2 w-full text-left text-[13px] px-3 py-2 rounded-[6px] transition-colors"
-            style={{
-              border: "0.5px solid rgba(26,26,24,0.12)",
-              background: "#fff",
-              opacity: isAi && draftLoading ? 0.6 : 1,
-            }}
-            onMouseEnter={(e) => {
-              if (!(isAi && draftLoading))
-                e.currentTarget.style.background = "#f5f5f3";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "#fff";
-            }}
+            onClick={() => setShowEventMenu((v) => !v)}
+            className="flex items-center gap-2 w-full text-left text-[13px] px-3 py-2 rounded-[6px]"
+            style={{ ...btnBase, background: showEventMenu ? "#f5f5f3" : "#fff" }}
           >
-            <Icon size={14} style={{ color: "#5f5e5a" }} />
-            {isAi && draftLoading ? "Generating…" : label}
+            <IconPhone size={14} style={{ color: "#5f5e5a" }} />
+            Log event
+            <span className="ml-auto text-[10px]" style={{ color: "#b8b7b2" }}>
+              {showEventMenu ? "▴" : "▾"}
+            </span>
           </button>
-        ))}
+
+          {showEventMenu && (
+            <div
+              className="absolute left-0 right-0 top-full mt-1 rounded-[8px] overflow-hidden z-10"
+              style={{
+                border: "0.5px solid rgba(26,26,24,0.12)",
+                background: "#fff",
+                boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+              }}
+            >
+              {(["Call", "Email", "Meeting"] as const).map((label) => {
+                const type = label.toLowerCase() as "call" | "email" | "meeting";
+                return (
+                  <button
+                    key={type}
+                    onClick={() => { setShowEventMenu(false); onLogEvent(type); }}
+                    className="flex items-center gap-2 w-full text-left text-[13px] px-3 py-2"
+                    onMouseEnter={(e) => { e.currentTarget.style.background = "#f5f5f3"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = "#fff"; }}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
       </div>
     </Card>
   );
@@ -2055,7 +2026,7 @@ function RequisitionIntakeModal({
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["client", clientId] });
-      toast.success("Requisition saved");
+      toast.success("Job saved");
       setForm(EMPTY_REQ);
       onClose();
     },
@@ -2066,7 +2037,7 @@ function RequisitionIntakeModal({
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent style={{ maxWidth: 680 }}>
         <DialogHeader>
-          <DialogTitle>New requisition</DialogTitle>
+          <DialogTitle>New job</DialogTitle>
         </DialogHeader>
 
         <div className="overflow-y-auto max-h-[72vh] pr-2 space-y-5 py-1">
@@ -2435,7 +2406,7 @@ function RequisitionIntakeModal({
             onClick={() => mutation.mutate()}
             disabled={!form.title.trim() || mutation.isPending}
           >
-            {mutation.isPending ? "Saving…" : "Save requisition"}
+            {mutation.isPending ? "Saving…" : "Save job"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -2450,16 +2421,22 @@ function LogInteractionDialog({
   recruiterId,
   open,
   onClose,
+  initialType = "call",
 }: {
   clientId: string;
   recruiterId: string;
   open: boolean;
   onClose: () => void;
+  initialType?: string;
 }) {
   const qc = useQueryClient();
-  const [type, setType] = useState("call");
+  const [type, setType] = useState(initialType);
   const [summary, setSummary] = useState("");
   const [notes, setNotes] = useState("");
+
+  useEffect(() => {
+    if (open) setType(initialType);
+  }, [open, initialType]);
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -2488,7 +2465,7 @@ function LogInteractionDialog({
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Log interaction</DialogTitle>
+          <DialogTitle>Log event</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-1">
           <F label="Type">
