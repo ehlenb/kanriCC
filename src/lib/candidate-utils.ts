@@ -43,28 +43,28 @@ export function formatYen(amount: number | null | undefined): string {
 }
 
 export function stageOrder(stage: string): number {
-  const order: Record<string, number> = {
-    "Final interview": 0,
-    Offer: 1,
-    "2nd interview": 2,
-    "1st interview": 3,
-    Screening: 4,
-    "Buy-in targeting": 5,
-  };
-  return order[stage] ?? 99;
+  if (stage === "Offer") return 0;
+  if (stage === "Placed") return 1;
+  // CCM stages: higher round number = further along = more urgent = lower sort order
+  const ccm = stage.match(/^CCM(\d+)$/);
+  if (ccm) return Math.max(2, 10 - parseInt(ccm[1])); // CCM7→3, CCM3→7, CCM1→9
+  if (stage === "CV Sent") return 10;
+  if (stage === "Buy-In") return 11;
+  if (stage === "Specs Sent") return 12;
+  return 99;
+}
+
+export function isCcmStage(stage: string): boolean {
+  return /^CCM\d+$/.test(stage);
 }
 
 export function stageBadgeVariant(
   stage: string,
-): "info" | "warning" | "gold" | "gray" {
-  if (stage === "Buy-in targeting") return "warning";
+): "info" | "warning" | "gold" | "success" | "gray" {
+  if (stage === "Specs Sent" || stage === "Buy-In") return "warning";
   if (stage === "Offer") return "gold";
-  if (
-    ["Screening", "1st interview", "2nd interview", "Final interview"].includes(
-      stage,
-    )
-  )
-    return "info";
+  if (stage === "Placed") return "success";
+  if (stage === "CV Sent" || isCcmStage(stage)) return "info";
   return "gray";
 }
 

@@ -56,16 +56,14 @@ function useDashboardStats(recruiterId: string) {
         .eq("owner_recruiter_id", recruiterId);
 
       const all = processes ?? [];
-      const INTERVIEW_STAGES = ["1st interview", "2nd interview", "Final interview"];
-
       return {
-        buyIn: all.filter((p) => p.stage === "Buy-in targeting").length,
+        buyIn: all.filter((p) => p.stage === "Buy-In").length,
         cvsSent: all.filter(
-          (p) => !["Buy-in targeting", "Closed won", "Closed lost"].includes(p.stage),
+          (p) => !["Specs Sent", "Buy-In", "Placed", "Closed lost"].includes(p.stage),
         ).length,
-        activeInterviews: all.filter((p) => INTERVIEW_STAGES.includes(p.stage)).length,
+        activeInterviews: all.filter((p) => /^CCM\d+$/.test(p.stage)).length,
         offers: all.filter((p) => p.stage === "Offer").length,
-        placed: all.filter((p) => p.stage === "Closed won").length,
+        placed: all.filter((p) => p.stage === "Placed").length,
       };
     },
   });
@@ -96,7 +94,7 @@ function usePriorityProcesses(recruiterId: string) {
         `,
         )
         .eq("owner_recruiter_id", recruiterId)
-        .not("stage", "in", '("Closed won","Closed lost")')
+        .not("stage", "in", '("Placed","Closed lost")')
         .order("updated_at", { ascending: true })
         .limit(10);
 
@@ -265,9 +263,9 @@ function CandidateRow({ process: p }: { process: PriorityProcess }) {
     : null;
 
   const avatarBg =
-    stageOrder(p.stage) <= 1
+    p.stage === "Offer"
       ? { bg: "#fcebeb", color: "#a32d2d" }
-      : stageOrder(p.stage) <= 3
+      : /^CCM\d+$/.test(p.stage)
         ? { bg: "#faeeda", color: "#633806" }
         : { bg: "#f5f5f3", color: "#5f5e5a" };
 

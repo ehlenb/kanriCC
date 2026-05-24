@@ -170,7 +170,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let maxTokens = 600;
 
   if (draftType === "follow_up") {
-    const isPostInterview = proc?.stage && ["1st interview", "2nd interview", "Final interview"].includes(proc.stage);
+    const isPostInterview = proc?.stage && /^CCM\d+$/.test(proc.stage);
     const subject = isPostInterview
       ? `Re: ${cand?.full_name ?? "Candidate"} — interview feedback`
       : `Re: ${cand?.full_name ?? "Candidate"} — CV review`;
@@ -244,8 +244,9 @@ Write a closing call script with:
   }
 
   else if (draftType === "scheduling") {
-    const nextRound = proc?.stage === "1st interview" ? "2nd interview"
-      : proc?.stage === "2nd interview" ? "final interview"
+    const ccmMatch = proc?.stage?.match(/^CCM(\d+)$/);
+    const nextRound = ccmMatch
+      ? `CCM${parseInt(ccmMatch[1]) + 1}`
       : "next interview round";
 
     system = `You are drafting a scheduling email for a recruiter. The email is sent to the client contact responsible for scheduling the next interview round. It should be brief (3–5 sentences), propose next steps, and make it easy for the recipient to reply with times. ${toneInstruction} ${FORBIDDEN}`;

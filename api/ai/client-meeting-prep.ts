@@ -99,7 +99,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const openReqs = reqs.filter((r) => r.is_open);
   const activePipeline = openReqs.flatMap((r) =>
     (r.processes ?? [])
-      .filter((p) => !["Closed won", "Closed lost"].includes(p.stage))
+      .filter((p) => !["Placed", "Closed lost"].includes(p.stage))
       .map((p) => ({
         candidateName: p.candidates?.full_name ?? "Unknown",
         stage: p.stage,
@@ -110,9 +110,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const feedbackOverdue = activePipeline.filter(
     (p) =>
-      (p.stage === "Screening" && p.daysInStage >= 3) ||
-      (["1st interview", "2nd interview", "Final interview"].includes(p.stage) &&
-        p.daysInStage >= 2),
+      (p.stage === "CV Sent" && p.daysInStage >= 3) ||
+      (/^CCM\d+$/.test(p.stage) && p.daysInStage >= 2),
   );
 
   const hm = contacts.find((c) => c.role === "hiring_manager");
@@ -128,7 +127,7 @@ ${contacts.map((c) => `- ${c.name} (${c.role})${c.relationship_score ? ` — rel
 
 Open requisitions and active pipeline:
 ${openReqs.length === 0 ? "No open requisitions." : openReqs.map((r) => {
-    const active = (r.processes ?? []).filter((p) => !["Closed won", "Closed lost"].includes(p.stage));
+    const active = (r.processes ?? []).filter((p) => !["Placed", "Closed lost"].includes(p.stage));
     return `- ${r.title}${r.urgency ? ` [${r.urgency}]` : ""}: ${active.length === 0 ? "no candidates in pipeline" : active.map((p) => `${p.candidates?.full_name ?? "?"} at ${p.stage}`).join(", ")}`;
   }).join("\n")}
 

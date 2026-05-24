@@ -51,7 +51,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Build active pipeline summary
   const activePipeline = (reqs ?? []).flatMap((r) =>
     ((r.processes as Array<{ stage: string; candidates: { full_name: string } | null }>) ?? [])
-      .filter((p) => !["Closed won", "Closed lost"].includes(p.stage))
+      .filter((p) => !["Placed", "Closed lost"].includes(p.stage))
       .map((p) => `${p.candidates?.full_name ?? "Unknown"} — ${r.title} (${p.stage})`),
   );
 

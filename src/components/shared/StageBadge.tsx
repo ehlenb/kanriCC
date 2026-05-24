@@ -10,6 +10,7 @@ const variantStyles = {
   info: "bg-info-bg text-info border-info-border",
   warning: "bg-warning-bg text-warning border-warning-border",
   gold: "bg-gold-bg text-gold border-gold-border",
+  success: "bg-success-bg text-success border-success-border",
   gray: "bg-surface text-muted-foreground border-border",
 };
 

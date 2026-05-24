@@ -181,22 +181,22 @@ function computeActions(
 
   const allActive = reqs.flatMap((r) =>
     (r.processes ?? [])
-      .filter((p) => !["Closed won", "Closed lost"].includes(p.stage))
+      .filter((p) => !["Placed", "Closed lost"].includes(p.stage))
       .map((p) => ({ ...p, reqTitle: r.title, reqId: r.id })),
   );
 
   const items: ActionItem[] = [];
 
-  // URGENT: Screening (CV submitted, awaiting client feedback) > 3 days
+  // URGENT: CV Sent (awaiting client feedback) > 3 days
   allActive
-    .filter((p) => p.stage === "Screening")
+    .filter((p) => p.stage === "CV Sent")
     .forEach((p) => {
       const d = daysSince(p.updated_at);
       if (d >= 3) {
         items.push({
-          id: `screening-${p.id}`,
+          id: `cvfb-${p.id}`,
           priority: "urgent",
-          title: "Awaiting client feedback",
+          title: "Awaiting client feedback on CV",
           body: `${p.candidates?.full_name ?? "Candidate"} submitted for ${p.reqTitle} — ${d} days with no response.`,
           cta: "Draft follow-up ↗",
           processId: p.id,
@@ -206,14 +206,14 @@ function computeActions(
       }
     });
 
-  // URGENT: Interview stage, no update > 2 days
+  // URGENT: CCM stage, no update > 2 days
   allActive
-    .filter((p) => ["1st interview", "2nd interview", "Final interview"].includes(p.stage))
+    .filter((p) => /^CCM\d+$/.test(p.stage))
     .forEach((p) => {
       const d = daysSince(p.updated_at);
       if (d >= 2) {
         items.push({
-          id: `interview-${p.id}`,
+          id: `intfb-${p.id}`,
           priority: "urgent",
           title: "Post-interview feedback outstanding",
           body: `${p.candidates?.full_name ?? "Candidate"} completed ${p.stage} for ${p.reqTitle}. Request feedback before the candidate cools.`,
@@ -244,9 +244,9 @@ function computeActions(
       }
     });
 
-  // WARNING: Buy-in targeting — candidate consented, CV not submitted
+  // WARNING: Buy-In — candidate consented, CV not yet submitted
   allActive
-    .filter((p) => p.stage === "Buy-in targeting")
+    .filter((p) => p.stage === "Buy-In")
     .forEach((p) => {
       items.push({
         id: `buyin-${p.id}`,
@@ -265,7 +265,7 @@ function computeActions(
     .filter((r) => r.is_open)
     .forEach((r) => {
       const active = (r.processes ?? []).filter(
-        (p) => !["Closed won", "Closed lost"].includes(p.stage),
+        (p) => !["Placed", "Closed lost"].includes(p.stage),
       );
       if (active.length === 0) {
         items.push({
@@ -284,7 +284,7 @@ function computeActions(
     .filter((r) => r.is_open)
     .forEach((r) => {
       const submitted = (r.processes ?? []).filter(
-        (p) => !["Buy-in targeting", "Closed lost"].includes(p.stage),
+        (p) => !["Specs Sent", "Buy-In", "Closed lost"].includes(p.stage),
       );
       if (submitted.length > 0 && submitted.length < 3) {
         items.push({
@@ -298,9 +298,9 @@ function computeActions(
       }
     });
 
-  // WARNING: Interview stage entered within 48h — prep candidate
+  // WARNING: CCM stage entered within 48h — prep candidate
   allActive
-    .filter((p) => ["1st interview", "2nd interview", "Final interview"].includes(p.stage))
+    .filter((p) => /^CCM\d+$/.test(p.stage))
     .forEach((p) => {
       const d = daysSince(p.updated_at);
       if (d < 2) {
@@ -317,9 +317,9 @@ function computeActions(
       }
     });
 
-  // INFO: 1st or 2nd interview, >4 days — next round not yet scheduled
+  // INFO: CCM stage, >4 days — next round not yet scheduled
   allActive
-    .filter((p) => ["1st interview", "2nd interview"].includes(p.stage))
+    .filter((p) => /^CCM\d+$/.test(p.stage))
     .forEach((p) => {
       const d = daysSince(p.updated_at);
       if (d >= 4) {
@@ -495,11 +495,9 @@ function ClientDetail() {
 
   // Stat computations
   const allProcesses = reqs.flatMap((r) => r.processes ?? []);
-  const cvsSent = allProcesses.filter((p) => !["Buy-in targeting", "Closed lost"].includes(p.stage)).length;
-  const interviews = allProcesses.filter((p) =>
-    ["Screening", "1st interview", "2nd interview", "Final interview"].includes(p.stage),
-  ).length;
-  const placements = allProcesses.filter((p) => p.stage === "Closed won").length;
+  const cvsSent = allProcesses.filter((p) => !["Specs Sent", "Buy-In", "Closed lost"].includes(p.stage)).length;
+  const interviews = allProcesses.filter((p) => /^CCM\d+$/.test(p.stage)).length;
+  const placements = allProcesses.filter((p) => p.stage === "Placed").length;
   const feedbackOverdue = actions.filter(
     (a) => a.priority === "urgent" && (a.id.startsWith("screening-") || a.id.startsWith("interview-")),
   ).length;
@@ -525,7 +523,7 @@ function ClientDetail() {
   // Active pipeline (non-closed processes across open reqs)
   const activePipeline = openReqs.flatMap((r) =>
     (r.processes ?? [])
-      .filter((p) => !["Closed won", "Closed lost"].includes(p.stage))
+      .filter((p) => !["Placed", "Closed lost"].includes(p.stage))
       .map((p) => ({ ...p, reqTitle: r.title })),
   );
 
@@ -1344,14 +1342,12 @@ function OpenRequisitionsCard({
       {reqs.map((r) => {
         const hm = contacts.find((c) => c.id === r.hiring_manager_id);
         const active = (r.processes ?? []).filter(
-          (p) => !["Closed won", "Closed lost"].includes(p.stage),
+          (p) => !["Placed", "Closed lost"].includes(p.stage),
         );
         const atOffer = active.filter((p) => p.stage === "Offer");
-        const inInterview = active.filter((p) =>
-          ["1st interview", "2nd interview", "Final interview"].includes(p.stage),
-        );
-        const cvsSent = active.filter((p) => p.stage !== "Buy-in targeting");
-        const buyIn = active.filter((p) => p.stage === "Buy-in targeting");
+        const inInterview = active.filter((p) => /^CCM\d+$/.test(p.stage));
+        const cvsSent = active.filter((p) => !["Specs Sent", "Buy-In"].includes(p.stage));
+        const buyIn = active.filter((p) => p.stage === "Buy-In");
 
         return (
           <div

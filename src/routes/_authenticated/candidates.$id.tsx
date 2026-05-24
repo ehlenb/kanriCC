@@ -188,7 +188,7 @@ function useCandidateProfile(id: string) {
           `,
           )
           .eq("candidate_id", id)
-          .not("stage", "in", '("Closed won","Closed lost")')
+          .not("stage", "in", '("Placed","Closed lost")')
           .order("updated_at", { ascending: false }),
       ]);
 
@@ -1499,8 +1499,8 @@ function ProcessesPage({
           <TabLegend color="#c0dd97" border="#3B6D11" label="Your req" />
           <TabLegend color="#d3d1c7" border="#888780" label="Colleague's req" />
           <TabLegend color="#f7c1c1" border="#a32d2d" label="Not covered by your firm" />
-          <StageBadge stage="1st interview" className="text-[10px] py-0" />
-          <StageBadge stage="Buy-in targeting" className="text-[10px] py-0" />
+          <StageBadge stage="CCM1" className="text-[10px] py-0" />
+          <StageBadge stage="Buy-In" className="text-[10px] py-0" />
           <StageBadge stage="Offer" className="text-[10px] py-0" />
         </div>
         <button
@@ -1646,7 +1646,7 @@ function ProcessPanel({
         <StageBadge stage={p.stage} />
       </div>
 
-      {p.stage === "Buy-in targeting" ? (
+      {p.stage === "Buy-In" ? (
         <BuyInPanel process={p} candidate={c} motivations={motivations} blockers={blockers} recruiterId={recruiterId} />
       ) : p.stage === "Offer" ? (
         <OfferPanel process={p} candidate={c} />
@@ -2262,7 +2262,7 @@ function AddToProcessModal({
           candidate_id: candidateId,
           requisition_id: req.id,
           owner_recruiter_id: recruiterId,
-          stage: "Buy-in targeting" as const,
+          stage: "Specs Sent" as const,
           coverage_type: "own" as const,
         })
         .select("id")

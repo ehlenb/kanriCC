@@ -18,13 +18,12 @@ export type JapaneseLevel =
   | "Basic";
 
 export type ProcessStage =
-  | "Buy-in targeting"
-  | "Screening"
-  | "1st interview"
-  | "2nd interview"
-  | "Final interview"
+  | "Specs Sent"
+  | "Buy-In"
+  | "CV Sent"
+  | `CCM${number}`
   | "Offer"
-  | "Closed won"
+  | "Placed"
   | "Closed lost";
 
 export type CoverageType = "own" | "colleague" | "external";
