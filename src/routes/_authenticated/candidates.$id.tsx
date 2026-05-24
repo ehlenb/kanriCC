@@ -2597,9 +2597,8 @@ function CvUploadZone({
       const { error: uploadErr } = await supabase.storage.from("resumes").upload(path, file);
       if (uploadErr) throw uploadErr;
 
-      // Store cv_url on candidate (field added in migration 006)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await supabase.from("candidates").update({ cv_url: path } as any).eq("id", candidateId);
+      // Store cv_url on candidate
+      await supabase.from("candidates").update({ cv_url: path }).eq("id", candidateId);
       void qc.invalidateQueries({ queryKey: ["candidate-profile", candidateId] });
 
       setState("extracting");
@@ -2715,21 +2714,22 @@ function ExtractionReviewModal({
   async function applyFields() {
     setApplying(true);
     try {
-      const patch: Record<string, unknown> = {};
-      if (x.full_name)           patch.full_name = x.full_name;
-      if (x.full_name_japanese)  patch.full_name_japanese = x.full_name_japanese;
-      if (x.current_title)       patch.current_title = x.current_title;
-      if (x.current_company)     patch.current_company = x.current_company;
-      if (x.age != null)         patch.age = x.age;
-      if (x.japanese_level)      patch.japanese_level = x.japanese_level;
-      if (x.english_level)       patch.english_level = x.english_level;
-      if (x.notice_period_months != null) patch.notice_period_months = x.notice_period_months;
-      if (x.current_base != null)  patch.current_base = x.current_base;
-      if (x.current_total != null) patch.current_total = x.current_total;
+      // Build patch with only the fields that have extracted values
+      const patch = {
+        ...(x.full_name           ? { full_name: x.full_name }                        : {}),
+        ...(x.full_name_japanese  ? { full_name_japanese: x.full_name_japanese }      : {}),
+        ...(x.current_title       ? { current_title: x.current_title }                : {}),
+        ...(x.current_company     ? { current_company: x.current_company }            : {}),
+        ...(x.age != null         ? { age: x.age }                                    : {}),
+        ...(x.japanese_level      ? { japanese_level: x.japanese_level }              : {}),
+        ...(x.english_level       ? { english_level: x.english_level }                : {}),
+        ...(x.notice_period_months != null ? { notice_period_months: x.notice_period_months } : {}),
+        ...(x.current_base != null  ? { current_base: x.current_base }               : {}),
+        ...(x.current_total != null ? { current_total: x.current_total }              : {}),
+      };
 
       if (Object.keys(patch).length > 0) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { error } = await supabase.from("candidates").update(patch as any).eq("id", candidateId);
+        const { error } = await supabase.from("candidates").update(patch).eq("id", candidateId);
         if (error) throw error;
       }
       void qc.invalidateQueries({ queryKey: ["candidate-profile", candidateId] });

@@ -59,7 +59,7 @@ type ClientRecord = {
   japan_team_size: number | null;
   japan_team_japanese_pct: number | null;
   japan_role_in_group: string | null;
-  kk_entity: boolean | null;
+  kk_entity: string | null;
   strategy_notes: string | null;
 };
 
@@ -135,9 +135,10 @@ function useClientDetail(id: string) {
         { data: interactions },
       ] = await Promise.all([
         supabase.from("clients").select("*").eq("id", id).single(),
+        // TODO: narrow select after migration 007 adds role/notes/relationship_score/etc.
         supabase
           .from("client_contacts")
-          .select("id, name, role, title, notes, relationship_score, bypass_hr_warning, is_primary_contact")
+          .select("*")
           .eq("client_id", id)
           .order("created_at"),
         supabase
@@ -162,7 +163,7 @@ function useClientDetail(id: string) {
       if (error) throw error;
       return {
         client: client as ClientRecord,
-        contacts: (contacts ?? []) as Contact[],
+        contacts: (contacts ?? []) as unknown as Contact[],
         reqs: (reqs ?? []) as ReqWithPipeline[],
         interactions: (interactions ?? []) as Interaction[],
       };
@@ -1141,20 +1142,16 @@ function ContactsCard({
   const [editingNote, setEditingNote] = useState<{ contactId: string; value: string } | null>(null);
 
   const updateScore = async (contactId: string, score: number) => {
-    await supabase
-      .from("client_contacts")
-      .update({ relationship_score: score })
-      .eq("id", contactId);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await supabase.from("client_contacts").update({ relationship_score: score } as any).eq("id", contactId);
     void qc.invalidateQueries({ queryKey: ["client", clientId] });
   };
 
   async function saveNote() {
     if (!editingNote) return;
     const trimmed = editingNote.value.trim();
-    await supabase
-      .from("client_contacts")
-      .update({ notes: trimmed || null })
-      .eq("id", editingNote.contactId);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await supabase.from("client_contacts").update({ notes: trimmed || null } as any).eq("id", editingNote.contactId);
     void qc.invalidateQueries({ queryKey: ["client", clientId] });
     setEditingNote(null);
   }
@@ -1747,10 +1744,12 @@ function JapanMarketContextCard({ client: c }: { client: ClientRecord }) {
     {
       label: "KK entity",
       value:
-        c.kk_entity === true ? (
+        c.kk_entity === "true" || c.kk_entity === "Yes" ? (
           <span style={{ color: "#27500a" }}>Yes</span>
-        ) : c.kk_entity === false ? (
+        ) : c.kk_entity === "false" || c.kk_entity === "No" ? (
           <span style={{ color: "#a32d2d" }}>No</span>
+        ) : c.kk_entity ? (
+          <span style={{ color: "#27500a" }}>{c.kk_entity}</span>
         ) : (
           "—"
         ),
@@ -1804,6 +1803,7 @@ function AddContactDialog({
 
   const mutation = useMutation({
     mutationFn: async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { error } = await supabase.from("client_contacts").insert({
         client_id: clientId,
         recruiter_id: recruiterId,
@@ -1813,7 +1813,7 @@ function AddContactDialog({
         notes: form.notes.trim() || null,
         is_primary_contact: form.is_primary_contact,
         bypass_hr_warning: form.bypass_hr_warning,
-      });
+      } as any);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -2691,7 +2691,7 @@ type EnrichResult = {
   japan_team_size: number | null;
   japan_team_japanese_pct: number | null;
   years_in_japan: number | null;
-  kk_entity: boolean | null;
+  kk_entity: string | null;
   strategy_notes: string | null;
 };
 
@@ -2734,7 +2734,7 @@ function ClientEnrichCard({ clientId }: { clientId: string }) {
         japan_team_size: number;
         japan_team_japanese_pct: number;
         years_in_japan: number;
-        kk_entity: boolean;
+        kk_entity: string;
         strategy_notes: string;
       }> = {};
       if (result.japan_role_in_group != null) patch.japan_role_in_group = result.japan_role_in_group;
@@ -2745,8 +2745,7 @@ function ClientEnrichCard({ clientId }: { clientId: string }) {
       if (result.strategy_notes)              patch.strategy_notes = result.strategy_notes;
 
       if (Object.keys(patch).length > 0) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { error } = await supabase.from("clients").update(patch as any).eq("id", clientId);
+        const { error } = await supabase.from("clients").update(patch).eq("id", clientId);
         if (error) throw error;
       }
       void qc.invalidateQueries({ queryKey: ["client", clientId] });
@@ -2767,7 +2766,7 @@ function ClientEnrichCard({ clientId }: { clientId: string }) {
         { label: "Team size in Japan",     value: result.japan_team_size != null ? `~${result.japan_team_size.toLocaleString()}` : null },
         { label: "% Japanese nationals",   value: result.japan_team_japanese_pct != null ? `~${result.japan_team_japanese_pct}%` : null },
         { label: "Years in Japan",         value: result.years_in_japan != null ? `${result.years_in_japan} years` : null },
-        { label: "KK entity",              value: result.kk_entity === true ? "Yes" : result.kk_entity === false ? "No" : null },
+        { label: "KK entity",              value: result.kk_entity },
         { label: "Strategy notes",         value: result.strategy_notes },
       ]
     : [];
@@ -2957,7 +2956,7 @@ function ClientContractTab({ client: c }: { client: ClientRecord }) {
   const fields: Array<{ label: string; value: string | null }> = [
     { label: "Fee %",          value: c.fee_pct != null ? `${c.fee_pct}%` : null },
     { label: "Client since",   value: c.started_at ? new Date(c.started_at).toLocaleDateString("en-GB", { month: "long", year: "numeric" }) : null },
-    { label: "KK entity",      value: c.kk_entity == null ? null : c.kk_entity ? "Yes — KK registered" : "No" },
+    { label: "KK entity",      value: c.kk_entity ?? null },
     { label: "Account status", value: c.is_active ? "Active" : "Inactive" },
   ];
 
