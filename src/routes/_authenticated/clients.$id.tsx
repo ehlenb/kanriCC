@@ -806,6 +806,9 @@ function ClientDetail() {
               }}
             />
 
+            {/* Enrich company profile */}
+            <ClientEnrichCard clientId={id} />
+
             {/* Contacts card */}
             <ContactsCard
               contacts={contacts}
@@ -2677,6 +2680,184 @@ function F({
     <div className="space-y-1.5">
       <Label className="text-xs">{label}</Label>
       {children}
+    </div>
+  );
+}
+
+// ─── client enrich card ───────────────────────────────────────────────────────
+
+type EnrichResult = {
+  japan_role_in_group: string | null;
+  japan_team_size: number | null;
+  japan_team_japanese_pct: number | null;
+  years_in_japan: number | null;
+  kk_entity: boolean | null;
+  strategy_notes: string | null;
+};
+
+function ClientEnrichCard({ clientId }: { clientId: string }) {
+  const qc = useQueryClient();
+  const [expanded, setExpanded] = useState(false);
+  const [text, setText] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<EnrichResult | null>(null);
+  const [applying, setApplying] = useState(false);
+
+  async function extract() {
+    if (text.trim().length < 20) {
+      toast.error("Paste at least a paragraph of company text.");
+      return;
+    }
+    setLoading(true);
+    setResult(null);
+    try {
+      const resp = await fetch("/api/ai/enrich-client", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+      const data = (await resp.json()) as EnrichResult;
+      setResult(data);
+    } catch {
+      toast.error("Enrichment failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function apply() {
+    if (!result) return;
+    setApplying(true);
+    try {
+      const patch: Partial<{
+        japan_role_in_group: string;
+        japan_team_size: number;
+        japan_team_japanese_pct: number;
+        years_in_japan: number;
+        kk_entity: boolean;
+        strategy_notes: string;
+      }> = {};
+      if (result.japan_role_in_group != null) patch.japan_role_in_group = result.japan_role_in_group;
+      if (result.japan_team_size != null)     patch.japan_team_size = result.japan_team_size;
+      if (result.japan_team_japanese_pct != null) patch.japan_team_japanese_pct = result.japan_team_japanese_pct;
+      if (result.years_in_japan != null)      patch.years_in_japan = result.years_in_japan;
+      if (result.kk_entity != null)           patch.kk_entity = result.kk_entity;
+      if (result.strategy_notes)              patch.strategy_notes = result.strategy_notes;
+
+      if (Object.keys(patch).length > 0) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { error } = await supabase.from("clients").update(patch as any).eq("id", clientId);
+        if (error) throw error;
+      }
+      void qc.invalidateQueries({ queryKey: ["client", clientId] });
+      toast.success("Company profile updated from enrichment.");
+      setResult(null);
+      setText("");
+      setExpanded(false);
+    } catch {
+      toast.error("Failed to apply enrichment.");
+    } finally {
+      setApplying(false);
+    }
+  }
+
+  const previewRows: Array<{ label: string; value: string | null }> = result
+    ? [
+        { label: "Japan role in group",    value: result.japan_role_in_group },
+        { label: "Team size in Japan",     value: result.japan_team_size != null ? `~${result.japan_team_size.toLocaleString()}` : null },
+        { label: "% Japanese nationals",   value: result.japan_team_japanese_pct != null ? `~${result.japan_team_japanese_pct}%` : null },
+        { label: "Years in Japan",         value: result.years_in_japan != null ? `${result.years_in_japan} years` : null },
+        { label: "KK entity",              value: result.kk_entity === true ? "Yes" : result.kk_entity === false ? "No" : null },
+        { label: "Strategy notes",         value: result.strategy_notes },
+      ]
+    : [];
+
+  return (
+    <div
+      className="rounded-xl overflow-hidden"
+      style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.12)" }}
+    >
+      {/* Header row */}
+      <button
+        className="w-full flex items-center gap-2 px-4 py-3 text-left"
+        onClick={() => setExpanded((v) => !v)}
+      >
+        <IconSparkles size={13} style={{ color: "#888780" }} />
+        <span className="flex-1 text-[12px]" style={{ color: "#5f5e5a" }}>
+          Enrich company profile from text
+        </span>
+        <span className="text-[11px]" style={{ color: "#b8b7b2" }}>
+          {expanded ? "▴" : "▾"}
+        </span>
+      </button>
+
+      {expanded && (
+        <div className="px-4 pb-4">
+          <p className="text-[11px] mb-2" style={{ color: "#888780" }}>
+            Paste text from the company website, LinkedIn, or your own notes. Claude will extract structured company data.
+          </p>
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="Paste company description, LinkedIn about section, or any relevant text…"
+            rows={5}
+            className="w-full rounded-[8px] px-3 py-2 text-[12px] leading-relaxed resize-none mb-3"
+            style={{
+              background: "#f5f5f3",
+              border: "0.5px solid rgba(26,26,24,0.12)",
+              color: "#1a1a18",
+              outline: "none",
+            }}
+          />
+          <button
+            className="ab"
+            onClick={() => void extract()}
+            disabled={loading}
+          >
+            <IconSparkles size={11} />
+            {loading ? "Extracting…" : "Extract with AI"}
+          </button>
+
+          {/* Preview */}
+          {result && (
+            <div className="mt-3 rounded-[8px] p-3" style={{ background: "#f5f5f3" }}>
+              <p className="sl mb-2">Extracted — review before applying</p>
+              <div className="space-y-1.5 mb-3">
+                {previewRows
+                  .filter((r) => r.value != null)
+                  .map(({ label, value }) => (
+                    <div key={label} className="flex items-start justify-between gap-3">
+                      <span className="text-[11px]" style={{ color: "#888780" }}>{label}</span>
+                      <span
+                        className="text-[12px] font-medium text-right"
+                        style={{ maxWidth: 240, color: "#1a1a18" }}
+                      >
+                        {value}
+                      </span>
+                    </div>
+                  ))}
+                {previewRows.every((r) => r.value == null) && (
+                  <p className="text-[12px]" style={{ color: "#888780" }}>
+                    No structured data found in this text. Try pasting more detail.
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <button className="ab" onClick={() => void apply()} disabled={applying}>
+                  {applying ? "Applying…" : "Apply to profile"}
+                </button>
+                <button
+                  className="text-[11px]"
+                  style={{ color: "#888780" }}
+                  onClick={() => setResult(null)}
+                >
+                  Discard
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
