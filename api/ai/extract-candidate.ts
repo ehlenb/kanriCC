@@ -5,7 +5,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 const supabase = createClient(
-  process.env.VITE_SUPABASE_URL!,
+  (process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL)!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
@@ -34,7 +34,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const base64 = Buffer.from(buffer).toString("base64");
 
   const message = await anthropic.messages.create({
-    model: "claude-sonnet-4-20250514",
+    model: "claude-sonnet-4-5-20250929",
     max_tokens: 1500,
     system: `You are extracting structured candidate data from a CV or resume for a recruiter in Japan.
 Extract only what is explicitly stated in the document. Do not infer, estimate, or hallucinate data.

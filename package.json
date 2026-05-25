@@ -3,8 +3,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vercel dev",
+    "dev": "vite",
     "dev:ui": "vite dev",
+    "dev:api": "tsx watch scripts/dev-api.ts",
+    "server": "vercel dev",
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit"

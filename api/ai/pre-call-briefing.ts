@@ -5,7 +5,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 const supabase = createClient(
-  process.env.VITE_SUPABASE_URL!,
+  (process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL)!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
@@ -111,7 +111,7 @@ ${c.notes_closing ? `\nClosing intelligence (confidential — for recruiter coac
 `.trim();
 
   const message = await anthropic.messages.create({
-    model: "claude-sonnet-4-20250514",
+    model: "claude-sonnet-4-5-20250929",
     max_tokens: 700,
     system: `You are a recruiting intelligence assistant preparing a pre-call briefing for a recruiter in Japan. The recruiter reads this in 60 seconds before picking up the phone. Make it scannable and immediately actionable. Write in clear English for non-native speakers.
 

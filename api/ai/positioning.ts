@@ -5,7 +5,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 const supabase = createClient(
-  process.env.VITE_SUPABASE_URL!,
+  (process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL)!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
@@ -117,7 +117,7 @@ Strategic context: ${req_?.strategic_context ?? "Not specified"}
 `.trim();
 
   const message = await anthropic.messages.create({
-    model: "claude-sonnet-4-20250514",
+    model: "claude-sonnet-4-5-20250929",
     max_tokens: 700,
     system: `You are an elite recruiting strategist preparing positioning talking points for a recruiter in Japan.
 

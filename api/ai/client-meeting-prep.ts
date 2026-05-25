@@ -4,7 +4,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const supabase = createClient(
-  process.env.VITE_SUPABASE_URL!,
+  (process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL)!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
@@ -138,7 +138,7 @@ ${interactions.length === 0 ? "No recent interactions logged." : interactions.ma
 `.trim();
 
   const message = await anthropic.messages.create({
-    model: "claude-sonnet-4-20250514",
+    model: "claude-sonnet-4-5-20250929",
     max_tokens: 800,
     system: `You are preparing a pre-meeting brief for a recruiter going into a client meeting in Japan. The recruiter reads this in 90 seconds before the meeting. Make it scannable and immediately actionable.
 

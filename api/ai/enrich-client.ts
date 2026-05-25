@@ -13,7 +13,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const message = await anthropic.messages.create({
-    model: "claude-sonnet-4-20250514",
+    model: "claude-sonnet-4-5-20250929",
     max_tokens: 600,
     system: `You are extracting structured company profile data for a recruiter in Japan.
 The recruiter pastes raw text from a company website, LinkedIn page, or notes.

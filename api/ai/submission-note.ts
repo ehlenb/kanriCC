@@ -5,7 +5,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 const supabase = createClient(
-  process.env.VITE_SUPABASE_URL!,
+  (process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL)!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
@@ -111,7 +111,7 @@ Strategic context: ${req_?.strategic_context ?? "Not specified"}
 `.trim();
 
   const message = await anthropic.messages.create({
-    model: "claude-sonnet-4-20250514",
+    model: "claude-sonnet-4-5-20250929",
     max_tokens: 1000,
     system: `You are an elite recruitment consultant writing a candidate submission report for a client in Japan. Write in clear accessible English suitable for non-native speakers. Include these sections with clear headers:
 
