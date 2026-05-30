@@ -956,13 +956,11 @@ function CompanyHeaderCard({
           <h2 className="text-[18px] font-medium leading-tight">{c.company_name}</h2>
           {/* Meta pills */}
           <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-            {c.status === "prospect" ? (
-              <MetaPill style={{ background: "#fdf3e7", color: "#633806", borderColor: "#fac775" }}>Prospect</MetaPill>
-            ) : c.status === "inactive" ? (
-              <MetaPill style={{ background: "#f5f5f3", color: "#888780" }}>Inactive</MetaPill>
-            ) : (
-              <MetaPill style={{ background: "#eaf3de", color: "#27500a", borderColor: "#c0dd97" }}>Active</MetaPill>
-            )}
+            <ClientStatusSelect
+              clientId={c.id}
+              currentStatus={c.status ?? "prospect"}
+              contractSigned={c.contract_signed}
+            />
             {c.contract_signed && (
               <MetaPill style={{ background: "#eaf3de", color: "#27500a", borderColor: "#c0dd97" }}>Contract signed</MetaPill>
             )}
@@ -1094,6 +1092,58 @@ function CompanyHeaderCard({
         )}
       </div>
     </Card>
+  );
+}
+
+function ClientStatusSelect({
+  clientId,
+  currentStatus,
+  contractSigned,
+}: {
+  clientId: string;
+  currentStatus: string;
+  contractSigned: boolean;
+}) {
+  const qc = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: async (newStatus: string) => {
+      const { error } = await supabase
+        .from("clients")
+        .update({ status: newStatus })
+        .eq("id", clientId);
+      if (error) throw error;
+      return newStatus;
+    },
+    onSuccess: (newStatus) => {
+      void qc.invalidateQueries({ queryKey: ["client", clientId] });
+      if (newStatus === "active" && !contractSigned) {
+        toast.warning("Status set to Active, but no contract is signed yet.");
+      }
+    },
+    onError: () => toast.error("Could not update status. Try again."),
+  });
+
+  const styles: Record<string, React.CSSProperties> = {
+    active:   { background: "#eaf3de", color: "#27500a", borderColor: "#c0dd97" },
+    prospect: { background: "#fdf3e7", color: "#633806", borderColor: "#fac775" },
+    inactive: { background: "#f5f5f3", color: "#888780", borderColor: "rgba(26,26,24,0.12)" },
+  };
+  const s = styles[currentStatus] ?? styles.prospect;
+
+  return (
+    <select
+      value={currentStatus}
+      disabled={mutation.isPending}
+      onChange={(e) => {
+        if (e.target.value !== currentStatus) mutation.mutate(e.target.value);
+      }}
+      className="text-[12px] font-medium rounded px-[7px] py-[2px] outline-none cursor-pointer"
+      style={{ border: `0.5px solid ${s.borderColor ?? "rgba(26,26,24,0.12)"}`, ...s }}
+    >
+      <option value="prospect">Prospect</option>
+      <option value="active">Active</option>
+      <option value="inactive">Inactive</option>
+    </select>
   );
 }
 
@@ -2055,10 +2105,16 @@ function RequisitionIntakeModal({
         const buf = await file.arrayBuffer();
         const result = await mammoth.extractRawText({ arrayBuffer: buf });
         extractedText = result.value;
-      } else {
-        // For PDF, we'll upload and extract server-side via pdf-parse in a later step
-        // For now, indicate file is ready
-        extractedText = `[PDF: ${file.name}]`;
+      } else if (file.type === "application/pdf" || file.name.endsWith(".pdf")) {
+        const buf = await file.arrayBuffer();
+        const base64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
+        const resp = await fetch("/api/extract-text", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pdf_base64: base64 }),
+        });
+        const data = (await resp.json()) as { text?: string; error?: string };
+        extractedText = data.text?.trim() ?? `[PDF: ${file.name}]`;
       }
       // Upload to storage
       const path = `${recruiterId}/${clientId}/jd_${Date.now()}_${file.name.replace(/\s+/g, "_")}`;

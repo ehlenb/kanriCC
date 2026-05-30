@@ -244,9 +244,7 @@ function JobRow({ job: j }: { job: Job }) {
       style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.12)" }}
       onMouseEnter={(e) => { e.currentTarget.style.background = "#fafaf9"; }}
       onMouseLeave={(e) => { e.currentTarget.style.background = "#fff"; }}
-      onClick={() =>
-        navigate({ to: "/clients/$id", params: { id: j.clients?.id ?? "" } })
-      }
+      onClick={() => navigate({ to: "/jobs/$id", params: { id: j.id } })}
     >
       <div className="flex items-start gap-3">
         {/* Icon */}

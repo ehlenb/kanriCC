@@ -125,6 +125,10 @@ type Process = {
   coverage_type: string;
   ai_snapshot: string | null;
   updated_at: string;
+  buy_in_confirmed_at: string | null;
+  cv_sent_at: string | null;
+  placed_date: string | null;
+  last_activity_at: string | null;
   requisitions: {
     id: string;
     title: string;
@@ -194,6 +198,7 @@ function useCandidateProfile(id: string) {
           .select(
             `
             id, stage, coverage_type, ai_snapshot, updated_at,
+            buy_in_confirmed_at, cv_sent_at, placed_date, last_activity_at,
             requisitions (
               id, title, salary_min, salary_max, salary_stretch,
               clients ( id, company_name )
@@ -388,6 +393,7 @@ function RegistrationPage({
   type DialogType = "motivation" | "role" | "blocker" | "competing" | "presentation";
   const [openDialog, setOpenDialog] = useState<DialogType | null>(null);
   const close = () => setOpenDialog(null);
+  const qc = useQueryClient();
 
   return (
     <div className="space-y-3">
@@ -606,7 +612,11 @@ function RegistrationPage({
                   <button
                     className="text-[11px] px-2 py-0.5 rounded"
                     style={{ background: ci.is_active ? "#eaf3de" : "#f5f5f3", color: ci.is_active ? "#27500a" : "#888780", border: "0.5px solid rgba(26,26,24,0.12)" }}
-                    onClick={() => void supabase.from("competing_interviews").update({ is_active: !ci.is_active }).eq("id", ci.id)}
+                    onClick={() => {
+                      void supabase.from("competing_interviews").update({ is_active: !ci.is_active }).eq("id", ci.id).then(() => {
+                        void qc.invalidateQueries({ queryKey: ["candidate-profile", candidateId] });
+                      });
+                    }}
                     title={ci.is_active ? "Mark as closed" : "Mark as active"}
                   >
                     {ci.is_active ? "Active" : "Closed"}
@@ -1668,6 +1678,51 @@ function TabLegend({ color, border, label }: { color: string; border: string; la
 
 // ─── process panel (white regardless of tab color) ───────────────────────────
 
+const PIPELINE_STAGES = [
+  "Specs Sent", "Buy-In", "CV Sent", "CCM1", "CCM2", "CCM3", "CCM4",
+  "Offer", "Placed", "Closed lost",
+] as const;
+
+function useStageChange(candidateId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ process, newStage }: { process: Process; newStage: string }) => {
+      const now = new Date().toISOString();
+      const today = now.slice(0, 10);
+
+      type ProcessPatch = {
+        stage: string;
+        last_activity_at: string;
+        buy_in_confirmed_at?: string;
+        cv_sent_at?: string;
+        placed_date?: string;
+      };
+      const patch: ProcessPatch = { stage: newStage, last_activity_at: now };
+
+      if (newStage === "Buy-In" && !process.buy_in_confirmed_at) patch.buy_in_confirmed_at = now;
+      if (newStage === "CV Sent" && !process.cv_sent_at) patch.cv_sent_at = now;
+      if (newStage === "Placed") patch.placed_date = today;
+
+      const { error } = await supabase.from("processes").update(patch).eq("id", process.id);
+      if (error) throw error;
+
+      if (newStage === "Placed") {
+        const guarantee = new Date();
+        guarantee.setDate(guarantee.getDate() + 90);
+        await supabase.from("candidates").update({
+          candidate_status: "placed",
+          placement_guarantee_until: guarantee.toISOString().slice(0, 10),
+        }).eq("id", candidateId);
+      }
+    },
+    onSuccess: (_, { newStage }) => {
+      void qc.invalidateQueries({ queryKey: ["candidate-profile", candidateId] });
+      toast.success(`Stage updated to ${newStage}.`);
+    },
+    onError: () => toast.error("Could not update stage. Try again."),
+  });
+}
+
 function ProcessPanel({
   process: p,
   candidate: c,
@@ -1683,6 +1738,7 @@ function ProcessPanel({
 }) {
   const req = p.requisitions;
   const clientName = req?.clients?.company_name ?? "Unknown";
+  const stageChange = useStageChange(c.id);
 
   return (
     <div
@@ -1706,7 +1762,20 @@ function ProcessPanel({
               ? "Colleague's req"
               : "Not covered by your firm"}
         </span>
-        <StageBadge stage={p.stage} />
+        <select
+          value={p.stage}
+          disabled={stageChange.isPending}
+          onChange={(e) => {
+            const newStage = e.target.value;
+            if (newStage !== p.stage) stageChange.mutate({ process: p, newStage });
+          }}
+          className="text-[11px] font-medium rounded px-2 py-0.5 outline-none cursor-pointer"
+          style={{ border: "0.5px solid rgba(26,26,24,0.16)", color: "#1a1a18", background: "#f5f5f3" }}
+        >
+          {PIPELINE_STAGES.map((s) => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </select>
       </div>
 
       {p.stage === "Buy-In" ? (
@@ -3160,8 +3229,14 @@ function TranscriptPanel({ candidateId, recruiterId, onClose }: { candidateId: s
         triggers_context_refresh: true,
       });
 
-      // Update last_interaction_at
-      await supabase.from("candidates").update({ last_interaction_at: now }).eq("id", candidateId);
+      // Update candidate last_interaction_at and all active processes last_activity_at
+      await Promise.all([
+        supabase.from("candidates").update({ last_interaction_at: now }).eq("id", candidateId),
+        supabase.from("processes")
+          .update({ last_activity_at: now })
+          .eq("candidate_id", candidateId)
+          .not("stage", "in", '("Placed","Closed lost")'),
+      ]);
 
       // Fire context refresh
       fetch("/api/ai/refresh-context", {
