@@ -21,7 +21,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: "Missing required fields" });
   }
 
-  // Download file from Supabase Storage using service role
   const { data: fileBlob, error: dlErr } = await supabase.storage
     .from("resumes")
     .download(storageKey);
@@ -35,10 +34,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const message = await anthropic.messages.create({
     model: "claude-sonnet-4-5-20250929",
-    max_tokens: 1500,
+    max_tokens: 2000,
     system: `You are extracting structured candidate data from a CV or resume for a recruiter in Japan.
 Extract only what is explicitly stated in the document. Do not infer, estimate, or hallucinate data.
 Salary values in Japan are typically annual figures in JPY (millions). Convert if needed.
+
+Language levels use the Japan standard scale:
+Native / Fluent / High Business / Business / Low Business / High Conversational / Conversational / Low Conversational / Basic / None
+
 Return a JSON object with exactly these fields (use null for any field not found):
 {
   "full_name": string | null,
@@ -46,11 +49,17 @@ Return a JSON object with exactly these fields (use null for any field not found
   "current_title": string | null,
   "current_company": string | null,
   "age": number | null,
-  "japanese_level": "Native" | "Business" | "Conversational" | "Basic" | "None" | null,
-  "english_level": "Native" | "Business" | "Conversational" | "Basic" | "None" | null,
+  "email": string | null,
+  "phone": string | null,
+  "linkedinUrl": string | null,
+  "japanese_level": "Native" | "Fluent" | "High Business" | "Business" | "Low Business" | "High Conversational" | "Conversational" | "Low Conversational" | "Basic" | "None" | null,
+  "english_level": "Native" | "Fluent" | "High Business" | "Business" | "Low Business" | "High Conversational" | "Conversational" | "Low Conversational" | "Basic" | "None" | null,
+  "additionalLanguages": string | null,
   "notice_period_months": number | null,
+  "noticePeriodMonths": number | null,
   "current_base": number | null,
   "current_total": number | null,
+  "source": null,
   "roles": [
     {
       "company_name": string,
@@ -58,11 +67,21 @@ Return a JSON object with exactly these fields (use null for any field not found
       "start_date": string | null,
       "end_date": string | null,
       "is_current": boolean,
-      "description": string | null
+      "description": string | null,
+      "reasonForLeaving": string | null
     }
   ]
 }
-Dates must be in "YYYY-MM" format. Description must be under 200 characters.
+
+Notes:
+- email: candidate's personal email if present (not the company email).
+- linkedinUrl: full LinkedIn profile URL if present.
+- additionalLanguages: any languages beyond Japanese and English, with level (e.g. "Korean: Business, Mandarin: Conversational"). Null if none.
+- noticePeriodMonths: notice period as integer months if stated. Use notice_period_months for the same value.
+- source: always null — the recruiter sets this manually.
+- reasonForLeaving: reason for leaving this role if stated in the CV, raw as written. Null if not stated or if is_current is true.
+- Dates must be in "YYYY-MM" format.
+- description must be under 200 characters.
 Return ONLY the JSON object. No markdown. No explanation.`,
     messages: [
       {
@@ -86,9 +105,10 @@ Return ONLY the JSON object. No markdown. No explanation.`,
   });
 
   const text = message.content[0].type === "text" ? message.content[0].text : "{}";
+  const cleaned = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
 
   try {
-    const extracted = JSON.parse(text) as object;
+    const extracted = JSON.parse(cleaned) as object;
     return res.status(200).json(extracted);
   } catch {
     return res.status(200).json({ error: "Parse failed", raw: text });

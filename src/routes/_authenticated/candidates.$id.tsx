@@ -68,8 +68,14 @@ type Candidate = {
   japanese_level: string | null;
   english_level: string | null;
   other_languages: string | null;
+  additional_languages: string | null;
   active_passive: string | null;
   urgency_to_move: string | null;
+  candidate_status: string | null;
+  source: string | null;
+  email: string | null;
+  phone: string | null;
+  linkedin_url: string | null;
   notice_period_months: number | null;
   current_base: number | null;
   current_bonus: number | null;
@@ -87,10 +93,13 @@ type Candidate = {
   notes_closing: string | null;
   notes_internal: string | null;
   cv_url?: string | null;
+  registration_form_url: string | null;
+  ai_context: string | null;
+  ai_context_updated_at: string | null;
   updated_at: string;
 };
 
-type Motivation = { id: string; rank: number; motivation_text: string };
+type Motivation = { id: string; rank: number; motivation_text: string; motivation_type: string | null };
 type Blocker = { id: string; is_risk: boolean; theme: string; detail: string | null };
 type Role = {
   id: string;
@@ -108,6 +117,7 @@ type CompetingInterview = {
   source: string | null;
   stage: string | null;
   disclosed_at: string | null;
+  is_active: boolean;
 };
 type Process = {
   id: string;
@@ -333,7 +343,12 @@ function CandidateProfile() {
         />
       )}
       {page === "timeline" && (
-        <CandidateTimelineTab interactions={interactions} processes={processes} />
+        <CandidateTimelineTab
+          candidateId={id}
+          recruiterId={user!.id}
+          interactions={interactions}
+          processes={processes}
+        />
       )}
       {page === "notes" && (
         <NotesTab candidateId={id} candidate={c} />
@@ -378,43 +393,49 @@ function RegistrationPage({
     <div className="space-y-3">
       {/* CV Upload */}
       <CvUploadZone candidateId={candidateId} recruiterId={recruiterId} cvUrl={c.cv_url ?? null} />
-      {/* Language + Status — two columns */}
-      <div className="grid grid-cols-2 gap-3">
-        <Card>
-          <SectionLabel>Language ability</SectionLabel>
-          <FieldRow label="Japanese">
-            <strong>{c.japanese_level ?? "—"}</strong>
+
+      {/* Registration form upload */}
+      <RegistrationFormUploadZone
+        candidateId={candidateId}
+        recruiterId={recruiterId}
+        registrationFormUrl={c.registration_form_url}
+      />
+
+      {/* Status + Source row */}
+      <Card>
+        <SectionLabel>Status &amp; source</SectionLabel>
+        <div className="grid grid-cols-2 gap-x-6">
+          <FieldRow label="Candidate status">
+            <CandidateStatusBadge status={c.candidate_status} />
           </FieldRow>
-          <FieldRow label="English">
-            <strong>{c.english_level ?? "—"}</strong>
-          </FieldRow>
-          <FieldRow label="Other">{c.other_languages ?? "None"}</FieldRow>
-        </Card>
-        <Card>
-          <SectionLabel>Candidate status</SectionLabel>
+          <FieldRow label="Source">{c.source ?? "—"}</FieldRow>
           <FieldRow label="Active / Passive">{c.active_passive ?? "—"}</FieldRow>
           <FieldRow label="Urgency to move">
-            <span
-              style={{
-                color:
-                  c.urgency_to_move === "High"
-                    ? "#27500a"
-                    : c.urgency_to_move === "Low"
-                      ? "#888780"
-                      : "#1a1a18",
-                fontWeight: c.urgency_to_move === "High" ? 500 : 400,
-              }}
-            >
+            <span style={{ color: c.urgency_to_move === "High" ? "#27500a" : c.urgency_to_move === "Low" ? "#888780" : "#1a1a18", fontWeight: c.urgency_to_move === "High" ? 500 : 400 }}>
               {c.urgency_to_move ?? "—"}
             </span>
           </FieldRow>
           <FieldRow label="Notice period">
-            {c.notice_period_months
-              ? `${c.notice_period_months} month${c.notice_period_months !== 1 ? "s" : ""}`
-              : "—"}
+            {c.notice_period_months ? `${c.notice_period_months} month${c.notice_period_months !== 1 ? "s" : ""}` : "—"}
           </FieldRow>
-        </Card>
-      </div>
+        </div>
+      </Card>
+
+      {/* Contact fields */}
+      <Card>
+        <SectionLabel>Contact information</SectionLabel>
+        <FieldRow label="Email">{c.email ?? "—"}</FieldRow>
+        <FieldRow label="Phone">{c.phone ?? "—"}</FieldRow>
+        <FieldRow label="LinkedIn">{c.linkedin_url ? <a href={c.linkedin_url} target="_blank" rel="noreferrer" className="underline underline-offset-2" style={{ color: "#185fa5" }}>View profile</a> : "—"}</FieldRow>
+      </Card>
+
+      {/* Language */}
+      <Card>
+        <SectionLabel>Language ability</SectionLabel>
+        <FieldRow label="Japanese"><strong>{c.japanese_level ?? "—"}</strong></FieldRow>
+        <FieldRow label="English"><strong>{c.english_level ?? "—"}</strong></FieldRow>
+        <FieldRow label="Other languages">{c.additional_languages ?? c.other_languages ?? "None"}</FieldRow>
+      </Card>
 
       {/* Job history */}
       <Card>
@@ -459,10 +480,7 @@ function RegistrationPage({
             <div
               key={m.id}
               className="flex items-center gap-2 rounded-lg border px-3 py-2 text-[13px] mb-1.5"
-              style={{
-                background: "#f5f5f3",
-                borderColor: "rgba(26,26,24,0.12)",
-              }}
+              style={{ background: "#f5f5f3", borderColor: "rgba(26,26,24,0.12)" }}
             >
               <span
                 className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-medium"
@@ -470,7 +488,12 @@ function RegistrationPage({
               >
                 {m.rank}
               </span>
-              {m.motivation_text}
+              <span className="flex-1">{m.motivation_text}</span>
+              {m.motivation_type && (
+                <span className="text-[11px] px-2 py-0.5 rounded" style={{ background: "#e6f1fb", color: "#185fa5" }}>
+                  {m.motivation_type.replace(/_/g, " ")}
+                </span>
+              )}
             </div>
           ))
         )}
@@ -568,21 +591,26 @@ function RegistrationPage({
               <div
                 key={ci.id}
                 className="flex items-center justify-between py-1.5 text-[13px]"
-                style={{ borderBottom: "0.5px solid rgba(26,26,24,0.12)" }}
+                style={{ borderBottom: "0.5px solid rgba(26,26,24,0.12)", opacity: ci.is_active ? 1 : 0.45 }}
               >
-                <span className="font-medium">{ci.company_name}</span>
+                <span className="font-medium" style={{ textDecoration: ci.is_active ? "none" : "line-through" }}>
+                  {ci.company_name}
+                </span>
                 <div className="flex items-center gap-2">
-                  {ci.source && (
-                    <span style={{ color: "#5f5e5a", fontSize: 12 }}>{ci.source}</span>
-                  )}
+                  {ci.source && <span style={{ color: "#5f5e5a", fontSize: 12 }}>{ci.source}</span>}
                   {ci.stage && (
-                    <span
-                      className="text-[11px] px-2 py-0.5 rounded"
-                      style={{ background: "#f5f5f3", color: "#5f5e5a" }}
-                    >
+                    <span className="text-[11px] px-2 py-0.5 rounded" style={{ background: "#f5f5f3", color: "#5f5e5a" }}>
                       {ci.stage}
                     </span>
                   )}
+                  <button
+                    className="text-[11px] px-2 py-0.5 rounded"
+                    style={{ background: ci.is_active ? "#eaf3de" : "#f5f5f3", color: ci.is_active ? "#27500a" : "#888780", border: "0.5px solid rgba(26,26,24,0.12)" }}
+                    onClick={() => void supabase.from("competing_interviews").update({ is_active: !ci.is_active }).eq("id", ci.id)}
+                    title={ci.is_active ? "Mark as closed" : "Mark as active"}
+                  >
+                    {ci.is_active ? "Active" : "Closed"}
+                  </button>
                 </div>
               </div>
             ))}
@@ -643,6 +671,13 @@ function RegistrationPage({
         open={openDialog === "competing"}
         onClose={close}
       />
+      {/* Candidate intelligence card */}
+      <CandidateIntelligenceCard
+        candidateId={candidateId}
+        aiContext={c.ai_context}
+        aiContextUpdatedAt={c.ai_context_updated_at}
+      />
+
       <EditPresentationNotesDialog
         candidateId={candidateId}
         currentNotes={c.presentation_notes}
@@ -1705,7 +1740,7 @@ function InterviewPanel({
   const [loadingPositioning, setLoadingPositioning] = useState(false);
   const [positioning, setPositioning] = useState<string | null>(p.ai_snapshot);
   const [loadingSubmission, setLoadingSubmission] = useState(false);
-  const [submissionNote, setSubmissionNote] = useState<string | null>(null);
+  const [submissionPackage, setSubmissionPackage] = useState<import("@/integrations/supabase/types").SubmissionPackage | null>(null);
 
   async function generatePositioning() {
     setLoadingPositioning(true);
@@ -1738,19 +1773,21 @@ function InterviewPanel({
   }
 
   async function generateSubmissionNote() {
+    if (!p.requisitions?.id) { toast.error("No requisition linked to this process."); return; }
     setLoadingSubmission(true);
     try {
       const resp = await fetch("/api/ai/submission-note", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          processId: p.id,
-          candidateId: c.id,
-          recruiterId,
+          candidate_id: c.id,
+          requisition_id: p.requisitions.id,
+          process_id: p.id,
         }),
       });
-      const json = await resp.json() as { content?: string; error?: string };
-      if (json.content) setSubmissionNote(json.content);
+      const json = await resp.json() as import("@/integrations/supabase/types").SubmissionPackage & { error?: string };
+      if (json.error) { toast.error("Could not generate submission package. Try again."); return; }
+      setSubmissionPackage(json);
     } finally {
       setLoadingSubmission(false);
     }
@@ -1864,30 +1901,13 @@ function InterviewPanel({
         </div>
       )}
 
-      {/* Submission note output */}
-      {submissionNote && (
-        <div
-          className="mt-4 rounded-lg p-4 text-[13px] leading-relaxed whitespace-pre-wrap"
-          style={{
-            background: "#eaf3de",
-            border: "0.5px solid rgba(39,80,10,0.3)",
-          }}
-        >
-          <div className="flex items-center justify-between mb-2">
-            <p className="sl" style={{ color: "#27500a" }}>Submission note — review before sending</p>
-            <button
-              className="text-[11px] underline underline-offset-2"
-              style={{ color: "#27500a" }}
-              onClick={() => {
-                void navigator.clipboard.writeText(submissionNote);
-                toast.success("Copied to clipboard");
-              }}
-            >
-              Copy
-            </button>
-          </div>
-          {submissionNote}
-        </div>
+      {/* Submission package output */}
+      {submissionPackage && (
+        <SubmissionPackagePanel
+          pkg={submissionPackage}
+          candidateName={c.full_name}
+          onClose={() => setSubmissionPackage(null)}
+        />
       )}
     </div>
   );
@@ -2436,12 +2456,17 @@ type CandidateInteraction = {
 };
 
 function CandidateTimelineTab({
+  candidateId,
+  recruiterId,
   interactions,
   processes,
 }: {
+  candidateId: string;
+  recruiterId: string;
   interactions: CandidateInteraction[];
   processes: Process[];
 }) {
+  const [showTranscript, setShowTranscript] = useState(false);
   // Build a unified feed: interactions + process milestone entries
   type FeedEntry =
     | { kind: "interaction"; data: CandidateInteraction; ts: string }
@@ -2460,22 +2485,43 @@ function CandidateTimelineTab({
     });
   }
 
-  if (feed.length === 0) {
-    return (
-      <div
-        className="rounded-xl px-5 py-12 text-center"
-        style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.12)" }}
-      >
-        <p className="text-[13px] font-medium" style={{ color: "#1a1a18" }}>No activity recorded yet.</p>
-        <p className="text-[12px] mt-1" style={{ color: "#888780" }}>
-          Interactions linked to this candidate and their active processes will appear here.
-        </p>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
+      {/* Transcript / log toggle */}
+      <div className="flex items-center justify-between">
+        <p className="text-[12px]" style={{ color: "#888780" }}>
+          {feed.length} {feed.length === 1 ? "entry" : "entries"}
+        </p>
+        <button
+          className="ab flex items-center gap-1"
+          onClick={() => setShowTranscript((v) => !v)}
+        >
+          <IconMessage size={12} />
+          {showTranscript ? "Hide transcript" : "Paste transcript"}
+        </button>
+      </div>
+
+      {showTranscript && (
+        <TranscriptPanel
+          candidateId={candidateId}
+          recruiterId={recruiterId}
+          onClose={() => setShowTranscript(false)}
+        />
+      )}
+
+      {feed.length === 0 && !showTranscript && (
+        <div
+          className="rounded-xl px-5 py-12 text-center"
+          style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.12)" }}
+        >
+          <p className="text-[13px] font-medium" style={{ color: "#1a1a18" }}>No activity recorded yet.</p>
+          <p className="text-[12px] mt-1" style={{ color: "#888780" }}>
+            Interactions linked to this candidate and their active processes will appear here.
+          </p>
+        </div>
+      )}
+
+      <div className="space-y-2">
       {feed.map((entry) => {
         if (entry.kind === "interaction") {
           const i = entry.data;
@@ -2543,6 +2589,7 @@ function CandidateTimelineTab({
           </div>
         );
       })}
+      </div>
     </div>
   );
 }
@@ -2555,9 +2602,14 @@ type ExtractedCandidate = {
   current_title: string | null;
   current_company: string | null;
   age: number | null;
+  email: string | null;
+  phone: string | null;
+  linkedinUrl: string | null;
   japanese_level: string | null;
   english_level: string | null;
+  additionalLanguages: string | null;
   notice_period_months: number | null;
+  noticePeriodMonths: number | null;
   current_base: number | null;
   current_total: number | null;
   roles: Array<{
@@ -2567,6 +2619,7 @@ type ExtractedCandidate = {
     end_date: string | null;
     is_current: boolean;
     description: string | null;
+    reasonForLeaving: string | null;
   }>;
 };
 
@@ -2755,15 +2808,20 @@ function ExtractionReviewModal({
     setApplying(true);
     try {
       // Build patch with only the fields that have extracted values
+      const noticePeriod = x.notice_period_months ?? x.noticePeriodMonths;
       const patch = {
         ...(x.full_name           ? { full_name: x.full_name }                        : {}),
         ...(x.full_name_japanese  ? { full_name_japanese: x.full_name_japanese }      : {}),
         ...(x.current_title       ? { current_title: x.current_title }                : {}),
         ...(x.current_company     ? { current_company: x.current_company }            : {}),
         ...(x.age != null         ? { age: x.age }                                    : {}),
+        ...(x.email               ? { email: x.email }                                : {}),
+        ...(x.phone               ? { phone: x.phone }                                : {}),
+        ...(x.linkedinUrl         ? { linkedin_url: x.linkedinUrl }                   : {}),
         ...(x.japanese_level      ? { japanese_level: x.japanese_level }              : {}),
         ...(x.english_level       ? { english_level: x.english_level }                : {}),
-        ...(x.notice_period_months != null ? { notice_period_months: x.notice_period_months } : {}),
+        ...(x.additionalLanguages ? { additional_languages: x.additionalLanguages }   : {}),
+        ...(noticePeriod != null  ? { notice_period_months: noticePeriod }            : {}),
         ...(x.current_base != null  ? { current_base: x.current_base }               : {}),
         ...(x.current_total != null ? { current_total: x.current_total }              : {}),
       };
@@ -2813,9 +2871,13 @@ function ExtractionReviewModal({
           {row("Current title", x.current_title)}
           {row("Current company", x.current_company)}
           {row("Age", x.age)}
+          {row("Email", x.email)}
+          {row("Phone", x.phone)}
+          {row("LinkedIn", x.linkedinUrl)}
           {row("Japanese level", x.japanese_level)}
           {row("English level", x.english_level)}
-          {row("Notice period", x.notice_period_months != null ? `${x.notice_period_months} months` : null)}
+          {row("Additional languages", x.additionalLanguages)}
+          {row("Notice period", (x.notice_period_months ?? x.noticePeriodMonths) != null ? `${x.notice_period_months ?? x.noticePeriodMonths} months` : null)}
           {row("Current base", formatSalary(x.current_base))}
           {row("Current total", formatSalary(x.current_total))}
         </div>
@@ -2834,6 +2896,9 @@ function ExtractionReviewModal({
                   {r.description && (
                     <p className="text-[11px] mt-0.5" style={{ color: "#5f5e5a" }}>{r.description}</p>
                   )}
+                  {r.reasonForLeaving && (
+                    <p className="text-[11px] mt-0.5" style={{ color: "#888780" }}>Left: {r.reasonForLeaving}</p>
+                  )}
                 </div>
               ))}
             </div>
@@ -2848,5 +2913,519 @@ function ExtractionReviewModal({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ─── candidate status badge ────────────────────────────────────────────────────
+
+const STATUS_STYLE: Record<string, { bg: string; color: string; border: string }> = {
+  active:     { bg: "#eaf3de", color: "#27500a", border: "#b0d88a" },
+  passive:    { bg: "#fdf3e7", color: "#633806", border: "#fac775" },
+  placed:     { bg: "#e6f1fb", color: "#185fa5", border: "#9ec5ef" },
+  off_market: { bg: "#f5f5f3", color: "#888780", border: "rgba(26,26,24,0.2)" },
+};
+
+function CandidateStatusBadge({ status }: { status: string | null }) {
+  const s = STATUS_STYLE[status ?? "active"] ?? STATUS_STYLE.active;
+  return (
+    <span
+      className="text-[11px] font-medium px-2 py-0.5 rounded capitalize"
+      style={{ background: s.bg, color: s.color, border: `0.5px solid ${s.border}` }}
+    >
+      {(status ?? "active").replace(/_/g, " ")}
+    </span>
+  );
+}
+
+// ─── registration form upload zone ────────────────────────────────────────────
+
+function RegistrationFormUploadZone({
+  candidateId,
+  recruiterId,
+  registrationFormUrl,
+}: {
+  candidateId: string;
+  recruiterId: string;
+  registrationFormUrl: string | null;
+}) {
+  const qc = useQueryClient();
+  const [uploading, setUploading] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  async function handleFile(file: File) {
+    if (file.type !== "application/pdf") { toast.error("PDF files only."); return; }
+    setUploading(true);
+    try {
+      const path = `${recruiterId}/${candidateId}/regform_${Date.now()}_${file.name.replace(/\s+/g, "_")}`;
+      const { error: uploadErr } = await supabase.storage.from("resumes").upload(path, file);
+      if (uploadErr) { toast.error(`Upload failed: ${uploadErr.message}`); return; }
+      await supabase.from("candidates").update({ registration_form_url: path }).eq("id", candidateId);
+      void qc.invalidateQueries({ queryKey: ["candidate-profile", candidateId] });
+      toast.success("Registration form uploaded.");
+    } catch { toast.error("Upload failed."); }
+    finally { setUploading(false); }
+  }
+
+  return (
+    <div
+      className="rounded-xl px-4 py-3 flex items-center gap-3 cursor-pointer transition-colors"
+      style={{ background: "#f5f5f3", border: "0.5px dashed rgba(26,26,24,0.2)" }}
+      onClick={() => !uploading && inputRef.current?.click()}
+    >
+      <IconFileText size={16} style={{ color: "#888780", flexShrink: 0 }} />
+      <div className="flex-1 min-w-0">
+        <p className="text-[12px]" style={{ color: "#5f5e5a" }}>
+          {uploading
+            ? "Uploading…"
+            : registrationFormUrl
+            ? "Registration form on file — click to replace"
+            : "Registration Form (signed) — drop PDF or click to upload"}
+        </p>
+      </div>
+      {registrationFormUrl && !uploading && (
+        <span className="text-[11px] px-2 py-0.5 rounded" style={{ background: "#eaf3de", color: "#27500a" }}>
+          On file
+        </span>
+      )}
+      <input
+        ref={inputRef}
+        type="file"
+        accept="application/pdf"
+        className="hidden"
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) void handleFile(f); e.target.value = ""; }}
+      />
+    </div>
+  );
+}
+
+// ─── candidate intelligence card ──────────────────────────────────────────────
+
+function CandidateIntelligenceCard({
+  candidateId,
+  aiContext,
+  aiContextUpdatedAt,
+}: {
+  candidateId: string;
+  aiContext: string | null;
+  aiContextUpdatedAt: string | null;
+}) {
+  const qc = useQueryClient();
+  const [expanded, setExpanded] = useState(!!aiContext);
+  const [refreshing, setRefreshing] = useState(false);
+
+  async function refresh() {
+    setRefreshing(true);
+    try {
+      await fetch("/api/ai/refresh-context", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entity_type: "candidate", entity_id: candidateId }),
+      });
+      void qc.invalidateQueries({ queryKey: ["candidate-profile", candidateId] });
+      toast.success("Candidate intelligence refreshed.");
+    } catch { toast.error("Refresh failed. Try again."); }
+    finally { setRefreshing(false); }
+  }
+
+  return (
+    <div className="rounded-xl overflow-hidden" style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.12)" }}>
+      <button
+        className="w-full flex items-center gap-2 px-4 py-3 text-left"
+        onClick={() => setExpanded((v) => !v)}
+      >
+        <IconSparkles size={13} style={{ color: "#888780" }} />
+        <span className="flex-1 text-[12px] font-medium" style={{ color: "#5f5e5a" }}>
+          Candidate intelligence
+        </span>
+        {aiContextUpdatedAt && (
+          <span className="text-[11px]" style={{ color: "#b8b7b2" }}>
+            Updated {relativeTime(aiContextUpdatedAt)}
+          </span>
+        )}
+        <span className="text-[11px]" style={{ color: "#b8b7b2" }}>{expanded ? "▴" : "▾"}</span>
+      </button>
+      {expanded && (
+        <div className="px-4 pb-4">
+          {aiContext ? (
+            <p className="text-[13px] leading-relaxed whitespace-pre-wrap mb-3" style={{ color: "#1a1a18" }}>
+              {aiContext}
+            </p>
+          ) : (
+            <p className="text-[13px] mb-3" style={{ color: "#888780" }}>
+              No intelligence summary yet. Click refresh to generate one from the candidate's interactions.
+            </p>
+          )}
+          <button className="ab" onClick={() => void refresh()} disabled={refreshing}>
+            <IconSparkles size={11} />
+            {refreshing ? "Refreshing…" : "Refresh"}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── transcript panel ─────────────────────────────────────────────────────────
+
+type TranscriptResult = {
+  suggested_field_updates: Array<{ field: string; suggested_value: unknown; previous_value?: unknown; source: string; is_update: boolean }>;
+  suggested_motivations: Array<{ rank: number; motivation_type: string; detail: string }>;
+  suggested_blockers: Array<{ theme: string; detail: string; is_risk: boolean }>;
+  suggested_competing_interviews: Array<{ company_name: string; stage: string; source: string }>;
+  interaction_summary: string;
+  interaction_full_notes: string;
+  interaction_type: string;
+  interacted_at: string;
+  transcript_raw: string;
+};
+
+function TranscriptPanel({ candidateId, recruiterId, onClose }: { candidateId: string; recruiterId: string; onClose: () => void }) {
+  const qc = useQueryClient();
+  const [transcript, setTranscript] = useState("");
+  const [interactionType, setInteractionType] = useState<"call" | "meeting">("call");
+  const [interactedAt, setInteractedAt] = useState(new Date().toISOString().slice(0, 16));
+  const [processing, setProcessing] = useState(false);
+  const [result, setResult] = useState<TranscriptResult | null>(null);
+  const [accepted, setAccepted] = useState<Record<string, boolean>>({});
+  const [saving, setSaving] = useState(false);
+  const [editSummary, setEditSummary] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+
+  async function process() {
+    if (!transcript.trim()) { toast.error("Paste a transcript first."); return; }
+    setProcessing(true);
+    try {
+      const resp = await fetch("/api/ai/process-transcript", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ candidate_id: candidateId, transcript_raw: transcript, interaction_type: interactionType, interacted_at: new Date(interactedAt).toISOString() }),
+      });
+      const data = (await resp.json()) as TranscriptResult & { error?: string };
+      if (data.error) { toast.error("Could not process transcript. Try again."); return; }
+      setResult(data);
+      setEditSummary(data.interaction_summary ?? "");
+      setEditNotes(data.interaction_full_notes ?? "");
+      // Default all to accepted
+      const acc: Record<string, boolean> = {};
+      (data.suggested_field_updates ?? []).forEach((_, i) => { acc[`field_${i}`] = true; });
+      (data.suggested_motivations ?? []).forEach((_, i) => { acc[`mot_${i}`] = true; });
+      (data.suggested_blockers ?? []).forEach((_, i) => { acc[`blk_${i}`] = true; });
+      (data.suggested_competing_interviews ?? []).forEach((_, i) => { acc[`ci_${i}`] = true; });
+      setAccepted(acc);
+    } catch { toast.error("Could not process transcript. Try again."); }
+    finally { setProcessing(false); }
+  }
+
+  async function save() {
+    if (!result) return;
+    setSaving(true);
+    try {
+      // Apply accepted field updates
+      const acceptedFields = (result.suggested_field_updates ?? []).filter((_, i) => accepted[`field_${i}`]);
+      if (acceptedFields.length > 0) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const patch: any = {};
+        acceptedFields.forEach((f) => { patch[f.field] = f.suggested_value; });
+        await supabase.from("candidates").update(patch).eq("id", candidateId);
+      }
+
+      // Apply accepted motivations
+      const acceptedMots = (result.suggested_motivations ?? []).filter((_, i) => accepted[`mot_${i}`]);
+      for (const mot of acceptedMots) {
+        await supabase.from("candidate_motivations").upsert({ candidate_id: candidateId, rank: mot.rank, motivation_text: mot.detail, motivation_type: mot.motivation_type }, { onConflict: "candidate_id,rank" });
+      }
+
+      // Apply accepted blockers
+      const acceptedBlk = (result.suggested_blockers ?? []).filter((_, i) => accepted[`blk_${i}`]);
+      for (const blk of acceptedBlk) {
+        await supabase.from("candidate_blockers").insert({ candidate_id: candidateId, theme: blk.theme, detail: blk.detail, is_risk: blk.is_risk });
+      }
+
+      // Apply accepted competing interviews
+      const acceptedCI = (result.suggested_competing_interviews ?? []).filter((_, i) => accepted[`ci_${i}`]);
+      for (const ci of acceptedCI) {
+        await supabase.from("competing_interviews").insert({ candidate_id: candidateId, company_name: ci.company_name, stage: ci.stage, source: ci.source, disclosed_at: result.interacted_at, is_active: true });
+      }
+
+      // Create interaction
+      const now = new Date(result.interacted_at).toISOString();
+      await supabase.from("interactions").insert({
+        candidate_id: candidateId,
+        recruiter_id: recruiterId,
+        interaction_type: result.interaction_type,
+        summary: editSummary,
+        full_notes: editNotes,
+        transcript_raw: result.transcript_raw,
+        interacted_at: now,
+        triggers_context_refresh: true,
+      });
+
+      // Update last_interaction_at
+      await supabase.from("candidates").update({ last_interaction_at: now }).eq("id", candidateId);
+
+      // Fire context refresh
+      fetch("/api/ai/refresh-context", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entity_type: "candidate", entity_id: candidateId }),
+      }).catch(() => {});
+
+      void qc.invalidateQueries({ queryKey: ["candidate-profile", candidateId] });
+      toast.success("Transcript saved.");
+      onClose();
+    } catch { toast.error("Failed to save. Try again."); }
+    finally { setSaving(false); }
+  }
+
+  return (
+    <div className="rounded-xl p-5" style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.12)" }}>
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-[13px] font-medium">Process transcript</p>
+        <button className="text-[11px]" style={{ color: "#888780" }} onClick={onClose}>Dismiss</button>
+      </div>
+
+      {!result ? (
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-xs mb-1 block">Interaction type</Label>
+              <Select value={interactionType} onValueChange={(v) => setInteractionType(v as "call" | "meeting")}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="call">Call</SelectItem>
+                  <SelectItem value="meeting">Meeting</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs mb-1 block">Date &amp; time</Label>
+              <Input type="datetime-local" value={interactedAt} onChange={(e) => setInteractedAt(e.target.value)} className="h-8 text-xs" />
+            </div>
+          </div>
+          <Textarea
+            placeholder="Paste the full transcript from Teams, Otter.ai, Zoom, or your notes here…"
+            value={transcript}
+            onChange={(e) => setTranscript(e.target.value)}
+            className="min-h-[140px] text-[12px]"
+          />
+          <button className="ab" onClick={() => void process()} disabled={processing}>
+            <IconSparkles size={11} />
+            {processing ? "Processing…" : "Process transcript"}
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {/* Field updates */}
+          {result.suggested_field_updates.length > 0 && (
+            <div>
+              <p className="sl mb-2">Suggested field updates</p>
+              <div className="space-y-1.5">
+                {result.suggested_field_updates.map((f, i) => (
+                  <label key={i} className="flex items-start gap-2 text-[12px] cursor-pointer">
+                    <input type="checkbox" checked={accepted[`field_${i}`] ?? true} onChange={(e) => setAccepted((a) => ({ ...a, [`field_${i}`]: e.target.checked }))} className="mt-0.5" />
+                    <span>
+                      <strong>{f.field}</strong>
+                      {f.is_update && f.previous_value !== undefined && (
+                        <span style={{ color: "#888780" }}> (was: {String(f.previous_value)})</span>
+                      )}
+                      {" → "}{String(f.suggested_value)}
+                      <span className="ml-1" style={{ color: "#b8b7b2" }}>— {f.source}</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Motivations */}
+          {result.suggested_motivations.length > 0 && (
+            <div>
+              <p className="sl mb-2">Suggested motivations</p>
+              <div className="space-y-1.5">
+                {result.suggested_motivations.map((m, i) => (
+                  <label key={i} className="flex items-start gap-2 text-[12px] cursor-pointer">
+                    <input type="checkbox" checked={accepted[`mot_${i}`] ?? true} onChange={(e) => setAccepted((a) => ({ ...a, [`mot_${i}`]: e.target.checked }))} className="mt-0.5" />
+                    <span>Rank {m.rank} [{m.motivation_type}]: {m.detail}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Blockers */}
+          {result.suggested_blockers.length > 0 && (
+            <div>
+              <p className="sl mb-2">Suggested blockers</p>
+              <div className="space-y-1.5">
+                {result.suggested_blockers.map((b, i) => (
+                  <label key={i} className="flex items-start gap-2 text-[12px] cursor-pointer">
+                    <input type="checkbox" checked={accepted[`blk_${i}`] ?? true} onChange={(e) => setAccepted((a) => ({ ...a, [`blk_${i}`]: e.target.checked }))} className="mt-0.5" />
+                    <span>{b.is_risk ? "⚠ " : ""}<strong>{b.theme}:</strong> {b.detail}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Competing interviews */}
+          {result.suggested_competing_interviews.length > 0 && (
+            <div>
+              <p className="sl mb-2">Suggested competing interviews</p>
+              <div className="space-y-1.5">
+                {result.suggested_competing_interviews.map((ci, i) => (
+                  <label key={i} className="flex items-start gap-2 text-[12px] cursor-pointer">
+                    <input type="checkbox" checked={accepted[`ci_${i}`] ?? true} onChange={(e) => setAccepted((a) => ({ ...a, [`ci_${i}`]: e.target.checked }))} className="mt-0.5" />
+                    <span>{ci.company_name} — {ci.stage}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Summary + notes */}
+          <div>
+            <Label className="text-xs mb-1 block">Interaction summary</Label>
+            <Input value={editSummary} onChange={(e) => setEditSummary(e.target.value)} className="text-xs" />
+          </div>
+          <div>
+            <Label className="text-xs mb-1 block">Full notes</Label>
+            <Textarea value={editNotes} onChange={(e) => setEditNotes(e.target.value)} className="min-h-[100px] text-[12px]" />
+          </div>
+
+          <div className="flex gap-2">
+            <button className="ab" onClick={() => void save()} disabled={saving}>
+              <IconCheck size={11} />
+              {saving ? "Saving…" : "Save"}
+            </button>
+            <button className="text-[12px]" style={{ color: "#888780" }} onClick={() => setResult(null)}>
+              Back
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── submission package panel ─────────────────────────────────────────────────
+
+function SubmissionPackagePanel({
+  pkg,
+  candidateName,
+  onClose,
+}: {
+  pkg: import("@/integrations/supabase/types").SubmissionPackage;
+  candidateName: string;
+  onClose: () => void;
+}) {
+  const [emailBody, setEmailBody] = useState(pkg.email.body);
+  const [emailSubject, setEmailSubject] = useState(pkg.email.subject);
+  const [downloading, setDownloading] = useState(false);
+
+  async function downloadPdf() {
+    setDownloading(true);
+    try {
+      const { downloadSingleProfile } = await import("@/lib/pdf-utils");
+      await downloadSingleProfile(
+        { candidateName, english: pkg.englishContent, japanese: pkg.japaneseContent },
+        "",
+      );
+    } catch { toast.error("PDF generation failed. Try again."); }
+    finally { setDownloading(false); }
+  }
+
+  function ProfileSection({ label, content }: { label: string; content: import("@/integrations/supabase/types").ProfileContent }) {
+    return (
+      <div className="rounded-lg p-4" style={{ background: "#f5f5f3", border: "0.5px solid rgba(26,26,24,0.08)" }}>
+        <p className="sl mb-3">{label}</p>
+        <div className="space-y-3 text-[13px]">
+          <div>
+            <p className="text-[11px] uppercase tracking-wide mb-1" style={{ color: "#888780" }}>Executive summary</p>
+            <p className="leading-relaxed" style={{ color: "#1a1a18" }}>{content.executiveSummary}</p>
+          </div>
+          <div>
+            <p className="text-[11px] uppercase tracking-wide mb-1" style={{ color: "#888780" }}>Career motivation</p>
+            <p className="leading-relaxed" style={{ color: "#1a1a18" }}>{content.careerMotivation}</p>
+          </div>
+          <div>
+            <p className="text-[11px] uppercase tracking-wide mb-1" style={{ color: "#888780" }}>Alignment points</p>
+            <ul className="space-y-1" style={{ color: "#1a1a18" }}>
+              {content.alignment.map((a, i) => (
+                <li key={i} className="flex gap-2">
+                  <span style={{ color: "#888780" }}>·</span>
+                  <span>{a}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <p className="text-[11px] uppercase tracking-wide mb-1" style={{ color: "#888780" }}>Compensation</p>
+            <p style={{ color: "#1a1a18" }}>{content.compensation}</p>
+          </div>
+          <div>
+            <p className="text-[11px] uppercase tracking-wide mb-1" style={{ color: "#888780" }}>Closing</p>
+            <p style={{ color: "#1a1a18" }}>{content.closing}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="mt-4 rounded-xl p-5 space-y-5"
+      style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.12)" }}
+    >
+      <div className="flex items-center justify-between">
+        <p className="text-[13px] font-medium">Submission package — review before sending</p>
+        <div className="flex gap-2">
+          <button
+            className="ab"
+            onClick={() => void downloadPdf()}
+            disabled={downloading}
+          >
+            <IconFileText size={11} />
+            {downloading ? "Generating PDF…" : "Download PDF"}
+          </button>
+          <button className="text-[11px]" style={{ color: "#888780" }} onClick={onClose}>
+            Dismiss
+          </button>
+        </div>
+      </div>
+
+      {/* Section A — Email */}
+      <div>
+        <p className="sl mb-2">A — Submission email</p>
+        <div className="space-y-2">
+          <div>
+            <Label className="text-xs mb-1 block">Subject</Label>
+            <Input value={emailSubject} onChange={(e) => setEmailSubject(e.target.value)} className="text-xs" />
+          </div>
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <Label className="text-xs">Email body</Label>
+              <button
+                className="text-[11px] underline underline-offset-2"
+                style={{ color: "#185fa5" }}
+                onClick={() => { void navigator.clipboard.writeText(emailBody); toast.success("Email copied."); }}
+              >
+                Copy
+              </button>
+            </div>
+            <Textarea
+              value={emailBody}
+              onChange={(e) => setEmailBody(e.target.value)}
+              className="min-h-[160px] text-[12px]"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Section B — English profile */}
+      <ProfileSection label="B — English profile" content={pkg.englishContent} />
+
+      {/* Section C — Japanese profile */}
+      <ProfileSection label="C — Japanese profile" content={pkg.japaneseContent} />
+    </div>
   );
 }

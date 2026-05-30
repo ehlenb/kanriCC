@@ -14,6 +14,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_context_log: {
+        Row: {
+          created_at: string
+          entity_id: string
+          entity_type: string
+          id: string
+          recruiter_id: string
+          tokens_used: number | null
+          triggered_by_interaction_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          entity_id: string
+          entity_type: string
+          id?: string
+          recruiter_id: string
+          tokens_used?: number | null
+          triggered_by_interaction_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          recruiter_id?: string
+          tokens_used?: number | null
+          triggered_by_interaction_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_context_log_recruiter_id_fkey"
+            columns: ["recruiter_id"]
+            isOneToOne: false
+            referencedRelation: "recruiters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       candidate_blockers: {
         Row: {
           candidate_id: string
@@ -51,18 +89,21 @@ export type Database = {
           candidate_id: string
           id: string
           motivation_text: string
+          motivation_type: string | null
           rank: number
         }
         Insert: {
           candidate_id: string
           id?: string
           motivation_text: string
+          motivation_type?: string | null
           rank: number
         }
         Update: {
           candidate_id?: string
           id?: string
           motivation_text?: string
+          motivation_type?: string | null
           rank?: number
         }
         Relationships: [
@@ -122,10 +163,15 @@ export type Database = {
       candidates: {
         Row: {
           active_passive: string | null
+          additional_languages: string | null
           age: number | null
+          ai_context: string | null
+          ai_context_updated_at: string | null
+          availability_date: string | null
           base_is_priority: boolean
           base_minimum: number | null
           bonus_preference: string | null
+          candidate_status: string
           created_at: string
           current_base: number | null
           current_bonus: number | null
@@ -133,6 +179,7 @@ export type Database = {
           current_title: string | null
           current_total: number | null
           cv_url: string | null
+          email: string | null
           english_level: string | null
           equity_open: boolean | null
           expected_total_max: number | null
@@ -141,6 +188,8 @@ export type Database = {
           full_name_japanese: string | null
           id: string
           japanese_level: string | null
+          last_interaction_at: string | null
+          linkedin_url: string | null
           notes_closing: string | null
           notes_internal: string | null
           notes_personality: string | null
@@ -148,17 +197,26 @@ export type Database = {
           notes_presentation: string | null
           notice_period_months: number | null
           other_languages: string | null
+          phone: string | null
+          placement_guarantee_until: string | null
           presentation_notes: string | null
           recruiter_id: string
+          registration_form_url: string | null
+          source: string
           updated_at: string
           urgency_to_move: string | null
         }
         Insert: {
           active_passive?: string | null
+          additional_languages?: string | null
           age?: number | null
+          ai_context?: string | null
+          ai_context_updated_at?: string | null
+          availability_date?: string | null
           base_is_priority?: boolean
           base_minimum?: number | null
           bonus_preference?: string | null
+          candidate_status?: string
           created_at?: string
           current_base?: number | null
           current_bonus?: number | null
@@ -166,6 +224,7 @@ export type Database = {
           current_title?: string | null
           current_total?: number | null
           cv_url?: string | null
+          email?: string | null
           english_level?: string | null
           equity_open?: boolean | null
           expected_total_max?: number | null
@@ -174,6 +233,8 @@ export type Database = {
           full_name_japanese?: string | null
           id?: string
           japanese_level?: string | null
+          last_interaction_at?: string | null
+          linkedin_url?: string | null
           notes_closing?: string | null
           notes_internal?: string | null
           notes_personality?: string | null
@@ -181,17 +242,26 @@ export type Database = {
           notes_presentation?: string | null
           notice_period_months?: number | null
           other_languages?: string | null
+          phone?: string | null
+          placement_guarantee_until?: string | null
           presentation_notes?: string | null
           recruiter_id: string
+          registration_form_url?: string | null
+          source?: string
           updated_at?: string
           urgency_to_move?: string | null
         }
         Update: {
           active_passive?: string | null
+          additional_languages?: string | null
           age?: number | null
+          ai_context?: string | null
+          ai_context_updated_at?: string | null
+          availability_date?: string | null
           base_is_priority?: boolean
           base_minimum?: number | null
           bonus_preference?: string | null
+          candidate_status?: string
           created_at?: string
           current_base?: number | null
           current_bonus?: number | null
@@ -199,6 +269,7 @@ export type Database = {
           current_title?: string | null
           current_total?: number | null
           cv_url?: string | null
+          email?: string | null
           english_level?: string | null
           equity_open?: boolean | null
           expected_total_max?: number | null
@@ -207,6 +278,8 @@ export type Database = {
           full_name_japanese?: string | null
           id?: string
           japanese_level?: string | null
+          last_interaction_at?: string | null
+          linkedin_url?: string | null
           notes_closing?: string | null
           notes_internal?: string | null
           notes_personality?: string | null
@@ -214,8 +287,12 @@ export type Database = {
           notes_presentation?: string | null
           notice_period_months?: number | null
           other_languages?: string | null
+          phone?: string | null
+          placement_guarantee_until?: string | null
           presentation_notes?: string | null
           recruiter_id?: string
+          registration_form_url?: string | null
+          source?: string
           updated_at?: string
           urgency_to_move?: string | null
         }
@@ -237,6 +314,7 @@ export type Database = {
           email: string | null
           id: string
           is_primary: boolean | null
+          linkedin_url: string | null
           name: string
           notes: string | null
           phone: string | null
@@ -253,6 +331,7 @@ export type Database = {
           email?: string | null
           id?: string
           is_primary?: boolean | null
+          linkedin_url?: string | null
           name: string
           notes?: string | null
           phone?: string | null
@@ -269,6 +348,7 @@ export type Database = {
           email?: string | null
           id?: string
           is_primary?: boolean | null
+          linkedin_url?: string | null
           name?: string
           notes?: string | null
           phone?: string | null
@@ -334,8 +414,13 @@ export type Database = {
       }
       clients: {
         Row: {
+          ai_context: string | null
+          ai_context_updated_at: string | null
           company_name: string
+          contract_signed: boolean
+          contract_url: string | null
           created_at: string
+          employee_japanese_pct: number | null
           fee_pct: number | null
           hiring_manager_name: string | null
           hiring_manager_notes: string | null
@@ -348,12 +433,18 @@ export type Database = {
           logo_url: string | null
           recruiter_id: string
           started_at: string | null
+          status: string
           strategy_notes: string | null
           years_in_japan: number | null
         }
         Insert: {
+          ai_context?: string | null
+          ai_context_updated_at?: string | null
           company_name: string
+          contract_signed?: boolean
+          contract_url?: string | null
           created_at?: string
+          employee_japanese_pct?: number | null
           fee_pct?: number | null
           hiring_manager_name?: string | null
           hiring_manager_notes?: string | null
@@ -366,12 +457,18 @@ export type Database = {
           logo_url?: string | null
           recruiter_id: string
           started_at?: string | null
+          status?: string
           strategy_notes?: string | null
           years_in_japan?: number | null
         }
         Update: {
+          ai_context?: string | null
+          ai_context_updated_at?: string | null
           company_name?: string
+          contract_signed?: boolean
+          contract_url?: string | null
           created_at?: string
+          employee_japanese_pct?: number | null
           fee_pct?: number | null
           hiring_manager_name?: string | null
           hiring_manager_notes?: string | null
@@ -384,6 +481,7 @@ export type Database = {
           logo_url?: string | null
           recruiter_id?: string
           started_at?: string | null
+          status?: string
           strategy_notes?: string | null
           years_in_japan?: number | null
         }
@@ -403,6 +501,7 @@ export type Database = {
           company_name: string
           disclosed_at: string | null
           id: string
+          is_active: boolean
           source: string | null
           stage: string | null
         }
@@ -411,6 +510,7 @@ export type Database = {
           company_name: string
           disclosed_at?: string | null
           id?: string
+          is_active?: boolean
           source?: string | null
           stage?: string | null
         }
@@ -419,6 +519,7 @@ export type Database = {
           company_name?: string
           disclosed_at?: string | null
           id?: string
+          is_active?: boolean
           source?: string | null
           stage?: string | null
         }
@@ -436,35 +537,47 @@ export type Database = {
         Row: {
           candidate_id: string | null
           client_id: string | null
+          direction: string | null
           full_notes: string | null
           id: string
           interacted_at: string
           interaction_type: string
           process_id: string | null
           recruiter_id: string
+          requisition_id: string | null
           summary: string | null
+          transcript_raw: string | null
+          triggers_context_refresh: boolean
         }
         Insert: {
           candidate_id?: string | null
           client_id?: string | null
+          direction?: string | null
           full_notes?: string | null
           id?: string
           interacted_at?: string
           interaction_type: string
           process_id?: string | null
           recruiter_id: string
+          requisition_id?: string | null
           summary?: string | null
+          transcript_raw?: string | null
+          triggers_context_refresh?: boolean
         }
         Update: {
           candidate_id?: string | null
           client_id?: string | null
+          direction?: string | null
           full_notes?: string | null
           id?: string
           interacted_at?: string
           interaction_type?: string
           process_id?: string | null
           recruiter_id?: string
+          requisition_id?: string | null
           summary?: string | null
+          transcript_raw?: string | null
+          triggers_context_refresh?: boolean
         }
         Relationships: [
           {
@@ -495,38 +608,69 @@ export type Database = {
             referencedRelation: "recruiters"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "interactions_requisition_id_fkey"
+            columns: ["requisition_id"]
+            isOneToOne: false
+            referencedRelation: "requisitions"
+            referencedColumns: ["id"]
+          },
         ]
       }
       processes: {
         Row: {
           ai_snapshot: string | null
+          ai_snapshot_updated_at: string | null
+          buy_in_confirmed_at: string | null
           candidate_id: string
+          closed_reason: string | null
           coverage_type: string
           created_at: string
+          cv_sent_at: string | null
           id: string
+          last_activity_at: string | null
+          offer_amount: number | null
+          offer_date: string | null
           owner_recruiter_id: string
+          placed_date: string | null
           requisition_id: string
           stage: string
           updated_at: string
         }
         Insert: {
           ai_snapshot?: string | null
+          ai_snapshot_updated_at?: string | null
+          buy_in_confirmed_at?: string | null
           candidate_id: string
+          closed_reason?: string | null
           coverage_type: string
           created_at?: string
+          cv_sent_at?: string | null
           id?: string
+          last_activity_at?: string | null
+          offer_amount?: number | null
+          offer_date?: string | null
           owner_recruiter_id: string
+          placed_date?: string | null
           requisition_id: string
           stage: string
           updated_at?: string
         }
         Update: {
           ai_snapshot?: string | null
+          ai_snapshot_updated_at?: string | null
+          buy_in_confirmed_at?: string | null
           candidate_id?: string
+          closed_reason?: string | null
           coverage_type?: string
           created_at?: string
+          cv_sent_at?: string | null
           id?: string
+          last_activity_at?: string | null
+          offer_amount?: number | null
+          offer_date?: string | null
           owner_recruiter_id?: string
+          placed_date?: string | null
           requisition_id?: string
           stage?: string
           updated_at?: string
@@ -579,10 +723,60 @@ export type Database = {
         }
         Relationships: []
       }
+      requisition_conditions: {
+        Row: {
+          condition_text: string
+          condition_type: string
+          created_at: string
+          id: string
+          priority_rank: number
+          recruiter_id: string
+          requisition_id: string
+          source: string
+        }
+        Insert: {
+          condition_text: string
+          condition_type: string
+          created_at?: string
+          id?: string
+          priority_rank?: number
+          recruiter_id: string
+          requisition_id: string
+          source: string
+        }
+        Update: {
+          condition_text?: string
+          condition_type?: string
+          created_at?: string
+          id?: string
+          priority_rank?: number
+          recruiter_id?: string
+          requisition_id?: string
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "requisition_conditions_recruiter_id_fkey"
+            columns: ["recruiter_id"]
+            isOneToOne: false
+            referencedRelation: "recruiters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "requisition_conditions_requisition_id_fkey"
+            columns: ["requisition_id"]
+            isOneToOne: false
+            referencedRelation: "requisitions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       requisitions: {
         Row: {
           age_max: number | null
           age_min: number | null
+          ai_context: string | null
+          ai_context_updated_at: string | null
           client_id: string
           created_at: string
           english_level_required: string | null
@@ -597,11 +791,15 @@ export type Database = {
           ideal_candidate_notes: string | null
           industry_must_haves: string | null
           internal_candidate: boolean | null
+          interview_notes: string | null
           interview_rounds: number | null
+          interview_steps: number | null
           interview_structure: Json | null
           is_backfill: boolean | null
           is_open: boolean
           japanese_level_required: string | null
+          jd_text: string | null
+          jd_url: string | null
           open_to_foreign_candidates: boolean | null
           other_agencies: boolean | null
           other_agency_names: string | null
@@ -619,6 +817,8 @@ export type Database = {
         Insert: {
           age_max?: number | null
           age_min?: number | null
+          ai_context?: string | null
+          ai_context_updated_at?: string | null
           client_id: string
           created_at?: string
           english_level_required?: string | null
@@ -633,11 +833,15 @@ export type Database = {
           ideal_candidate_notes?: string | null
           industry_must_haves?: string | null
           internal_candidate?: boolean | null
+          interview_notes?: string | null
           interview_rounds?: number | null
+          interview_steps?: number | null
           interview_structure?: Json | null
           is_backfill?: boolean | null
           is_open?: boolean
           japanese_level_required?: string | null
+          jd_text?: string | null
+          jd_url?: string | null
           open_to_foreign_candidates?: boolean | null
           other_agencies?: boolean | null
           other_agency_names?: string | null
@@ -655,6 +859,8 @@ export type Database = {
         Update: {
           age_max?: number | null
           age_min?: number | null
+          ai_context?: string | null
+          ai_context_updated_at?: string | null
           client_id?: string
           created_at?: string
           english_level_required?: string | null
@@ -669,11 +875,15 @@ export type Database = {
           ideal_candidate_notes?: string | null
           industry_must_haves?: string | null
           internal_candidate?: boolean | null
+          interview_notes?: string | null
           interview_rounds?: number | null
+          interview_steps?: number | null
           interview_structure?: Json | null
           is_backfill?: boolean | null
           is_open?: boolean
           japanese_level_required?: string | null
+          jd_text?: string | null
+          jd_url?: string | null
           open_to_foreign_candidates?: boolean | null
           other_agencies?: boolean | null
           other_agency_names?: string | null
@@ -854,24 +1064,54 @@ export const Constants = {
 // ─── custom app types (preserved across regenerations) ───────────────────────
 
 export type ContactRole =
-  | "hiring_manager"
-  | "hr_gatekeeper"
-  | "ta_coordinator"
-  | "executive"
-  | "other";
+  | "hiring_manager" | "hr_gatekeeper" | "ta_coordinator" | "executive" | "other";
 
 export type ProcessStage =
-  | "Specs Sent"
-  | "Buy-In"
-  | "CV Sent"
-  | `CCM${number}`
-  | "Offer"
-  | "Placed"
-  | "Closed lost";
+  | "Specs Sent" | "Buy-In" | "CV Sent" | `CCM${number}` | "Offer" | "Placed" | "Closed lost";
 
 export type JapaneseLevel =
-  | "Native"
-  | "Business"
-  | "Conversational"
-  | "Basic"
-  | "None";
+  | "Native" | "Fluent" | "High Business" | "Business" | "Low Business"
+  | "High Conversational" | "Conversational" | "Low Conversational" | "Basic" | "None";
+
+export type CandidateStatus = "active" | "passive" | "placed" | "off_market";
+
+export type CandidateSource = "linkedin" | "bizreach" | "doda" | "referral" | "inbound" | "other";
+
+export type ClientStatus = "prospect" | "active" | "inactive";
+
+export type ConditionType = "must_have" | "nice_to_have";
+
+export type ConditionSource = "jd" | "client";
+
+export type EntityType = "candidate" | "client" | "requisition";
+
+export type Urgency = "standard" | "urgent" | "backburner";
+
+export type MotivationType =
+  | "salary" | "career_progression" | "international_environment"
+  | "wlb" | "stability" | "brand" | "remote" | "leadership" | "other";
+
+// Submission package types (absorbed from CVFlow)
+export interface SnapshotContent {
+  name: string;
+  title?: string | null;
+  company?: string | null;
+  age?: string | null;
+  currentComp?: string | null;
+  targetComp?: string | null;
+}
+
+export interface ProfileContent {
+  snapshot: SnapshotContent;
+  executiveSummary: string;
+  careerMotivation: string;
+  alignment: string[];
+  compensation: string;
+  closing: string;
+}
+
+export interface SubmissionPackage {
+  email: { subject: string; body: string };
+  englishContent: ProfileContent;
+  japaneseContent: ProfileContent;
+}

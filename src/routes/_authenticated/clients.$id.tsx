@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
@@ -53,14 +53,20 @@ type ClientRecord = {
   company_name: string;
   logo_url: string | null;
   is_active: boolean;
+  status: string | null;
   fee_pct: number | null;
   started_at: string | null;
   years_in_japan: number | null;
   japan_team_size: number | null;
   japan_team_japanese_pct: number | null;
+  employee_japanese_pct: number | null;
   japan_role_in_group: string | null;
   kk_entity: string | null;
   strategy_notes: string | null;
+  contract_signed: boolean;
+  contract_url: string | null;
+  ai_context: string | null;
+  ai_context_updated_at: string | null;
 };
 
 type Contact = {
@@ -69,6 +75,9 @@ type Contact = {
   role: ContactRole;
   title: string | null;
   notes: string | null;
+  email: string | null;
+  phone: string | null;
+  linkedin_url: string | null;
   relationship_score: number | null;
   bypass_hr_warning: boolean | null;
   is_primary: boolean | null;
@@ -807,7 +816,14 @@ function ClientDetail() {
             />
 
             {/* Enrich company profile */}
-            <ClientEnrichCard clientId={id} />
+            <ClientEnrichCard clientId={id} companyName={c.company_name} />
+
+            {/* Account intelligence */}
+            <ClientIntelligenceCard
+              clientId={id}
+              aiContext={c.ai_context}
+              aiContextUpdatedAt={c.ai_context_updated_at}
+            />
 
             {/* Contacts card */}
             <ContactsCard
@@ -940,12 +956,20 @@ function CompanyHeaderCard({
           <h2 className="text-[18px] font-medium leading-tight">{c.company_name}</h2>
           {/* Meta pills */}
           <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-            {c.is_active !== false ? (
-              <MetaPill style={{ background: "#eaf3de", color: "#27500a", borderColor: "#c0dd97" }}>
-                Active
-              </MetaPill>
-            ) : (
+            {c.status === "prospect" ? (
+              <MetaPill style={{ background: "#fdf3e7", color: "#633806", borderColor: "#fac775" }}>Prospect</MetaPill>
+            ) : c.status === "inactive" ? (
               <MetaPill style={{ background: "#f5f5f3", color: "#888780" }}>Inactive</MetaPill>
+            ) : (
+              <MetaPill style={{ background: "#eaf3de", color: "#27500a", borderColor: "#c0dd97" }}>Active</MetaPill>
+            )}
+            {c.contract_signed && (
+              <MetaPill style={{ background: "#eaf3de", color: "#27500a", borderColor: "#c0dd97" }}>Contract signed</MetaPill>
+            )}
+            {c.employee_japanese_pct != null && (
+              <MetaPill>
+                {c.employee_japanese_pct}% Japanese team
+              </MetaPill>
             )}
             {c.fee_pct && (
               <MetaPill>{c.fee_pct}% fee agreed</MetaPill>
@@ -1217,6 +1241,21 @@ function ContactsCard({
                         </span>
                       )}
                     </div>
+
+                    {/* Contact details */}
+                    {(contact.email || contact.phone || contact.linkedin_url) && (
+                      <div className="flex items-center gap-3 mt-0.5 mb-1">
+                        {contact.email && (
+                          <a href={`mailto:${contact.email}`} className="text-[11px]" style={{ color: "#185fa5" }}>{contact.email}</a>
+                        )}
+                        {contact.phone && (
+                          <span className="text-[11px]" style={{ color: "#5f5e5a" }}>{contact.phone}</span>
+                        )}
+                        {contact.linkedin_url && (
+                          <a href={contact.linkedin_url} target="_blank" rel="noreferrer" className="text-[11px] underline underline-offset-2" style={{ color: "#185fa5" }}>LinkedIn</a>
+                        )}
+                      </div>
+                    )}
 
                     {/* Relationship dots */}
                     <RelationshipDots
@@ -1793,6 +1832,9 @@ function AddContactDialog({
     name: "",
     role: "" as ContactRole | "",
     title: "",
+    email: "",
+    phone: "",
+    linkedin_url: "",
     notes: "",
     is_primary: false,
     bypass_hr_warning: false,
@@ -1806,6 +1848,9 @@ function AddContactDialog({
         name: form.name.trim(),
         role: form.role,
         title: form.title.trim() || null,
+        email: form.email.trim() || null,
+        phone: form.phone.trim() || null,
+        linkedin_url: form.linkedin_url.trim() || null,
         notes: form.notes.trim() || null,
         is_primary: form.is_primary,
         bypass_hr_warning: form.bypass_hr_warning,
@@ -1815,7 +1860,7 @@ function AddContactDialog({
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["client", clientId] });
       toast.success("Contact added");
-      setForm({ name: "", role: "", title: "", notes: "", is_primary: false, bypass_hr_warning: false });
+      setForm({ name: "", role: "", title: "", email: "", phone: "", linkedin_url: "", notes: "", is_primary: false, bypass_hr_warning: false });
       onClose();
     },
     onError: () => toast.error("Failed to add contact"),
@@ -1848,6 +1893,17 @@ function AddContactDialog({
               <Input value={form.title} onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))} placeholder="VP Engineering" />
             </F>
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <F label="Email">
+              <Input value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} placeholder="hanako@company.com" type="email" />
+            </F>
+            <F label="Phone">
+              <Input value={form.phone} onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))} placeholder="+81 3 0000 0000" />
+            </F>
+          </div>
+          <F label="LinkedIn URL">
+            <Input value={form.linkedin_url} onChange={(e) => setForm((p) => ({ ...p, linkedin_url: e.target.value }))} placeholder="https://linkedin.com/in/…" />
+          </F>
           <F label="Notes (recruiter observation — AI never writes here)">
             <Textarea
               value={form.notes}
@@ -1982,6 +2038,54 @@ function RequisitionIntakeModal({
   const qc = useQueryClient();
   const [form, setForm] = useState(EMPTY_REQ);
   const [generatingContext, setGeneratingContext] = useState(false);
+  const [jdUploading, setJdUploading] = useState(false);
+  const [jdText, setJdText] = useState("");
+  const [jdUrl, setJdUrl] = useState("");
+  const [extractingConditions, setExtractingConditions] = useState(false);
+  const [suggestedConditions, setSuggestedConditions] = useState<Array<{ condition_text: string; condition_type: string; source: string; priority_rank: number }>>([]);
+  const jdInputRef = useRef<HTMLInputElement>(null);
+
+  async function handleJdFile(file: File) {
+    setJdUploading(true);
+    try {
+      // Extract text client-side for PDF using mammoth for docx, or send as-is
+      let extractedText = "";
+      if (file.name.endsWith(".docx")) {
+        const mammoth = await import("mammoth");
+        const buf = await file.arrayBuffer();
+        const result = await mammoth.extractRawText({ arrayBuffer: buf });
+        extractedText = result.value;
+      } else {
+        // For PDF, we'll upload and extract server-side via pdf-parse in a later step
+        // For now, indicate file is ready
+        extractedText = `[PDF: ${file.name}]`;
+      }
+      // Upload to storage
+      const path = `${recruiterId}/${clientId}/jd_${Date.now()}_${file.name.replace(/\s+/g, "_")}`;
+      const { error } = await supabase.storage.from("resumes").upload(path, file);
+      if (!error) setJdUrl(path);
+      setJdText(extractedText);
+      if (extractedText.length > 50 && !extractedText.startsWith("[PDF")) {
+        void extractConditions(extractedText);
+      }
+      toast.success("JD uploaded.");
+    } catch { toast.error("JD upload failed."); }
+    finally { setJdUploading(false); }
+  }
+
+  async function extractConditions(text: string) {
+    setExtractingConditions(true);
+    try {
+      const resp = await fetch("/api/ai/extract-conditions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ requisition_id: "preview", jd_text: text }),
+      });
+      const data = (await resp.json()) as { conditions?: typeof suggestedConditions };
+      if (data.conditions) setSuggestedConditions(data.conditions);
+    } catch { /* silent */ }
+    finally { setExtractingConditions(false); }
+  }
 
   function wan(v: string): number | null {
     const n = parseInt(v);
@@ -2047,7 +2151,7 @@ function RequisitionIntakeModal({
             }))
           : null;
 
-      const { error } = await supabase.from("requisitions").insert({
+      const { data: insertedReq, error } = await supabase.from("requisitions").insert({
         client_id: clientId,
         recruiter_id: recruiterId,
         is_open: true,
@@ -2059,6 +2163,8 @@ function RequisitionIntakeModal({
         salary_max: wan(form.salary_max),
         salary_stretch: wan(form.salary_stretch),
         urgency: form.urgency || null,
+        jd_url: jdUrl || null,
+        jd_text: jdText || null,
         ideal_candidate_notes: form.ideal_candidate_notes.trim() || null,
         age_min: form.age_min ? parseInt(form.age_min) : null,
         age_max: form.age_max ? parseInt(form.age_max) : null,
@@ -2079,8 +2185,25 @@ function RequisitionIntakeModal({
         open_to_foreign_candidates: triState(form.open_to_foreign_candidates),
         internal_candidate: triState(form.internal_candidate),
         target_start_date: form.target_start_date || null,
-      });
+      }).select("id").single();
       if (error) throw error;
+
+      // Save extracted conditions
+      if (insertedReq && suggestedConditions.length > 0) {
+        const condRows = suggestedConditions
+          .filter((c) => c.condition_text.trim())
+          .map((c) => ({
+            requisition_id: insertedReq.id,
+            recruiter_id: recruiterId,
+            condition_text: c.condition_text.trim(),
+            condition_type: c.condition_type,
+            source: c.source,
+            priority_rank: c.priority_rank,
+          }));
+        if (condRows.length > 0) {
+          await supabase.from("requisition_conditions").insert(condRows);
+        }
+      }
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["client", clientId] });
@@ -2207,6 +2330,56 @@ function RequisitionIntakeModal({
                 </F>
               </div>
             </div>
+          </div>
+
+          {/* ── JD Upload ── */}
+          <div>
+            <IntakeSectionHeader label="Job description (PDF or DOCX)" />
+            <div
+              className="rounded-xl px-4 py-3 flex items-center gap-3 cursor-pointer"
+              style={{ background: jdText ? "#f0fae8" : "#f5f5f3", border: `0.5px dashed ${jdText ? "rgba(39,80,10,0.3)" : "rgba(26,26,24,0.2)"}` }}
+              onClick={() => !jdUploading && jdInputRef.current?.click()}
+            >
+              <IconFileText size={16} style={{ color: "#888780", flexShrink: 0 }} />
+              <div className="flex-1 min-w-0">
+                <p className="text-[12px]" style={{ color: "#5f5e5a" }}>
+                  {jdUploading ? "Uploading…" : jdText ? "JD uploaded — conditions extracted below" : "Upload JD (PDF or DOCX) — conditions will be extracted automatically"}
+                </p>
+              </div>
+              {extractingConditions && <span className="text-[11px]" style={{ color: "#185fa5" }}>Extracting conditions…</span>}
+              {jdText && !extractingConditions && <span className="text-[11px]" style={{ color: "#27500a" }}>✓ Done</span>}
+              <input ref={jdInputRef} type="file" accept=".pdf,.docx" className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) void handleJdFile(f); e.target.value = ""; }} />
+            </div>
+            {suggestedConditions.length > 0 && (
+              <div className="mt-3 rounded-[8px] p-3 space-y-2" style={{ background: "#f5f5f3" }}>
+                <p className="sl mb-2">Extracted conditions — edit before saving</p>
+                {suggestedConditions.map((cond, i) => (
+                  <div key={i} className="flex items-start gap-2">
+                    <span
+                      className="text-[10px] font-medium px-1.5 py-0.5 rounded shrink-0 mt-0.5"
+                      style={{ background: cond.condition_type === "must_have" ? "#fdf3e7" : "#f5f5f3", color: cond.condition_type === "must_have" ? "#633806" : "#888780" }}
+                    >
+                      {cond.condition_type === "must_have" ? "Must" : "Nice"}
+                    </span>
+                    <input
+                      className="flex-1 text-[12px] bg-transparent border-b outline-none"
+                      style={{ borderColor: "rgba(26,26,24,0.12)", color: "#1a1a18" }}
+                      value={cond.condition_text}
+                      onChange={(e) => setSuggestedConditions((prev) => prev.map((c, j) => j === i ? { ...c, condition_text: e.target.value } : c))}
+                    />
+                    <button onClick={() => setSuggestedConditions((prev) => prev.filter((_, j) => j !== i))}
+                      className="text-[11px] shrink-0" style={{ color: "#b8b7b2" }}>✕</button>
+                  </div>
+                ))}
+                <button
+                  className="ab mt-1"
+                  onClick={() => setSuggestedConditions((prev) => [...prev, { condition_text: "", condition_type: "must_have", source: "client", priority_rank: prev.length + 1 }])}
+                >
+                  + Add condition
+                </button>
+              </div>
+            )}
           </div>
 
           {/* ── B — Ideal candidate ── */}
@@ -2680,40 +2853,39 @@ function F({
   );
 }
 
-// ─── client enrich card ───────────────────────────────────────────────────────
+// ─── client enrich card (Tavily-powered) ─────────────────────────────────────
 
-type EnrichResult = {
-  japan_role_in_group: string | null;
-  japan_team_size: number | null;
-  japan_team_japanese_pct: number | null;
-  years_in_japan: number | null;
-  kk_entity: string | null;
-  strategy_notes: string | null;
+type TavilyEnrichResult = {
+  japanTeamSize?: string;
+  japanTeamSizeInt?: number;
+  yearsInJapan?: number;
+  employeeJapanesePct?: number;
+  japanRoleInGroup?: string;
+  strategicPriorities?: string;
+  recentInitiatives?: string;
+  sourceUrls?: string[];
 };
 
-function ClientEnrichCard({ clientId }: { clientId: string }) {
+function ClientEnrichCard({ clientId, companyName }: { clientId: string; companyName: string }) {
   const qc = useQueryClient();
   const [expanded, setExpanded] = useState(false);
-  const [text, setText] = useState("");
+  const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<EnrichResult | null>(null);
+  const [result, setResult] = useState<TavilyEnrichResult | null>(null);
   const [applying, setApplying] = useState(false);
 
-  async function extract() {
-    if (text.trim().length < 20) {
-      toast.error("Paste at least a paragraph of company text.");
-      return;
-    }
+  async function enrich() {
     setLoading(true);
     setResult(null);
     try {
       const resp = await fetch("/api/ai/enrich-client", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ client_id: clientId, company_name: companyName, url: url.trim() || undefined }),
       });
-      const data = (await resp.json()) as EnrichResult;
-      setResult(data);
+      const data = (await resp.json()) as { enrichment?: TavilyEnrichResult; error?: string };
+      if (data.error) { toast.error(data.error); return; }
+      if (data.enrichment) setResult(data.enrichment);
     } catch {
       toast.error("Enrichment failed. Please try again.");
     } finally {
@@ -2725,21 +2897,13 @@ function ClientEnrichCard({ clientId }: { clientId: string }) {
     if (!result) return;
     setApplying(true);
     try {
-      const patch: Partial<{
-        japan_role_in_group: string;
-        japan_team_size: number;
-        japan_team_japanese_pct: number;
-        years_in_japan: number;
-        kk_entity: string;
-        strategy_notes: string;
-      }> = {};
-      if (result.japan_role_in_group != null) patch.japan_role_in_group = result.japan_role_in_group;
-      if (result.japan_team_size != null)     patch.japan_team_size = result.japan_team_size;
-      if (result.japan_team_japanese_pct != null) patch.japan_team_japanese_pct = result.japan_team_japanese_pct;
-      if (result.years_in_japan != null)      patch.years_in_japan = result.years_in_japan;
-      if (result.kk_entity != null)           patch.kk_entity = result.kk_entity;
-      if (result.strategy_notes)              patch.strategy_notes = result.strategy_notes;
-
+      type ClientPatch = { japan_role_in_group?: string; japan_team_size?: number; employee_japanese_pct?: number; years_in_japan?: number; strategy_notes?: string };
+      const patch: ClientPatch = {};
+      if (result.japanRoleInGroup)       patch.japan_role_in_group = result.japanRoleInGroup;
+      if (result.japanTeamSizeInt != null) patch.japan_team_size = result.japanTeamSizeInt;
+      if (result.employeeJapanesePct != null) patch.employee_japanese_pct = result.employeeJapanesePct;
+      if (result.yearsInJapan != null)   patch.years_in_japan = result.yearsInJapan;
+      if (result.strategicPriorities)    patch.strategy_notes = [result.strategicPriorities, result.recentInitiatives].filter(Boolean).join("\n\n");
       if (Object.keys(patch).length > 0) {
         const { error } = await supabase.from("clients").update(patch).eq("id", clientId);
         if (error) throw error;
@@ -2747,7 +2911,6 @@ function ClientEnrichCard({ clientId }: { clientId: string }) {
       void qc.invalidateQueries({ queryKey: ["client", clientId] });
       toast.success("Company profile updated from enrichment.");
       setResult(null);
-      setText("");
       setExpanded(false);
     } catch {
       toast.error("Failed to apply enrichment.");
@@ -2756,98 +2919,59 @@ function ClientEnrichCard({ clientId }: { clientId: string }) {
     }
   }
 
-  const previewRows: Array<{ label: string; value: string | null }> = result
-    ? [
-        { label: "Japan role in group",    value: result.japan_role_in_group },
-        { label: "Team size in Japan",     value: result.japan_team_size != null ? `~${result.japan_team_size.toLocaleString()}` : null },
-        { label: "% Japanese nationals",   value: result.japan_team_japanese_pct != null ? `~${result.japan_team_japanese_pct}%` : null },
-        { label: "Years in Japan",         value: result.years_in_japan != null ? `${result.years_in_japan} years` : null },
-        { label: "KK entity",              value: result.kk_entity },
-        { label: "Strategy notes",         value: result.strategy_notes },
-      ]
-    : [];
+  const previewRows: Array<{ label: string; value: string | null }> = result ? [
+    { label: "Japan role in group",   value: result.japanRoleInGroup ?? null },
+    { label: "Team size in Japan",    value: result.japanTeamSize ?? null },
+    { label: "% Japanese staff",      value: result.employeeJapanesePct != null ? `${result.employeeJapanesePct}%` : null },
+    { label: "Years in Japan",        value: result.yearsInJapan != null ? `${result.yearsInJapan} years` : null },
+    { label: "Strategic priorities",  value: result.strategicPriorities ?? null },
+    { label: "Recent initiatives",    value: result.recentInitiatives ?? null },
+  ] : [];
 
   return (
-    <div
-      className="rounded-xl overflow-hidden"
-      style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.12)" }}
-    >
-      {/* Header row */}
-      <button
-        className="w-full flex items-center gap-2 px-4 py-3 text-left"
-        onClick={() => setExpanded((v) => !v)}
-      >
+    <div className="rounded-xl overflow-hidden" style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.12)" }}>
+      <button className="w-full flex items-center gap-2 px-4 py-3 text-left" onClick={() => setExpanded((v) => !v)}>
         <IconSparkles size={13} style={{ color: "#888780" }} />
-        <span className="flex-1 text-[12px]" style={{ color: "#5f5e5a" }}>
-          Enrich company profile from text
-        </span>
-        <span className="text-[11px]" style={{ color: "#b8b7b2" }}>
-          {expanded ? "▴" : "▾"}
-        </span>
+        <span className="flex-1 text-[12px]" style={{ color: "#5f5e5a" }}>Enrich company profile with web search</span>
+        <span className="text-[11px]" style={{ color: "#b8b7b2" }}>{expanded ? "▴" : "▾"}</span>
       </button>
-
       {expanded && (
         <div className="px-4 pb-4">
           <p className="text-[11px] mb-2" style={{ color: "#888780" }}>
-            Paste text from the company website, LinkedIn, or your own notes. Claude will extract structured company data.
+            Search uses <strong>{companyName}</strong> as the company name. Add the company URL for more accurate results.
           </p>
-          <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="Paste company description, LinkedIn about section, or any relevant text…"
-            rows={5}
-            className="w-full rounded-[8px] px-3 py-2 text-[12px] leading-relaxed resize-none mb-3"
-            style={{
-              background: "#f5f5f3",
-              border: "0.5px solid rgba(26,26,24,0.12)",
-              color: "#1a1a18",
-              outline: "none",
-            }}
+          <Input
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="Company website URL (optional)"
+            className="mb-2 text-xs h-8"
           />
-          <button
-            className="ab"
-            onClick={() => void extract()}
-            disabled={loading}
-          >
+          <button className="ab" onClick={() => void enrich()} disabled={loading}>
             <IconSparkles size={11} />
-            {loading ? "Extracting…" : "Extract with AI"}
+            {loading ? "Searching…" : "Search and enrich"}
           </button>
-
-          {/* Preview */}
           {result && (
             <div className="mt-3 rounded-[8px] p-3" style={{ background: "#f5f5f3" }}>
-              <p className="sl mb-2">Extracted — review before applying</p>
+              <p className="sl mb-2">Enrichment results — review before applying</p>
               <div className="space-y-1.5 mb-3">
-                {previewRows
-                  .filter((r) => r.value != null)
-                  .map(({ label, value }) => (
-                    <div key={label} className="flex items-start justify-between gap-3">
-                      <span className="text-[11px]" style={{ color: "#888780" }}>{label}</span>
-                      <span
-                        className="text-[12px] font-medium text-right"
-                        style={{ maxWidth: 240, color: "#1a1a18" }}
-                      >
-                        {value}
-                      </span>
-                    </div>
-                  ))}
+                {previewRows.filter((r) => r.value != null).map(({ label, value }) => (
+                  <div key={label} className="flex items-start justify-between gap-3">
+                    <span className="text-[11px]" style={{ color: "#888780" }}>{label}</span>
+                    <span className="text-[12px] font-medium text-right" style={{ maxWidth: 240, color: "#1a1a18" }}>{value}</span>
+                  </div>
+                ))}
                 {previewRows.every((r) => r.value == null) && (
-                  <p className="text-[12px]" style={{ color: "#888780" }}>
-                    No structured data found in this text. Try pasting more detail.
-                  </p>
+                  <p className="text-[12px]" style={{ color: "#888780" }}>No data found. Try adding the company URL.</p>
                 )}
               </div>
-              <div className="flex items-center gap-2">
-                <button className="ab" onClick={() => void apply()} disabled={applying}>
-                  {applying ? "Applying…" : "Apply to profile"}
-                </button>
-                <button
-                  className="text-[11px]"
-                  style={{ color: "#888780" }}
-                  onClick={() => setResult(null)}
-                >
-                  Discard
-                </button>
+              {result.sourceUrls && result.sourceUrls.length > 0 && (
+                <p className="text-[11px] mb-3" style={{ color: "#b8b7b2" }}>
+                  Sources: {result.sourceUrls.slice(0, 3).map((u) => new URL(u).hostname).join(", ")}
+                </p>
+              )}
+              <div className="flex gap-2">
+                <button className="ab" onClick={() => void apply()} disabled={applying}>{applying ? "Applying…" : "Apply to profile"}</button>
+                <button className="text-[11px]" style={{ color: "#888780" }} onClick={() => setResult(null)}>Discard</button>
               </div>
             </div>
           )}
@@ -2972,6 +3096,74 @@ function ClientContractTab({ client: c }: { client: ClientRecord }) {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+// ─── client intelligence card ─────────────────────────────────────────────────
+
+function ClientIntelligenceCard({
+  clientId,
+  aiContext,
+  aiContextUpdatedAt,
+}: {
+  clientId: string;
+  aiContext: string | null;
+  aiContextUpdatedAt: string | null;
+}) {
+  const qc = useQueryClient();
+  const [expanded, setExpanded] = useState(!!aiContext);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const relTime = (iso: string | null) => {
+    if (!iso) return null;
+    const diff = Date.now() - new Date(iso).getTime();
+    const h = Math.floor(diff / 3600000);
+    if (h < 1) return "just now";
+    if (h < 24) return `${h} hour${h !== 1 ? "s" : ""} ago`;
+    const d = Math.floor(h / 24);
+    return `${d} day${d !== 1 ? "s" : ""} ago`;
+  };
+
+  async function refresh() {
+    setRefreshing(true);
+    try {
+      await fetch("/api/ai/refresh-context", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entity_type: "client", entity_id: clientId }),
+      });
+      void qc.invalidateQueries({ queryKey: ["client", clientId] });
+      toast.success("Account intelligence refreshed.");
+    } catch { toast.error("Refresh failed. Try again."); }
+    finally { setRefreshing(false); }
+  }
+
+  return (
+    <div className="rounded-xl overflow-hidden" style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.12)" }}>
+      <button className="w-full flex items-center gap-2 px-4 py-3 text-left" onClick={() => setExpanded((v) => !v)}>
+        <IconSparkles size={13} style={{ color: "#888780" }} />
+        <span className="flex-1 text-[12px] font-medium" style={{ color: "#5f5e5a" }}>Account intelligence</span>
+        {aiContextUpdatedAt && (
+          <span className="text-[11px]" style={{ color: "#b8b7b2" }}>Updated {relTime(aiContextUpdatedAt)}</span>
+        )}
+        <span className="text-[11px]" style={{ color: "#b8b7b2" }}>{expanded ? "▴" : "▾"}</span>
+      </button>
+      {expanded && (
+        <div className="px-4 pb-4">
+          {aiContext ? (
+            <p className="text-[13px] leading-relaxed whitespace-pre-wrap mb-3" style={{ color: "#1a1a18" }}>{aiContext}</p>
+          ) : (
+            <p className="text-[13px] mb-3" style={{ color: "#888780" }}>
+              No intelligence summary yet. Click refresh to generate one from the account history.
+            </p>
+          )}
+          <button className="ab" onClick={() => void refresh()} disabled={refreshing}>
+            <IconSparkles size={11} />
+            {refreshing ? "Refreshing…" : "Refresh"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
