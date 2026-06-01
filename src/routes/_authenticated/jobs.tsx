@@ -50,7 +50,6 @@ function useJobs(recruiterId: string) {
            clients ( id, company_name, fee_pct ),
            processes ( id, stage )`,
         )
-        .eq("recruiter_id", recruiterId)
         .order("created_at", { ascending: false });
 
       if (error) throw error;

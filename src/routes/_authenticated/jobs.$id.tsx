@@ -13,7 +13,6 @@ import { toast } from "sonner";
 import {
   IconSparkles,
   IconPlus,
-  IconTrash,
   IconChevronLeft,
   IconAlertTriangle,
   IconX,
@@ -405,7 +404,7 @@ function StrategicContextCard({
   );
 }
 
-// ─── conditions card ──────────────────────────────────────────────────────────
+// ─── key criteria card ────────────────────────────────────────────────────────
 
 function ConditionsCard({
   requisitionId,
@@ -419,23 +418,20 @@ function ConditionsCard({
   isLoading: boolean;
 }) {
   const qc = useQueryClient();
-  const [adding, setAdding] = useState(false);
-  const [newText, setNewText] = useState("");
-  const [newType, setNewType] = useState<"must_have" | "nice_to_have">("must_have");
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editText, setEditText] = useState("");
+  const [mustInput, setMustInput] = useState("");
+  const [flexInput, setFlexInput] = useState("");
 
   const nextRank = conditions.length
     ? Math.max(...conditions.map((c) => c.priority_rank)) + 1
     : 1;
 
   const addMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async ({ text, type }: { text: string; type: "must_have" | "nice_to_have" }) => {
       const { error } = await supabase.from("requisition_conditions").insert({
         requisition_id: requisitionId,
         recruiter_id: recruiterId,
-        condition_text: newText.trim(),
-        condition_type: newType,
+        condition_text: text.trim(),
+        condition_type: type,
         source: "recruiter",
         priority_rank: nextRank,
       });
@@ -443,25 +439,8 @@ function ConditionsCard({
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["requisition_conditions", requisitionId] });
-      setNewText("");
-      setAdding(false);
     },
-    onError: () => toast.error("Could not add condition. Try again."),
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: async ({ id, text }: { id: string; text: string }) => {
-      const { error } = await supabase
-        .from("requisition_conditions")
-        .update({ condition_text: text })
-        .eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ["requisition_conditions", requisitionId] });
-      setEditingId(null);
-    },
-    onError: () => toast.error("Could not update condition. Try again."),
+    onError: () => toast.error("Could not add criterion. Try again."),
   });
 
   const deleteMutation = useMutation({
@@ -475,115 +454,133 @@ function ConditionsCard({
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["requisition_conditions", requisitionId] });
     },
-    onError: () => toast.error("Could not delete condition. Try again."),
+    onError: () => toast.error("Could not remove criterion. Try again."),
   });
 
   const mustHave = conditions.filter((c) => c.condition_type === "must_have");
-  const niceToHave = conditions.filter((c) => c.condition_type === "nice_to_have");
+  const flexible = conditions.filter((c) => c.condition_type === "nice_to_have");
+
+  function addCriterion(type: "must_have" | "nice_to_have") {
+    const text = type === "must_have" ? mustInput : flexInput;
+    if (!text.trim()) return;
+    addMutation.mutate({ text, type });
+    if (type === "must_have") setMustInput(""); else setFlexInput("");
+  }
 
   return (
     <Card>
-      <div className="flex items-center justify-between mb-3">
-        <SectionLabel className="mb-0">Key conditions</SectionLabel>
-        <button className="ab" onClick={() => setAdding((v) => !v)}>
-          <IconPlus size={11} /> Add
-        </button>
-      </div>
+      <SectionLabel className="mb-3">Key criteria</SectionLabel>
 
-      {isLoading && <Skeleton className="h-16 w-full" />}
+      {isLoading && <Skeleton className="h-20 w-full" />}
 
-      {!isLoading && conditions.length === 0 && !adding && (
-        <p className="text-[12px]" style={{ color: "#888780" }}>
-          No conditions extracted yet. Upload a JD or add manually.
-        </p>
-      )}
+      {!isLoading && (
+        <div className="grid grid-cols-2 gap-4">
+          {/* Must-haves column */}
+          <div>
+            <p className="text-[11px] font-semibold mb-2 uppercase tracking-[0.04em]" style={{ color: "#27500a" }}>
+              Must-haves
+            </p>
 
-      {mustHave.length > 0 && (
-        <div className="mb-3">
-          <p className="text-[11px] font-medium mb-1.5 uppercase tracking-[0.04em]" style={{ color: "#633806" }}>
-            Must-have
-          </p>
-          <div className="space-y-1.5">
-            {mustHave.map((c) => (
-              <ConditionRow
-                key={c.id}
-                condition={c}
-                type="must_have"
-                editingId={editingId}
-                editText={editText}
-                onStartEdit={(cond) => { setEditingId(cond.id); setEditText(cond.condition_text); }}
-                onSaveEdit={(cond) => updateMutation.mutate({ id: cond.id, text: editText })}
-                onCancelEdit={() => setEditingId(null)}
-                onEditTextChange={setEditText}
-                onDelete={(cid) => deleteMutation.mutate(cid)}
+            {mustHave.length === 0 && (
+              <p className="text-[12px] mb-2" style={{ color: "#888780" }}>None added.</p>
+            )}
+
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {mustHave.map((c) => (
+                <span
+                  key={c.id}
+                  className="flex items-center gap-1 rounded px-2 py-1 text-[12px]"
+                  style={{
+                    borderLeft: "3px solid #27500a",
+                    background: "#eaf3de",
+                    color: "#27500a",
+                  }}
+                >
+                  {c.condition_text}
+                  <button
+                    onClick={() => deleteMutation.mutate(c.id)}
+                    className="ml-0.5 rounded hover:opacity-70"
+                    title="Remove"
+                  >
+                    <IconX size={10} />
+                  </button>
+                </span>
+              ))}
+            </div>
+
+            <div className="flex gap-1">
+              <input
+                className="flex-1 min-w-0 rounded px-2 py-1 text-[12px] outline-none"
+                style={{ background: "#f5f5f3", border: "0.5px solid rgba(26,26,24,0.12)", color: "#1a1a18" }}
+                placeholder="Add criterion…"
+                value={mustInput}
+                onChange={(e) => setMustInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") addCriterion("must_have"); }}
               />
-            ))}
+              <button
+                className="rounded px-2 py-1 text-[12px] transition-colors"
+                style={{ background: "#eaf3de", color: "#27500a" }}
+                onClick={() => addCriterion("must_have")}
+              >
+                <IconPlus size={12} />
+              </button>
+            </div>
           </div>
-        </div>
-      )}
 
-      {niceToHave.length > 0 && (
-        <div className="mb-3">
-          <p className="text-[11px] font-medium mb-1.5 uppercase tracking-[0.04em]" style={{ color: "#5f5e5a" }}>
-            Nice-to-have
-          </p>
-          <div className="space-y-1.5">
-            {niceToHave.map((c) => (
-              <ConditionRow
-                key={c.id}
-                condition={c}
-                type="nice_to_have"
-                editingId={editingId}
-                editText={editText}
-                onStartEdit={(cond) => { setEditingId(cond.id); setEditText(cond.condition_text); }}
-                onSaveEdit={(cond) => updateMutation.mutate({ id: cond.id, text: editText })}
-                onCancelEdit={() => setEditingId(null)}
-                onEditTextChange={setEditText}
-                onDelete={(cid) => deleteMutation.mutate(cid)}
+          {/* Flexible on column */}
+          <div>
+            <p className="text-[11px] font-semibold mb-2 uppercase tracking-[0.04em]" style={{ color: "#633806" }}>
+              Flexible on
+            </p>
+
+            {flexible.length === 0 && (
+              <p className="text-[12px] mb-2" style={{ color: "#888780" }}>None added.</p>
+            )}
+
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {flexible.map((c) => (
+                <span
+                  key={c.id}
+                  className="flex items-center gap-1 rounded px-2 py-1 text-[12px]"
+                  style={{
+                    borderLeft: "3px solid #ef9f27",
+                    background: "#fdf3e7",
+                    color: "#633806",
+                  }}
+                >
+                  {c.condition_text}
+                  <button
+                    onClick={() => deleteMutation.mutate(c.id)}
+                    className="ml-0.5 rounded hover:opacity-70"
+                    title="Remove"
+                  >
+                    <IconX size={10} />
+                  </button>
+                </span>
+              ))}
+            </div>
+
+            <div className="flex gap-1">
+              <input
+                className="flex-1 min-w-0 rounded px-2 py-1 text-[12px] outline-none"
+                style={{ background: "#f5f5f3", border: "0.5px solid rgba(26,26,24,0.12)", color: "#1a1a18" }}
+                placeholder="Add criterion…"
+                value={flexInput}
+                onChange={(e) => setFlexInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") addCriterion("nice_to_have"); }}
               />
-            ))}
-          </div>
-        </div>
-      )}
+              <button
+                className="rounded px-2 py-1 text-[12px] transition-colors"
+                style={{ background: "#fdf3e7", color: "#633806" }}
+                onClick={() => addCriterion("nice_to_have")}
+              >
+                <IconPlus size={12} />
+              </button>
+            </div>
 
-      {adding && (
-        <div
-          className="rounded-lg p-3 mt-2 space-y-2"
-          style={{ background: "#f5f5f3", border: "0.5px solid rgba(26,26,24,0.12)" }}
-        >
-          <input
-            autoFocus
-            value={newText}
-            onChange={(e) => setNewText(e.target.value)}
-            placeholder="Condition text…"
-            className="w-full text-[13px] bg-transparent outline-none"
-            style={{ color: "#1a1a18" }}
-            onKeyDown={(e) => { if (e.key === "Enter" && newText.trim()) addMutation.mutate(); }}
-          />
-          <div className="flex items-center gap-2">
-            <select
-              value={newType}
-              onChange={(e) => setNewType(e.target.value as "must_have" | "nice_to_have")}
-              className="text-[12px] bg-white rounded px-2 py-1 outline-none"
-              style={{ border: "0.5px solid rgba(26,26,24,0.12)", color: "#1a1a18" }}
-            >
-              <option value="must_have">Must-have</option>
-              <option value="nice_to_have">Nice-to-have</option>
-            </select>
-            <button
-              className="ab"
-              disabled={!newText.trim() || addMutation.isPending}
-              onClick={() => addMutation.mutate()}
-            >
-              Save
-            </button>
-            <button
-              className="text-[12px]"
-              style={{ color: "#888780" }}
-              onClick={() => { setAdding(false); setNewText(""); }}
-            >
-              Cancel
-            </button>
+            <p className="mt-2 text-[11px]" style={{ color: "#888780" }}>
+              Flex criteria factor into match scoring but a gap here will not drop a candidate from results.
+            </p>
           </div>
         </div>
       )}
@@ -591,72 +588,6 @@ function ConditionsCard({
   );
 }
 
-function ConditionRow({
-  condition: c,
-  type,
-  editingId,
-  editText,
-  onStartEdit,
-  onSaveEdit,
-  onCancelEdit,
-  onEditTextChange,
-  onDelete,
-}: {
-  condition: Condition;
-  type: "must_have" | "nice_to_have";
-  editingId: string | null;
-  editText: string;
-  onStartEdit: (c: Condition) => void;
-  onSaveEdit: (c: Condition) => void;
-  onCancelEdit: () => void;
-  onEditTextChange: (v: string) => void;
-  onDelete: (id: string) => void;
-}) {
-  const dotColor = type === "must_have" ? "#ef9f27" : "#b8b7b2";
-
-  if (editingId === c.id) {
-    return (
-      <div className="flex items-center gap-2">
-        <input
-          autoFocus
-          value={editText}
-          onChange={(e) => onEditTextChange(e.target.value)}
-          className="flex-1 text-[12px] bg-white rounded px-2 py-1 outline-none"
-          style={{ border: "0.5px solid rgba(26,26,24,0.2)", color: "#1a1a18" }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") onSaveEdit(c);
-            if (e.key === "Escape") onCancelEdit();
-          }}
-        />
-        <button className="ab text-[11px]" onClick={() => onSaveEdit(c)}>Save</button>
-        <button className="text-[11px]" style={{ color: "#888780" }} onClick={onCancelEdit}>Cancel</button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="group flex items-start gap-2">
-      <span className="mt-[5px] shrink-0 h-1.5 w-1.5 rounded-full" style={{ background: dotColor }} />
-      <button
-        className="flex-1 text-left text-[12px] leading-snug hover:underline"
-        style={{ color: "#1a1a18" }}
-        onClick={() => onStartEdit(c)}
-      >
-        {c.condition_text}
-        {c.source === "client" && (
-          <span className="ml-1.5 text-[11px]" style={{ color: "#888780" }}>(client)</span>
-        )}
-      </button>
-      <button
-        className="opacity-0 group-hover:opacity-100 transition-opacity"
-        onClick={() => onDelete(c.id)}
-        title="Delete"
-      >
-        <IconTrash size={12} style={{ color: "#b8b7b2" }} />
-      </button>
-    </div>
-  );
-}
 
 // ─── pipeline panel ───────────────────────────────────────────────────────────
 

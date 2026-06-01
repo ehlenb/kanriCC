@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
@@ -49,8 +49,11 @@ import {
   IconPlus,
   IconPencil,
   IconCheck,
+  IconClipboard,
+  IconChevronDown,
 } from "@tabler/icons-react";
-import { useRef } from "react";
+import { TranscriptPanel } from "@/components/candidate/TranscriptPanel";
+import { SubmissionPackagePanel } from "@/components/candidate/SubmissionPackagePanel";
 
 export const Route = createFileRoute("/_authenticated/candidates/$id")({
   component: CandidateProfile,
@@ -72,6 +75,9 @@ type Candidate = {
   active_passive: string | null;
   urgency_to_move: string | null;
   candidate_status: string | null;
+  status_source: string | null;
+  placed_at: string | null;
+  coin_icon_dismissed: boolean;
   source: string | null;
   email: string | null;
   phone: string | null;
@@ -129,6 +135,9 @@ type Process = {
   cv_sent_at: string | null;
   placed_date: string | null;
   last_activity_at: string | null;
+  ccm_outcome: "pass" | "fail" | "pending" | null;
+  ccm_feedback_notes: string | null;
+  ccm_feedback_at: string | null;
   requisitions: {
     id: string;
     title: string;
@@ -199,6 +208,7 @@ function useCandidateProfile(id: string) {
             `
             id, stage, coverage_type, ai_snapshot, updated_at,
             buy_in_confirmed_at, cv_sent_at, placed_date, last_activity_at,
+            ccm_outcome, ccm_feedback_notes, ccm_feedback_at,
             requisitions (
               id, title, salary_min, salary_max, salary_stretch,
               clients ( id, company_name )
@@ -412,10 +422,15 @@ function RegistrationPage({
         <SectionLabel>Status &amp; source</SectionLabel>
         <div className="grid grid-cols-2 gap-x-6">
           <FieldRow label="Candidate status">
-            <CandidateStatusBadge status={c.candidate_status} />
+            <StatusToggle
+              candidateId={candidateId}
+              status={c.candidate_status}
+              statusSource={c.status_source}
+              placedAt={c.placed_at}
+              coinIconDismissed={c.coin_icon_dismissed}
+            />
           </FieldRow>
           <FieldRow label="Source">{c.source ?? "—"}</FieldRow>
-          <FieldRow label="Active / Passive">{c.active_passive ?? "—"}</FieldRow>
           <FieldRow label="Urgency to move">
             <span style={{ color: c.urgency_to_move === "High" ? "#27500a" : c.urgency_to_move === "Low" ? "#888780" : "#1a1a18", fontWeight: c.urgency_to_move === "High" ? 500 : 400 }}>
               {c.urgency_to_move ?? "—"}
@@ -1711,8 +1726,11 @@ function useStageChange(candidateId: string) {
         guarantee.setDate(guarantee.getDate() + 90);
         await supabase.from("candidates").update({
           candidate_status: "placed",
+          placed_at: new Date().toISOString(),
+          coin_icon_dismissed: false,
           placement_guarantee_until: guarantee.toISOString().slice(0, 10),
-        }).eq("id", candidateId);
+          // status_source intentionally omitted — placement via process is not a manual toggle
+        } as { candidate_status: string; placed_at: string; coin_icon_dismissed: boolean; placement_guarantee_until: string }).eq("id", candidateId);
       }
     },
     onSuccess: (_, { newStage }) => {
@@ -1810,6 +1828,41 @@ function InterviewPanel({
   const [positioning, setPositioning] = useState<string | null>(p.ai_snapshot);
   const [loadingSubmission, setLoadingSubmission] = useState(false);
   const [submissionPackage, setSubmissionPackage] = useState<import("@/integrations/supabase/types").SubmissionPackage | null>(null);
+  const [loadingInterviewPrep, setLoadingInterviewPrep] = useState(false);
+  const [interviewPrep, setInterviewPrep] = useState<{ candidate_email: string; recruiter_prep_note: string } | null>(null);
+  const [loadingSpecEmail, setLoadingSpecEmail] = useState(false);
+  const [specEmail, setSpecEmail] = useState<{ email: string; talking_points: string[] } | null>(null);
+
+  const ccmMatch = /^CCM(\d+)$/.exec(p.stage);
+  const ccmNumber = ccmMatch ? parseInt(ccmMatch[1], 10) : null;
+
+  const qc = useQueryClient();
+  const [feedbackOutcome, setFeedbackOutcome] = useState<"pass" | "fail" | "pending">(
+    p.ccm_outcome ?? "pending",
+  );
+  const [feedbackNotes, setFeedbackNotes] = useState(p.ccm_feedback_notes ?? "");
+  const [savingFeedback, setSavingFeedback] = useState(false);
+
+  async function saveFeedback() {
+    setSavingFeedback(true);
+    try {
+      const { error } = await supabase
+        .from("processes")
+        .update({
+          ccm_outcome: feedbackOutcome,
+          ccm_feedback_notes: feedbackNotes.trim() || null,
+          ccm_feedback_at: new Date().toISOString(),
+        })
+        .eq("id", p.id);
+      if (error) throw error;
+      void qc.invalidateQueries({ queryKey: ["candidate-profile", c.id] });
+      toast.success("Feedback saved.");
+    } catch {
+      toast.error("Could not save feedback. Try again.");
+    } finally {
+      setSavingFeedback(false);
+    }
+  }
 
   async function generatePositioning() {
     setLoadingPositioning(true);
@@ -1832,7 +1885,7 @@ function InterviewPanel({
       const resp = await fetch("/api/ai/pre-call-briefing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ candidateId: c.id, recruiterId }),
+        body: JSON.stringify({ entity_type: "candidate", entity_id: c.id, process_id: p.id }),
       });
       const json = await resp.json() as { content?: string; error?: string };
       if (json.content) setBriefing(json.content);
@@ -1859,6 +1912,48 @@ function InterviewPanel({
       setSubmissionPackage(json);
     } finally {
       setLoadingSubmission(false);
+    }
+  }
+
+  async function generateInterviewPrep() {
+    if (!ccmNumber) return;
+    setLoadingInterviewPrep(true);
+    try {
+      const resp = await fetch("/api/ai/interview-prep", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ process_id: p.id, ccm_number: ccmNumber }),
+      });
+      const json = await resp.json() as { candidate_email?: string; recruiter_prep_note?: string; error?: string };
+      if (json.error) { toast.error("Could not generate interview prep. Try again."); return; }
+      if (json.candidate_email && json.recruiter_prep_note) {
+        setInterviewPrep({ candidate_email: json.candidate_email, recruiter_prep_note: json.recruiter_prep_note });
+      }
+    } catch {
+      toast.error("Could not generate interview prep. Try again.");
+    } finally {
+      setLoadingInterviewPrep(false);
+    }
+  }
+
+  async function generateSpecEmail() {
+    if (!p.requisitions?.id) { toast.error("No requisition linked to this process."); return; }
+    setLoadingSpecEmail(true);
+    try {
+      const resp = await fetch("/api/ai/spec-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ candidate_id: c.id, requisition_id: p.requisitions.id }),
+      });
+      const json = await resp.json() as { email?: string; talking_points?: string[]; error?: string };
+      if (json.error) { toast.error("Could not generate spec email. Try again."); return; }
+      if (json.email && json.talking_points) {
+        setSpecEmail({ email: json.email, talking_points: json.talking_points });
+      }
+    } catch {
+      toast.error("Could not generate spec email. Try again.");
+    } finally {
+      setLoadingSpecEmail(false);
     }
   }
 
@@ -1905,6 +2000,56 @@ function InterviewPanel({
           )}
         </div>
       </div>
+
+      {/* CCM feedback — only shown for CCM stages */}
+      {ccmNumber !== null && (
+        <div className="mb-4 rounded-lg p-4" style={{ background: "#f5f5f3", border: "0.5px solid rgba(26,26,24,0.12)" }}>
+          <SectionLabel>CCM{ccmNumber} client feedback</SectionLabel>
+          <div className="flex gap-2 mb-3">
+            {(["pass", "pending", "fail"] as const).map((opt) => (
+              <button
+                key={opt}
+                onClick={() => setFeedbackOutcome(opt)}
+                className="text-[12px] px-3 py-1 rounded-md font-medium transition-colors"
+                style={{
+                  background: feedbackOutcome === opt
+                    ? opt === "pass" ? "#eaf3de" : opt === "fail" ? "#fcebeb" : "#fdf3e7"
+                    : "#fff",
+                  color: feedbackOutcome === opt
+                    ? opt === "pass" ? "#27500a" : opt === "fail" ? "#a32d2d" : "#633806"
+                    : "#888780",
+                  border: feedbackOutcome === opt
+                    ? opt === "pass" ? "0.5px solid #b0d88a" : opt === "fail" ? "0.5px solid #f0b0b0" : "0.5px solid #fac775"
+                    : "0.5px solid rgba(26,26,24,0.16)",
+                }}
+              >
+                {opt.charAt(0).toUpperCase() + opt.slice(1)}
+              </button>
+            ))}
+          </div>
+          <textarea
+            value={feedbackNotes}
+            onChange={(e) => setFeedbackNotes(e.target.value)}
+            placeholder="Client feedback notes — what did they say? Any concerns raised?"
+            rows={3}
+            className="w-full rounded-lg p-3 text-[12px] leading-relaxed resize-none outline-none mb-2"
+            style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.16)", color: "#1a1a18" }}
+          />
+          <button
+            className="ab"
+            onClick={() => void saveFeedback()}
+            disabled={savingFeedback}
+          >
+            <IconCheck size={11} />
+            {savingFeedback ? "Saving…" : p.ccm_feedback_at ? "Update feedback" : "Save feedback"}
+          </button>
+          {p.ccm_feedback_at && (
+            <span className="text-[11px] ml-2" style={{ color: "#888780" }}>
+              Last saved {relativeTime(p.ccm_feedback_at)}
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Positioning talking points — NFAR blocks */}
       <SectionLabel>Positioning talking points</SectionLabel>
@@ -1954,6 +2099,18 @@ function InterviewPanel({
           <IconSparkles size={12} />
           Refresh talking points
         </button>
+        {ccmNumber !== null && (
+          <button className="ab" onClick={generateInterviewPrep} disabled={loadingInterviewPrep}>
+            <IconClipboard size={12} />
+            {loadingInterviewPrep ? "Generating…" : "Interview prep"}
+          </button>
+        )}
+        {p.stage === "Specs Sent" && (
+          <button className="ab" onClick={generateSpecEmail} disabled={loadingSpecEmail}>
+            <IconMail size={12} />
+            {loadingSpecEmail ? "Generating…" : "Spec email"}
+          </button>
+        )}
       </div>
 
       {/* Pre-call briefing output */}
@@ -1967,6 +2124,58 @@ function InterviewPanel({
         >
           <p className="sl mb-2" style={{ color: "#185fa5" }}>Pre-call briefing</p>
           {briefing}
+        </div>
+      )}
+
+      {/* Spec email output */}
+      {specEmail && (
+        <div className="mt-4">
+          <div className="flex items-center justify-between mb-1.5">
+            <p className="sl" style={{ color: "#185fa5" }}>Spec email</p>
+            <button onClick={() => setSpecEmail(null)} className="text-[11px]" style={{ color: "#888780" }}>Dismiss</button>
+          </div>
+          <textarea
+            value={specEmail.email}
+            onChange={(e) => setSpecEmail((prev) => prev ? { ...prev, email: e.target.value } : prev)}
+            rows={8}
+            className="w-full rounded-lg p-3 text-[13px] leading-relaxed resize-y outline-none mb-2"
+            style={{ background: "#e6f1fb", border: "0.5px solid rgba(24,95,165,0.3)", color: "#1a1a18" }}
+          />
+          <p className="sl mb-1.5">Talking points (if calling)</p>
+          <div className="space-y-1">
+            {specEmail.talking_points.map((pt, i) => (
+              <div key={i} className="flex gap-2 text-[13px]">
+                <span className="mt-1.5 h-[5px] w-[5px] shrink-0 rounded-full" style={{ background: "#185fa5" }} />
+                <span>{pt}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Interview prep output */}
+      {interviewPrep && (
+        <div className="mt-4">
+          <div className="flex items-center justify-between mb-1.5">
+            <p className="sl" style={{ color: "#185fa5" }}>Interview prep — CCM{ccmNumber}</p>
+            <button onClick={() => setInterviewPrep(null)} className="text-[11px]" style={{ color: "#888780" }}>Dismiss</button>
+          </div>
+          <p className="sl mb-1">Candidate email</p>
+          <textarea
+            value={interviewPrep.candidate_email}
+            onChange={(e) => setInterviewPrep((prev) => prev ? { ...prev, candidate_email: e.target.value } : prev)}
+            rows={12}
+            className="w-full rounded-lg p-3 text-[13px] leading-relaxed resize-y outline-none mb-3"
+            style={{ background: "#e6f1fb", border: "0.5px solid rgba(24,95,165,0.3)", color: "#1a1a18" }}
+          />
+          <p className="sl mb-1">Recruiter prep notes</p>
+          <textarea
+            value={interviewPrep.recruiter_prep_note}
+            onChange={(e) => setInterviewPrep((prev) => prev ? { ...prev, recruiter_prep_note: e.target.value } : prev)}
+            rows={5}
+            className="w-full rounded-lg p-3 text-[13px] leading-relaxed resize-y outline-none"
+            style={{ background: "#f5f5f3", border: "0.5px solid rgba(26,26,24,0.12)", color: "#1a1a18" }}
+          />
         </div>
       )}
 
@@ -2198,6 +2407,26 @@ function OfferPanel({
   candidate: Candidate;
 }) {
   const req = p.requisitions;
+  const [loadingScript, setLoadingScript] = useState(false);
+  const [scriptContent, setScriptContent] = useState<string | null>(null);
+
+  async function generateClosingScript() {
+    setLoadingScript(true);
+    try {
+      const resp = await fetch("/api/ai/closing-script", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ process_id: p.id }),
+      });
+      const json = await resp.json() as { content?: string; error?: string };
+      if (json.error) { toast.error("Could not generate closing script. Try again."); return; }
+      if (json.content) setScriptContent(json.content);
+    } catch {
+      toast.error("Could not generate closing script. Try again.");
+    } finally {
+      setLoadingScript(false);
+    }
+  }
 
   return (
     <div>
@@ -2288,13 +2517,13 @@ function OfferPanel({
 
       {/* Action buttons */}
       <div className="flex gap-1.5 flex-wrap mt-2">
-        <button className="ab">
+        <button className="ab" onClick={generateClosingScript} disabled={loadingScript}>
           <IconPhone size={12} />
-          Closing script
+          {loadingScript ? "Generating…" : "Closing script"}
         </button>
-        <button className="ab">
+        <button className="ab" onClick={() => scriptContent ? undefined : generateClosingScript()} disabled={loadingScript}>
           <IconShield size={12} />
-          Counteroffer prep
+          {loadingScript ? "Generating…" : "Counteroffer prep"}
         </button>
         <button className="ab">
           <IconMessage size={12} />
@@ -2309,6 +2538,33 @@ function OfferPanel({
           Negotiate offer
         </button>
       </div>
+
+      {/* Closing script / counteroffer prep output */}
+      {scriptContent && (
+        <div className="mt-4">
+          <div className="flex items-center justify-between mb-1.5">
+            <p className="sl" style={{ color: "#185fa5" }}>Closing script</p>
+            <button
+              onClick={() => setScriptContent(null)}
+              className="text-[11px]"
+              style={{ color: "#888780" }}
+            >
+              Dismiss
+            </button>
+          </div>
+          <textarea
+            value={scriptContent}
+            onChange={(e) => setScriptContent(e.target.value)}
+            rows={18}
+            className="w-full rounded-lg p-3 text-[13px] leading-relaxed resize-y outline-none font-mono"
+            style={{
+              background: "#e6f1fb",
+              border: "0.5px solid rgba(24,95,165,0.3)",
+              color: "#1a1a18",
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -2985,24 +3241,136 @@ function ExtractionReviewModal({
   );
 }
 
-// ─── candidate status badge ────────────────────────────────────────────────────
+// ─── candidate status toggle ──────────────────────────────────────────────────
 
 const STATUS_STYLE: Record<string, { bg: string; color: string; border: string }> = {
-  active:     { bg: "#eaf3de", color: "#27500a", border: "#b0d88a" },
-  passive:    { bg: "#fdf3e7", color: "#633806", border: "#fac775" },
-  placed:     { bg: "#e6f1fb", color: "#185fa5", border: "#9ec5ef" },
-  off_market: { bg: "#f5f5f3", color: "#888780", border: "rgba(26,26,24,0.2)" },
+  active:  { bg: "#eaf3de", color: "#27500a", border: "#b0d88a" },
+  passive: { bg: "#fdf3e7", color: "#633806", border: "#fac775" },
+  placed:  { bg: "#e6f1fb", color: "#185fa5", border: "#9ec5ef" },
 };
 
-function CandidateStatusBadge({ status }: { status: string | null }) {
-  const s = STATUS_STYLE[status ?? "active"] ?? STATUS_STYLE.active;
+const STATUS_OPTIONS_LIST = [
+  { value: "active",  label: "Active" },
+  { value: "passive", label: "Passive" },
+  { value: "placed",  label: "Placed" },
+] as const;
+
+function StatusToggle({
+  candidateId,
+  status,
+  statusSource,
+  placedAt,
+  coinIconDismissed,
+}: {
+  candidateId: string;
+  status: string | null;
+  statusSource: string | null;
+  placedAt: string | null;
+  coinIconDismissed: boolean;
+}) {
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const current = status ?? "active";
+  const s = STATUS_STYLE[current] ?? STATUS_STYLE.active;
+  const isManual = statusSource === "manual";
+
+  const showCoin = current === "placed"
+    && !coinIconDismissed
+    && placedAt !== null
+    && Date.now() - new Date(placedAt).getTime() < 90 * 86400000;
+
+  useEffect(() => {
+    function handleOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    if (open) document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, [open]);
+
+  async function setStatus(newStatus: string) {
+    setOpen(false);
+    const patch: { candidate_status: string; status_source: string; placed_at?: string; coin_icon_dismissed?: boolean } = {
+      candidate_status: newStatus,
+      status_source: "manual",
+    };
+    if (newStatus === "placed" && current !== "placed") {
+      patch.placed_at = new Date().toISOString();
+      patch.coin_icon_dismissed = false;
+    }
+    const { error } = await supabase.from("candidates").update(patch).eq("id", candidateId);
+    if (error) { toast.error("Could not update status. Try again."); return; }
+    void qc.invalidateQueries({ queryKey: ["candidate-profile", candidateId] });
+    void qc.invalidateQueries({ queryKey: ["candidates"] });
+  }
+
+  async function dismissCoin(e: React.MouseEvent) {
+    e.stopPropagation();
+    const { error } = await supabase.from("candidates").update({ coin_icon_dismissed: true }).eq("id", candidateId);
+    if (error) { toast.error("Could not update. Try again."); return; }
+    void qc.invalidateQueries({ queryKey: ["candidate-profile", candidateId] });
+    void qc.invalidateQueries({ queryKey: ["candidates"] });
+  }
+
   return (
-    <span
-      className="text-[11px] font-medium px-2 py-0.5 rounded capitalize"
-      style={{ background: s.bg, color: s.color, border: `0.5px solid ${s.border}` }}
-    >
-      {(status ?? "active").replace(/_/g, " ")}
-    </span>
+    <div className="flex items-center gap-1.5 flex-wrap">
+      <div className="relative" ref={ref}>
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-medium"
+          style={{ background: s.bg, color: s.color, border: `0.5px solid ${s.border}` }}
+        >
+          <span className="capitalize">{current}</span>
+          <IconChevronDown size={10} />
+        </button>
+
+        {open && (
+          <div
+            className="absolute left-0 z-20 mt-0.5 w-32 overflow-hidden rounded-md shadow-md"
+            style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.16)", top: "100%" }}
+          >
+            {STATUS_OPTIONS_LIST.map((opt) => {
+              const st = STATUS_STYLE[opt.value];
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[12px] transition-colors hover:bg-[#f5f5f3]"
+                  onClick={() => void setStatus(opt.value)}
+                >
+                  <span
+                    className="h-2 w-2 shrink-0 rounded-full"
+                    style={{ background: st.color }}
+                  />
+                  {opt.label}
+                  {opt.value === current && <IconCheck size={11} className="ml-auto" style={{ color: st.color }} />}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {isManual && (
+        <IconPencil size={10} style={{ color: "#888780" }} title="Manually set" />
+      )}
+
+      {showCoin && (
+        <span className="flex items-center gap-0.5">
+          <span title="Placed within 90 days">🪙</span>
+          <button
+            type="button"
+            className="text-[10px] leading-none"
+            style={{ color: "#888780" }}
+            title="Dismiss placement flag"
+            onClick={(e) => void dismissCoin(e)}
+          >
+            ×
+          </button>
+        </span>
+      )}
+    </div>
   );
 }
 
@@ -3019,6 +3387,7 @@ function RegistrationFormUploadZone({
 }) {
   const qc = useQueryClient();
   const [uploading, setUploading] = useState(false);
+  const [fetchingUrl, setFetchingUrl] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   async function handleFile(file: File) {
@@ -3033,6 +3402,21 @@ function RegistrationFormUploadZone({
       toast.success("Registration form uploaded.");
     } catch { toast.error("Upload failed."); }
     finally { setUploading(false); }
+  }
+
+  async function handleView(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (!registrationFormUrl) return;
+    setFetchingUrl(true);
+    try {
+      const { data, error } = await supabase.storage.from("resumes").createSignedUrl(registrationFormUrl, 120);
+      if (error || !data?.signedUrl) { toast.error("Could not open registration form. Try again."); return; }
+      window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+    } catch {
+      toast.error("Could not open registration form. Try again.");
+    } finally {
+      setFetchingUrl(false);
+    }
   }
 
   return (
@@ -3052,9 +3436,19 @@ function RegistrationFormUploadZone({
         </p>
       </div>
       {registrationFormUrl && !uploading && (
-        <span className="text-[11px] px-2 py-0.5 rounded" style={{ background: "#eaf3de", color: "#27500a" }}>
-          On file
-        </span>
+        <>
+          <button
+            onClick={handleView}
+            disabled={fetchingUrl}
+            className="text-[11px] px-2 py-0.5 rounded shrink-0"
+            style={{ background: "#e6f1fb", color: "#185fa5", border: "0.5px solid rgba(24,95,165,0.3)" }}
+          >
+            {fetchingUrl ? "Opening…" : "View / Download"}
+          </button>
+          <span className="text-[11px] px-2 py-0.5 rounded shrink-0" style={{ background: "#eaf3de", color: "#27500a" }}>
+            On file
+          </span>
+        </>
       )}
       <input
         ref={inputRef}
@@ -3134,373 +3528,3 @@ function CandidateIntelligenceCard({
   );
 }
 
-// ─── transcript panel ─────────────────────────────────────────────────────────
-
-type TranscriptResult = {
-  suggested_field_updates: Array<{ field: string; suggested_value: unknown; previous_value?: unknown; source: string; is_update: boolean }>;
-  suggested_motivations: Array<{ rank: number; motivation_type: string; detail: string }>;
-  suggested_blockers: Array<{ theme: string; detail: string; is_risk: boolean }>;
-  suggested_competing_interviews: Array<{ company_name: string; stage: string; source: string }>;
-  interaction_summary: string;
-  interaction_full_notes: string;
-  interaction_type: string;
-  interacted_at: string;
-  transcript_raw: string;
-};
-
-function TranscriptPanel({ candidateId, recruiterId, onClose }: { candidateId: string; recruiterId: string; onClose: () => void }) {
-  const qc = useQueryClient();
-  const [transcript, setTranscript] = useState("");
-  const [interactionType, setInteractionType] = useState<"call" | "meeting">("call");
-  const [interactedAt, setInteractedAt] = useState(new Date().toISOString().slice(0, 16));
-  const [processing, setProcessing] = useState(false);
-  const [result, setResult] = useState<TranscriptResult | null>(null);
-  const [accepted, setAccepted] = useState<Record<string, boolean>>({});
-  const [saving, setSaving] = useState(false);
-  const [editSummary, setEditSummary] = useState("");
-  const [editNotes, setEditNotes] = useState("");
-
-  async function process() {
-    if (!transcript.trim()) { toast.error("Paste a transcript first."); return; }
-    setProcessing(true);
-    try {
-      const resp = await fetch("/api/ai/process-transcript", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ candidate_id: candidateId, transcript_raw: transcript, interaction_type: interactionType, interacted_at: new Date(interactedAt).toISOString() }),
-      });
-      const data = (await resp.json()) as TranscriptResult & { error?: string };
-      if (data.error) { toast.error("Could not process transcript. Try again."); return; }
-      setResult(data);
-      setEditSummary(data.interaction_summary ?? "");
-      setEditNotes(data.interaction_full_notes ?? "");
-      // Default all to accepted
-      const acc: Record<string, boolean> = {};
-      (data.suggested_field_updates ?? []).forEach((_, i) => { acc[`field_${i}`] = true; });
-      (data.suggested_motivations ?? []).forEach((_, i) => { acc[`mot_${i}`] = true; });
-      (data.suggested_blockers ?? []).forEach((_, i) => { acc[`blk_${i}`] = true; });
-      (data.suggested_competing_interviews ?? []).forEach((_, i) => { acc[`ci_${i}`] = true; });
-      setAccepted(acc);
-    } catch { toast.error("Could not process transcript. Try again."); }
-    finally { setProcessing(false); }
-  }
-
-  async function save() {
-    if (!result) return;
-    setSaving(true);
-    try {
-      // Apply accepted field updates
-      const acceptedFields = (result.suggested_field_updates ?? []).filter((_, i) => accepted[`field_${i}`]);
-      if (acceptedFields.length > 0) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const patch: any = {};
-        acceptedFields.forEach((f) => { patch[f.field] = f.suggested_value; });
-        await supabase.from("candidates").update(patch).eq("id", candidateId);
-      }
-
-      // Apply accepted motivations
-      const acceptedMots = (result.suggested_motivations ?? []).filter((_, i) => accepted[`mot_${i}`]);
-      for (const mot of acceptedMots) {
-        await supabase.from("candidate_motivations").upsert({ candidate_id: candidateId, rank: mot.rank, motivation_text: mot.detail, motivation_type: mot.motivation_type }, { onConflict: "candidate_id,rank" });
-      }
-
-      // Apply accepted blockers
-      const acceptedBlk = (result.suggested_blockers ?? []).filter((_, i) => accepted[`blk_${i}`]);
-      for (const blk of acceptedBlk) {
-        await supabase.from("candidate_blockers").insert({ candidate_id: candidateId, theme: blk.theme, detail: blk.detail, is_risk: blk.is_risk });
-      }
-
-      // Apply accepted competing interviews
-      const acceptedCI = (result.suggested_competing_interviews ?? []).filter((_, i) => accepted[`ci_${i}`]);
-      for (const ci of acceptedCI) {
-        await supabase.from("competing_interviews").insert({ candidate_id: candidateId, company_name: ci.company_name, stage: ci.stage, source: ci.source, disclosed_at: result.interacted_at, is_active: true });
-      }
-
-      // Create interaction
-      const now = new Date(result.interacted_at).toISOString();
-      await supabase.from("interactions").insert({
-        candidate_id: candidateId,
-        recruiter_id: recruiterId,
-        interaction_type: result.interaction_type,
-        summary: editSummary,
-        full_notes: editNotes,
-        transcript_raw: result.transcript_raw,
-        interacted_at: now,
-        triggers_context_refresh: true,
-      });
-
-      // Update candidate last_interaction_at and all active processes last_activity_at
-      await Promise.all([
-        supabase.from("candidates").update({ last_interaction_at: now }).eq("id", candidateId),
-        supabase.from("processes")
-          .update({ last_activity_at: now })
-          .eq("candidate_id", candidateId)
-          .not("stage", "in", '("Placed","Closed lost")'),
-      ]);
-
-      // Fire context refresh
-      fetch("/api/ai/refresh-context", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ entity_type: "candidate", entity_id: candidateId }),
-      }).catch(() => {});
-
-      void qc.invalidateQueries({ queryKey: ["candidate-profile", candidateId] });
-      toast.success("Transcript saved.");
-      onClose();
-    } catch { toast.error("Failed to save. Try again."); }
-    finally { setSaving(false); }
-  }
-
-  return (
-    <div className="rounded-xl p-5" style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.12)" }}>
-      <div className="flex items-center justify-between mb-3">
-        <p className="text-[13px] font-medium">Process transcript</p>
-        <button className="text-[11px]" style={{ color: "#888780" }} onClick={onClose}>Dismiss</button>
-      </div>
-
-      {!result ? (
-        <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label className="text-xs mb-1 block">Interaction type</Label>
-              <Select value={interactionType} onValueChange={(v) => setInteractionType(v as "call" | "meeting")}>
-                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="call">Call</SelectItem>
-                  <SelectItem value="meeting">Meeting</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-xs mb-1 block">Date &amp; time</Label>
-              <Input type="datetime-local" value={interactedAt} onChange={(e) => setInteractedAt(e.target.value)} className="h-8 text-xs" />
-            </div>
-          </div>
-          <Textarea
-            placeholder="Paste the full transcript from Teams, Otter.ai, Zoom, or your notes here…"
-            value={transcript}
-            onChange={(e) => setTranscript(e.target.value)}
-            className="min-h-[140px] text-[12px]"
-          />
-          <button className="ab" onClick={() => void process()} disabled={processing}>
-            <IconSparkles size={11} />
-            {processing ? "Processing…" : "Process transcript"}
-          </button>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {/* Field updates */}
-          {result.suggested_field_updates.length > 0 && (
-            <div>
-              <p className="sl mb-2">Suggested field updates</p>
-              <div className="space-y-1.5">
-                {result.suggested_field_updates.map((f, i) => (
-                  <label key={i} className="flex items-start gap-2 text-[12px] cursor-pointer">
-                    <input type="checkbox" checked={accepted[`field_${i}`] ?? true} onChange={(e) => setAccepted((a) => ({ ...a, [`field_${i}`]: e.target.checked }))} className="mt-0.5" />
-                    <span>
-                      <strong>{f.field}</strong>
-                      {f.is_update && f.previous_value !== undefined && (
-                        <span style={{ color: "#888780" }}> (was: {String(f.previous_value)})</span>
-                      )}
-                      {" → "}{String(f.suggested_value)}
-                      <span className="ml-1" style={{ color: "#b8b7b2" }}>— {f.source}</span>
-                    </span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Motivations */}
-          {result.suggested_motivations.length > 0 && (
-            <div>
-              <p className="sl mb-2">Suggested motivations</p>
-              <div className="space-y-1.5">
-                {result.suggested_motivations.map((m, i) => (
-                  <label key={i} className="flex items-start gap-2 text-[12px] cursor-pointer">
-                    <input type="checkbox" checked={accepted[`mot_${i}`] ?? true} onChange={(e) => setAccepted((a) => ({ ...a, [`mot_${i}`]: e.target.checked }))} className="mt-0.5" />
-                    <span>Rank {m.rank} [{m.motivation_type}]: {m.detail}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Blockers */}
-          {result.suggested_blockers.length > 0 && (
-            <div>
-              <p className="sl mb-2">Suggested blockers</p>
-              <div className="space-y-1.5">
-                {result.suggested_blockers.map((b, i) => (
-                  <label key={i} className="flex items-start gap-2 text-[12px] cursor-pointer">
-                    <input type="checkbox" checked={accepted[`blk_${i}`] ?? true} onChange={(e) => setAccepted((a) => ({ ...a, [`blk_${i}`]: e.target.checked }))} className="mt-0.5" />
-                    <span>{b.is_risk ? "⚠ " : ""}<strong>{b.theme}:</strong> {b.detail}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Competing interviews */}
-          {result.suggested_competing_interviews.length > 0 && (
-            <div>
-              <p className="sl mb-2">Suggested competing interviews</p>
-              <div className="space-y-1.5">
-                {result.suggested_competing_interviews.map((ci, i) => (
-                  <label key={i} className="flex items-start gap-2 text-[12px] cursor-pointer">
-                    <input type="checkbox" checked={accepted[`ci_${i}`] ?? true} onChange={(e) => setAccepted((a) => ({ ...a, [`ci_${i}`]: e.target.checked }))} className="mt-0.5" />
-                    <span>{ci.company_name} — {ci.stage}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Summary + notes */}
-          <div>
-            <Label className="text-xs mb-1 block">Interaction summary</Label>
-            <Input value={editSummary} onChange={(e) => setEditSummary(e.target.value)} className="text-xs" />
-          </div>
-          <div>
-            <Label className="text-xs mb-1 block">Full notes</Label>
-            <Textarea value={editNotes} onChange={(e) => setEditNotes(e.target.value)} className="min-h-[100px] text-[12px]" />
-          </div>
-
-          <div className="flex gap-2">
-            <button className="ab" onClick={() => void save()} disabled={saving}>
-              <IconCheck size={11} />
-              {saving ? "Saving…" : "Save"}
-            </button>
-            <button className="text-[12px]" style={{ color: "#888780" }} onClick={() => setResult(null)}>
-              Back
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── submission package panel ─────────────────────────────────────────────────
-
-function SubmissionPackagePanel({
-  pkg,
-  candidateName,
-  onClose,
-}: {
-  pkg: import("@/integrations/supabase/types").SubmissionPackage;
-  candidateName: string;
-  onClose: () => void;
-}) {
-  const [emailBody, setEmailBody] = useState(pkg.email.body);
-  const [emailSubject, setEmailSubject] = useState(pkg.email.subject);
-  const [downloading, setDownloading] = useState(false);
-
-  async function downloadPdf() {
-    setDownloading(true);
-    try {
-      const { downloadSingleProfile } = await import("@/lib/pdf-utils");
-      await downloadSingleProfile(
-        { candidateName, english: pkg.englishContent, japanese: pkg.japaneseContent },
-        "",
-      );
-    } catch { toast.error("PDF generation failed. Try again."); }
-    finally { setDownloading(false); }
-  }
-
-  function ProfileSection({ label, content }: { label: string; content: import("@/integrations/supabase/types").ProfileContent }) {
-    return (
-      <div className="rounded-lg p-4" style={{ background: "#f5f5f3", border: "0.5px solid rgba(26,26,24,0.08)" }}>
-        <p className="sl mb-3">{label}</p>
-        <div className="space-y-3 text-[13px]">
-          <div>
-            <p className="text-[11px] uppercase tracking-wide mb-1" style={{ color: "#888780" }}>Executive summary</p>
-            <p className="leading-relaxed" style={{ color: "#1a1a18" }}>{content.executiveSummary}</p>
-          </div>
-          <div>
-            <p className="text-[11px] uppercase tracking-wide mb-1" style={{ color: "#888780" }}>Career motivation</p>
-            <p className="leading-relaxed" style={{ color: "#1a1a18" }}>{content.careerMotivation}</p>
-          </div>
-          <div>
-            <p className="text-[11px] uppercase tracking-wide mb-1" style={{ color: "#888780" }}>Alignment points</p>
-            <ul className="space-y-1" style={{ color: "#1a1a18" }}>
-              {content.alignment.map((a, i) => (
-                <li key={i} className="flex gap-2">
-                  <span style={{ color: "#888780" }}>·</span>
-                  <span>{a}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div>
-            <p className="text-[11px] uppercase tracking-wide mb-1" style={{ color: "#888780" }}>Compensation</p>
-            <p style={{ color: "#1a1a18" }}>{content.compensation}</p>
-          </div>
-          <div>
-            <p className="text-[11px] uppercase tracking-wide mb-1" style={{ color: "#888780" }}>Closing</p>
-            <p style={{ color: "#1a1a18" }}>{content.closing}</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div
-      className="mt-4 rounded-xl p-5 space-y-5"
-      style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.12)" }}
-    >
-      <div className="flex items-center justify-between">
-        <p className="text-[13px] font-medium">Submission package — review before sending</p>
-        <div className="flex gap-2">
-          <button
-            className="ab"
-            onClick={() => void downloadPdf()}
-            disabled={downloading}
-          >
-            <IconFileText size={11} />
-            {downloading ? "Generating PDF…" : "Download PDF"}
-          </button>
-          <button className="text-[11px]" style={{ color: "#888780" }} onClick={onClose}>
-            Dismiss
-          </button>
-        </div>
-      </div>
-
-      {/* Section A — Email */}
-      <div>
-        <p className="sl mb-2">A — Submission email</p>
-        <div className="space-y-2">
-          <div>
-            <Label className="text-xs mb-1 block">Subject</Label>
-            <Input value={emailSubject} onChange={(e) => setEmailSubject(e.target.value)} className="text-xs" />
-          </div>
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <Label className="text-xs">Email body</Label>
-              <button
-                className="text-[11px] underline underline-offset-2"
-                style={{ color: "#185fa5" }}
-                onClick={() => { void navigator.clipboard.writeText(emailBody); toast.success("Email copied."); }}
-              >
-                Copy
-              </button>
-            </div>
-            <Textarea
-              value={emailBody}
-              onChange={(e) => setEmailBody(e.target.value)}
-              className="min-h-[160px] text-[12px]"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Section B — English profile */}
-      <ProfileSection label="B — English profile" content={pkg.englishContent} />
-
-      {/* Section C — Japanese profile */}
-      <ProfileSection label="C — Japanese profile" content={pkg.japaneseContent} />
-    </div>
-  );
-}

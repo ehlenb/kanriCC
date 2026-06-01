@@ -52,7 +52,6 @@ function ClientsLayout() {
         .select(
           "id, company_name, years_in_japan, japan_team_size, hiring_manager_name, created_at",
         )
-        .eq("recruiter_id", user!.id)
         .order("company_name");
       if (error) throw error;
       return data as ClientListItem[];

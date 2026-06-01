@@ -127,19 +127,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
-  for (const client of openClients ?? []) {
-    const cl = client as { id: string; company_name: string };
-    const { data: lastInteraction } = await supabase
+  const clientList = (openClients ?? []) as { id: string; company_name: string }[];
+  if (clientList.length > 0) {
+    const clientIds = clientList.map((cl) => cl.id);
+    const { data: clientInteractions } = await supabase
       .from("interactions")
-      .select("interacted_at")
-      .eq("client_id", cl.id)
-      .order("interacted_at", { ascending: false })
-      .limit(1)
-      .single();
+      .select("client_id, interacted_at")
+      .in("client_id", clientIds)
+      .order("interacted_at", { ascending: false });
 
-    const ds = daysSince(lastInteraction?.interacted_at ?? null);
-    if (ds >= 14) {
-      flagged.push({ entity_type: "client", entity_id: cl.id, entity_name: cl.company_name, priority_rank: 7, flag_reason: `Open requisition — no client interaction in ${ds} days` });
+    const latestByClient = new Map<string, string>();
+    for (const row of (clientInteractions ?? []) as { client_id: string; interacted_at: string }[]) {
+      if (!latestByClient.has(row.client_id)) latestByClient.set(row.client_id, row.interacted_at);
+    }
+
+    for (const cl of clientList) {
+      const ds = daysSince(latestByClient.get(cl.id) ?? null);
+      if (ds >= 14) {
+        flagged.push({ entity_type: "client", entity_id: cl.id, entity_name: cl.company_name, priority_rank: 7, flag_reason: `Open requisition — no client interaction in ${ds} days` });
+      }
     }
   }
 

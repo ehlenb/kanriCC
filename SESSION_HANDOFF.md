@@ -1,89 +1,63 @@
 # Kanri — Session Handoff Document
 
-> Generated: 30 May 2026
-> Last commit: `26e4770` — Steps 1–9 of KANRI_HANDOVER.md complete
-> Build status: **passing** (TypeScript clean, all 9 steps implemented)
+> Generated: 1 June 2026
+> Build status: **passing** (TypeScript clean, all migrations applied, types regenerated)
 
 ---
 
 ## Project Overview
 
-Kanri is an AI-native recruiter intelligence platform and CRM for boutique agency recruiters in the Japan bilingual talent market. It is a full CRM replacement — not an ATS overlay — for recruiters placing bilingual professionals at foreign firms in Japan.
+Kanri is an AI-native recruiter intelligence platform and CRM for boutique agency recruiters in the Japan bilingual talent market.
 
 **Core thesis:** Recruiters lose hours rebuilding context before every call and making prioritisation decisions with incomplete information. Kanri eliminates that tax.
 
 **Target users:** Boutique and mid-sized agency recruiting firms. Initial focus: Japan bilingual and gaishikei recruitment. Reference companies: Torch (Vincere ATS, 4 consultants), Robert Walters Japan, Hays.
 
-**Current implementation status:** All 9 steps of KANRI_HANDOVER.md are complete. The application is fully functional end-to-end. No planned handover steps remain — further work is enhancement and polish.
+**Current status:** The full feature brief (Parts 1–4) is complete. The next session covers the client page revision.
 
 ---
 
-## What Was Completed This Session (Steps 6–9)
+## What Was Completed This Session
 
-### Prerequisite fixes (before Step 6)
-- **PDF JD text extraction** — added `api/extract-text.ts` (uses `pdf-parse`), wired into `RequisitionIntakeModal`; PDF JDs now produce real extracted text for `extract-conditions`
-- **Competing interview toggle** — added `qc.invalidateQueries` after `is_active` update so the cache stays in sync
-- **Dashboard rewired** — `dashboard.tsx` now calls `POST /api/ai/daily-agenda` and renders the real AI output shape
+### Part 2 — Advanced Candidate Search (brief §2.1–2.8)
 
-### Step 6 — `/jobs/$id` Requisition Detail Page
-File: `src/routes/_authenticated/jobs.$id.tsx`
+**Migration 013 (`supabase/migrations/013_candidate_lists.sql`) — applied to Supabase**
+- `candidate_lists` table: `id, name, created_by, visibility ('private'|'team'), candidate_ids uuid[], source ('ai'|'manual'|'merged'), created_at, updated_at, team_id`
+- RLS: team members see all team-visibility lists + their own private lists
+- `DEFAULT current_team_id()` set on `team_id` column (required for Supabase Insert types to treat it as optional)
+- `set_updated_at()` trigger auto-updates `updated_at`
 
-**Left panel:**
-- JD viewer — signed URL iframe for PDF, plain text fallback for extracted text
-- Strategic context — inline textarea, saves on blur
-- Salary + interview summary card
-- Conditions card — add/edit/delete; must-have (amber dots) vs nice-to-have (grey dots); client-sourced conditions labelled "(client)"
+**Types regenerated** — `src/integrations/supabase/types.ts` reflects the new table. Custom types block re-appended.
 
-**Right panel:**
-- Pipeline — processes grouped by stage, each card has candidate name, stage badge, last activity time; click navigates to candidate
+**Advanced Search page (`src/routes/_authenticated/advanced-search.tsx`)**
+- Route: `/_authenticated/advanced-search`
+- Three-panel layout: left filter panel (220px), centre results (flex), right AI panel (200px)
+- Left panel: all base filters + Mandarin/Cantonese/Korean language dropdowns, age range, ¥M base salary range, 47-prefecture location dropdown, keyword tags with AND/OR toggle
+- Centre panel: candidate rows with checkbox, avatar, match % bar (green 80%+, blue 60–79%, amber <60%), stage badge, ℹ info tooltip, coin icon with dimming for placed-within-90d, conflict badge for same-client active process
+- Side drawer: quick profile (name, role, languages, top 2 motivations, stage, last touch) with "Open full profile" link
+- Key Criteria tiering: green row tint (all criteria met) + amber row tint (close match) when AI search + "Narrow by Key Criteria" both active
+- Save list modal: name input, team/private visibility toggle with explanatory note
+- Saved lists panel: load, merge-select, merge & dedupe with inline count summary
+- Sidebar: italic "Advanced Search" entry with × close when on that route
 
-**Match Candidates panel** (full-width toggle):
-- Calls `match-candidates.ts`, renders AI-ranked list with score, role, match reason, salary stretch warning
-- "Spec" creates a process at Specs Sent + navigates to the candidate
-- "Skip" dismisses from session (local state, not persisted)
+**AI search endpoint (`api/ai/advanced-search.ts`)**
+- Model: `claude-sonnet-4-20250514`
+- Input: `requisition_id`, `client_id`, `threshold` (30–80, default 45), `use_key_criteria`
+- Excludes: placed-within-90d (unless coin dismissed), candidates in active process with same client
+- Returns: `{ candidate_id, score, reason, is_salary_stretch, meets_must_haves, close_on_must_haves }[]`
 
-`jobs.tsx` updated: `JobRow` now navigates to `/jobs/$id` instead of `/clients/$id`.
+**Key Criteria card redesign (`src/routes/_authenticated/jobs.$id.tsx`)**
+- Renamed from "Key conditions" → "Key criteria"
+- Two-column tag layout: Must-haves (green left border) + Flexible on (amber left border)
+- Per-column text input with + button; Enter to add; × on each tag to remove
+- Hint under Flexible on: "Flex criteria factor into match scoring but a gap here will not drop a candidate from results."
+- DB unchanged — still uses `requisition_conditions` with `must_have` / `nice_to_have` types
 
-### Step 7 — Dashboard Extensions
-File: `src/routes/_authenticated/dashboard.tsx` (full rewrite)
-
-- **AI daily agenda** — calls `daily-agenda.ts`, renders `reason` (amber), `suggested_action`, action button mapped to `action_type`
-- **Drag to reorder** — HTML5 drag API, reorders local state (no persistence)
-- **Done for today** — localStorage `kanri_done_today`, keyed by entity_id + date; re-evaluates daily
-- **Snooze** — localStorage `kanri_snoozed`, keyed by entity_id; date picker; item hidden until snooze date passes
-- **Pipeline Pulse** — stage count chips (Specs Sent / Buy-In / CV Sent / Interviewing / Offer), navigate to candidates
-- **KPI strip** — CVs sent MTD, Specs active, In interviews, Offers MTD, Placed MTD
-- **Recent activity** — own interactions last 10, newest first
-
-### Step 8 — Candidate Search
-File: `src/routes/_authenticated/candidates.tsx`
-
-- 6 filters stored in TanStack Router URL search params (survive refresh): `name`, `company`, `status`, `japanese_level`, `source`, `last_touch`
-- Server-side Supabase query replaces client-side filtering; all filters chain conditionally
-- Last touch filter: active < 30d, cooling 30–60d, cold > 60d (handles null)
-- Debounced text inputs (300ms) for name and company
-- `FilterSelect` component — active filter highlights blue
-- Count in header reflects filtered results
-- Exported `BLANK_CANDIDATE_SEARCH` and `withCandidateDefaults()` used by all callers navigating to `/candidates/*`
-
-### Step 9 — Data Integrity
-Files: `candidates.$id.tsx`, `clients.$id.tsx`
-
-**Stage change:**
-- `PIPELINE_STAGES` constant and `useStageChange` mutation hook in candidates.$id.tsx
-- Stage dropdown in `ProcessPanel` header (replaces static StageBadge)
-- On stage change: always sets `processes.last_activity_at = now()`
-- → Buy-In: sets `buy_in_confirmed_at = now()` if null
-- → CV Sent: sets `cv_sent_at = now()` if null
-- → Placed: sets `placed_date = today`, sets `candidates.candidate_status = 'placed'`, sets `candidates.placement_guarantee_until = today + 90 days`
-
-**Interaction side effects:**
-- `TranscriptPanel` now sets `processes.last_activity_at` on all active processes for the candidate when saving a transcript interaction
-
-**Client status:**
-- `ClientStatusSelect` component replaces static status badge in client header
-- Inline dropdown (Prospect / Active / Inactive) with live mutation
-- Warning toast (`toast.warning`) fires when status → Active but `contract_signed = false`
+**Dashboard Saved Lists widget (`src/routes/_authenticated/dashboard.tsx`)**
+- Recent Activity + Saved Lists now sit side-by-side in a two-column grid
+- Shows 3–5 most recently updated lists
+- Filters: own private + all team-visible lists (hides other recruiters' private lists)
+- "View all" link navigates to `/advanced-search`
 
 ---
 
@@ -93,208 +67,118 @@ Files: `candidates.$id.tsx`, `clients.$id.tsx`
 ```
 src/
   routes/
-    __root.tsx                    # Root layout
-    index.tsx                     # Redirects to /dashboard
-    login.tsx                     # Supabase email auth
-    _authenticated.tsx            # Auth guard + sidebar layout
+    __root.tsx
+    index.tsx
+    login.tsx
+    _authenticated.tsx              # Sidebar now includes conditional italic Advanced Search entry
     _authenticated/
-      dashboard.tsx               # Daily agenda + KPI strip + pipeline pulse
-      candidates.tsx              # Candidate list — 6 server-side filters, URL search params
-      candidates.$id.tsx          # Candidate detail — 4 tabs (~3,500+ lines)
-      clients.tsx                 # Client list
-      clients.$id.tsx             # Client detail — 3 tabs (~3,300+ lines)
-      jobs.tsx                    # Jobs list + revenue forecast → links to /jobs/$id
-      jobs.$id.tsx                # NEW — Requisition detail page
+      dashboard.tsx                 # Pipeline KPIs + agenda + activity + Saved Lists widget
+      candidates.tsx                # 7 filters, Advanced Search button
+      candidates.$id.tsx            # StatusToggle, coin icon, placed_at
+      clients.tsx
+      clients.$id.tsx
+      jobs.tsx
+      jobs.$id.tsx                  # Key Criteria redesigned — two-column tag layout
+      advanced-search.tsx           # NEW — three-panel advanced search
   components/
-    ui/                           # shadcn/ui primitives — never modify
-    shared/                       # Card, SectionLabel, FieldRow, StageBadge
+    ui/                             # shadcn/ui primitives — never modify
+    shared/                         # Card, SectionLabel, FieldRow, StageBadge
     candidate/
-      SubmissionPreview.tsx       # Ported from CVFlow — available for future use
-    dashboard/
-    layout/
+      TranscriptPanel.tsx
+      SubmissionPackagePanel.tsx
   lib/
-    candidate-utils.ts            # All domain utility functions
-    pdf-utils.ts                  # Bilingual PDF generation (ported from CVFlow)
-    supabase.ts                   # Browser Supabase client
-    supabase-server.ts            # Service role client (server-side only)
-    auth-context.tsx              # Auth context provider
+    candidate-utils.ts
+    supabase.ts
+    supabase-server.ts
+    auth-context.tsx
   integrations/
     supabase/
-      types.ts                    # Generated types + custom app types appended at bottom
-  styles.css                      # Design tokens + Noto Sans JP import
+      types.ts                      # Regenerated post-013 migration
 ```
 
 ### Backend Structure
 ```
 api/
-  extract-text.ts                 # NEW — PDF text extraction via pdf-parse (base64 → text)
   ai/
-    client-draft.ts
-    client-meeting-prep.ts
-    client-snapshot.ts
-    closing-script.ts
+    advanced-search.ts              # NEW — AI candidate ranking for Advanced Search
+    infer-status.ts                 # Daily cron — AI status inference + 90-day placed revert
     daily-agenda.ts
-    enrich-client.ts              # Tavily-powered company enrichment
-    extract-candidate.ts
-    extract-conditions.ts         # JD → must-have/nice-to-have conditions
-    interview-prep.ts
-    match-candidates.ts           # AI candidate ranking against a requisition
     positioning.ts
-    pre-call-briefing.ts          # Supports candidate + client entity types
-    process-transcript.ts
-    refresh-context.ts            # Background ai_context regeneration
+    pre-call-briefing.ts
+    submission-note.ts
+    client-snapshot.ts
+    client-meeting-prep.ts
+    client-draft.ts
     req-strategic-context.ts
+    match-candidates.ts
+    extract-candidate.ts
+    enrich-client.ts
+    closing-script.ts
+    interview-prep.ts
+    process-transcript.ts
+    refresh-context.ts
     spec-email.ts
-    submission-note.ts            # Full bilingual submission package
-scripts/
-  dev-api.ts                      # Local dev API server (tsx watch at :3001)
+    extract-conditions.ts
 ```
 
-### Database Structure (Supabase PostgreSQL)
-
-All tables use `recruiter_id`-based RLS (`auth.uid() = recruiter_id`). There is **no `teams` table** — this is currently a single-recruiter schema. Multi-user requires a future migration.
-
-**Key tables:**
-- `candidates` — core profile with `candidate_status`, `source`, `last_interaction_at`, `placement_guarantee_until`, `ai_context`
-- `processes` — stage + `buy_in_confirmed_at`, `cv_sent_at`, `placed_date`, `last_activity_at` (all now wired)
-- `requisitions` — with `jd_url`, `jd_text`, `urgency`, `strategic_context`, `interview_steps`
-- `requisition_conditions` — must-have/nice-to-have per requisition
-- `interactions` — activity log for candidates and clients
-- `ai_context_log` — audit log of ai_context regenerations
-- `clients` — with `status`, `contract_signed`, `ai_context`
+### Database — Applied Migrations
+```
+001_full_schema.sql
+002_client_contacts.sql
+003_candidate_notes.sql
+004_requisition_intake.sql
+005_stage_rename.sql
+006_cv_upload.sql
+007_client_contacts_extend.sql
+008_schema_extension.sql
+009_multi_user.sql
+010_ccm_feedback.sql
+011_team_id_defaults.sql
+012_candidate_status.sql
+013_candidate_lists.sql             # candidate_lists — saved search lists
+```
 
 ### Key Exported Symbols (candidates.tsx)
 ```typescript
-BLANK_CANDIDATE_SEARCH   // { name: "", company: "", status: "", japanese_level: "", source: "", last_touch: "" }
+BLANK_CANDIDATE_SEARCH   // { name: "", company: "", status: "", japanese_level: "", english_level: "", source: "", last_touch: "" }
 withCandidateDefaults()  // Fills in default empty strings — required for all navigate() to /candidates/*
 ```
 
-Any code navigating to `/candidates` or `/candidates/$id` must pass `search: BLANK_CANDIDATE_SEARCH` or `search: withCandidateDefaults(prev)`. Failure to do so causes TypeScript errors due to `validateSearch` making all params required.
+**IMPORTANT:** All navigation to `/candidates` or `/candidates/$id` must use `BLANK_CANDIDATE_SEARCH` or `withCandidateDefaults()`. Do not construct the search object manually.
 
 ---
 
-## Known Issues / Technical Debt
+## Next Session — Client Page Revision
 
-### Remaining Bugs
+The next session will revise the client page (`clients.$id.tsx`). Before starting:
 
-1. **`daily-agenda.ts` client interaction query** loops per open client in the handler (N+1). On large pipelines this could be slow. **Fix:** Batch the last-interaction lookup into a single join.
+1. Read `CLAUDE.md` completely
+2. Read this `SESSION_HANDOFF.md` completely
+3. Read the client page revision brief (to be provided by user at session start)
+4. Read the current `src/routes/_authenticated/clients.$id.tsx` in full before touching anything
 
-2. **Pre-call briefing legacy params** — `InterviewPanel` calls the endpoint with `{ candidateId, recruiterId }`. The endpoint accepts both legacy and new `{ entity_type, entity_id }` format, so it works, but the legacy path should be cleaned up.
+### What to know about the current client page
+- `clients.$id.tsx` is ~3,225 lines — read it fully before editing
+- Three tabs: Timeline, Client Info, Contract
+- Client contacts have: `name`, `role` (ContactRole), `title`, `notes` (recruiter only — AI never writes), `relationship_score` (1–5), `bypass_hr_warning`, `is_primary`
+- AI endpoints available for clients: `client-snapshot.ts`, `client-meeting-prep.ts`, `client-draft.ts`, `enrich-client.ts`
+- The `ContactRole` type lives in `src/integrations/supabase/types.ts`: `"hiring_manager" | "hr_gatekeeper" | "ta_coordinator" | "executive" | "other"`
 
-3. **Registration form URL display** — `registration_form_url` is stored as a Supabase storage path, not a public URL. No signed URL fetch or download link is shown for the registration form.
-
-4. **`multer` installed but unused** — safe to remove from `package.json` if desired.
-
-5. **`vercel.json.save`** is committed — should be gitignored or deleted.
-
-### Incomplete UX
-
-6. **Submission package "Accept All / Reject All"** shortcuts in TranscriptPanel are not implemented. Only per-field checkboxes exist.
-
-7. **`SubmissionPreview.tsx`** (ported from CVFlow) is not used in `SubmissionPackagePanel`. The panel renders profiles inline. Available for future use.
-
-8. **Team Activity Feed** on dashboard shows the logged-in recruiter's own interactions instead of team activity. Correct implementation requires a `team_id` on the `recruiters` table (multi-user migration needed).
-
-9. **OfferPanel action buttons** (`Closing script`, `Counteroffer prep`, etc.) have no onClick handlers — they are UI shells. Logic not yet wired.
-
-10. **`/jobs/$id` — no "Add condition" shortcut from within the JD text.** Conditions must be added manually or come from the initial JD upload.
-
-### Technical Debt
-
-11. **Single-recruiter RLS** — `recruiter_id = auth.uid()` on all tables. Multi-user architecture described in CLAUDE.md requires a future migration to add `team_id` and update RLS policies.
-
-12. **`api_base_url` in production** — `API_BASE_URL` must be set to the Vercel deployment URL in Vercel environment settings for `refresh-context` fire-and-forget calls to work in production.
-
-13. **`candidates.$id.tsx` and `clients.$id.tsx` are very large** (~3,500 and ~3,300 lines). As features grow, the largest panels (TranscriptPanel, SubmissionPackagePanel) should be extracted to `src/components/candidate/`.
-
----
-
-## Architecture Decisions & Constraints
-
-### Design Patterns
-
-**Component architecture:**
-- `src/components/ui/` — shadcn primitives, never modify
-- `src/components/shared/` — `Card`, `SectionLabel`, `FieldRow`, `StageBadge` — check here first
-- Feature components live inline in route files (intentional — not technical debt)
-
-**Data fetching:**
-- TanStack Query exclusively. Always `staleTime: 30_000, retry: 1`
-- Query keys: `['entity', id?, subresource?]`
-- All mutations use optimistic updates with `onMutate`/`onError`/`onSettled` where applicable
-
-**API handler contract:**
-```
-1. Validate method + required fields
-2. Init Supabase service role client
-3. Fetch data with explicit column lists (never select("*"))
-4. Build prompt with all AI rules applied
-5. Call Claude: model claude-sonnet-4-5-20250929, max_tokens varies
-6. Parse + validate response
-7. Return HTTP 200 always — errors go in body, not status code
-```
-
-**Navigation to /candidates/***:
-All `navigate()` and `<Link>` calls to `/candidates` or `/candidates/$id` must pass search params:
-```typescript
-// From outside candidates layout:
-search: BLANK_CANDIDATE_SEARCH
-
-// Within candidates layout (preserve current filters):
-search: withCandidateDefaults(search)  // where search = Route.useSearch()
-```
-
-### Coding Conventions
+### Architecture Decisions & Constraints
 - Icons: `@tabler/icons-react` outline variants only
-- Toast: `sonner` only — `toast.success()`, `toast.error()`, `toast.warning()`
+- Toast: `sonner` only
 - Salary: always `¥XM` format via `formatYen()`
-- Stage badge: always `<StageBadge stage={...} />` — never inline colour logic
-- Dates: `relativeTime()` / `daysSince()` from `candidate-utils.ts`
-- No `vercel dev` locally — use `npm run dev` + `npm run dev:api`
+- Stage badge: always `<StageBadge stage={...} />`
+- TanStack Query: always `staleTime: 30_000, retry: 1`
 - **Forbidden words in all prompts:** `straightforward`, `genuinely`, `honestly`, `leverage` (as verb), `utilize`, em dashes
+- **AI model for all endpoints:** `claude-sonnet-4-20250514`
+- No `as any` casts — fix the type properly
+- No `select("*")` in production queries — always explicit column lists
 
-### Business Logic
-- **Japan language levels:** Native / Fluent / High Business / Business / Low Business / High Conversational / Conversational / Low Conversational / Basic / None
-- **Pipeline stages:** Specs Sent → Buy-In → CV Sent → CCM1…n → Offer → Placed / Closed lost
-- **Buy-In** = candidate's explicit consent to CV submission. Distinct milestone.
-- **Counteroffer stats:** 60–80% leave within 6 months; 90% within 12 months.
-- **Agency fees:** 30–35% of OTE in Japan.
-- **ai_context** = rolling 900-token internal briefing note, recency-weighted.
-
----
-
-## Suggested Next Work
-
-All 9 handover steps are complete. Possible next directions:
-
-### High value / low complexity
-1. **Wire OfferPanel action buttons** — "Closing script" calls `closing-script.ts`, "Interview prep" calls `interview-prep.ts`. Both endpoints exist.
-2. **Spec email flow** — After creating a Specs Sent process, show the AI-generated spec email inline (calls `spec-email.ts`). Endpoint exists, UI not wired.
-3. **Registration form signed URL** — Add a download/view button for `registration_form_url` using `supabase.storage.from("resumes").createSignedUrl()`.
-4. **Fix daily-agenda N+1** — Batch the open client last-interaction query in `api/ai/daily-agenda.ts`.
-
-### Medium complexity
-5. **Multi-user migration** — Add `team_id` to `recruiters` table, update RLS policies. Enables Team Activity Feed and proper multi-recruiter visibility.
-6. **Extract large panels** — Move `TranscriptPanel`, `SubmissionPackagePanel` into `src/components/candidate/` to reduce file sizes.
-7. **Interview prep flow** — Add "Generate prep email" button to CCM-stage `InterviewPanel` (endpoint `interview-prep.ts` exists, UI not wired).
-
-### Lower priority
-8. **Submission package "Accept All"** shortcut in TranscriptPanel.
-9. **Pre-call briefing cleanup** — Update `InterviewPanel` to use new `{ entity_type, entity_id, process_id }` params.
-10. **Remove `multer`** — It's installed but not used anywhere (`npm uninstall multer @types/multer`).
-
----
-
-## Modified Files This Session
-
-### New files
-- `api/extract-text.ts` — PDF text extraction endpoint
-- `src/routes/_authenticated/jobs.$id.tsx` — Requisition detail page
-
-### Substantially modified
-- `src/routes/_authenticated/dashboard.tsx` — Full rewrite (AI agenda, KPIs, drag/snooze/done)
-- `src/routes/_authenticated/candidates.tsx` — Server-side search with URL params
-- `src/routes/_authenticated/candidates.$id.tsx` — Stage change mutation, process type extended, TranscriptPanel side effects
-- `src/routes/_authenticated/clients.$id.tsx` — ClientStatusSelect with warning toast, JD PDF extraction wired
-- `src/routes/_authenticated/jobs.tsx` — JobRow now links to /jobs/$id
-- `src/routeTree.gen.ts` — Auto-regenerated by TanStack Router (new jobs.$id route)
+### Known Issues / Remaining Technical Debt
+1. **Team Activity Feed on dashboard** — still shows logged-in recruiter's own interactions. Fix: query interactions by `team_id` via recruiters join.
+2. **Submission package "Accept All / Reject All"** — not implemented in TranscriptPanel.
+3. **`clients.$id.tsx` and `candidates.$id.tsx` are large** (~3,225 and ~3,400 lines).
+4. **`/jobs/$id`** — no "Add condition" shortcut from within JD text.
+5. **Single-team bootstrap** — second recruiter joining an agency requires a manual SQL update. No UI yet.
+6. **Advanced Search location filter** — filters on text search of `notes_pitch`/`notes_personality`; no dedicated `preferred_location` DB column. Candidates without a match default to Tokyo and show a flag icon.

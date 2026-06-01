@@ -84,6 +84,57 @@ export type Database = {
           },
         ]
       }
+      candidate_lists: {
+        Row: {
+          candidate_ids: string[]
+          created_at: string
+          created_by: string
+          id: string
+          name: string
+          source: string
+          team_id: string
+          updated_at: string
+          visibility: string
+        }
+        Insert: {
+          candidate_ids?: string[]
+          created_at?: string
+          created_by: string
+          id?: string
+          name: string
+          source?: string
+          team_id?: string
+          updated_at?: string
+          visibility?: string
+        }
+        Update: {
+          candidate_ids?: string[]
+          created_at?: string
+          created_by?: string
+          id?: string
+          name?: string
+          source?: string
+          team_id?: string
+          updated_at?: string
+          visibility?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_lists_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "recruiters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_lists_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       candidate_motivations: {
         Row: {
           candidate_id: string
@@ -172,6 +223,7 @@ export type Database = {
           base_minimum: number | null
           bonus_preference: string | null
           candidate_status: string
+          coin_icon_dismissed: boolean
           created_at: string
           current_base: number | null
           current_bonus: number | null
@@ -198,11 +250,14 @@ export type Database = {
           notice_period_months: number | null
           other_languages: string | null
           phone: string | null
+          placed_at: string | null
           placement_guarantee_until: string | null
           presentation_notes: string | null
           recruiter_id: string
           registration_form_url: string | null
           source: string
+          status_source: string
+          team_id: string
           updated_at: string
           urgency_to_move: string | null
         }
@@ -217,6 +272,7 @@ export type Database = {
           base_minimum?: number | null
           bonus_preference?: string | null
           candidate_status?: string
+          coin_icon_dismissed?: boolean
           created_at?: string
           current_base?: number | null
           current_bonus?: number | null
@@ -243,11 +299,14 @@ export type Database = {
           notice_period_months?: number | null
           other_languages?: string | null
           phone?: string | null
+          placed_at?: string | null
           placement_guarantee_until?: string | null
           presentation_notes?: string | null
           recruiter_id: string
           registration_form_url?: string | null
           source?: string
+          status_source?: string
+          team_id?: string
           updated_at?: string
           urgency_to_move?: string | null
         }
@@ -262,6 +321,7 @@ export type Database = {
           base_minimum?: number | null
           bonus_preference?: string | null
           candidate_status?: string
+          coin_icon_dismissed?: boolean
           created_at?: string
           current_base?: number | null
           current_bonus?: number | null
@@ -288,11 +348,14 @@ export type Database = {
           notice_period_months?: number | null
           other_languages?: string | null
           phone?: string | null
+          placed_at?: string | null
           placement_guarantee_until?: string | null
           presentation_notes?: string | null
           recruiter_id?: string
           registration_form_url?: string | null
           source?: string
+          status_source?: string
+          team_id?: string
           updated_at?: string
           urgency_to_move?: string | null
         }
@@ -302,6 +365,13 @@ export type Database = {
             columns: ["recruiter_id"]
             isOneToOne: false
             referencedRelation: "recruiters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidates_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
             referencedColumns: ["id"]
           },
         ]
@@ -435,6 +505,7 @@ export type Database = {
           started_at: string | null
           status: string
           strategy_notes: string | null
+          team_id: string
           years_in_japan: number | null
         }
         Insert: {
@@ -459,6 +530,7 @@ export type Database = {
           started_at?: string | null
           status?: string
           strategy_notes?: string | null
+          team_id?: string
           years_in_japan?: number | null
         }
         Update: {
@@ -483,6 +555,7 @@ export type Database = {
           started_at?: string | null
           status?: string
           strategy_notes?: string | null
+          team_id?: string
           years_in_japan?: number | null
         }
         Relationships: [
@@ -491,6 +564,13 @@ export type Database = {
             columns: ["recruiter_id"]
             isOneToOne: false
             referencedRelation: "recruiters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clients_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
             referencedColumns: ["id"]
           },
         ]
@@ -546,6 +626,7 @@ export type Database = {
           recruiter_id: string
           requisition_id: string | null
           summary: string | null
+          team_id: string | null
           transcript_raw: string | null
           triggers_context_refresh: boolean
         }
@@ -561,6 +642,7 @@ export type Database = {
           recruiter_id: string
           requisition_id?: string | null
           summary?: string | null
+          team_id?: string | null
           transcript_raw?: string | null
           triggers_context_refresh?: boolean
         }
@@ -576,6 +658,7 @@ export type Database = {
           recruiter_id?: string
           requisition_id?: string | null
           summary?: string | null
+          team_id?: string | null
           transcript_raw?: string | null
           triggers_context_refresh?: boolean
         }
@@ -615,6 +698,13 @@ export type Database = {
             referencedRelation: "requisitions"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "interactions_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
         ]
       }
       processes: {
@@ -623,6 +713,9 @@ export type Database = {
           ai_snapshot_updated_at: string | null
           buy_in_confirmed_at: string | null
           candidate_id: string
+          ccm_feedback_at: string | null
+          ccm_feedback_notes: string | null
+          ccm_outcome: string | null
           closed_reason: string | null
           coverage_type: string
           created_at: string
@@ -635,6 +728,7 @@ export type Database = {
           placed_date: string | null
           requisition_id: string
           stage: string
+          team_id: string
           updated_at: string
         }
         Insert: {
@@ -642,6 +736,9 @@ export type Database = {
           ai_snapshot_updated_at?: string | null
           buy_in_confirmed_at?: string | null
           candidate_id: string
+          ccm_feedback_at?: string | null
+          ccm_feedback_notes?: string | null
+          ccm_outcome?: string | null
           closed_reason?: string | null
           coverage_type: string
           created_at?: string
@@ -654,6 +751,7 @@ export type Database = {
           placed_date?: string | null
           requisition_id: string
           stage: string
+          team_id?: string
           updated_at?: string
         }
         Update: {
@@ -661,6 +759,9 @@ export type Database = {
           ai_snapshot_updated_at?: string | null
           buy_in_confirmed_at?: string | null
           candidate_id?: string
+          ccm_feedback_at?: string | null
+          ccm_feedback_notes?: string | null
+          ccm_outcome?: string | null
           closed_reason?: string | null
           coverage_type?: string
           created_at?: string
@@ -673,6 +774,7 @@ export type Database = {
           placed_date?: string | null
           requisition_id?: string
           stage?: string
+          team_id?: string
           updated_at?: string
         }
         Relationships: [
@@ -697,6 +799,13 @@ export type Database = {
             referencedRelation: "requisitions"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "processes_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
         ]
       }
       recruiters: {
@@ -706,6 +815,7 @@ export type Database = {
           email: string
           full_name: string | null
           id: string
+          team_id: string
         }
         Insert: {
           agency_name?: string | null
@@ -713,6 +823,7 @@ export type Database = {
           email: string
           full_name?: string | null
           id: string
+          team_id: string
         }
         Update: {
           agency_name?: string | null
@@ -720,8 +831,17 @@ export type Database = {
           email?: string
           full_name?: string | null
           id?: string
+          team_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "recruiters_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       requisition_conditions: {
         Row: {
@@ -810,6 +930,7 @@ export type Database = {
           skills_test_notes: string | null
           strategic_context: string | null
           target_start_date: string | null
+          team_id: string
           title: string
           urgency: string | null
           why_role_opened: string | null
@@ -852,6 +973,7 @@ export type Database = {
           skills_test_notes?: string | null
           strategic_context?: string | null
           target_start_date?: string | null
+          team_id?: string
           title: string
           urgency?: string | null
           why_role_opened?: string | null
@@ -894,6 +1016,7 @@ export type Database = {
           skills_test_notes?: string | null
           strategic_context?: string | null
           target_start_date?: string | null
+          team_id?: string
           title?: string
           urgency?: string | null
           why_role_opened?: string | null
@@ -920,14 +1043,39 @@ export type Database = {
             referencedRelation: "recruiters"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "requisitions_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
         ]
+      }
+      teams: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      current_team_id: { Args: never; Returns: string }
     }
     Enums: {
       [_ in never]: never
@@ -1073,17 +1221,7 @@ export type JapaneseLevel =
   | "Native" | "Fluent" | "High Business" | "Business" | "Low Business"
   | "High Conversational" | "Conversational" | "Low Conversational" | "Basic" | "None";
 
-export type CandidateStatus = "active" | "passive" | "placed" | "off_market";
-
-export type CandidateSource = "linkedin" | "bizreach" | "doda" | "referral" | "inbound" | "other";
-
-export type ClientStatus = "prospect" | "active" | "inactive";
-
-export type ConditionType = "must_have" | "nice_to_have";
-
-export type ConditionSource = "jd" | "client";
-
-export type EntityType = "candidate" | "client" | "requisition";
+export type CandidateStatus = "active" | "passive" | "placed";
 
 export type Urgency = "standard" | "urgent" | "backburner";
 

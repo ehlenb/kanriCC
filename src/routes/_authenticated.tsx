@@ -12,9 +12,11 @@ import {
   IconBuilding,
   IconBriefcase,
   IconLogout,
+  IconX,
 } from "@tabler/icons-react";
 import { useEffect } from "react";
 import { initials } from "@/lib/candidate-utils";
+import { BLANK_CANDIDATE_SEARCH } from "@/routes/_authenticated/candidates";
 
 export const Route = createFileRoute("/_authenticated")({
   component: AuthedShell,
@@ -70,6 +72,8 @@ function Sidebar({
   email: string;
 }) {
   const loc = useLocation();
+  const navigate = useNavigate();
+  const isAdvancedSearch = loc.pathname === "/advanced-search";
 
   return (
     <aside
@@ -110,6 +114,28 @@ function Sidebar({
             </Link>
           );
         })}
+
+        {/* Temporary Advanced Search entry — only shown when on that route */}
+        {isAdvancedSearch && (
+          <div
+            className="flex items-center justify-between rounded-lg px-3 py-2 text-sm"
+            style={{
+              background: "rgba(26,26,24,0.07)",
+              color: "#1a1a18",
+            }}
+          >
+            <span style={{ fontStyle: "italic", fontWeight: 400 }}>Advanced Search</span>
+            <button
+              onClick={() =>
+                navigate({ to: "/candidates", search: BLANK_CANDIDATE_SEARCH })
+              }
+              className="ml-1 rounded p-0.5 transition-colors hover:bg-black/10"
+              title="Close Advanced Search"
+            >
+              <IconX size={12} />
+            </button>
+          </div>
+        )}
       </nav>
 
       {/* User */}

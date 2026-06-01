@@ -16,6 +16,7 @@ import { Route as AuthenticatedJobsRouteImport } from './routes/_authenticated/j
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedClientsRouteImport } from './routes/_authenticated/clients'
 import { Route as AuthenticatedCandidatesRouteImport } from './routes/_authenticated/candidates'
+import { Route as AuthenticatedAdvancedSearchRouteImport } from './routes/_authenticated/advanced-search'
 import { Route as AuthenticatedJobsIdRouteImport } from './routes/_authenticated/jobs.$id'
 import { Route as AuthenticatedClientsIdRouteImport } from './routes/_authenticated/clients.$id'
 import { Route as AuthenticatedCandidatesIdRouteImport } from './routes/_authenticated/candidates.$id'
@@ -54,6 +55,12 @@ const AuthenticatedCandidatesRoute = AuthenticatedCandidatesRouteImport.update({
   path: '/candidates',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedAdvancedSearchRoute =
+  AuthenticatedAdvancedSearchRouteImport.update({
+    id: '/advanced-search',
+    path: '/advanced-search',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedJobsIdRoute = AuthenticatedJobsIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -74,6 +81,7 @@ const AuthenticatedCandidatesIdRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/advanced-search': typeof AuthenticatedAdvancedSearchRoute
   '/candidates': typeof AuthenticatedCandidatesRouteWithChildren
   '/clients': typeof AuthenticatedClientsRouteWithChildren
   '/dashboard': typeof AuthenticatedDashboardRoute
@@ -85,6 +93,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/advanced-search': typeof AuthenticatedAdvancedSearchRoute
   '/candidates': typeof AuthenticatedCandidatesRouteWithChildren
   '/clients': typeof AuthenticatedClientsRouteWithChildren
   '/dashboard': typeof AuthenticatedDashboardRoute
@@ -98,6 +107,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteWithChildren
   '/login': typeof LoginRoute
+  '/_authenticated/advanced-search': typeof AuthenticatedAdvancedSearchRoute
   '/_authenticated/candidates': typeof AuthenticatedCandidatesRouteWithChildren
   '/_authenticated/clients': typeof AuthenticatedClientsRouteWithChildren
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
@@ -111,6 +121,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/advanced-search'
     | '/candidates'
     | '/clients'
     | '/dashboard'
@@ -122,6 +133,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
+    | '/advanced-search'
     | '/candidates'
     | '/clients'
     | '/dashboard'
@@ -134,6 +146,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/login'
+    | '/_authenticated/advanced-search'
     | '/_authenticated/candidates'
     | '/_authenticated/clients'
     | '/_authenticated/dashboard'
@@ -200,6 +213,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCandidatesRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/advanced-search': {
+      id: '/_authenticated/advanced-search'
+      path: '/advanced-search'
+      fullPath: '/advanced-search'
+      preLoaderRoute: typeof AuthenticatedAdvancedSearchRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/jobs/$id': {
       id: '/_authenticated/jobs/$id'
       path: '/$id'
@@ -261,6 +281,7 @@ const AuthenticatedJobsRouteWithChildren =
   AuthenticatedJobsRoute._addFileChildren(AuthenticatedJobsRouteChildren)
 
 interface AuthenticatedRouteChildren {
+  AuthenticatedAdvancedSearchRoute: typeof AuthenticatedAdvancedSearchRoute
   AuthenticatedCandidatesRoute: typeof AuthenticatedCandidatesRouteWithChildren
   AuthenticatedClientsRoute: typeof AuthenticatedClientsRouteWithChildren
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
@@ -268,6 +289,7 @@ interface AuthenticatedRouteChildren {
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
+  AuthenticatedAdvancedSearchRoute: AuthenticatedAdvancedSearchRoute,
   AuthenticatedCandidatesRoute: AuthenticatedCandidatesRouteWithChildren,
   AuthenticatedClientsRoute: AuthenticatedClientsRouteWithChildren,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,

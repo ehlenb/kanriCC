@@ -3,5 +3,8 @@
   "devCommand": "npm run dev:ui",
   "rewrites": [
     { "source": "/((?!api/).*)", "destination": "/index.html" }
+  ],
+  "crons": [
+    { "path": "/api/ai/infer-status", "schedule": "0 2 * * *" }
   ]
 }

@@ -505,6 +505,7 @@ Stage badge logic lives exclusively in `stageBadgeVariant()` in `candidate-utils
 | `/clients` | `.../clients.tsx` | Client list |
 | `/clients/$id` | `.../clients.$id.tsx` | Client detail (3 tabs) |
 | `/jobs` | `.../jobs.tsx` | Open requisitions + revenue forecast |
+| `/advanced-search` | `.../advanced-search.tsx` | Three-panel AI candidate search — not a nav item, accessed via candidates page |
 
 ---
 
@@ -659,10 +660,14 @@ After regeneration, re-append the custom types block from Section 11.
 | `005_stage_rename.sql` | Pipeline stage naming |
 | `006_cv_upload.sql` | `cv_url` column on candidates |
 | `007_client_contacts_extend.sql` | role, notes, relationship_score, bypass_hr_warning, is_primary |
+| `008_schema_extension.sql` | Schema extensions |
+| `009_multi_user.sql` | Team/recruiter RLS, `current_team_id()`, `set_team_id_from_recruiter()` trigger |
+| `010_ccm_feedback.sql` | CCM feedback fields on processes |
+| `011_team_id_defaults.sql` | Column-level `DEFAULT current_team_id()` on core tables |
+| `012_candidate_status.sql` | `placed_at`, `status_source`, `coin_icon_dismissed`; 3-status constraint |
+| `013_candidate_lists.sql` | `candidate_lists` table — saved search lists with RLS and triggers |
 
 New migrations increment sequentially. Never edit existing migration files.
-
-**Note:** Multi-user team/recruiter architecture may require a future migration to add `team_id` columns and update RLS policies if not already present.
 
 ---
 
