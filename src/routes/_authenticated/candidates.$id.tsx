@@ -321,6 +321,28 @@ function CandidateProfile() {
               .filter(Boolean)
               .join(" · ")}
           </div>
+          {(c.current_total || c.expected_total_min || c.expected_total_max) && (
+            <div className="flex items-center gap-2 mt-0.5 text-[12px]">
+              {c.current_total && (
+                <span style={{ color: "#1a1a18" }}>
+                  Current <strong>{formatYen(c.current_total)}</strong>
+                </span>
+              )}
+              {c.current_total && (c.expected_total_min || c.expected_total_max) && (
+                <span style={{ color: "#b8b7b2" }}>·</span>
+              )}
+              {(c.expected_total_min || c.expected_total_max) && (
+                <span style={{ color: "#1a1a18" }}>
+                  Expecting{" "}
+                  <strong>
+                    {c.expected_total_min && c.expected_total_max
+                      ? `${formatYen(c.expected_total_min)} – ${formatYen(c.expected_total_max)}`
+                      : formatYen(c.expected_total_min ?? c.expected_total_max)}
+                  </strong>
+                </span>
+              )}
+            </div>
+          )}
         </div>
         <div className="text-right text-[11px]">
           Last contact:{" "}
