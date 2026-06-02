@@ -115,6 +115,7 @@ type Candidate = {
   cv_url?: string | null;
   registration_form_url: string | null;
   address: string | null;
+  date_of_birth: string | null;
   notes_template: string | null;
   ai_context: string | null;
   ai_context_updated_at: string | null;
@@ -196,7 +197,7 @@ function useCandidateProfile(id: string) {
       ] = await Promise.all([
         supabase
           .from("candidates")
-          .select("*, notes_presentation, notes_personality, notes_pitch, notes_closing, notes_internal, address, notes_template")
+          .select("*, notes_presentation, notes_personality, notes_pitch, notes_closing, notes_internal, address, date_of_birth, notes_template")
           .eq("id", id)
           .single(),
         supabase
@@ -450,7 +451,7 @@ function RegistrationPage({
       {/* Auto-populated contact details */}
       <Card>
         <div className="flex items-center gap-1.5 mb-3">
-          <SectionLabel className="mb-0">Contact details</SectionLabel>
+          <SectionLabel className="mb-0">Candidate details</SectionLabel>
           <span className="text-[11px] px-1.5 py-0.5 rounded" style={{ background: "#e6f1fb", color: "#185fa5" }}>
             auto-populated from form
           </span>
@@ -458,15 +459,11 @@ function RegistrationPage({
         <div className="space-y-1">
           <RegistrationField label="Full name (English)" fieldKey="full_name" value={c.full_name} candidateId={candidateId} />
           <RegistrationField label="Full name (Japanese)" fieldKey="full_name_japanese" value={c.full_name_japanese} candidateId={candidateId} />
-          <RegistrationField label="Age" fieldKey="age" value={c.age != null ? String(c.age) : null} candidateId={candidateId} placeholder="e.g. 34" inputType="number" numeric />
-          <RegistrationField label="Address" fieldKey="address" value={c.address} candidateId={candidateId} placeholder="e.g. 2-1-1 Shibuya, Tokyo 150-0002" />
-          <RegistrationField label="Email" fieldKey="email" value={c.email} candidateId={candidateId} />
-          <RegistrationField label="Phone" fieldKey="phone" value={c.phone} candidateId={candidateId} />
-          <RegistrationField label="LinkedIn URL" fieldKey="linkedin_url" value={c.linkedin_url} candidateId={candidateId} placeholder="https://linkedin.com/in/..." />
+          <DobField candidateId={candidateId} dateOfBirth={c.date_of_birth} age={c.age} />
         </div>
         <p className="mt-3 text-[11px] flex items-center gap-1" style={{ color: "#888780" }}>
           <IconInfoCircle size={12} />
-          Click any field to edit. Fields are auto-populated when a registration form with extraction is uploaded.
+          Click any field to edit. Age is calculated automatically from date of birth.
         </p>
       </Card>
     </div>
@@ -540,6 +537,84 @@ function RegistrationField({
         style={{ color: value ? "#1a1a18" : "#b8b7b2" }}
       >
         {value || "—"}
+      </span>
+      <IconPencil size={11} className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0" style={{ color: "#b8b7b2" }} />
+    </div>
+  );
+}
+
+// ─── date-of-birth field ─────────────────────────────────────────────────────
+
+function calculateAge(dob: string): number {
+  const birth = new Date(dob);
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const m = today.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+  return age;
+}
+
+function DobField({
+  candidateId,
+  dateOfBirth,
+  age,
+}: {
+  candidateId: string;
+  dateOfBirth: string | null;
+  age: number | null;
+}) {
+  const qc = useQueryClient();
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(dateOfBirth ?? "");
+
+  async function save() {
+    setEditing(false);
+    if (draft === (dateOfBirth ?? "")) return;
+    const newAge = draft ? calculateAge(draft) : null;
+    await supabase
+      .from("candidates")
+      .update({ date_of_birth: draft || null, age: newAge })
+      .eq("id", candidateId);
+    void qc.invalidateQueries({ queryKey: ["candidate-profile", candidateId] });
+  }
+
+  const displayDob = dateOfBirth
+    ? new Date(dateOfBirth).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
+    : null;
+
+  if (editing) {
+    return (
+      <div className="flex items-center gap-3 py-1">
+        <span className="text-[12px] w-[150px] shrink-0" style={{ color: "#888780" }}>Date of birth</span>
+        <Input
+          type="date"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={() => void save()}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") void save();
+            if (e.key === "Escape") { setDraft(dateOfBirth ?? ""); setEditing(false); }
+          }}
+          autoFocus
+          className="h-7 text-[13px] flex-1"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="flex items-center gap-3 py-1 rounded cursor-pointer group"
+      onClick={() => { setDraft(dateOfBirth ?? ""); setEditing(true); }}
+    >
+      <span className="text-[12px] w-[150px] shrink-0" style={{ color: "#888780" }}>Date of birth</span>
+      <span
+        className="text-[13px] flex-1 px-1.5 py-0.5 rounded group-hover:bg-[#f5f5f3] transition-colors"
+        style={{ color: displayDob ? "#1a1a18" : "#b8b7b2" }}
+      >
+        {displayDob
+          ? `${displayDob}${age != null ? ` (Age ${age})` : ""}`
+          : "—"}
       </span>
       <IconPencil size={11} className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0" style={{ color: "#b8b7b2" }} />
     </div>
@@ -1239,6 +1314,43 @@ function ProcessesPage({
   );
   const [addProcessOpen, setAddProcessOpen] = useState(false);
   const [compensationOpen, setCompensationOpen] = useState(false);
+  const [syncingComp, setSyncingComp] = useState(false);
+  const qcProcesses = useQueryClient();
+
+  async function handleSyncCompFromNotes() {
+    setSyncingComp(true);
+    try {
+      const res = await fetch("/api/ai/extract-compensation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ candidateId: c.id }),
+      });
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({}))) as { error?: string };
+        toast.error(err.error ?? "Could not extract compensation. Try again.");
+        return;
+      }
+      const { extracted } = (await res.json()) as { extracted: Record<string, number | null> };
+      const fields = Object.entries(extracted).filter(([, v]) => v != null);
+      if (fields.length === 0) {
+        toast.info("No salary figures found in the candidate notes.");
+        return;
+      }
+      const labels = fields.map(([k]) =>
+        k === "current_base" ? "current base"
+          : k === "current_total" ? "current total"
+          : k === "expected_total_min" ? "expected min"
+          : k === "expected_total_max" ? "expected max"
+          : k,
+      );
+      toast.success(`Synced from notes: ${labels.join(", ")}`);
+      void qcProcesses.invalidateQueries({ queryKey: ["candidate-profile", c.id] });
+    } catch {
+      toast.error("Sync failed. Check your connection.");
+    } finally {
+      setSyncingComp(false);
+    }
+  }
 
   const activeProcess = processes.find((p) => p.id === activeProcessId) ?? null;
 
@@ -1346,7 +1458,12 @@ function ProcessesPage({
 
       {/* Compensation card at bottom */}
       <div className="mt-3">
-        <CompensationCard candidate={c} onEdit={() => setCompensationOpen(true)} />
+        <CompensationCard
+          candidate={c}
+          onEdit={() => setCompensationOpen(true)}
+          onSyncFromNotes={() => void handleSyncCompFromNotes()}
+          syncing={syncingComp}
+        />
       </div>
 
       {/* Profile data — feeds AI context */}
@@ -3622,17 +3739,34 @@ function CandidateProfileSection({
 function CompensationCard({
   candidate: c,
   onEdit,
+  onSyncFromNotes,
+  syncing = false,
 }: {
   candidate: Candidate;
   onEdit: () => void;
+  onSyncFromNotes?: () => void;
+  syncing?: boolean;
 }) {
   return (
     <Card>
       <div className="flex items-center justify-between mb-2">
         <SectionLabel className="mb-0">Compensation</SectionLabel>
-        <button className="ab flex items-center gap-1" onClick={onEdit}>
-          <IconPencil size={11} /> Edit
-        </button>
+        <div className="flex items-center gap-2">
+          {onSyncFromNotes && c.notes_template && (
+            <button
+              className="ab flex items-center gap-1"
+              onClick={onSyncFromNotes}
+              disabled={syncing}
+              title="Extract salary from candidate notes"
+            >
+              <IconSparkles size={11} />
+              {syncing ? "Syncing…" : "Sync from notes"}
+            </button>
+          )}
+          <button className="ab flex items-center gap-1" onClick={onEdit}>
+            <IconPencil size={11} /> Edit
+          </button>
+        </div>
       </div>
       <FieldRow label="Current">
         {c.current_total
@@ -3669,16 +3803,18 @@ function EditCompensationDialog({
   onClose: () => void;
 }) {
   const qc = useQueryClient();
+  // Inputs use ¥M notation; DB stores raw yen (×1,000,000)
+  const toM = (v: number | null) => (v != null ? String(v / 1_000_000) : "");
   const [form, setForm] = useState({
-    current_base:       c.current_base       != null ? String(c.current_base)       : "",
-    current_bonus:      c.current_bonus      != null ? String(c.current_bonus)      : "",
-    current_total:      c.current_total      != null ? String(c.current_total)      : "",
-    expected_total_min: c.expected_total_min != null ? String(c.expected_total_min) : "",
-    expected_total_max: c.expected_total_max != null ? String(c.expected_total_max) : "",
-    base_minimum:       c.base_minimum       != null ? String(c.base_minimum)       : "",
-    base_is_priority:   c.base_is_priority,
-    bonus_preference:   c.bonus_preference   ?? "",
-    equity_open:        c.equity_open === true ? "yes" : c.equity_open === false ? "no" : "",
+    current_base:         toM(c.current_base),
+    current_bonus:        toM(c.current_bonus),
+    current_total:        toM(c.current_total),
+    expected_total_min:   toM(c.expected_total_min),
+    expected_total_max:   toM(c.expected_total_max),
+    base_minimum:         toM(c.base_minimum),
+    base_is_priority:     c.base_is_priority,
+    bonus_preference:     c.bonus_preference ?? "",
+    equity_open:          c.equity_open === true ? "yes" : c.equity_open === false ? "no" : "",
     notice_period_months: c.notice_period_months != null ? String(c.notice_period_months) : "",
   });
 
@@ -3686,21 +3822,22 @@ function EditCompensationDialog({
     setForm((f) => ({ ...f, [k]: v }));
   }
 
-  const n = (s: string) => (s.trim() ? Number(s) : null);
+  const nYen = (s: string) => (s.trim() ? Math.round(Number(s) * 1_000_000) : null);
+  const nInt = (s: string) => (s.trim() ? Number(s) : null);
 
   const mutation = useMutation({
     mutationFn: async () => {
       const { error } = await supabase.from("candidates").update({
-        current_base:       n(form.current_base),
-        current_bonus:      n(form.current_bonus),
-        current_total:      n(form.current_total),
-        expected_total_min: n(form.expected_total_min),
-        expected_total_max: n(form.expected_total_max),
-        base_minimum:       n(form.base_minimum),
-        base_is_priority:   form.base_is_priority,
-        bonus_preference:   form.bonus_preference.trim() || null,
-        equity_open:        form.equity_open === "yes" ? true : form.equity_open === "no" ? false : null,
-        notice_period_months: n(form.notice_period_months),
+        current_base:         nYen(form.current_base),
+        current_bonus:        nYen(form.current_bonus),
+        current_total:        nYen(form.current_total),
+        expected_total_min:   nYen(form.expected_total_min),
+        expected_total_max:   nYen(form.expected_total_max),
+        base_minimum:         nYen(form.base_minimum),
+        base_is_priority:     form.base_is_priority,
+        bonus_preference:     form.bonus_preference.trim() || null,
+        equity_open:          form.equity_open === "yes" ? true : form.equity_open === "no" ? false : null,
+        notice_period_months: nInt(form.notice_period_months),
       }).eq("id", candidateId);
       if (error) throw error;
     },
@@ -3723,10 +3860,10 @@ function EditCompensationDialog({
             value={form[k]}
             onChange={(e) => setF(k, e.target.value)}
             className="pl-6 text-[13px]"
-            placeholder="millions, e.g. 10"
+            placeholder="e.g. 12"
           />
         </div>
-        <p className="text-[11px]" style={{ color: "#b8b7b2" }}>Enter in millions (¥M). e.g. 10 = ¥10M</p>
+        <p className="text-[11px]" style={{ color: "#b8b7b2" }}>Enter in ¥M — type 12 for ¥12M</p>
       </div>
     );
   }

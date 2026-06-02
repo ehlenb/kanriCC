@@ -231,6 +231,7 @@ export type Database = {
           current_title: string | null
           current_total: number | null
           address: string | null
+          date_of_birth: string | null
           cv_url: string | null
           email: string | null
           english_level: string | null
@@ -282,6 +283,7 @@ export type Database = {
           current_title?: string | null
           current_total?: number | null
           address?: string | null
+          date_of_birth?: string | null
           cv_url?: string | null
           email?: string | null
           english_level?: string | null
@@ -333,6 +335,7 @@ export type Database = {
           current_title?: string | null
           current_total?: number | null
           address?: string | null
+          date_of_birth?: string | null
           cv_url?: string | null
           email?: string | null
           english_level?: string | null
