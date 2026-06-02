@@ -3698,32 +3698,54 @@ function UploadNotesDialog({
   onApplied: () => void;
 }) {
   const [rawNotes, setRawNotes] = useState("");
-  const [fileName, setFileName] = useState<string | null>(null);
+  const [fileInfo, setFileInfo] = useState<{ name: string; base64: string; type: "pdf" | "docx" | "text" } | null>(null);
   const [applying, setApplying] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  const hasInput = rawNotes.trim().length > 0 || fileInfo !== null;
+
   async function handleFile(file: File) {
-    if (file.type === "text/plain" || file.name.endsWith(".md") || file.name.endsWith(".txt")) {
+    const isPdf = file.type === "application/pdf" || file.name.endsWith(".pdf");
+    const isDocx =
+      file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+      file.name.endsWith(".docx") ||
+      file.name.endsWith(".doc");
+    const isText = file.type === "text/plain" || file.name.endsWith(".txt") || file.name.endsWith(".md");
+
+    if (isText) {
       const text = await file.text();
       setRawNotes(text);
-      setFileName(file.name);
-    } else {
-      toast.error("Please upload a plain text (.txt or .md) file, or paste your notes directly.");
+      setFileInfo(null);
+      return;
     }
+
+    if (isPdf || isDocx) {
+      const arrayBuffer = await file.arrayBuffer();
+      const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+      setFileInfo({ name: file.name, base64, type: isPdf ? "pdf" : "docx" });
+      setRawNotes("");
+      return;
+    }
+
+    toast.error("Supported formats: PDF, Word (.docx), or plain text (.txt / .md).");
   }
 
   async function apply() {
-    if (!rawNotes.trim()) { toast.error("Please paste or upload some notes first."); return; }
+    if (!hasInput) { toast.error("Please paste notes or upload a file first."); return; }
     setApplying(true);
     try {
       const existingTemplate =
         c.notes_template ||
         buildTemplateHtml(c, motivations, blockers, roles, competing);
 
+      const body = fileInfo
+        ? { candidateId, existingTemplate, fileBase64: fileInfo.base64, fileType: fileInfo.type }
+        : { candidateId, existingTemplate, rawNotes: rawNotes.trim(), fileType: "text" };
+
       const res = await fetch("/api/ai/apply-candidate-notes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ candidateId, rawNotes: rawNotes.trim(), existingTemplate }),
+        body: JSON.stringify(body),
       });
 
       if (!res.ok) {
@@ -3753,38 +3775,51 @@ function UploadNotesDialog({
 
         <div className="space-y-4 py-1">
           <p className="text-[13px] leading-relaxed" style={{ color: "#5f5e5a" }}>
-            Paste your notes below — from a call, a meeting, or an email thread. AI will
-            read them and place each piece of information into the right section of the
-            candidate note template.
+            Paste notes below, or upload a file — PDF, Word, or plain text. AI will read
+            them and place each piece of information into the right section of the candidate
+            note template.
           </p>
 
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <Label className="text-[12px]">Your notes</Label>
-              <button
-                className="text-[11px]"
-                style={{ color: "#185fa5" }}
-                onClick={() => fileRef.current?.click()}
-              >
-                {fileName ? `Loaded: ${fileName}` : "Upload .txt / .md file"}
-              </button>
-              <input
-                ref={fileRef}
-                type="file"
-                accept=".txt,.md,text/plain"
-                className="hidden"
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) void handleFile(f);
-                  e.target.value = "";
-                }}
-              />
+          {/* File upload drop zone */}
+          <div
+            className="flex items-center justify-between rounded-lg px-4 py-3 cursor-pointer transition-colors"
+            style={{ background: fileInfo ? "#eaf3de" : "#f5f5f3", border: `0.5px dashed ${fileInfo ? "rgba(39,80,10,0.3)" : "rgba(26,26,24,0.2)"}` }}
+            onClick={() => fileRef.current?.click()}
+          >
+            <div className="flex items-center gap-2 text-[13px]" style={{ color: fileInfo ? "#27500a" : "#5f5e5a" }}>
+              <IconUpload size={14} />
+              {fileInfo ? `${fileInfo.name}` : "Upload PDF, Word (.docx), or text file"}
             </div>
+            {fileInfo && (
+              <button
+                className="text-[11px] px-2 py-0.5 rounded"
+                style={{ background: "#eaf3de", color: "#27500a" }}
+                onClick={(e) => { e.stopPropagation(); setFileInfo(null); }}
+              >
+                Remove
+              </button>
+            )}
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".pdf,.docx,.doc,.txt,.md,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) void handleFile(f);
+                e.target.value = "";
+              }}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-[12px]">Or paste notes directly</Label>
             <Textarea
               value={rawNotes}
-              onChange={(e) => setRawNotes(e.target.value)}
+              onChange={(e) => { setRawNotes(e.target.value); if (e.target.value) setFileInfo(null); }}
               placeholder={`Paste anything — unstructured call notes, bullet points, email summaries. For example:\n\nSpoke to Tanaka-san for 45 mins. Currently at Rakuten, wants to move to fintech. N1 Japanese, fluent English. Base ¥9.5M. Wife is supportive of a move but wants stability. Has offer from Monex due next Friday.`}
-              className="min-h-[200px] text-[13px] font-mono leading-relaxed"
+              className="min-h-[160px] text-[13px] font-mono leading-relaxed"
+              disabled={!!fileInfo}
             />
           </div>
 
@@ -3807,7 +3842,7 @@ function UploadNotesDialog({
           <Button
             size="sm"
             onClick={() => void apply()}
-            disabled={applying || !rawNotes.trim()}
+            disabled={applying || !hasInput}
             className="flex items-center gap-1.5"
           >
             <IconSparklesOutline size={13} />
