@@ -51,7 +51,20 @@ import {
   IconCheck,
   IconClipboard,
   IconChevronDown,
+  IconTemplate,
+  IconDownload,
+  IconX,
+  IconBold,
+  IconItalic,
+  IconUnderline,
+  IconH2,
+  IconH3,
+  IconList,
+  IconListNumbers,
 } from "@tabler/icons-react";
+import { useEditor, EditorContent } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import Underline from "@tiptap/extension-underline";
 import { TranscriptPanel } from "@/components/candidate/TranscriptPanel";
 import { SubmissionPackagePanel } from "@/components/candidate/SubmissionPackagePanel";
 
@@ -100,6 +113,8 @@ type Candidate = {
   notes_internal: string | null;
   cv_url?: string | null;
   registration_form_url: string | null;
+  address: string | null;
+  notes_template: string | null;
   ai_context: string | null;
   ai_context_updated_at: string | null;
   updated_at: string;
@@ -180,7 +195,7 @@ function useCandidateProfile(id: string) {
       ] = await Promise.all([
         supabase
           .from("candidates")
-          .select("*, notes_presentation, notes_personality, notes_pitch, notes_closing, notes_internal")
+          .select("*, notes_presentation, notes_personality, notes_pitch, notes_closing, notes_internal, address, notes_template")
           .eq("id", id)
           .single(),
         supabase
@@ -254,7 +269,7 @@ function CandidateProfile() {
   const { id } = Route.useParams();
   const { user } = useAuth();
   const { data, isLoading } = useCandidateProfile(id);
-  const [page, setPage] = useState<"registration" | "timeline" | "notes" | "processes">("registration");
+  const [page, setPage] = useState<"timeline" | "notes" | "processes" | "registration">("timeline");
 
   if (isLoading) {
     return (
@@ -323,10 +338,10 @@ function CandidateProfile() {
       >
         {(
           [
-            { key: "registration", label: "Registration" },
             { key: "timeline",     label: "Timeline" },
             { key: "notes",        label: "Candidate notes" },
             { key: "processes",    label: "Candidate intelligence" },
+            { key: "registration", label: "Registration" },
           ] as const
         ).map(({ key, label }) => (
           <button
@@ -346,17 +361,6 @@ function CandidateProfile() {
       </div>
 
       {/* Pages */}
-      {page === "registration" && (
-        <RegistrationPage
-          candidateId={id}
-          recruiterId={user!.id}
-          candidate={c}
-          motivations={motivations}
-          blockers={blockers}
-          roles={roles}
-          competing={competing}
-        />
-      )}
       {page === "timeline" && (
         <CandidateTimelineTab
           candidateId={id}
@@ -366,15 +370,31 @@ function CandidateProfile() {
         />
       )}
       {page === "notes" && (
-        <NotesTab candidateId={id} candidate={c} />
+        <NotesTab
+          candidateId={id}
+          candidate={c}
+          motivations={motivations}
+          blockers={blockers}
+          roles={roles}
+          competing={competing}
+        />
       )}
       {page === "processes" && (
         <ProcessesPage
           candidate={c}
           motivations={motivations}
           blockers={blockers}
+          roles={roles}
+          competing={competing}
           processes={processes}
           recruiterId={user!.id}
+        />
+      )}
+      {page === "registration" && (
+        <RegistrationPage
+          candidateId={id}
+          recruiterId={user!.id}
+          candidate={c}
         />
       )}
     </div>
@@ -387,328 +407,109 @@ function RegistrationPage({
   candidateId,
   recruiterId,
   candidate: c,
-  motivations,
-  blockers,
-  roles,
-  competing,
 }: {
   candidateId: string;
   recruiterId: string;
   candidate: Candidate;
-  motivations: Motivation[];
-  blockers: Blocker[];
-  roles: Role[];
-  competing: CompetingInterview[];
 }) {
-  type DialogType = "motivation" | "role" | "blocker" | "competing" | "presentation";
-  const [openDialog, setOpenDialog] = useState<DialogType | null>(null);
-  const close = () => setOpenDialog(null);
-  const qc = useQueryClient();
-
   return (
     <div className="space-y-3">
-      {/* CV Upload */}
-      <CvUploadZone candidateId={candidateId} recruiterId={recruiterId} cvUrl={c.cv_url ?? null} />
-
-      {/* Registration form upload */}
+      {/* Registration form upload — primary document */}
       <RegistrationFormUploadZone
         candidateId={candidateId}
         recruiterId={recruiterId}
         registrationFormUrl={c.registration_form_url}
       />
 
-      {/* Status + Source row */}
+      {/* CV Upload */}
+      <CvUploadZone candidateId={candidateId} recruiterId={recruiterId} cvUrl={c.cv_url ?? null} />
+
+      {/* Auto-populated contact details */}
       <Card>
-        <SectionLabel>Status &amp; source</SectionLabel>
-        <div className="grid grid-cols-2 gap-x-6">
-          <FieldRow label="Candidate status">
-            <StatusToggle
-              candidateId={candidateId}
-              status={c.candidate_status}
-              statusSource={c.status_source}
-              placedAt={c.placed_at}
-              coinIconDismissed={c.coin_icon_dismissed}
-            />
-          </FieldRow>
-          <FieldRow label="Source">{c.source ?? "—"}</FieldRow>
-          <FieldRow label="Urgency to move">
-            <span style={{ color: c.urgency_to_move === "High" ? "#27500a" : c.urgency_to_move === "Low" ? "#888780" : "#1a1a18", fontWeight: c.urgency_to_move === "High" ? 500 : 400 }}>
-              {c.urgency_to_move ?? "—"}
-            </span>
-          </FieldRow>
-          <FieldRow label="Notice period">
-            {c.notice_period_months ? `${c.notice_period_months} month${c.notice_period_months !== 1 ? "s" : ""}` : "—"}
-          </FieldRow>
+        <div className="flex items-center gap-1.5 mb-3">
+          <SectionLabel className="mb-0">Contact details</SectionLabel>
+          <span className="text-[11px] px-1.5 py-0.5 rounded" style={{ background: "#e6f1fb", color: "#185fa5" }}>
+            auto-populated from form
+          </span>
         </div>
-      </Card>
-
-      {/* Contact fields */}
-      <Card>
-        <SectionLabel>Contact information</SectionLabel>
-        <FieldRow label="Email">{c.email ?? "—"}</FieldRow>
-        <FieldRow label="Phone">{c.phone ?? "—"}</FieldRow>
-        <FieldRow label="LinkedIn">{c.linkedin_url ? <a href={c.linkedin_url} target="_blank" rel="noreferrer" className="underline underline-offset-2" style={{ color: "#185fa5" }}>View profile</a> : "—"}</FieldRow>
-      </Card>
-
-      {/* Language */}
-      <Card>
-        <SectionLabel>Language ability</SectionLabel>
-        <FieldRow label="Japanese"><strong>{c.japanese_level ?? "—"}</strong></FieldRow>
-        <FieldRow label="English"><strong>{c.english_level ?? "—"}</strong></FieldRow>
-        <FieldRow label="Other languages">{c.additional_languages ?? c.other_languages ?? "None"}</FieldRow>
-      </Card>
-
-      {/* Job history */}
-      <Card>
-        <div className="flex items-center justify-between mb-2">
-          <SectionLabel className="mb-0">Job history</SectionLabel>
-          <button className="ab" onClick={() => setOpenDialog("role")}>
-            <IconPlus size={11} /> Add role
-          </button>
+        <div className="space-y-1">
+          <RegistrationField label="Full name (English)" fieldKey="full_name" value={c.full_name} candidateId={candidateId} />
+          <RegistrationField label="Full name (Japanese)" fieldKey="full_name_japanese" value={c.full_name_japanese} candidateId={candidateId} />
+          <RegistrationField label="Address" fieldKey="address" value={c.address} candidateId={candidateId} placeholder="e.g. 2-1-1 Shibuya, Tokyo 150-0002" />
+          <RegistrationField label="Email" fieldKey="email" value={c.email} candidateId={candidateId} />
+          <RegistrationField label="Phone" fieldKey="phone" value={c.phone} candidateId={candidateId} />
+          <RegistrationField label="LinkedIn URL" fieldKey="linkedin_url" value={c.linkedin_url} candidateId={candidateId} placeholder="https://linkedin.com/in/..." />
         </div>
-        {roles.length === 0 ? (
-          <p className="text-[13px]" style={{ color: "#888780" }}>
-            No roles added yet.
-          </p>
-        ) : (
-          <div className="pl-1 mt-1">
-            {roles.map((role, i) => (
-              <RoleBlock key={role.id} role={role} isLast={i === roles.length - 1} />
-            ))}
-          </div>
-        )}
-      </Card>
-
-      {/* Top 3 motivations */}
-      <Card>
-        <div className="flex items-center justify-between mb-2">
-          <SectionLabel className="mb-0">Top 3 motivations — candidate-ranked</SectionLabel>
-          <button
-            className="ab"
-            onClick={() => setOpenDialog("motivation")}
-            disabled={motivations.length >= 3}
-            title={motivations.length >= 3 ? "All 3 ranks are filled" : undefined}
-          >
-            <IconPlus size={11} /> Add
-          </button>
-        </div>
-        {motivations.length === 0 ? (
-          <p className="text-[13px]" style={{ color: "#888780" }}>
-            No motivations recorded yet.
-          </p>
-        ) : (
-          motivations.map((m) => (
-            <div
-              key={m.id}
-              className="flex items-center gap-2 rounded-lg border px-3 py-2 text-[13px] mb-1.5"
-              style={{ background: "#f5f5f3", borderColor: "rgba(26,26,24,0.12)" }}
-            >
-              <span
-                className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-medium"
-                style={{ background: "#e6f1fb", color: "#185fa5" }}
-              >
-                {m.rank}
-              </span>
-              <span className="flex-1">{m.motivation_text}</span>
-              {m.motivation_type && (
-                <span className="text-[11px] px-2 py-0.5 rounded" style={{ background: "#e6f1fb", color: "#185fa5" }}>
-                  {m.motivation_type.replace(/_/g, " ")}
-                </span>
-              )}
-            </div>
-          ))
-        )}
-        {motivations.length > 0 && (
-          <p className="mt-2 text-[11px] flex items-center gap-1" style={{ color: "#888780" }}>
-            <IconInfoCircle size={12} />
-            AI uses this ranking to sequence positioning talking points in each process tab
-          </p>
-        )}
-      </Card>
-
-      {/* Compensation */}
-      <Card>
-        <SectionLabel>Compensation</SectionLabel>
-        <FieldRow label="Current base">{formatYen(c.current_base)}</FieldRow>
-        <FieldRow label="Current bonus">
-          {c.current_bonus ? `${formatYen(c.current_bonus)} annual performance` : "—"}
-        </FieldRow>
-        <FieldRow label="Current total">
-          <strong>{formatYen(c.current_total)}</strong>
-        </FieldRow>
-        <div className="my-2 h-px" style={{ background: "rgba(26,26,24,0.12)" }} />
-        <FieldRow label="Expected total">
-          {c.expected_total_min || c.expected_total_max
-            ? `${formatYen(c.expected_total_min)} – ${formatYen(c.expected_total_max)}`
-            : "—"}
-        </FieldRow>
-        {c.base_is_priority && (
-          <FieldRow label="⚠ Base priority" highlight="warning">
-            <span style={{ color: "#633806" }}>
-              {c.base_minimum
-                ? `${formatYen(c.base_minimum)} base minimum — leads over total comp`
-                : "Base stability matters more than total comp"}
-            </span>
-          </FieldRow>
-        )}
-        <div className="my-2 h-px" style={{ background: "rgba(26,26,24,0.12)" }} />
-        <FieldRow label="Bonus preference">{c.bonus_preference ?? "—"}</FieldRow>
-        <FieldRow label="Equity / RSU">
-          {c.equity_open === true
-            ? "Open if base floor is met"
-            : c.equity_open === false
-              ? "Not interested"
-              : "—"}
-        </FieldRow>
-      </Card>
-
-      {/* Personal blockers */}
-      <Card>
-        <div className="flex items-center justify-between mb-2">
-          <SectionLabel className="mb-0">Personal blockers &amp; context</SectionLabel>
-          <button className="ab" onClick={() => setOpenDialog("blocker")}>
-            <IconPlus size={11} /> Add
-          </button>
-        </div>
-        {blockers.length === 0 ? (
-          <p className="text-[13px]" style={{ color: "#888780" }}>
-            None recorded. Add family constraints, geographic limits, or other context.
-          </p>
-        ) : (
-          [...blockers].sort((a, b) => (b.is_risk ? 1 : 0) - (a.is_risk ? 1 : 0)).map((b) => (
-            <div key={b.id} className="flex gap-2 mb-1.5 text-[13px] leading-relaxed">
-              <span
-                className="mt-[7px] h-[5px] w-[5px] shrink-0 rounded-full"
-                style={{ background: b.is_risk ? "#633806" : "#888780" }}
-              />
-              <span>
-                <strong>{b.theme}.</strong>{" "}
-                <span style={{ color: b.is_risk ? "#1a1a18" : "#5f5e5a" }}>
-                  {b.detail}
-                </span>
-              </span>
-            </div>
-          ))
-        )}
-      </Card>
-
-      {/* Competing interviews */}
-      <Card>
-        <div className="flex items-center justify-between mb-2">
-          <SectionLabel className="mb-0">
-            Competing interviews &amp; applications — at registration
-          </SectionLabel>
-          <button className="ab" onClick={() => setOpenDialog("competing")}>
-            <IconPlus size={11} /> Add
-          </button>
-        </div>
-        {competing.length === 0 ? (
-          <p className="text-[13px]" style={{ color: "#888780" }}>
-            None recorded at registration.
-          </p>
-        ) : (
-          <>
-            {competing.map((ci) => (
-              <div
-                key={ci.id}
-                className="flex items-center justify-between py-1.5 text-[13px]"
-                style={{ borderBottom: "0.5px solid rgba(26,26,24,0.12)", opacity: ci.is_active ? 1 : 0.45 }}
-              >
-                <span className="font-medium" style={{ textDecoration: ci.is_active ? "none" : "line-through" }}>
-                  {ci.company_name}
-                </span>
-                <div className="flex items-center gap-2">
-                  {ci.source && <span style={{ color: "#5f5e5a", fontSize: 12 }}>{ci.source}</span>}
-                  {ci.stage && (
-                    <span className="text-[11px] px-2 py-0.5 rounded" style={{ background: "#f5f5f3", color: "#5f5e5a" }}>
-                      {ci.stage}
-                    </span>
-                  )}
-                  <button
-                    className="text-[11px] px-2 py-0.5 rounded"
-                    style={{ background: ci.is_active ? "#eaf3de" : "#f5f5f3", color: ci.is_active ? "#27500a" : "#888780", border: "0.5px solid rgba(26,26,24,0.12)" }}
-                    onClick={() => {
-                      void supabase.from("competing_interviews").update({ is_active: !ci.is_active }).eq("id", ci.id).then(() => {
-                        void qc.invalidateQueries({ queryKey: ["candidate-profile", candidateId] });
-                      });
-                    }}
-                    title={ci.is_active ? "Mark as closed" : "Mark as active"}
-                  >
-                    {ci.is_active ? "Active" : "Closed"}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </>
-        )}
-      </Card>
-
-      {/* Presentation notes — lock icon, AI never touches */}
-      <Card>
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-1.5">
-            <SectionLabel className="mb-0">
-              Presentation &amp; communication — recruiter observation only
-            </SectionLabel>
-            <IconLock size={14} style={{ color: "#888780" }} />
-          </div>
-          <button className="ab" onClick={() => setOpenDialog("presentation")}>
-            <IconPencil size={11} /> Edit
-          </button>
-        </div>
-        <div
-          className="rounded-lg p-3 text-[13px] leading-relaxed"
-          style={{ background: "#f5f5f3" }}
-        >
-          {c.presentation_notes ? (
-            c.presentation_notes
-          ) : (
-            <span style={{ color: "#888780" }}>
-              No presentation notes yet. Add your observations after meeting this candidate.
-            </span>
-          )}
-        </div>
-        <p className="mt-2 text-[11px] flex items-center gap-1" style={{ color: "#888780" }}>
-          <IconLock size={12} />
-          AI does not generate or modify this section — recruiter judgment only
+        <p className="mt-3 text-[11px] flex items-center gap-1" style={{ color: "#888780" }}>
+          <IconInfoCircle size={12} />
+          Click any field to edit. Fields are auto-populated when a registration form with extraction is uploaded.
         </p>
       </Card>
+    </div>
+  );
+}
 
-      {/* Dialogs */}
-      <AddMotivationDialog
-        candidateId={candidateId}
-        existingRanks={motivations.map((m) => m.rank)}
-        open={openDialog === "motivation"}
-        onClose={close}
-      />
-      <AddRoleDialog
-        candidateId={candidateId}
-        open={openDialog === "role"}
-        onClose={close}
-      />
-      <AddBlockerDialog
-        candidateId={candidateId}
-        open={openDialog === "blocker"}
-        onClose={close}
-      />
-      <AddCompetingDialog
-        candidateId={candidateId}
-        open={openDialog === "competing"}
-        onClose={close}
-      />
-      {/* Candidate intelligence card */}
-      <CandidateIntelligenceCard
-        candidateId={candidateId}
-        aiContext={c.ai_context}
-        aiContextUpdatedAt={c.ai_context_updated_at}
-      />
+// ─── registration field — inline editable ────────────────────────────────────
 
-      <EditPresentationNotesDialog
-        candidateId={candidateId}
-        currentNotes={c.presentation_notes}
-        open={openDialog === "presentation"}
-        onClose={close}
-      />
+function RegistrationField({
+  label,
+  fieldKey,
+  value,
+  candidateId,
+  placeholder,
+}: {
+  label: string;
+  fieldKey: string;
+  value: string | null | undefined;
+  candidateId: string;
+  placeholder?: string;
+}) {
+  const qc = useQueryClient();
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value ?? "");
+
+  async function save() {
+    setEditing(false);
+    const trimmed = draft.trim();
+    if (trimmed === (value ?? "").trim()) return;
+    type CandUpdate = { full_name?: string; full_name_japanese?: string | null; address?: string | null; email?: string | null; phone?: string | null; linkedin_url?: string | null };
+    await supabase.from("candidates").update({ [fieldKey]: trimmed || null } as CandUpdate).eq("id", candidateId);
+    void qc.invalidateQueries({ queryKey: ["candidate-profile", candidateId] });
+  }
+
+  if (editing) {
+    return (
+      <div className="flex items-center gap-3 py-1">
+        <span className="text-[12px] w-[150px] shrink-0" style={{ color: "#888780" }}>{label}</span>
+        <Input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={() => void save()}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") void save();
+            if (e.key === "Escape") { setDraft(value ?? ""); setEditing(false); }
+          }}
+          autoFocus
+          className="h-7 text-[13px] flex-1"
+          placeholder={placeholder}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="flex items-center gap-3 py-1 rounded cursor-pointer group"
+      onClick={() => { setDraft(value ?? ""); setEditing(true); }}
+    >
+      <span className="text-[12px] w-[150px] shrink-0" style={{ color: "#888780" }}>{label}</span>
+      <span
+        className="text-[13px] flex-1 px-1.5 py-0.5 rounded group-hover:bg-[#f5f5f3] transition-colors"
+        style={{ color: value ? "#1a1a18" : "#b8b7b2" }}
+      >
+        {value || "—"}
+      </span>
+      <IconPencil size={11} className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0" style={{ color: "#b8b7b2" }} />
     </div>
   );
 }
@@ -1152,82 +953,6 @@ function AddCompetingDialog({
   );
 }
 
-// ─── edit presentation notes dialog ──────────────────────────────────────────
-
-function EditPresentationNotesDialog({
-  candidateId,
-  currentNotes,
-  open,
-  onClose,
-}: {
-  candidateId: string;
-  currentNotes: string | null;
-  open: boolean;
-  onClose: () => void;
-}) {
-  const qc = useQueryClient();
-  const [notes, setNotes] = useState(currentNotes ?? "");
-
-  // Sync when dialog opens with fresh value
-  const handleOpen = (v: boolean) => {
-    if (v) setNotes(currentNotes ?? "");
-    if (!v) onClose();
-  };
-
-  const mutation = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase
-        .from("candidates")
-        .update({ presentation_notes: notes.trim() || null })
-        .eq("id", candidateId);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ["candidate-profile", candidateId] });
-      toast.success("Presentation notes updated");
-      onClose();
-    },
-    onError: () => toast.error("Failed to update notes"),
-  });
-
-  return (
-    <Dialog open={open} onOpenChange={handleOpen}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <IconLock size={16} style={{ color: "#888780" }} />
-            Presentation &amp; communication notes
-          </DialogTitle>
-        </DialogHeader>
-        <div className="space-y-3 py-1">
-          <Textarea
-            placeholder="Your observations about how this candidate presents, communicates, and interviews. This feeds directly into the submission note's personality section."
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            className="min-h-[140px]"
-          />
-          <p className="text-[11px] flex items-center gap-1" style={{ color: "#888780" }}>
-            <IconLock size={12} />
-            AI does not generate, read, or modify this section — recruiter judgment only
-          </p>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" size="sm" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button
-            size="sm"
-            onClick={() => mutation.mutate()}
-            disabled={mutation.isPending}
-          >
-            {mutation.isPending ? "Saving…" : "Save notes"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 // ─── role block (job history timeline) ───────────────────────────────────────
 
 function RoleBlock({ role, isLast }: { role: Role; isLast: boolean }) {
@@ -1431,12 +1156,52 @@ function NoteSection({
 function NotesTab({
   candidateId,
   candidate: c,
+  motivations,
+  blockers,
+  roles,
+  competing,
 }: {
   candidateId: string;
   candidate: Candidate;
+  motivations: Motivation[];
+  blockers: Blocker[];
+  roles: Role[];
+  competing: CompetingInterview[];
 }) {
+  const [templateOpen, setTemplateOpen] = useState(false);
+
   return (
     <div className="space-y-3 pb-8">
+      {/* Note Template button */}
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-[13px] font-medium">Candidate notes</p>
+          <p className="text-[12px]" style={{ color: "#888780" }}>
+            Autosaved — AI reads all sections except Internal notes
+          </p>
+        </div>
+        <button
+          className="ab flex items-center gap-1.5"
+          onClick={() => setTemplateOpen(true)}
+        >
+          <IconTemplate size={13} />
+          Note template
+        </button>
+      </div>
+
+      {templateOpen && (
+        <NoteTemplateModal
+          open={templateOpen}
+          onClose={() => setTemplateOpen(false)}
+          candidateId={candidateId}
+          candidate={c}
+          motivations={motivations}
+          blockers={blockers}
+          roles={roles}
+          competing={competing}
+        />
+      )}
+
       {/* Section 1 — Presentation & Communication */}
       <Card>
         <NoteSection
@@ -1532,12 +1297,16 @@ function ProcessesPage({
   candidate: c,
   motivations,
   blockers,
+  roles,
+  competing,
   processes,
   recruiterId,
 }: {
   candidate: Candidate;
   motivations: Motivation[];
   blockers: Blocker[];
+  roles: Role[];
+  competing: CompetingInterview[];
   processes: Process[];
   recruiterId: string;
 }) {
@@ -1675,6 +1444,16 @@ function ProcessesPage({
           )}
         </Card>
       </div>
+
+      {/* Profile data — feeds AI context */}
+      <CandidateProfileSection
+        candidateId={c.id}
+        candidate={c}
+        motivations={motivations}
+        blockers={blockers}
+        roles={roles}
+        competing={competing}
+      />
     </div>
   );
 }
@@ -2761,14 +2540,20 @@ function AddToProcessModal({
 // ─── candidate timeline tab ───────────────────────────────────────────────────
 
 const CAND_INTERACTION_ICON: Record<string, React.ElementType> = {
-  call: IconPhone,
-  email: IconMail,
-  meeting: IconCalendar,
+  call:              IconPhone,
+  email:             IconMail,
+  meeting:           IconCalendar,
+  "job spec sent":   IconFileText,
+  "linkedin message": IconMessage,
+  other:             IconClipboard,
 };
 const CAND_INTERACTION_COLORS: Record<string, { bg: string; color: string }> = {
-  call:    { bg: "#e6f1fb", color: "#185fa5" },
-  email:   { bg: "#f5f5f3", color: "#5f5e5a" },
-  meeting: { bg: "#eaf3de", color: "#3b6d11" },
+  call:              { bg: "#e6f1fb", color: "#185fa5" },
+  email:             { bg: "#f5f5f3", color: "#5f5e5a" },
+  meeting:           { bg: "#eaf3de", color: "#3b6d11" },
+  "job spec sent":   { bg: "#fef3e2", color: "#974c00" },
+  "linkedin message":{ bg: "#f0eafb", color: "#6b3fa0" },
+  other:             { bg: "#f5f5f3", color: "#888780" },
 };
 
 type CandidateInteraction = {
@@ -2791,6 +2576,7 @@ function CandidateTimelineTab({
   interactions: CandidateInteraction[];
   processes: Process[];
 }) {
+  const queryClient = useQueryClient();
   const [showTranscript, setShowTranscript] = useState(false);
   // Build a unified feed: interactions + process milestone entries
   type FeedEntry =
@@ -2810,21 +2596,43 @@ function CandidateTimelineTab({
     });
   }
 
+  const [showLogActivity, setShowLogActivity] = useState(false);
+
   return (
     <div className="space-y-3">
-      {/* Transcript / log toggle */}
+      {/* Action bar */}
       <div className="flex items-center justify-between">
         <p className="text-[12px]" style={{ color: "#888780" }}>
           {feed.length} {feed.length === 1 ? "entry" : "entries"}
         </p>
-        <button
-          className="ab flex items-center gap-1"
-          onClick={() => setShowTranscript((v) => !v)}
-        >
-          <IconMessage size={12} />
-          {showTranscript ? "Hide transcript" : "Paste transcript"}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            className="ab flex items-center gap-1"
+            onClick={() => { setShowLogActivity((v) => !v); setShowTranscript(false); }}
+          >
+            <IconPlus size={12} />
+            {showLogActivity ? "Cancel" : "Log activity"}
+          </button>
+          <button
+            className="ab flex items-center gap-1"
+            onClick={() => { setShowTranscript((v) => !v); setShowLogActivity(false); }}
+          >
+            <IconMessage size={12} />
+            {showTranscript ? "Hide transcript" : "Paste transcript"}
+          </button>
+        </div>
       </div>
+
+      {showLogActivity && (
+        <LogActivityPanel
+          candidateId={candidateId}
+          recruiterId={recruiterId}
+          onSaved={() => {
+            setShowLogActivity(false);
+            void queryClient.invalidateQueries({ queryKey: ["candidate-profile", candidateId] });
+          }}
+        />
+      )}
 
       {showTranscript && (
         <TranscriptPanel
@@ -3525,6 +3333,732 @@ function CandidateIntelligenceCard({
         </div>
       )}
     </div>
+  );
+}
+
+// ─── log activity panel ───────────────────────────────────────────────────────
+
+const LOG_ACTIVITY_TYPES = ["call", "email", "meeting", "job spec sent", "linkedin message", "other"] as const;
+
+function LogActivityPanel({
+  candidateId,
+  recruiterId,
+  onSaved,
+}: {
+  candidateId: string;
+  recruiterId: string;
+  onSaved: () => void;
+}) {
+  const [type, setType] = useState<string>("call");
+  const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+  const [summary, setSummary] = useState("");
+  const [notes, setNotes] = useState("");
+  const [clientId, setClientId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const { data: clients } = useQuery({
+    queryKey: ["clients-list-slim"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("clients")
+        .select("id, company_name")
+        .order("company_name")
+        .limit(200);
+      return (data ?? []) as { id: string; company_name: string }[];
+    },
+    staleTime: 60_000,
+    retry: 1,
+  });
+
+  async function save() {
+    if (!summary.trim()) { toast.error("A summary is required."); return; }
+    setSaving(true);
+    const { error } = await supabase.from("interactions").insert({
+      candidate_id: candidateId,
+      recruiter_id: recruiterId,
+      interaction_type: type,
+      interacted_at: new Date(date + "T09:00:00").toISOString(),
+      summary: summary.trim(),
+      full_notes: notes.trim() || null,
+      client_id: clientId || null,
+    });
+    setSaving(false);
+    if (error) { toast.error("Failed to log activity."); return; }
+    toast.success("Activity logged.");
+    setSummary("");
+    setNotes("");
+    setClientId(null);
+    onSaved();
+  }
+
+  return (
+    <Card>
+      <SectionLabel>Log activity</SectionLabel>
+      <div className="space-y-3 mt-2">
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label className="text-[12px]">Type</Label>
+            <Select value={type} onValueChange={setType}>
+              <SelectTrigger className="h-8 text-[13px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {LOG_ACTIVITY_TYPES.map((t) => (
+                  <SelectItem key={t} value={t} className="capitalize text-[13px]">{t}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-[12px]">Date</Label>
+            <Input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="h-8 text-[13px]"
+            />
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label className="text-[12px]">Summary *</Label>
+          <Input
+            value={summary}
+            onChange={(e) => setSummary(e.target.value)}
+            placeholder="e.g. Initial screening call — strong profile, moving forward"
+            className="text-[13px]"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label className="text-[12px]">Notes</Label>
+          <Textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Detailed notes from this interaction…"
+            className="min-h-[80px] text-[13px]"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label className="text-[12px]">Linked client (optional)</Label>
+          <Select
+            value={clientId ?? "__none__"}
+            onValueChange={(v) => setClientId(v === "__none__" ? null : v)}
+          >
+            <SelectTrigger className="h-8 text-[13px]">
+              <SelectValue placeholder="Link to a client if applicable…" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__" className="text-[13px]">No client</SelectItem>
+              {(clients ?? []).map((cl) => (
+                <SelectItem key={cl.id} value={cl.id} className="text-[13px]">
+                  {cl.company_name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {clientId && (
+            <p className="text-[11px] flex items-center gap-1" style={{ color: "#5f5e5a" }}>
+              <IconInfoCircle size={11} />
+              This activity will also appear on the linked client's timeline
+            </p>
+          )}
+        </div>
+
+        <div className="flex justify-end">
+          <Button size="sm" onClick={() => void save()} disabled={saving || !summary.trim()}>
+            {saving ? "Saving…" : "Log activity"}
+          </Button>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+// ─── candidate profile section (in intelligence tab) ─────────────────────────
+
+function CandidateProfileSection({
+  candidateId,
+  candidate: c,
+  motivations,
+  blockers,
+  roles,
+  competing,
+}: {
+  candidateId: string;
+  candidate: Candidate;
+  motivations: Motivation[];
+  blockers: Blocker[];
+  roles: Role[];
+  competing: CompetingInterview[];
+}) {
+  type DialogType = "motivation" | "role" | "blocker" | "competing";
+  const [openDialog, setOpenDialog] = useState<DialogType | null>(null);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const close = () => setOpenDialog(null);
+  const qc = useQueryClient();
+
+  return (
+    <div className="mt-4 space-y-3">
+      <button
+        className="flex items-center gap-2 w-full text-left"
+        onClick={() => setProfileOpen((v) => !v)}
+      >
+        <span className="text-[12px] font-medium" style={{ color: "#5f5e5a" }}>Candidate profile data</span>
+        <span className="text-[11px]" style={{ color: "#b8b7b2" }}>{profileOpen ? "▴" : "▾"}</span>
+        <span className="text-[11px] ml-auto" style={{ color: "#b8b7b2" }}>feeds AI context</span>
+      </button>
+
+      {profileOpen && (
+        <div className="space-y-3">
+          {/* Status & Source */}
+          <Card>
+            <SectionLabel>Status &amp; source</SectionLabel>
+            <div className="grid grid-cols-2 gap-x-6">
+              <FieldRow label="Candidate status">
+                <StatusToggle
+                  candidateId={candidateId}
+                  status={c.candidate_status}
+                  statusSource={c.status_source}
+                  placedAt={c.placed_at}
+                  coinIconDismissed={c.coin_icon_dismissed}
+                />
+              </FieldRow>
+              <FieldRow label="Source">{c.source ?? "—"}</FieldRow>
+              <FieldRow label="Urgency to move">
+                <span style={{ color: c.urgency_to_move === "High" ? "#27500a" : c.urgency_to_move === "Low" ? "#888780" : "#1a1a18", fontWeight: c.urgency_to_move === "High" ? 500 : 400 }}>
+                  {c.urgency_to_move ?? "—"}
+                </span>
+              </FieldRow>
+              <FieldRow label="Notice period">
+                {c.notice_period_months ? `${c.notice_period_months} month${c.notice_period_months !== 1 ? "s" : ""}` : "—"}
+              </FieldRow>
+            </div>
+          </Card>
+
+          {/* Language */}
+          <Card>
+            <SectionLabel>Language ability</SectionLabel>
+            <FieldRow label="Japanese"><strong>{c.japanese_level ?? "—"}</strong></FieldRow>
+            <FieldRow label="English"><strong>{c.english_level ?? "—"}</strong></FieldRow>
+            <FieldRow label="Other languages">{c.additional_languages ?? c.other_languages ?? "None"}</FieldRow>
+          </Card>
+
+          {/* Job history */}
+          <Card>
+            <div className="flex items-center justify-between mb-2">
+              <SectionLabel className="mb-0">Job history</SectionLabel>
+              <button className="ab" onClick={() => setOpenDialog("role")}>
+                <IconPlus size={11} /> Add role
+              </button>
+            </div>
+            {roles.length === 0 ? (
+              <p className="text-[13px]" style={{ color: "#888780" }}>No roles added yet.</p>
+            ) : (
+              <div className="pl-1 mt-1">
+                {roles.map((role, i) => (
+                  <RoleBlock key={role.id} role={role} isLast={i === roles.length - 1} />
+                ))}
+              </div>
+            )}
+          </Card>
+
+          {/* Motivations */}
+          <Card>
+            <div className="flex items-center justify-between mb-2">
+              <SectionLabel className="mb-0">Top 3 motivations — candidate-ranked</SectionLabel>
+              <button
+                className="ab"
+                onClick={() => setOpenDialog("motivation")}
+                disabled={motivations.length >= 3}
+                title={motivations.length >= 3 ? "All 3 ranks are filled" : undefined}
+              >
+                <IconPlus size={11} /> Add
+              </button>
+            </div>
+            {motivations.length === 0 ? (
+              <p className="text-[13px]" style={{ color: "#888780" }}>No motivations recorded yet.</p>
+            ) : (
+              motivations.map((m) => (
+                <div
+                  key={m.id}
+                  className="flex items-center gap-2 rounded-lg border px-3 py-2 text-[13px] mb-1.5"
+                  style={{ background: "#f5f5f3", borderColor: "rgba(26,26,24,0.12)" }}
+                >
+                  <span
+                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-medium"
+                    style={{ background: "#e6f1fb", color: "#185fa5" }}
+                  >
+                    {m.rank}
+                  </span>
+                  <span className="flex-1">{m.motivation_text}</span>
+                  {m.motivation_type && (
+                    <span className="text-[11px] px-2 py-0.5 rounded" style={{ background: "#e6f1fb", color: "#185fa5" }}>
+                      {m.motivation_type.replace(/_/g, " ")}
+                    </span>
+                  )}
+                </div>
+              ))
+            )}
+            {motivations.length > 0 && (
+              <p className="mt-2 text-[11px] flex items-center gap-1" style={{ color: "#888780" }}>
+                <IconInfoCircle size={12} />
+                AI uses this ranking to sequence positioning talking points
+              </p>
+            )}
+          </Card>
+
+          {/* Blockers */}
+          <Card>
+            <div className="flex items-center justify-between mb-2">
+              <SectionLabel className="mb-0">Personal blockers &amp; context</SectionLabel>
+              <button className="ab" onClick={() => setOpenDialog("blocker")}>
+                <IconPlus size={11} /> Add
+              </button>
+            </div>
+            {blockers.length === 0 ? (
+              <p className="text-[13px]" style={{ color: "#888780" }}>
+                None recorded. Add family constraints, geographic limits, or other context.
+              </p>
+            ) : (
+              [...blockers].sort((a, b) => (b.is_risk ? 1 : 0) - (a.is_risk ? 1 : 0)).map((b) => (
+                <div key={b.id} className="flex gap-2 mb-1.5 text-[13px] leading-relaxed">
+                  <span
+                    className="mt-[7px] h-[5px] w-[5px] shrink-0 rounded-full"
+                    style={{ background: b.is_risk ? "#633806" : "#888780" }}
+                  />
+                  <span>
+                    <strong>{b.theme}.</strong>{" "}
+                    <span style={{ color: b.is_risk ? "#1a1a18" : "#5f5e5a" }}>{b.detail}</span>
+                  </span>
+                </div>
+              ))
+            )}
+          </Card>
+
+          {/* Competing interviews */}
+          <Card>
+            <div className="flex items-center justify-between mb-2">
+              <SectionLabel className="mb-0">Competing interviews &amp; applications — at registration</SectionLabel>
+              <button className="ab" onClick={() => setOpenDialog("competing")}>
+                <IconPlus size={11} /> Add
+              </button>
+            </div>
+            {competing.length === 0 ? (
+              <p className="text-[13px]" style={{ color: "#888780" }}>None recorded at registration.</p>
+            ) : (
+              competing.map((ci) => (
+                <div
+                  key={ci.id}
+                  className="flex items-center justify-between py-1.5 text-[13px]"
+                  style={{ borderBottom: "0.5px solid rgba(26,26,24,0.12)", opacity: ci.is_active ? 1 : 0.45 }}
+                >
+                  <span className="font-medium" style={{ textDecoration: ci.is_active ? "none" : "line-through" }}>
+                    {ci.company_name}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    {ci.source && <span style={{ color: "#5f5e5a", fontSize: 12 }}>{ci.source}</span>}
+                    {ci.stage && (
+                      <span className="text-[11px] px-2 py-0.5 rounded" style={{ background: "#f5f5f3", color: "#5f5e5a" }}>
+                        {ci.stage}
+                      </span>
+                    )}
+                    <button
+                      className="text-[11px] px-2 py-0.5 rounded"
+                      style={{ background: ci.is_active ? "#eaf3de" : "#f5f5f3", color: ci.is_active ? "#27500a" : "#888780", border: "0.5px solid rgba(26,26,24,0.12)" }}
+                      onClick={() => {
+                        void supabase.from("competing_interviews").update({ is_active: !ci.is_active }).eq("id", ci.id).then(() => {
+                          void qc.invalidateQueries({ queryKey: ["candidate-profile", candidateId] });
+                        });
+                      }}
+                      title={ci.is_active ? "Mark as closed" : "Mark as active"}
+                    >
+                      {ci.is_active ? "Active" : "Closed"}
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </Card>
+
+          {/* AI intelligence */}
+          <CandidateIntelligenceCard
+            candidateId={candidateId}
+            aiContext={c.ai_context}
+            aiContextUpdatedAt={c.ai_context_updated_at}
+          />
+        </div>
+      )}
+
+      <AddMotivationDialog
+        candidateId={candidateId}
+        existingRanks={motivations.map((m) => m.rank)}
+        open={openDialog === "motivation"}
+        onClose={close}
+      />
+      <AddRoleDialog candidateId={candidateId} open={openDialog === "role"} onClose={close} />
+      <AddBlockerDialog candidateId={candidateId} open={openDialog === "blocker"} onClose={close} />
+      <AddCompetingDialog candidateId={candidateId} open={openDialog === "competing"} onClose={close} />
+    </div>
+  );
+}
+
+// ─── note template modal ──────────────────────────────────────────────────────
+
+function buildTemplateHtml(
+  c: Candidate,
+  motivations: Motivation[],
+  blockers: Blocker[],
+  roles: Role[],
+  competing: CompetingInterview[],
+): string {
+  const roleLines = roles.map((r) => {
+    const start = r.start_date ? new Date(r.start_date).getFullYear() : "";
+    const end = r.is_current ? "present" : r.end_date ? new Date(r.end_date).getFullYear() : "";
+    return `<p><strong>${r.company_name}</strong>${r.title ? ` — ${r.title}` : ""}${start ? ` (${start}–${end})` : ""}</p>`;
+  });
+
+  const motivationLines = [1, 2, 3].map((i) => {
+    const m = motivations.find((x) => x.rank === i);
+    return `<p>${i}. ${m ? m.motivation_text : ""}</p>`;
+  });
+
+  const blockerLines = blockers.length
+    ? blockers.map((b) => `<p>• <strong>${b.theme}</strong>${b.detail ? `: ${b.detail}` : ""}</p>`)
+    : ["<p>• None recorded</p>"];
+
+  const competingLines = competing.length
+    ? competing.map((ci) => `<p>• ${ci.company_name}${ci.stage ? ` — ${ci.stage}` : ""}${!ci.is_active ? " (closed)" : ""}</p>`)
+    : ["<p>• None declared at registration</p>"];
+
+  const yen = (v: number | null) => (v ? formatYen(v) : "");
+
+  return [
+    `<h1>Candidate Registration Notes — ${c.full_name}</h1>`,
+    "<h2>Candidate Background</h2>",
+    `<p><strong>Full name (English):</strong> ${c.full_name}</p>`,
+    `<p><strong>Full name (Japanese):</strong> ${c.full_name_japanese ?? ""}</p>`,
+    `<p><strong>Age:</strong> ${c.age ?? ""}</p>`,
+    `<p><strong>Address:</strong> ${c.address ?? ""}</p>`,
+    `<p><strong>Email:</strong> ${c.email ?? ""}</p>`,
+    `<p><strong>Phone:</strong> ${c.phone ?? ""}</p>`,
+    `<p><strong>LinkedIn:</strong> ${c.linkedin_url ?? ""}</p>`,
+    "<h2>Current Employment</h2>",
+    `<p><strong>Company:</strong> ${c.current_company ?? ""}</p>`,
+    `<p><strong>Title:</strong> ${c.current_title ?? ""}</p>`,
+    `<p><strong>Notice period:</strong> ${c.notice_period_months ? `${c.notice_period_months} months` : ""}</p>`,
+    `<p><strong>Urgency to move:</strong> ${c.urgency_to_move ?? ""}</p>`,
+    "<h2>Work History</h2>",
+    ...(roleLines.length ? roleLines : ["<p></p>"]),
+    "<h2>Language Assessment</h2>",
+    `<p><strong>Japanese:</strong> ${c.japanese_level ?? ""}</p>`,
+    `<p><strong>English:</strong> ${c.english_level ?? ""}</p>`,
+    `<p><strong>Other languages:</strong> ${c.additional_languages ?? c.other_languages ?? ""}</p>`,
+    "<h2>Compensation</h2>",
+    `<p><strong>Current base:</strong> ${yen(c.current_base)}</p>`,
+    `<p><strong>Current bonus:</strong> ${yen(c.current_bonus)}</p>`,
+    `<p><strong>Current total:</strong> ${yen(c.current_total)}</p>`,
+    `<p><strong>Expected range:</strong> ${c.expected_total_min || c.expected_total_max ? `${yen(c.expected_total_min)} – ${yen(c.expected_total_max)}` : ""}</p>`,
+    `<p><strong>Base minimum priority:</strong> ${c.base_is_priority ? `Yes — ${yen(c.base_minimum)}` : "No"}</p>`,
+    `<p><strong>Bonus preference:</strong> ${c.bonus_preference ?? ""}</p>`,
+    `<p><strong>Open to equity / RSU:</strong> ${c.equity_open === true ? "Yes" : c.equity_open === false ? "No" : ""}</p>`,
+    "<h2>Motivations (candidate-ranked)</h2>",
+    ...motivationLines,
+    "<h2>Personal Constraints &amp; Blockers</h2>",
+    ...blockerLines,
+    "<h2>Competing Interviews at Registration</h2>",
+    ...competingLines,
+    "<h2>Recruiter Assessment</h2>",
+    "<h3>Presentation &amp; Communication</h3>",
+    `<p>${c.notes_presentation ?? ""}</p>`,
+    "<h3>Personality &amp; Working Style</h3>",
+    `<p>${c.notes_personality ?? ""}</p>`,
+    "<h3>Pitch to Clients</h3>",
+    `<p>${c.notes_pitch ?? ""}</p>`,
+    "<h3>Closing Intelligence</h3>",
+    `<p>${c.notes_closing ?? ""}</p>`,
+  ].join("\n");
+}
+
+async function exportTemplateToDocx(html: string, candidateName: string) {
+  const { Document, Paragraph, HeadingLevel, TextRun, Packer } = await import("docx");
+
+  const parser = new DOMParser();
+  const dom = parser.parseFromString(`<div>${html}</div>`, "text/html");
+  const paragraphs: InstanceType<typeof Paragraph>[] = [];
+
+  dom.body.firstElementChild?.childNodes.forEach((node) => {
+    if (node.nodeType !== Node.ELEMENT_NODE) return;
+    const el = node as HTMLElement;
+    const tag = el.tagName;
+    const text = el.textContent ?? "";
+
+    if (tag === "H1") {
+      paragraphs.push(new Paragraph({ text, heading: HeadingLevel.HEADING_1 }));
+    } else if (tag === "H2") {
+      paragraphs.push(new Paragraph({ text, heading: HeadingLevel.HEADING_2 }));
+    } else if (tag === "H3") {
+      paragraphs.push(new Paragraph({ text, heading: HeadingLevel.HEADING_3 }));
+    } else if (tag === "UL" || tag === "OL") {
+      el.querySelectorAll("li").forEach((li, idx) => {
+        paragraphs.push(
+          new Paragraph({ text: `${tag === "OL" ? `${idx + 1}.` : "•"} ${li.textContent ?? ""}` }),
+        );
+      });
+    } else {
+      const runs: InstanceType<typeof TextRun>[] = [];
+      el.childNodes.forEach((child) => {
+        if (child.nodeType === Node.TEXT_NODE) {
+          runs.push(new TextRun({ text: child.textContent ?? "" }));
+        } else if (child.nodeType === Node.ELEMENT_NODE) {
+          const ce = child as HTMLElement;
+          runs.push(
+            new TextRun({
+              text: ce.textContent ?? "",
+              bold: ["STRONG", "B"].includes(ce.tagName),
+              italics: ["EM", "I"].includes(ce.tagName),
+            }),
+          );
+        }
+      });
+      paragraphs.push(
+        new Paragraph({ children: runs.length ? runs : [new TextRun({ text: "" })] }),
+      );
+    }
+  });
+
+  const doc = new Document({ sections: [{ properties: {}, children: paragraphs }] });
+  const blob = await Packer.toBlob(doc);
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${candidateName.replace(/\s+/g, "_")}_notes.docx`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function NoteTemplateModal({
+  open,
+  onClose,
+  candidateId,
+  candidate: c,
+  motivations,
+  blockers,
+  roles,
+  competing,
+}: {
+  open: boolean;
+  onClose: () => void;
+  candidateId: string;
+  candidate: Candidate;
+  motivations: Motivation[];
+  blockers: Blocker[];
+  roles: Role[];
+  competing: CompetingInterview[];
+}) {
+  const qc = useQueryClient();
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [exporting, setExporting] = useState(false);
+
+  const initialContent = c.notes_template || buildTemplateHtml(c, motivations, blockers, roles, competing);
+
+  const editor = useEditor({
+    extensions: [StarterKit, Underline],
+    content: initialContent,
+    onUpdate: ({ editor }) => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      setSaveStatus("saving");
+      saveTimer.current = setTimeout(() => {
+        const html = editor.getHTML();
+        void supabase
+          .from("candidates")
+          .update({ notes_template: html })
+          .eq("id", candidateId)
+          .then(({ error }) => {
+            if (error) {
+              setSaveStatus("error");
+            } else {
+              setSaveStatus("saved");
+              void qc.invalidateQueries({ queryKey: ["candidate-profile", candidateId] });
+              setTimeout(() => setSaveStatus("idle"), 2500);
+            }
+          });
+      }, 2000);
+    },
+    editorProps: {
+      attributes: {
+        class: "outline-none min-h-full",
+        style: "font-family: inherit; font-size: 14px; line-height: 1.7; color: #1a1a18;",
+      },
+    },
+  });
+
+  useEffect(() => {
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    };
+  }, []);
+
+  async function handleExport() {
+    if (!editor) return;
+    setExporting(true);
+    try {
+      await exportTemplateToDocx(editor.getHTML(), c.full_name);
+    } catch {
+      toast.error("Export failed. Try again.");
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  function ToolbarBtn({
+    onClick,
+    active,
+    title,
+    children,
+  }: {
+    onClick: () => void;
+    active?: boolean;
+    title: string;
+    children: React.ReactNode;
+  }) {
+    return (
+      <button
+        type="button"
+        onMouseDown={(e) => { e.preventDefault(); onClick(); }}
+        title={title}
+        className="flex items-center justify-center w-7 h-7 rounded transition-colors"
+        style={{
+          background: active ? "#e6f1fb" : "transparent",
+          color: active ? "#185fa5" : "#5f5e5a",
+        }}
+      >
+        {children}
+      </button>
+    );
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent
+        className="flex flex-col p-0 gap-0"
+        style={{ maxWidth: "780px", width: "95vw", height: "88vh", maxHeight: "88vh" }}
+      >
+        {/* Toolbar */}
+        <div
+          className="flex items-center gap-0.5 px-3 py-2 shrink-0"
+          style={{ borderBottom: "0.5px solid rgba(26,26,24,0.12)" }}
+        >
+          <ToolbarBtn
+            onClick={() => editor?.chain().focus().toggleBold().run()}
+            active={editor?.isActive("bold")}
+            title="Bold"
+          >
+            <IconBold size={14} />
+          </ToolbarBtn>
+          <ToolbarBtn
+            onClick={() => editor?.chain().focus().toggleItalic().run()}
+            active={editor?.isActive("italic")}
+            title="Italic"
+          >
+            <IconItalic size={14} />
+          </ToolbarBtn>
+          <ToolbarBtn
+            onClick={() => editor?.chain().focus().toggleUnderline().run()}
+            active={editor?.isActive("underline")}
+            title="Underline"
+          >
+            <IconUnderline size={14} />
+          </ToolbarBtn>
+
+          <div className="w-px h-5 mx-1" style={{ background: "rgba(26,26,24,0.12)" }} />
+
+          <ToolbarBtn
+            onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}
+            active={editor?.isActive("heading", { level: 2 })}
+            title="Heading 2"
+          >
+            <IconH2 size={14} />
+          </ToolbarBtn>
+          <ToolbarBtn
+            onClick={() => editor?.chain().focus().toggleHeading({ level: 3 }).run()}
+            active={editor?.isActive("heading", { level: 3 })}
+            title="Heading 3"
+          >
+            <IconH3 size={14} />
+          </ToolbarBtn>
+
+          <div className="w-px h-5 mx-1" style={{ background: "rgba(26,26,24,0.12)" }} />
+
+          <ToolbarBtn
+            onClick={() => editor?.chain().focus().toggleBulletList().run()}
+            active={editor?.isActive("bulletList")}
+            title="Bullet list"
+          >
+            <IconList size={14} />
+          </ToolbarBtn>
+          <ToolbarBtn
+            onClick={() => editor?.chain().focus().toggleOrderedList().run()}
+            active={editor?.isActive("orderedList")}
+            title="Numbered list"
+          >
+            <IconListNumbers size={14} />
+          </ToolbarBtn>
+
+          {/* Save status */}
+          <div className="ml-3 flex items-center gap-1 text-[11px]">
+            {saveStatus === "saving" && <span style={{ color: "#888780" }}>Saving…</span>}
+            {saveStatus === "saved" && (
+              <span className="flex items-center gap-1" style={{ color: "#27500a" }}>
+                <IconCheck size={11} /> Saved to Kanri
+              </span>
+            )}
+            {saveStatus === "error" && (
+              <span style={{ color: "#a32d2d" }}>Save failed — check connection</span>
+            )}
+          </div>
+
+          <div className="ml-auto flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => void handleExport()}
+              disabled={exporting}
+              className="h-7 text-[12px] px-2.5"
+            >
+              <IconDownload size={13} className="mr-1" />
+              {exporting ? "Exporting…" : "Export to Word"}
+            </Button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex items-center justify-center w-7 h-7 rounded transition-colors"
+              style={{ color: "#888780" }}
+            >
+              <IconX size={16} />
+            </button>
+          </div>
+        </div>
+
+        {/* Editor area */}
+        <div className="flex-1 overflow-y-auto px-10 py-8">
+          <style>{`
+            .kanri-editor h1 { font-size: 20px; font-weight: 700; margin-bottom: 12px; color: #1a1a18; }
+            .kanri-editor h2 { font-size: 15px; font-weight: 600; margin-top: 20px; margin-bottom: 6px; color: #1a1a18; border-bottom: 0.5px solid rgba(26,26,24,0.12); padding-bottom: 4px; }
+            .kanri-editor h3 { font-size: 13px; font-weight: 600; margin-top: 12px; margin-bottom: 4px; color: #1a1a18; }
+            .kanri-editor p { margin-bottom: 4px; }
+            .kanri-editor ul, .kanri-editor ol { padding-left: 20px; margin-bottom: 6px; }
+            .kanri-editor li { margin-bottom: 2px; }
+            .kanri-editor strong { font-weight: 600; }
+          `}</style>
+          <div className="kanri-editor">
+            <EditorContent editor={editor} />
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

@@ -1,7 +1,7 @@
 # Kanri — Session Handoff Document
 
 > Generated: 1 June 2026
-> Build status: **passing** (TypeScript clean, all migrations applied, types regenerated)
+> Build status: **passing** (TypeScript clean, migration 014 written — apply manually via Supabase SQL editor)
 
 ---
 
@@ -17,7 +17,51 @@ Kanri is an AI-native recruiter intelligence platform and CRM for boutique agenc
 
 ---
 
-## What Was Completed This Session
+## What Was Completed This Session (2nd session, 1 June 2026)
+
+### Candidate Page Revisions
+
+**Tab reorder**
+- Timeline is now the first (default) tab
+- Order: Timeline → Candidate notes → Candidate intelligence → Registration (rightmost)
+
+**Activity logging on Timeline tab**
+- "Log activity" button opens an inline `LogActivityPanel` card
+- Fields: type (call, email, meeting, job spec sent, linkedin message, other), date, summary, notes, optional linked client
+- Linked client causes the activity to appear on the client's timeline too (`client_id` set on the interaction row)
+- Interaction type icons/colours extended to cover all 6 types
+
+**Registration tab redesign**
+- Now only shows: Registration form upload zone + CV upload zone + editable contact fields
+- Contact fields: full name (English), full name (Japanese), address, email, phone, LinkedIn URL — all click-to-edit inline
+- `RegistrationField` component handles inline editing with blur-to-save
+- All profile data cards (status, language, job history, motivations, comp, blockers, competing) moved to Candidate intelligence tab
+
+**Candidate intelligence tab update**
+- Profile data cards moved here inside a collapsible "Candidate profile data" section (`CandidateProfileSection`)
+- `ProcessesPage` now accepts `roles` and `competing` props and renders `CandidateProfileSection` below the process panels and compensation card
+
+**Note template on Candidate notes tab**
+- "Note template" button opens `NoteTemplateModal` — a full-screen TipTap rich text editor
+- Template pre-populates with all candidate data: background, employment, work history, language, compensation, motivations, blockers, competing interviews, recruiter assessment sections
+- 2-second debounce autosave to `candidates.notes_template` column with "Saving…" / "Saved to Kanri" indicator
+- Toolbar: bold, italic, underline, H2, H3, bullet list, numbered list
+- Export to Word button uses the `docx` package (browser-side) to generate a `.docx` file
+
+**Migration 014 (apply manually)**
+```sql
+alter table candidates add column if not exists address text;
+alter table candidates add column if not exists notes_template text;
+```
+Apply via Supabase Dashboard → SQL Editor before using the Registration tab contact fields or Note template save.
+
+**Packages installed**
+- `@tiptap/react @tiptap/pm @tiptap/starter-kit @tiptap/extension-underline @tiptap/extension-placeholder`
+- `docx`
+
+---
+
+## What Was Completed Last Session
 
 ### Part 2 — Advanced Candidate Search (brief §2.1–2.8)
 

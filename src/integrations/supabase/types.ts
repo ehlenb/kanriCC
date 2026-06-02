@@ -230,6 +230,7 @@ export type Database = {
           current_company: string | null
           current_title: string | null
           current_total: number | null
+          address: string | null
           cv_url: string | null
           email: string | null
           english_level: string | null
@@ -247,6 +248,7 @@ export type Database = {
           notes_personality: string | null
           notes_pitch: string | null
           notes_presentation: string | null
+          notes_template: string | null
           notice_period_months: number | null
           other_languages: string | null
           phone: string | null
@@ -279,6 +281,7 @@ export type Database = {
           current_company?: string | null
           current_title?: string | null
           current_total?: number | null
+          address?: string | null
           cv_url?: string | null
           email?: string | null
           english_level?: string | null
@@ -296,6 +299,7 @@ export type Database = {
           notes_personality?: string | null
           notes_pitch?: string | null
           notes_presentation?: string | null
+          notes_template?: string | null
           notice_period_months?: number | null
           other_languages?: string | null
           phone?: string | null
@@ -328,6 +332,7 @@ export type Database = {
           current_company?: string | null
           current_title?: string | null
           current_total?: number | null
+          address?: string | null
           cv_url?: string | null
           email?: string | null
           english_level?: string | null
@@ -345,6 +350,7 @@ export type Database = {
           notes_personality?: string | null
           notes_pitch?: string | null
           notes_presentation?: string | null
+          notes_template?: string | null
           notice_period_months?: number | null
           other_languages?: string | null
           phone?: string | null
