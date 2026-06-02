@@ -1,7 +1,7 @@
 # Kanri — Session Handoff Document
 
 > Generated: 1 June 2026
-> Build status: **passing** (TypeScript clean, migration 014 written — apply manually via Supabase SQL editor)
+> Build status: **passing** (TypeScript clean, all migrations applied)
 
 ---
 
@@ -48,12 +48,7 @@ Kanri is an AI-native recruiter intelligence platform and CRM for boutique agenc
 - Toolbar: bold, italic, underline, H2, H3, bullet list, numbered list
 - Export to Word button uses the `docx` package (browser-side) to generate a `.docx` file
 
-**Migration 014 (apply manually)**
-```sql
-alter table candidates add column if not exists address text;
-alter table candidates add column if not exists notes_template text;
-```
-Apply via Supabase Dashboard → SQL Editor before using the Registration tab contact fields or Note template save.
+**Migration 014** — applied to Supabase. Adds `address` and `notes_template` to the `candidates` table.
 
 **Packages installed**
 - `@tiptap/react @tiptap/pm @tiptap/starter-kit @tiptap/extension-underline @tiptap/extension-placeholder`
