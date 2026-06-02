@@ -34,7 +34,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  IconLock,
   IconInfoCircle,
   IconBuilding,
   IconSparkles,
@@ -61,6 +60,8 @@ import {
   IconH3,
   IconList,
   IconListNumbers,
+  IconUpload,
+  IconSparkles as IconSparklesOutline,
 } from "@tabler/icons-react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -1050,109 +1051,6 @@ function RoleBlock({ role, isLast }: { role: Role; isLast: boolean }) {
 
 // ─── notes tab ────────────────────────────────────────────────────────────────
 
-/**
- * Individual autosaving note section.
- * Saves to the candidates table on blur, only when the value has changed.
- */
-function NoteSection({
-  label,
-  helper,
-  fieldKey,
-  candidateId,
-  initialValue,
-  placeholder,
-  minHeight = 100,
-  isInternal = false,
-}: {
-  label: string;
-  helper: string;
-  fieldKey: string;
-  candidateId: string;
-  initialValue: string | null;
-  placeholder?: string;
-  minHeight?: number;
-  isInternal?: boolean;
-}) {
-  const qc = useQueryClient();
-  const [value, setValue] = useState(initialValue ?? "");
-  const [saved, setSaved] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const savedValueRef = useRef(initialValue ?? "");
-
-  async function handleBlur() {
-    const trimmed = value.trim();
-    if (trimmed === savedValueRef.current.trim()) return; // nothing changed
-    setSaving(true);
-    type NotesUpdate = {
-      notes_presentation?: string | null;
-      notes_personality?: string | null;
-      notes_pitch?: string | null;
-      notes_closing?: string | null;
-      notes_internal?: string | null;
-    };
-    const { error } = await supabase
-      .from("candidates")
-      .update({ [fieldKey]: trimmed || null } as NotesUpdate)
-      .eq("id", candidateId);
-    setSaving(false);
-    if (!error) {
-      savedValueRef.current = trimmed;
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
-      void qc.invalidateQueries({ queryKey: ["candidate-profile", candidateId] });
-    }
-  }
-
-  const isFilled = value.trim().length > 0;
-
-  return (
-    <div>
-      {label && (
-        <div className="flex items-center justify-between mb-1">
-          <div className="flex items-center gap-1.5">
-            <SectionLabel className="mb-0">{label}</SectionLabel>
-            {isInternal && <IconLock size={13} style={{ color: "#888780" }} />}
-          </div>
-          {saving && (
-            <span className="text-[11px]" style={{ color: "#888780" }}>Saving…</span>
-          )}
-          {saved && !saving && (
-            <span className="text-[11px] flex items-center gap-1" style={{ color: "#27500a" }}>
-              <IconCheck size={11} /> Saved
-            </span>
-          )}
-        </div>
-      )}
-      {helper && (
-        <p className="text-[12px] mb-2 leading-relaxed" style={{ color: "#888780" }}>
-          {helper}
-        </p>
-      )}
-      <textarea
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        onBlur={handleBlur}
-        placeholder={placeholder}
-        className="w-full rounded-lg p-3 text-[13px] leading-relaxed resize-none outline-none"
-        style={{
-          background: isInternal && isFilled ? "#fcebeb" : "#f5f5f3",
-          border: "0.5px solid rgba(26,26,24,0.12)",
-          minHeight,
-          fontFamily: "inherit",
-          transition: "background 0.15s",
-        }}
-        onFocus={(e) => {
-          (e.target as HTMLTextAreaElement).style.outline = "none";
-          (e.target as HTMLTextAreaElement).style.boxShadow = "0 0 0 1.5px rgba(24,95,165,0.25)";
-        }}
-        onBlurCapture={(e) => {
-          (e.target as HTMLTextAreaElement).style.boxShadow = "none";
-        }}
-      />
-    </div>
-  );
-}
-
 function NotesTab({
   candidateId,
   candidate: c,
@@ -1168,31 +1066,94 @@ function NotesTab({
   roles: Role[];
   competing: CompetingInterview[];
 }) {
+  const qc = useQueryClient();
   const [templateOpen, setTemplateOpen] = useState(false);
+  const [uploadOpen, setUploadOpen] = useState(false);
 
   return (
     <div className="space-y-3 pb-8">
-      {/* Note Template button */}
+      {/* Header row */}
       <div className="flex items-center justify-between">
-        <div>
-          <p className="text-[13px] font-medium">Candidate notes</p>
-          <p className="text-[12px]" style={{ color: "#888780" }}>
-            Autosaved — AI reads all sections except Internal notes
-          </p>
+        <p className="text-[13px] font-medium" style={{ color: "#1a1a18" }}>Candidate notes</p>
+        <div className="flex items-center gap-2">
+          <button
+            className="ab flex items-center gap-1.5"
+            onClick={() => setUploadOpen(true)}
+          >
+            <IconUpload size={12} />
+            Upload notes
+          </button>
+          <button
+            className="ab flex items-center gap-1.5"
+            onClick={() => setTemplateOpen(true)}
+          >
+            <IconTemplate size={12} />
+            Note template
+          </button>
         </div>
-        <button
-          className="ab flex items-center gap-1.5"
+      </div>
+
+      {/* Rendered notes or empty state */}
+      {c.notes_template ? (
+        <div
+          className="rounded-xl cursor-pointer group"
+          style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.12)" }}
           onClick={() => setTemplateOpen(true)}
         >
-          <IconTemplate size={13} />
-          Note template
-        </button>
-      </div>
+          <div className="px-8 py-6">
+            <style>{`
+              .kanri-notes-view h1 { font-size: 18px; font-weight: 700; margin-bottom: 10px; color: #1a1a18; }
+              .kanri-notes-view h2 { font-size: 13px; font-weight: 600; margin-top: 18px; margin-bottom: 4px; color: #1a1a18; border-bottom: 0.5px solid rgba(26,26,24,0.1); padding-bottom: 3px; text-transform: uppercase; letter-spacing: 0.03em; }
+              .kanri-notes-view h3 { font-size: 12px; font-weight: 600; margin-top: 10px; margin-bottom: 3px; color: #5f5e5a; }
+              .kanri-notes-view p { font-size: 13px; line-height: 1.65; color: #1a1a18; margin-bottom: 3px; }
+              .kanri-notes-view p:empty::before { content: "—"; color: #b8b7b2; }
+              .kanri-notes-view ul, .kanri-notes-view ol { padding-left: 18px; margin-bottom: 4px; }
+              .kanri-notes-view li { font-size: 13px; line-height: 1.65; color: #1a1a18; margin-bottom: 1px; }
+              .kanri-notes-view strong { font-weight: 600; }
+            `}</style>
+            <div
+              className="kanri-notes-view"
+              dangerouslySetInnerHTML={{ __html: c.notes_template }}
+            />
+          </div>
+          <div
+            className="flex items-center gap-1.5 px-8 py-3 text-[11px] opacity-0 group-hover:opacity-100 transition-opacity"
+            style={{ borderTop: "0.5px solid rgba(26,26,24,0.08)", color: "#888780" }}
+          >
+            <IconPencil size={11} />
+            Click to edit in template
+          </div>
+        </div>
+      ) : (
+        <div
+          className="rounded-xl px-5 py-14 text-center"
+          style={{ background: "#fff", border: "0.5px dashed rgba(26,26,24,0.18)" }}
+        >
+          <p className="text-[13px] font-medium mb-1" style={{ color: "#1a1a18" }}>
+            No notes yet
+          </p>
+          <p className="text-[12px] mb-5" style={{ color: "#888780" }}>
+            Open the note template to start writing, or upload existing notes<br />
+            and AI will organise them into the right sections.
+          </p>
+          <div className="flex items-center justify-center gap-2">
+            <button className="ab flex items-center gap-1.5" onClick={() => setUploadOpen(true)}>
+              <IconUpload size={12} /> Upload notes
+            </button>
+            <button className="ab flex items-center gap-1.5" onClick={() => setTemplateOpen(true)}>
+              <IconTemplate size={12} /> Open template
+            </button>
+          </div>
+        </div>
+      )}
 
       {templateOpen && (
         <NoteTemplateModal
           open={templateOpen}
-          onClose={() => setTemplateOpen(false)}
+          onClose={() => {
+            setTemplateOpen(false);
+            void qc.invalidateQueries({ queryKey: ["candidate-profile", candidateId] });
+          }}
           candidateId={candidateId}
           candidate={c}
           motivations={motivations}
@@ -1202,91 +1163,23 @@ function NotesTab({
         />
       )}
 
-      {/* Section 1 — Presentation & Communication */}
-      <Card>
-        <NoteSection
-          label="Presentation &amp; communication"
-          helper="How they come across in person or on a call — confidence, pace, clarity, switching between languages. Notable strengths or gaps a recruiter should know before presenting them."
-          fieldKey="notes_presentation"
+      {uploadOpen && (
+        <UploadNotesDialog
+          open={uploadOpen}
+          onClose={() => setUploadOpen(false)}
           candidateId={candidateId}
-          initialValue={c.notes_presentation}
-          placeholder="e.g. Very measured speaker — takes a moment before answering, which plays well in senior interviews. Japanese is natural and unforced. English is confident but slightly formal in writing."
-          minHeight={110}
+          candidate={c}
+          motivations={motivations}
+          blockers={blockers}
+          roles={roles}
+          competing={competing}
+          onApplied={() => {
+            setUploadOpen(false);
+            void qc.invalidateQueries({ queryKey: ["candidate-profile", candidateId] });
+            setTemplateOpen(true);
+          }}
         />
-        <p className="mt-2 text-[11px] flex items-center gap-1" style={{ color: "#888780" }}>
-          <IconInfoCircle size={12} />
-          AI uses this for: email pitch, call scripts, submission note personality section
-        </p>
-      </Card>
-
-      {/* Section 2 — Personality & Working Style */}
-      <Card>
-        <NoteSection
-          label="Personality &amp; working style"
-          helper="What kind of environment and manager brings out their best. How they handle pressure or ambiguity. What motivates them beyond their formally stated reasons. Patterns you noticed from how they answered questions."
-          fieldKey="notes_personality"
-          candidateId={candidateId}
-          initialValue={c.notes_personality}
-          placeholder="e.g. Strong executor who gets frustrated when process slows things down. Works best with direct managers who give clear direction then step back. Asks good questions — intellectually curious. Gets energised by owning a problem end-to-end."
-          minHeight={110}
-        />
-        <p className="mt-2 text-[11px] flex items-center gap-1" style={{ color: "#888780" }}>
-          <IconInfoCircle size={12} />
-          AI uses this for: pre-call briefing, coaching guidance
-        </p>
-      </Card>
-
-      {/* Section 3 — Pitch Notes for Client */}
-      <Card>
-        <NoteSection
-          label="Pitch notes — for client"
-          helper="The 2–3 strongest selling points to lead with when presenting this candidate to a hiring manager. Specific proof points and standout moments. What makes them genuinely rare in the Japan bilingual market."
-          fieldKey="notes_pitch"
-          candidateId={candidateId}
-          initialValue={c.notes_pitch}
-          placeholder="e.g. Led the Japan launch of a SaaS product from 0 to ¥200M ARR in 18 months with a team of 3. Only bilingual Sales Engineer in a company of 400. Strong internal reputation — was asked to run the APAC pilot despite being the youngest team lead."
-          minHeight={110}
-        />
-        <p className="mt-2 text-[11px] flex items-center gap-1" style={{ color: "#888780" }}>
-          <IconInfoCircle size={12} />
-          AI uses this for: submission note key recommendation points, strategic fit section
-        </p>
-      </Card>
-
-      {/* Section 4 — Closing Intelligence */}
-      <Card>
-        <NoteSection
-          label="Closing intelligence"
-          helper="What will close this candidate — and what won't. Family dynamics (spouse, parents) and how they factor in. Risk tolerance. Counteroffer vulnerability. What they need to see to say yes. What will make them hesitate at the last moment."
-          fieldKey="notes_closing"
-          candidateId={candidateId}
-          initialValue={c.notes_closing}
-          placeholder="e.g. Wife is cautious about stability — needs to feel the new company is established in Japan. Father worked at Toyota for 30 years. Very unlikely to counteroffer if base clears ¥12M — they've already emotionally moved on. Give them a deadline. Don't chase."
-          minHeight={130}
-        />
-        <p className="mt-2 text-[11px] flex items-center gap-1" style={{ color: "#888780" }}>
-          <IconInfoCircle size={12} />
-          AI uses this for: closing script, counteroffer prep, resignation prep
-        </p>
-      </Card>
-
-      {/* Section 5 — Internal Notes */}
-      <Card>
-        <NoteSection
-          label="Internal notes"
-          helper="Recruiter concerns, patterns, or context for your own reference. This section is never included in any AI output or client-facing communication."
-          fieldKey="notes_internal"
-          candidateId={candidateId}
-          initialValue={c.notes_internal}
-          placeholder="e.g. Has cancelled two meetings with short notice. May be less active than they've stated. Worth testing commitment before investing time on full submission."
-          minHeight={100}
-          isInternal
-        />
-        <p className="mt-2 text-[11px] flex items-center gap-1" style={{ color: "#888780" }}>
-          <IconLock size={12} />
-          AI does not read or use this section — internal recruiter reference only
-        </p>
-      </Card>
+      )}
     </div>
   );
 }
@@ -3779,6 +3672,151 @@ function buildTemplateHtml(
     "<h3>Closing Intelligence</h3>",
     `<p>${c.notes_closing ?? ""}</p>`,
   ].join("\n");
+}
+
+// ─── upload notes dialog ──────────────────────────────────────────────────────
+
+function UploadNotesDialog({
+  open,
+  onClose,
+  candidateId,
+  candidate: c,
+  motivations,
+  blockers,
+  roles,
+  competing,
+  onApplied,
+}: {
+  open: boolean;
+  onClose: () => void;
+  candidateId: string;
+  candidate: Candidate;
+  motivations: Motivation[];
+  blockers: Blocker[];
+  roles: Role[];
+  competing: CompetingInterview[];
+  onApplied: () => void;
+}) {
+  const [rawNotes, setRawNotes] = useState("");
+  const [fileName, setFileName] = useState<string | null>(null);
+  const [applying, setApplying] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  async function handleFile(file: File) {
+    if (file.type === "text/plain" || file.name.endsWith(".md") || file.name.endsWith(".txt")) {
+      const text = await file.text();
+      setRawNotes(text);
+      setFileName(file.name);
+    } else {
+      toast.error("Please upload a plain text (.txt or .md) file, or paste your notes directly.");
+    }
+  }
+
+  async function apply() {
+    if (!rawNotes.trim()) { toast.error("Please paste or upload some notes first."); return; }
+    setApplying(true);
+    try {
+      const existingTemplate =
+        c.notes_template ||
+        buildTemplateHtml(c, motivations, blockers, roles, competing);
+
+      const res = await fetch("/api/ai/apply-candidate-notes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ candidateId, rawNotes: rawNotes.trim(), existingTemplate }),
+      });
+
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({}))) as { error?: string };
+        toast.error(err.error ?? "Failed to apply notes. Try again.");
+        return;
+      }
+
+      toast.success("Notes applied to template — review and edit as needed.");
+      onApplied();
+    } catch {
+      toast.error("Failed to apply notes. Check your connection.");
+    } finally {
+      setApplying(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <IconSparklesOutline size={16} style={{ color: "#888780" }} />
+            Apply notes with AI
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4 py-1">
+          <p className="text-[13px] leading-relaxed" style={{ color: "#5f5e5a" }}>
+            Paste your notes below — from a call, a meeting, or an email thread. AI will
+            read them and place each piece of information into the right section of the
+            candidate note template.
+          </p>
+
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <Label className="text-[12px]">Your notes</Label>
+              <button
+                className="text-[11px]"
+                style={{ color: "#185fa5" }}
+                onClick={() => fileRef.current?.click()}
+              >
+                {fileName ? `Loaded: ${fileName}` : "Upload .txt / .md file"}
+              </button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".txt,.md,text/plain"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) void handleFile(f);
+                  e.target.value = "";
+                }}
+              />
+            </div>
+            <Textarea
+              value={rawNotes}
+              onChange={(e) => setRawNotes(e.target.value)}
+              placeholder={`Paste anything — unstructured call notes, bullet points, email summaries. For example:\n\nSpoke to Tanaka-san for 45 mins. Currently at Rakuten, wants to move to fintech. N1 Japanese, fluent English. Base ¥9.5M. Wife is supportive of a move but wants stability. Has offer from Monex due next Friday.`}
+              className="min-h-[200px] text-[13px] font-mono leading-relaxed"
+            />
+          </div>
+
+          <div
+            className="rounded-lg px-3 py-2.5 text-[11px] flex items-start gap-2"
+            style={{ background: "#f5f5f3", color: "#5f5e5a" }}
+          >
+            <IconInfoCircle size={13} className="shrink-0 mt-[1px]" />
+            <span>
+              AI will not delete existing template content — it will add to and enrich what's
+              already there. You can review everything in the template editor after applying.
+            </span>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" size="sm" onClick={onClose} disabled={applying}>
+            Cancel
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => void apply()}
+            disabled={applying || !rawNotes.trim()}
+            className="flex items-center gap-1.5"
+          >
+            <IconSparklesOutline size={13} />
+            {applying ? "Applying…" : "Apply to template"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 async function exportTemplateToDocx(html: string, candidateName: string) {
