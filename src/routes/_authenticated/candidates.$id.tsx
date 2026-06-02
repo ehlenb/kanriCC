@@ -458,6 +458,7 @@ function RegistrationPage({
         <div className="space-y-1">
           <RegistrationField label="Full name (English)" fieldKey="full_name" value={c.full_name} candidateId={candidateId} />
           <RegistrationField label="Full name (Japanese)" fieldKey="full_name_japanese" value={c.full_name_japanese} candidateId={candidateId} />
+          <RegistrationField label="Age" fieldKey="age" value={c.age != null ? String(c.age) : null} candidateId={candidateId} placeholder="e.g. 34" inputType="number" numeric />
           <RegistrationField label="Address" fieldKey="address" value={c.address} candidateId={candidateId} placeholder="e.g. 2-1-1 Shibuya, Tokyo 150-0002" />
           <RegistrationField label="Email" fieldKey="email" value={c.email} candidateId={candidateId} />
           <RegistrationField label="Phone" fieldKey="phone" value={c.phone} candidateId={candidateId} />
@@ -480,12 +481,16 @@ function RegistrationField({
   value,
   candidateId,
   placeholder,
+  inputType = "text",
+  numeric = false,
 }: {
   label: string;
   fieldKey: string;
   value: string | null | undefined;
   candidateId: string;
   placeholder?: string;
+  inputType?: string;
+  numeric?: boolean;
 }) {
   const qc = useQueryClient();
   const [editing, setEditing] = useState(false);
@@ -495,8 +500,11 @@ function RegistrationField({
     setEditing(false);
     const trimmed = draft.trim();
     if (trimmed === (value ?? "").trim()) return;
-    type CandUpdate = { full_name?: string; full_name_japanese?: string | null; address?: string | null; email?: string | null; phone?: string | null; linkedin_url?: string | null };
-    await supabase.from("candidates").update({ [fieldKey]: trimmed || null } as CandUpdate).eq("id", candidateId);
+    type CandUpdate = { full_name?: string; full_name_japanese?: string | null; age?: number | null; address?: string | null; email?: string | null; phone?: string | null; linkedin_url?: string | null };
+    const savedValue = numeric
+      ? (trimmed ? Number(trimmed) : null)
+      : (trimmed || null);
+    await supabase.from("candidates").update({ [fieldKey]: savedValue } as CandUpdate).eq("id", candidateId);
     void qc.invalidateQueries({ queryKey: ["candidate-profile", candidateId] });
   }
 
@@ -505,6 +513,7 @@ function RegistrationField({
       <div className="flex items-center gap-3 py-1">
         <span className="text-[12px] w-[150px] shrink-0" style={{ color: "#888780" }}>{label}</span>
         <Input
+          type={inputType}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onBlur={() => void save()}
@@ -1229,6 +1238,7 @@ function ProcessesPage({
     processes[0]?.id ?? null,
   );
   const [addProcessOpen, setAddProcessOpen] = useState(false);
+  const [compensationOpen, setCompensationOpen] = useState(false);
 
   const activeProcess = processes.find((p) => p.id === activeProcessId) ?? null;
 
@@ -1336,28 +1346,7 @@ function ProcessesPage({
 
       {/* Compensation card at bottom */}
       <div className="mt-3">
-        <Card>
-          <SectionLabel>Compensation</SectionLabel>
-          <FieldRow label="Current">
-            {formatYen(c.current_total)} total
-            {c.current_base ? ` (Base ${formatYen(c.current_base)}` : ""}
-            {c.current_bonus ? ` + Bonus ${formatYen(c.current_bonus)})` : c.current_base ? ")" : ""}
-          </FieldRow>
-          <FieldRow label="Expected">
-            {c.expected_total_min || c.expected_total_max
-              ? `${formatYen(c.expected_total_min)} – ${formatYen(c.expected_total_max)} total`
-              : "—"}
-          </FieldRow>
-          {c.base_is_priority && (
-            <FieldRow label="⚠ Base priority" highlight="warning">
-              <span style={{ color: "#633806" }}>
-                {c.base_minimum
-                  ? `${formatYen(c.base_minimum)} base minimum — total comp is secondary`
-                  : "Base stability matters more than total"}
-              </span>
-            </FieldRow>
-          )}
-        </Card>
+        <CompensationCard candidate={c} onEdit={() => setCompensationOpen(true)} />
       </div>
 
       {/* Profile data — feeds AI context */}
@@ -1368,6 +1357,13 @@ function ProcessesPage({
         blockers={blockers}
         roles={roles}
         competing={competing}
+      />
+
+      <EditCompensationDialog
+        candidateId={c.id}
+        candidate={c}
+        open={compensationOpen}
+        onClose={() => setCompensationOpen(false)}
       />
     </div>
   );
@@ -3408,7 +3404,7 @@ function CandidateProfileSection({
   roles: Role[];
   competing: CompetingInterview[];
 }) {
-  type DialogType = "motivation" | "role" | "blocker" | "competing";
+  type DialogType = "motivation" | "role" | "blocker" | "competing" | "compensation";
   const [openDialog, setOpenDialog] = useState<DialogType | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const close = () => setOpenDialog(null);
@@ -3620,6 +3616,201 @@ function CandidateProfileSection({
 }
 
 // ─── note template modal ──────────────────────────────────────────────────────
+
+// ─── compensation card + edit dialog ─────────────────────────────────────────
+
+function CompensationCard({
+  candidate: c,
+  onEdit,
+}: {
+  candidate: Candidate;
+  onEdit: () => void;
+}) {
+  return (
+    <Card>
+      <div className="flex items-center justify-between mb-2">
+        <SectionLabel className="mb-0">Compensation</SectionLabel>
+        <button className="ab flex items-center gap-1" onClick={onEdit}>
+          <IconPencil size={11} /> Edit
+        </button>
+      </div>
+      <FieldRow label="Current">
+        {c.current_total
+          ? <>{formatYen(c.current_total)} total{c.current_base ? ` (Base ${formatYen(c.current_base)}` : ""}{c.current_bonus ? ` + Bonus ${formatYen(c.current_bonus)})` : c.current_base ? ")" : ""}</>
+          : "—"}
+      </FieldRow>
+      <FieldRow label="Expected">
+        {c.expected_total_min || c.expected_total_max
+          ? `${formatYen(c.expected_total_min)} – ${formatYen(c.expected_total_max)} total`
+          : "—"}
+      </FieldRow>
+      {c.base_is_priority && (
+        <FieldRow label="⚠ Base priority" highlight="warning">
+          <span style={{ color: "#633806" }}>
+            {c.base_minimum
+              ? `${formatYen(c.base_minimum)} base minimum — total comp is secondary`
+              : "Base stability matters more than total"}
+          </span>
+        </FieldRow>
+      )}
+    </Card>
+  );
+}
+
+function EditCompensationDialog({
+  candidateId,
+  candidate: c,
+  open,
+  onClose,
+}: {
+  candidateId: string;
+  candidate: Candidate;
+  open: boolean;
+  onClose: () => void;
+}) {
+  const qc = useQueryClient();
+  const [form, setForm] = useState({
+    current_base:       c.current_base       != null ? String(c.current_base)       : "",
+    current_bonus:      c.current_bonus      != null ? String(c.current_bonus)      : "",
+    current_total:      c.current_total      != null ? String(c.current_total)      : "",
+    expected_total_min: c.expected_total_min != null ? String(c.expected_total_min) : "",
+    expected_total_max: c.expected_total_max != null ? String(c.expected_total_max) : "",
+    base_minimum:       c.base_minimum       != null ? String(c.base_minimum)       : "",
+    base_is_priority:   c.base_is_priority,
+    bonus_preference:   c.bonus_preference   ?? "",
+    equity_open:        c.equity_open === true ? "yes" : c.equity_open === false ? "no" : "",
+    notice_period_months: c.notice_period_months != null ? String(c.notice_period_months) : "",
+  });
+
+  function setF<K extends keyof typeof form>(k: K, v: (typeof form)[K]) {
+    setForm((f) => ({ ...f, [k]: v }));
+  }
+
+  const n = (s: string) => (s.trim() ? Number(s) : null);
+
+  const mutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from("candidates").update({
+        current_base:       n(form.current_base),
+        current_bonus:      n(form.current_bonus),
+        current_total:      n(form.current_total),
+        expected_total_min: n(form.expected_total_min),
+        expected_total_max: n(form.expected_total_max),
+        base_minimum:       n(form.base_minimum),
+        base_is_priority:   form.base_is_priority,
+        bonus_preference:   form.bonus_preference.trim() || null,
+        equity_open:        form.equity_open === "yes" ? true : form.equity_open === "no" ? false : null,
+        notice_period_months: n(form.notice_period_months),
+      }).eq("id", candidateId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["candidate-profile", candidateId] });
+      toast.success("Compensation updated");
+      onClose();
+    },
+    onError: () => toast.error("Failed to save compensation"),
+  });
+
+  function YenInput({ label, k }: { label: string; k: "current_base" | "current_bonus" | "current_total" | "expected_total_min" | "expected_total_max" | "base_minimum" }) {
+    return (
+      <div className="space-y-1.5">
+        <Label className="text-[12px]">{label}</Label>
+        <div className="relative">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[12px]" style={{ color: "#888780" }}>¥</span>
+          <Input
+            type="number"
+            value={form[k]}
+            onChange={(e) => setF(k, e.target.value)}
+            className="pl-6 text-[13px]"
+            placeholder="millions, e.g. 10"
+          />
+        </div>
+        <p className="text-[11px]" style={{ color: "#b8b7b2" }}>Enter in millions (¥M). e.g. 10 = ¥10M</p>
+      </div>
+    );
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Edit compensation</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-1 max-h-[65vh] overflow-y-auto pr-1">
+          <div className="grid grid-cols-2 gap-3">
+            <YenInput label="Current base" k="current_base" />
+            <YenInput label="Current bonus" k="current_bonus" />
+            <YenInput label="Current total" k="current_total" />
+            <div className="space-y-1.5">
+              <Label className="text-[12px]">Notice period (months)</Label>
+              <Input
+                type="number"
+                value={form.notice_period_months}
+                onChange={(e) => setF("notice_period_months", e.target.value)}
+                className="text-[13px]"
+                placeholder="e.g. 3"
+              />
+            </div>
+          </div>
+
+          <div className="h-px" style={{ background: "rgba(26,26,24,0.1)" }} />
+
+          <div className="grid grid-cols-2 gap-3">
+            <YenInput label="Expected total (min)" k="expected_total_min" />
+            <YenInput label="Expected total (max)" k="expected_total_max" />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="base_priority"
+              checked={form.base_is_priority}
+              onChange={(e) => setF("base_is_priority", e.target.checked)}
+              className="rounded"
+            />
+            <label htmlFor="base_priority" className="text-[13px]">
+              Base is a priority (candidate weights base over total comp)
+            </label>
+          </div>
+
+          {form.base_is_priority && (
+            <YenInput label="Base minimum floor" k="base_minimum" />
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-[12px]">Bonus preference</Label>
+              <Input
+                value={form.bonus_preference}
+                onChange={(e) => setF("bonus_preference", e.target.value)}
+                className="text-[13px]"
+                placeholder="e.g. Performance-linked preferred"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[12px]">Open to equity / RSU</Label>
+              <Select value={form.equity_open} onValueChange={(v) => setF("equity_open", v)}>
+                <SelectTrigger className="text-[13px]"><SelectValue placeholder="Not specified" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Not specified</SelectItem>
+                  <SelectItem value="yes">Yes — if base floor met</SelectItem>
+                  <SelectItem value="no">No</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
+          <Button size="sm" onClick={() => mutation.mutate()} disabled={mutation.isPending}>
+            {mutation.isPending ? "Saving…" : "Save"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 function buildTemplateHtml(
   c: Candidate,
