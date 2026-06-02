@@ -513,10 +513,16 @@ Stage badge logic lives exclusively in `stageBadgeVariant()` in `candidate-utils
 
 ### Candidate Detail — 4 Tabs
 
-1. **Registration** — CV upload zone, language levels, status, job history (chronological oldest to current), motivations (ranked 1–3), compensation, blockers, competing interviews, presentation notes (recruiter-only section, visually separated with clear indicator)
-2. **Timeline** — merged feed of interactions + process milestones, newest first. Teammate interactions show "logged by [name]."
-3. **Candidate notes** — autosaving sections: personality, pitch, closing, internal. Internal section has a visible permanent "recruiter only — not read by AI" label.
-4. **Candidate intelligence** — active process panels with AI action buttons. All AI output renders editable.
+Tab order (left to right): **Timeline → Candidate notes → Candidate intelligence → Registration**
+
+1. **Timeline** — merged feed of manual activity logs + process milestones, newest first. "Log activity" button opens inline form: type (call/email/meeting/job spec sent/linkedin message/other), date, summary, notes, optional linked client (cross-posts to client timeline). "Paste transcript" opens TranscriptPanel for AI processing.
+2. **Candidate notes** — displays `notes_template` HTML rendered inline. Two actions: "Note template" opens TipTap rich-text editor (autosaves to `notes_template` with 2s debounce, exports to .docx); "Upload notes" sends PDF/Word/text to AI which distributes content into the correct template sections.
+3. **Candidate intelligence** — active process panels with AI action buttons (all output editable). Compensation card with Edit dialog (amounts in ¥M, stored as raw yen) + "Sync from notes" button (calls `/api/ai/extract-compensation`). Collapsible "Candidate profile data" section: status/source, language, job history, motivations, blockers, competing interviews.
+4. **Registration** — document uploads (registration form PDF + CV PDF, CV triggers AI field extraction). Candidate details card: full name (English), full name (Japanese), date of birth (auto-calculates and saves `age`).
+
+### Candidate Profile Header
+
+Shows: name · Japanese name | title · company · age | current salary · expected salary range. All pulled from DB fields. Salary only renders if at least one value is non-null.
 
 ### Client Detail — 3 Tabs
 
@@ -617,7 +623,7 @@ Process tab colors: `tab-own` (green), `tab-colleague` (grey), `tab-uncovered` (
 
 | File | Input | Output |
 |---|---|---|
-| `extract-candidate.ts` | `candidate_id` (fetches PDF from storage) | Structured candidate fields |
+| `extract-candidate.ts` | `candidate_id` (fetches PDF from storage) | Structured candidate fields from CV |
 | `enrich-client.ts` | Pasted company text | Structured client profile fields |
 | `positioning.ts` | `process_id` | Context-driven positioning talking points |
 | `pre-call-briefing.ts` | `candidate_id` | 60-second pre-call brief |
@@ -627,6 +633,9 @@ Process tab colors: `tab-own` (green), `tab-colleague` (grey), `tab-uncovered` (
 | `client-draft.ts` | `client_id` + context | Draft client-facing email |
 | `req-strategic-context.ts` | `requisition_id` | Strategic framing paragraph |
 | `daily-agenda.ts` | `recruiter_id` | Ranked priority action list for dashboard |
+| `advanced-search.ts` | `requisition_id`, `client_id`, `threshold`, `use_key_criteria` | Scored candidate list for advanced search |
+| `apply-candidate-notes.ts` | `candidateId`, `existingTemplate`, `rawNotes?`, `fileBase64?`, `fileType?` | Distributes raw notes into the correct template sections; accepts text/PDF/Word |
+| `extract-compensation.ts` | `candidateId` | Reads `notes_template`, extracts salary figures, saves raw yen to candidates table |
 
 ---
 
@@ -666,6 +675,8 @@ After regeneration, re-append the custom types block from Section 11.
 | `011_team_id_defaults.sql` | Column-level `DEFAULT current_team_id()` on core tables |
 | `012_candidate_status.sql` | `placed_at`, `status_source`, `coin_icon_dismissed`; 3-status constraint |
 | `013_candidate_lists.sql` | `candidate_lists` table — saved search lists with RLS and triggers |
+| `014_candidate_registration_fields.sql` | `address`, `notes_template` columns on candidates |
+| `015_candidate_dob.sql` | `date_of_birth` (date) column on candidates |
 
 New migrations increment sequentially. Never edit existing migration files.
 
@@ -678,7 +689,7 @@ relativeTime(iso)        // "Today" | "3d ago" | "2mo ago"
 daysSince(iso)           // number of days since ISO date
 touchTone(iso)           // "fresh" | "warm" | "cool" | "cold" (14/45/120 day thresholds)
 initials(name)           // "Kenji Nakamura" → "KN"
-formatYen(amount)        // 12500000 → "¥12.5M"
+formatYen(amount)        // 12500000 → "¥12.5M" — salary stored as raw yen in DB; UI inputs in ¥M (×1,000,000)
 stageOrder(stage)        // sort key for pipeline stages
 isCcmStage(stage)        // /^CCM\d+$/.test(stage)
 stageBadgeVariant(stage) // "info" | "warning" | "gold" | "success" | "gray"

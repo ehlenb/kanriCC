@@ -13,90 +13,55 @@ Kanri is an AI-native recruiter intelligence platform and CRM for boutique agenc
 
 **Target users:** Boutique and mid-sized agency recruiting firms. Initial focus: Japan bilingual and gaishikei recruitment. Reference companies: Torch (Vincere ATS, 4 consultants), Robert Walters Japan, Hays.
 
-**Current status:** The full feature brief (Parts 1–4) is complete. The next session covers the client page revision.
+**Current status:** Candidate page fully revised. Next session is the client page revision.
 
 ---
 
-## What Was Completed This Session (2nd session, 1 June 2026)
+## What Was Completed This Session (3rd session, 1 June 2026)
 
-### Candidate Page Revisions
+### Candidate Page — Full Revision
 
-**Tab reorder**
-- Timeline is now the first (default) tab
-- Order: Timeline → Candidate notes → Candidate intelligence → Registration (rightmost)
+#### Tab reorder
+- Default tab changed to Timeline
+- Order: **Timeline → Candidate notes → Candidate intelligence → Registration**
 
-**Activity logging on Timeline tab**
-- "Log activity" button opens an inline `LogActivityPanel` card
-- Fields: type (call, email, meeting, job spec sent, linkedin message, other), date, summary, notes, optional linked client
-- Linked client causes the activity to appear on the client's timeline too (`client_id` set on the interaction row)
-- Interaction type icons/colours extended to cover all 6 types
+#### Timeline tab
+- "Log activity" inline form: type (call/email/meeting/job spec sent/linkedin message/other), date, summary, notes, optional linked client
+- Linked client makes the activity appear on the client's timeline too (`client_id` set on the interaction)
+- All 6 interaction types have distinct icons and colours
+- "Paste transcript" still available alongside Log activity
 
-**Registration tab redesign**
-- Now only shows: Registration form upload zone + CV upload zone + editable contact fields
-- Contact fields: full name (English), full name (Japanese), address, email, phone, LinkedIn URL — all click-to-edit inline
-- `RegistrationField` component handles inline editing with blur-to-save
-- All profile data cards (status, language, job history, motivations, comp, blockers, competing) moved to Candidate intelligence tab
+#### Candidate notes tab
+- Removed the 5 autosave NoteSection cards (Presentation, Personality, Pitch, Closing, Internal)
+- Now renders `notes_template` HTML inline as a readable document (click to edit)
+- Empty state guides recruiter to template or upload
+- **Note template** button: full TipTap rich-text editor, pre-populates from all candidate DB data, 2s debounce autosave, Export to Word (.docx)
+- **Upload notes** button: accepts PDF (Claude reads natively), Word (.docx via mammoth), plain text/paste — AI distributes content into the correct template sections
 
-**Candidate intelligence tab update**
-- Profile data cards moved here inside a collapsible "Candidate profile data" section (`CandidateProfileSection`)
-- `ProcessesPage` now accepts `roles` and `competing` props and renders `CandidateProfileSection` below the process panels and compensation card
+#### Candidate intelligence tab
+- Compensation card: Edit button opens dialog (inputs in ¥M, stores raw yen ×1,000,000); "Sync from notes" button calls `/api/ai/extract-compensation` to parse salary from `notes_template`
+- Collapsible "Candidate profile data" section: status/source, language, job history, motivations, blockers, competing interviews — all editable
 
-**Note template on Candidate notes tab**
-- "Note template" button opens `NoteTemplateModal` — a full-screen TipTap rich text editor
-- Template pre-populates with all candidate data: background, employment, work history, language, compensation, motivations, blockers, competing interviews, recruiter assessment sections
-- 2-second debounce autosave to `candidates.notes_template` column with "Saving…" / "Saved to Kanri" indicator
-- Toolbar: bold, italic, underline, H2, H3, bullet list, numbered list
-- Export to Word button uses the `docx` package (browser-side) to generate a `.docx` file
+#### Registration tab
+- Stripped to: Registration form upload (PDF), CV upload (PDF + AI extraction), Candidate details card
+- Candidate details: Full name (English), Full name (Japanese), Date of birth (date picker → auto-calculates and saves `age`)
+- Removed: address, email, phone, LinkedIn (these live in the note template document instead)
 
-**Migration 014** — applied to Supabase. Adds `address` and `notes_template` to the `candidates` table.
+#### Candidate profile header
+- Third line added: current salary + expected salary range (only renders when values are non-null)
 
-**Packages installed**
-- `@tiptap/react @tiptap/pm @tiptap/starter-kit @tiptap/extension-underline @tiptap/extension-placeholder`
-- `docx`
+### Migrations Applied
+- **014** — `candidates.address`, `candidates.notes_template`
+- **015** — `candidates.date_of_birth`
 
----
+### Packages Installed
+- `@tiptap/react`, `@tiptap/pm`, `@tiptap/starter-kit`, `@tiptap/extension-underline` — rich text editor
+- `docx` — browser-side Word export
+- `mammoth` — server-side Word (.docx) text extraction
 
-## What Was Completed Last Session
-
-### Part 2 — Advanced Candidate Search (brief §2.1–2.8)
-
-**Migration 013 (`supabase/migrations/013_candidate_lists.sql`) — applied to Supabase**
-- `candidate_lists` table: `id, name, created_by, visibility ('private'|'team'), candidate_ids uuid[], source ('ai'|'manual'|'merged'), created_at, updated_at, team_id`
-- RLS: team members see all team-visibility lists + their own private lists
-- `DEFAULT current_team_id()` set on `team_id` column (required for Supabase Insert types to treat it as optional)
-- `set_updated_at()` trigger auto-updates `updated_at`
-
-**Types regenerated** — `src/integrations/supabase/types.ts` reflects the new table. Custom types block re-appended.
-
-**Advanced Search page (`src/routes/_authenticated/advanced-search.tsx`)**
-- Route: `/_authenticated/advanced-search`
-- Three-panel layout: left filter panel (220px), centre results (flex), right AI panel (200px)
-- Left panel: all base filters + Mandarin/Cantonese/Korean language dropdowns, age range, ¥M base salary range, 47-prefecture location dropdown, keyword tags with AND/OR toggle
-- Centre panel: candidate rows with checkbox, avatar, match % bar (green 80%+, blue 60–79%, amber <60%), stage badge, ℹ info tooltip, coin icon with dimming for placed-within-90d, conflict badge for same-client active process
-- Side drawer: quick profile (name, role, languages, top 2 motivations, stage, last touch) with "Open full profile" link
-- Key Criteria tiering: green row tint (all criteria met) + amber row tint (close match) when AI search + "Narrow by Key Criteria" both active
-- Save list modal: name input, team/private visibility toggle with explanatory note
-- Saved lists panel: load, merge-select, merge & dedupe with inline count summary
-- Sidebar: italic "Advanced Search" entry with × close when on that route
-
-**AI search endpoint (`api/ai/advanced-search.ts`)**
-- Model: `claude-sonnet-4-20250514`
-- Input: `requisition_id`, `client_id`, `threshold` (30–80, default 45), `use_key_criteria`
-- Excludes: placed-within-90d (unless coin dismissed), candidates in active process with same client
-- Returns: `{ candidate_id, score, reason, is_salary_stretch, meets_must_haves, close_on_must_haves }[]`
-
-**Key Criteria card redesign (`src/routes/_authenticated/jobs.$id.tsx`)**
-- Renamed from "Key conditions" → "Key criteria"
-- Two-column tag layout: Must-haves (green left border) + Flexible on (amber left border)
-- Per-column text input with + button; Enter to add; × on each tag to remove
-- Hint under Flexible on: "Flex criteria factor into match scoring but a gap here will not drop a candidate from results."
-- DB unchanged — still uses `requisition_conditions` with `must_have` / `nice_to_have` types
-
-**Dashboard Saved Lists widget (`src/routes/_authenticated/dashboard.tsx`)**
-- Recent Activity + Saved Lists now sit side-by-side in a two-column grid
-- Shows 3–5 most recently updated lists
-- Filters: own private + all team-visible lists (hides other recruiters' private lists)
-- "View all" link navigates to `/advanced-search`
+### New AI Endpoints
+- `api/ai/apply-candidate-notes.ts` — distributes raw notes into template sections (text/PDF/Word)
+- `api/ai/extract-compensation.ts` — reads `notes_template`, extracts salary in ¥M, saves raw yen to DB
 
 ---
 
@@ -109,19 +74,19 @@ src/
     __root.tsx
     index.tsx
     login.tsx
-    _authenticated.tsx              # Sidebar now includes conditional italic Advanced Search entry
+    _authenticated.tsx
     _authenticated/
-      dashboard.tsx                 # Pipeline KPIs + agenda + activity + Saved Lists widget
-      candidates.tsx                # 7 filters, Advanced Search button
-      candidates.$id.tsx            # StatusToggle, coin icon, placed_at
+      dashboard.tsx
+      candidates.tsx
+      candidates.$id.tsx        # Fully revised — see tab structure below
       clients.tsx
       clients.$id.tsx
       jobs.tsx
-      jobs.$id.tsx                  # Key Criteria redesigned — two-column tag layout
-      advanced-search.tsx           # NEW — three-panel advanced search
+      jobs.$id.tsx
+      advanced-search.tsx
   components/
-    ui/                             # shadcn/ui primitives — never modify
-    shared/                         # Card, SectionLabel, FieldRow, StageBadge
+    ui/                         # shadcn/ui primitives — never modify
+    shared/                     # Card, SectionLabel, FieldRow, StageBadge
     candidate/
       TranscriptPanel.tsx
       SubmissionPackagePanel.tsx
@@ -132,15 +97,33 @@ src/
     auth-context.tsx
   integrations/
     supabase/
-      types.ts                      # Regenerated post-013 migration
+      types.ts
+```
+
+### candidates.$id.tsx — Key Components
+```
+CandidateProfile          — page shell, tab router
+CandidateTimelineTab      — feed + LogActivityPanel + TranscriptPanel
+NotesTab                  — rendered notes_template + NoteTemplateModal + UploadNotesDialog
+  NoteTemplateModal       — TipTap editor, autosave, docx export
+  UploadNotesDialog       — PDF/Word/text upload → AI distributes to template
+ProcessesPage             — process binder tabs + CompensationCard + CandidateProfileSection
+  CompensationCard        — read-only + Edit + Sync from notes
+  EditCompensationDialog  — all salary fields, inputs in ¥M
+  CandidateProfileSection — collapsible profile data cards
+RegistrationPage          — form upload + CV upload + DobField
+  DobField                — date picker, auto-calculates age on save
+  RegistrationField       — inline-editable text field (supports numeric coercion)
 ```
 
 ### Backend Structure
 ```
 api/
   ai/
-    advanced-search.ts              # NEW — AI candidate ranking for Advanced Search
-    infer-status.ts                 # Daily cron — AI status inference + 90-day placed revert
+    apply-candidate-notes.ts   # Distributes raw notes into template sections
+    extract-compensation.ts    # Parses salary from notes_template → saves raw yen
+    advanced-search.ts
+    infer-status.ts
     daily-agenda.ts
     positioning.ts
     pre-call-briefing.ts
@@ -174,50 +157,50 @@ api/
 010_ccm_feedback.sql
 011_team_id_defaults.sql
 012_candidate_status.sql
-013_candidate_lists.sql             # candidate_lists — saved search lists
+013_candidate_lists.sql
+014_candidate_registration_fields.sql   # address, notes_template
+015_candidate_dob.sql                   # date_of_birth
 ```
+
+### Key Salary Convention
+Salaries stored as **raw yen** in DB (e.g. 12000000 for ¥12M).
+`formatYen(12000000)` → `¥12.0M`.
+All UI inputs that accept salary figures use ¥M notation and multiply by 1,000,000 before saving.
 
 ### Key Exported Symbols (candidates.tsx)
 ```typescript
-BLANK_CANDIDATE_SEARCH   // { name: "", company: "", status: "", japanese_level: "", english_level: "", source: "", last_touch: "" }
-withCandidateDefaults()  // Fills in default empty strings — required for all navigate() to /candidates/*
+BLANK_CANDIDATE_SEARCH   // { name: "", company: "", status: "", ... }
+withCandidateDefaults()  // Required for all navigate() to /candidates/*
 ```
-
-**IMPORTANT:** All navigation to `/candidates` or `/candidates/$id` must use `BLANK_CANDIDATE_SEARCH` or `withCandidateDefaults()`. Do not construct the search object manually.
+**IMPORTANT:** All navigation to `/candidates` or `/candidates/$id` must use `BLANK_CANDIDATE_SEARCH` or `withCandidateDefaults()`.
 
 ---
 
 ## Next Session — Client Page Revision
 
-The next session will revise the client page (`clients.$id.tsx`). Before starting:
-
-1. Read `CLAUDE.md` completely
-2. Read this `SESSION_HANDOFF.md` completely
-3. Read the client page revision brief (to be provided by user at session start)
-4. Read the current `src/routes/_authenticated/clients.$id.tsx` in full before touching anything
+Read `CLAUDE.md` and this file completely before writing any code.
+Read `src/routes/_authenticated/clients.$id.tsx` in full before touching anything (~3,225 lines).
 
 ### What to know about the current client page
-- `clients.$id.tsx` is ~3,225 lines — read it fully before editing
 - Three tabs: Timeline, Client Info, Contract
-- Client contacts have: `name`, `role` (ContactRole), `title`, `notes` (recruiter only — AI never writes), `relationship_score` (1–5), `bypass_hr_warning`, `is_primary`
-- AI endpoints available for clients: `client-snapshot.ts`, `client-meeting-prep.ts`, `client-draft.ts`, `enrich-client.ts`
-- The `ContactRole` type lives in `src/integrations/supabase/types.ts`: `"hiring_manager" | "hr_gatekeeper" | "ta_coordinator" | "executive" | "other"`
+- Client contacts: `name`, `role` (ContactRole), `title`, `notes` (recruiter only — AI never writes), `relationship_score` (1–5), `bypass_hr_warning`, `is_primary`
+- `ContactRole` type: `"hiring_manager" | "hr_gatekeeper" | "ta_coordinator" | "executive" | "other"`
+- AI endpoints: `client-snapshot.ts`, `client-meeting-prep.ts`, `client-draft.ts`, `enrich-client.ts`
 
-### Architecture Decisions & Constraints
+### Architecture Constraints
 - Icons: `@tabler/icons-react` outline variants only
 - Toast: `sonner` only
-- Salary: always `¥XM` format via `formatYen()`
+- Salary: always `¥XM` format via `formatYen()` — raw yen in DB
 - Stage badge: always `<StageBadge stage={...} />`
 - TanStack Query: always `staleTime: 30_000, retry: 1`
 - **Forbidden words in all prompts:** `straightforward`, `genuinely`, `honestly`, `leverage` (as verb), `utilize`, em dashes
-- **AI model for all endpoints:** `claude-sonnet-4-20250514`
-- No `as any` casts — fix the type properly
-- No `select("*")` in production queries — always explicit column lists
+- **AI model:** `claude-sonnet-4-20250514`
+- No `as any` — fix the type properly
+- No `select("*")` — always explicit column lists
 
-### Known Issues / Remaining Technical Debt
-1. **Team Activity Feed on dashboard** — still shows logged-in recruiter's own interactions. Fix: query interactions by `team_id` via recruiters join.
-2. **Submission package "Accept All / Reject All"** — not implemented in TranscriptPanel.
-3. **`clients.$id.tsx` and `candidates.$id.tsx` are large** (~3,225 and ~3,400 lines).
-4. **`/jobs/$id`** — no "Add condition" shortcut from within JD text.
-5. **Single-team bootstrap** — second recruiter joining an agency requires a manual SQL update. No UI yet.
-6. **Advanced Search location filter** — filters on text search of `notes_pitch`/`notes_personality`; no dedicated `preferred_location` DB column. Candidates without a match default to Tokyo and show a flag icon.
+### Known Technical Debt
+1. Team Activity Feed on dashboard still shows only logged-in recruiter's own interactions
+2. Submission package "Accept All / Reject All" not implemented in TranscriptPanel
+3. `/jobs/$id` — no "Add condition" shortcut from within JD text
+4. Single-team bootstrap — second recruiter joining requires a manual SQL update
+5. Advanced Search location filter uses text search of notes; no dedicated `preferred_location` DB column
