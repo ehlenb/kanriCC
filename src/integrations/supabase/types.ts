@@ -757,6 +757,7 @@ export type Database = {
           offer_date: string | null
           owner_recruiter_id: string
           placed_date: string | null
+          placed_fee_jpy: number | null
           requisition_id: string
           stage: string
           team_id: string
@@ -780,6 +781,7 @@ export type Database = {
           offer_date?: string | null
           owner_recruiter_id: string
           placed_date?: string | null
+          placed_fee_jpy?: number | null
           requisition_id: string
           stage: string
           team_id?: string
@@ -803,6 +805,7 @@ export type Database = {
           offer_date?: string | null
           owner_recruiter_id?: string
           placed_date?: string | null
+          placed_fee_jpy?: number | null
           requisition_id?: string
           stage?: string
           team_id?: string
