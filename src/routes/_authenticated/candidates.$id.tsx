@@ -439,7 +439,7 @@ function RegistrationPage({
       <Card>
         <div className="flex items-center gap-1.5 mb-3">
           <SectionLabel className="mb-0">Candidate details</SectionLabel>
-          <span className="text-[11px] px-1.5 py-0.5 rounded" style={{ background: "#e6f1fb", color: "#185fa5" }}>
+          <span className="text-[11px] px-1.5 py-0.5 " style={{ background: "#e6f1fb", color: "#185fa5" }}>
             auto-populated from form
           </span>
         </div>
@@ -519,12 +519,12 @@ function RegistrationField({
 
   return (
     <div
-      className="flex items-center gap-3 py-1 rounded cursor-pointer group"
+      className="flex items-center gap-3 py-1  cursor-pointer group"
       onClick={() => { setDraft(value ?? ""); setEditing(true); }}
     >
       <span className="text-[12px] w-[150px] shrink-0" style={{ color: "#888780" }}>{label}</span>
       <span
-        className="text-[13px] flex-1 px-1.5 py-0.5 rounded group-hover:bg-[#f5f5f3] transition-colors"
+        className="text-[13px] flex-1 px-1.5 py-0.5  group-hover:bg-[#f5f5f3] transition-colors"
         style={{ color: value ? "#1a1a18" : "#b8b7b2" }}
       >
         {value || "—"}
@@ -595,12 +595,12 @@ function DobField({
 
   return (
     <div
-      className="flex items-center gap-3 py-1 rounded cursor-pointer group"
+      className="flex items-center gap-3 py-1  cursor-pointer group"
       onClick={() => { setDraft(dateOfBirth ?? ""); setEditing(true); }}
     >
       <span className="text-[12px] w-[150px] shrink-0" style={{ color: "#888780" }}>Date of birth</span>
       <span
-        className="text-[13px] flex-1 px-1.5 py-0.5 rounded group-hover:bg-[#f5f5f3] transition-colors"
+        className="text-[13px] flex-1 px-1.5 py-0.5  group-hover:bg-[#f5f5f3] transition-colors"
         style={{ color: displayDob ? "#1a1a18" : "#b8b7b2" }}
       >
         {displayDob
@@ -1107,7 +1107,7 @@ function RoleBlock({ role, isLast }: { role: Role; isLast: boolean }) {
         {role.title}
         {role.is_current && (
           <span
-            className="ml-2 text-[10px] px-1.5 py-0.5 rounded"
+            className="ml-2 text-[10px] px-1.5 py-0.5 "
             style={{ background: "#eaf3de", color: "#27500a" }}
           >
             Current
@@ -1371,12 +1371,12 @@ function InterviewNotesCard({
 
       {/* AI result preview — shown before accepting */}
       {aiResult && (
-        <div className="mb-3 rounded-[6px] p-3" style={{ background: "#e6f1fb", border: "0.5px solid #b5d4f4" }}>
+        <div className="mb-3 p-3" style={{ background: "#e6f1fb", border: "0.5px solid #b5d4f4" }}>
           <div className="flex items-center justify-between mb-2">
             <span className="text-[11px] font-medium" style={{ color: "#185fa5" }}>AI formatted — review before saving</span>
             <div className="flex items-center gap-2">
               <button
-                className="text-[11px] font-medium px-2 py-0.5 rounded"
+                className="text-[11px] font-medium px-2 py-0.5 "
                 style={{ background: "#185fa5", color: "#fff" }}
                 onClick={acceptAi}
               >
@@ -1407,11 +1407,11 @@ function InterviewNotesCard({
             onBlur={handleBlur}
             rows={10}
             placeholder="Career history, transitions, achievements, background context from registration call…"
-            className="w-full text-[13px] leading-relaxed rounded-[6px] px-3 py-2 resize-none"
+            className="w-full text-[13px] leading-relaxed px-3 py-2 resize-none"
             style={{ border: "0.5px solid rgba(26,26,24,0.20)", background: "#fafaf9", color: "#1a1a18", outline: "none" }}
           />
           <button
-            className="absolute bottom-2 right-2 flex items-center gap-1 rounded px-2 py-1 text-[11px] font-medium"
+            className="absolute bottom-2 right-2 flex items-center gap-1  px-2 py-1 text-[11px] font-medium"
             style={{ background: "#1a1a18", color: "#fff" }}
             onMouseDown={(e) => { e.preventDefault(); handleBlur(); }}
           >
@@ -1420,7 +1420,7 @@ function InterviewNotesCard({
         </div>
       ) : (
         <div
-          className="rounded-[6px] px-3 py-2 cursor-text"
+          className="px-3 py-2 cursor-text"
           style={{ border: "0.5px solid rgba(26,26,24,0.12)", background: "#f5f5f3", minHeight: "130px" }}
           onClick={() => { setDraft(value ?? ""); setEditing(true); }}
         >
@@ -1476,7 +1476,7 @@ function NoteField({
             onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && rows === 1) { e.preventDefault(); handleBlur(); } }}
             rows={rows}
             placeholder={placeholder}
-            className="w-full text-[13px] leading-relaxed rounded-[6px] px-3 py-2 resize-none"
+            className="w-full text-[13px] leading-relaxed px-3 py-2 resize-none"
             style={{
               border: "0.5px solid rgba(26,26,24,0.20)",
               background: "#fafaf9",
@@ -1485,7 +1485,7 @@ function NoteField({
             }}
           />
           <button
-            className="absolute bottom-2 right-2 flex items-center gap-1 rounded px-2 py-1 text-[11px] font-medium"
+            className="absolute bottom-2 right-2 flex items-center gap-1  px-2 py-1 text-[11px] font-medium"
             style={{ background: "#1a1a18", color: "#fff" }}
             onMouseDown={(e) => { e.preventDefault(); handleBlur(); }}
           >
@@ -1494,7 +1494,7 @@ function NoteField({
         </div>
       ) : (
         <div
-          className="rounded-[6px] px-3 py-2 cursor-text"
+          className="px-3 py-2 cursor-text"
           style={{
             border: "0.5px solid rgba(26,26,24,0.12)",
             background: "#f5f5f3",
@@ -1560,13 +1560,13 @@ function NoticeUrgencyFields({
                   if (e.key === "Enter") saveNotice();
                   if (e.key === "Escape") { setNoticeDraft(noticePeriod != null ? String(noticePeriod) : ""); setEditingNotice(false); }
                 }}
-                className="h-[36px] w-16 rounded-[6px] px-3 text-[13px] outline-none"
+                className="h-[36px] w-16 px-3 text-[13px] outline-none"
                 style={{ border: "0.5px solid rgba(26,26,24,0.20)", background: "#fafaf9", color: "#1a1a18" }}
                 placeholder="3"
               />
               <span className="text-[12px]" style={{ color: "#5f5e5a" }}>months</span>
               <button
-                className="flex items-center gap-1 rounded px-2 py-1 text-[11px] font-medium"
+                className="flex items-center gap-1  px-2 py-1 text-[11px] font-medium"
                 style={{ background: "#1a1a18", color: "#fff" }}
                 onMouseDown={(e) => { e.preventDefault(); saveNotice(); }}
               >
@@ -1575,7 +1575,7 @@ function NoticeUrgencyFields({
             </div>
           ) : (
             <div
-              className="rounded-[6px] px-3 py-2 cursor-text"
+              className="px-3 py-2 cursor-text"
               style={{ border: "0.5px solid rgba(26,26,24,0.12)", background: "#f5f5f3", minHeight: "36px" }}
               onClick={() => { setNoticeDraft(noticePeriod != null ? String(noticePeriod) : ""); setEditingNotice(true); }}
             >
@@ -1596,7 +1596,7 @@ function NoticeUrgencyFields({
                 <button
                   key={opt}
                   onClick={() => onSave("active_passive", selected ? null : opt)}
-                  className="flex-1 h-[36px] rounded-[6px] text-[13px] font-medium transition-colors"
+                  className="flex-1 h-[36px] text-[13px] font-medium transition-colors"
                   style={{
                     background: selected ? "#1a1a18" : "#f5f5f3",
                     color: selected ? "#fff" : "#5f5e5a",
@@ -1623,11 +1623,11 @@ function NoticeUrgencyFields({
               onBlur={saveNotes}
               rows={3}
               placeholder="Why they are active, when a passive candidate might start looking, timeline context…"
-              className="w-full text-[13px] leading-relaxed rounded-[6px] px-3 py-2 resize-none"
+              className="w-full text-[13px] leading-relaxed px-3 py-2 resize-none"
               style={{ border: "0.5px solid rgba(26,26,24,0.20)", background: "#fafaf9", color: "#1a1a18", outline: "none" }}
             />
             <button
-              className="absolute bottom-2 right-2 flex items-center gap-1 rounded px-2 py-1 text-[11px] font-medium"
+              className="absolute bottom-2 right-2 flex items-center gap-1  px-2 py-1 text-[11px] font-medium"
               style={{ background: "#1a1a18", color: "#fff" }}
               onMouseDown={(e) => { e.preventDefault(); saveNotes(); }}
             >
@@ -1636,7 +1636,7 @@ function NoticeUrgencyFields({
           </div>
         ) : (
           <div
-            className="rounded-[6px] px-3 py-2 cursor-text"
+            className="px-3 py-2 cursor-text"
             style={{ border: "0.5px solid rgba(26,26,24,0.12)", background: "#f5f5f3", minHeight: "36px" }}
             onClick={() => { setNotesDraft(urgencyNotes ?? ""); setEditingNotes(true); }}
           >
@@ -1739,7 +1739,7 @@ function LanguageFields({
         {/* Display saved value */}
         {other && !editingName && !showLevelPicker ? (
           <div
-            className="flex items-center justify-between rounded-[6px] px-3 py-2"
+            className="flex items-center justify-between px-3 py-2"
             style={{ border: "0.5px solid rgba(26,26,24,0.12)", background: "#f5f5f3", minHeight: "36px" }}
           >
             <span className="text-[13px]" style={{ color: "#1a1a18" }}>{other}</span>
@@ -1758,7 +1758,7 @@ function LanguageFields({
           </div>
         ) : showLevelPicker ? (
           /* Step 2: pick proficiency */
-          <div className="rounded-[6px] overflow-hidden" style={{ border: "0.5px solid rgba(26,26,24,0.16)", background: "#fff" }}>
+          <div className="overflow-hidden" style={{ border: "0.5px solid rgba(26,26,24,0.16)", background: "#fff" }}>
             <div className="px-3 py-2 text-[12px] font-medium" style={{ background: "#f5f5f3", color: "#5f5e5a" }}>
               {langName} — select proficiency
             </div>
@@ -1798,12 +1798,12 @@ function LanguageFields({
               onFocus={() => setEditingName(true)}
               onKeyDown={handleLangKeyDown}
               placeholder="e.g. Korean, Mandarin…"
-              className="flex-1 h-[36px] rounded-[6px] px-3 text-[13px] outline-none"
+              className="flex-1 h-[36px] px-3 text-[13px] outline-none"
               style={{ border: "0.5px solid rgba(26,26,24,0.12)", background: "#f5f5f3", color: "#1a1a18" }}
             />
             {langName.trim() && (
               <button
-                className="flex items-center gap-1 rounded-[6px] px-3 h-[36px] text-[12px] font-medium shrink-0"
+                className="flex items-center gap-1 px-3 h-[36px] text-[12px] font-medium shrink-0"
                 style={{ background: "#1a1a18", color: "#fff" }}
                 onClick={() => { setEditingName(false); setShowLevelPicker(true); }}
               >
@@ -1887,13 +1887,13 @@ function NoteCompensationFields({
                 if (e.key === "Enter") save();
                 if (e.key === "Escape") { setDraft(value != null ? String(value / 1_000_000) : ""); setEditing(false); }
               }}
-              className="flex-1 h-[36px] rounded-[6px] px-2 text-[13px] outline-none min-w-0"
+              className="flex-1 h-[36px] px-2 text-[13px] outline-none min-w-0"
               style={{ border: "0.5px solid rgba(26,26,24,0.20)", background: "#fafaf9", color: "#1a1a18" }}
               placeholder="12"
             />
             <span className="text-[12px] shrink-0" style={{ color: "#888780" }}>M</span>
             <button
-              className="flex items-center gap-0.5 rounded px-2 h-[36px] text-[11px] font-medium shrink-0"
+              className="flex items-center gap-0.5  px-2 h-[36px] text-[11px] font-medium shrink-0"
               style={{ background: "#1a1a18", color: "#fff" }}
               onMouseDown={(e) => { e.preventDefault(); save(); }}
             >
@@ -1902,7 +1902,7 @@ function NoteCompensationFields({
           </div>
         ) : (
           <div
-            className="rounded-[6px] px-3 py-2 cursor-text"
+            className="px-3 py-2 cursor-text"
             style={{ border: "0.5px solid rgba(26,26,24,0.12)", background: "#f5f5f3", minHeight: "36px" }}
             onClick={() => { setDraft(value != null ? String(value / 1_000_000) : ""); setEditing(true); }}
           >
@@ -1938,7 +1938,7 @@ function NoteCompensationFields({
           <div>
             <p className="text-[11px] font-medium mb-1.5" style={{ color: "#5f5e5a" }}>Current total</p>
             <div
-              className="rounded-[6px] px-3 py-2"
+              className="px-3 py-2"
               style={{ border: "0.5px solid rgba(26,26,24,0.08)", background: "#f5f5f3", minHeight: "36px" }}
             >
               <span className="text-[13px]" style={{ color: c.current_total != null ? "#1a1a18" : "#b8b7b2" }}>
@@ -1978,11 +1978,11 @@ function NoteCompensationFields({
               onBlur={saveNotes}
               rows={3}
               placeholder="Current/expected comp context, bonus structure details, equity, strong base preference…"
-              className="w-full text-[13px] leading-relaxed rounded-[6px] px-3 py-2 resize-none"
+              className="w-full text-[13px] leading-relaxed px-3 py-2 resize-none"
               style={{ border: "0.5px solid rgba(26,26,24,0.20)", background: "#fafaf9", color: "#1a1a18", outline: "none" }}
             />
             <button
-              className="absolute bottom-2 right-2 flex items-center gap-1 rounded px-2 py-1 text-[11px] font-medium"
+              className="absolute bottom-2 right-2 flex items-center gap-1  px-2 py-1 text-[11px] font-medium"
               style={{ background: "#1a1a18", color: "#fff" }}
               onMouseDown={(e) => { e.preventDefault(); saveNotes(); }}
             >
@@ -1991,7 +1991,7 @@ function NoteCompensationFields({
           </div>
         ) : (
           <div
-            className="rounded-[6px] px-3 py-2 cursor-text"
+            className="px-3 py-2 cursor-text"
             style={{ border: "0.5px solid rgba(26,26,24,0.12)", background: "#f5f5f3", minHeight: "36px" }}
             onClick={() => { setNotesDraft(c.comp_notes ?? ""); setEditingNotes(true); }}
           >
@@ -2284,7 +2284,7 @@ function ProcessPanel({
 
   return (
     <div
-      className="rounded-b-xl rounded-tr-xl p-5"
+      className="rounded-b-xl p-5"
       style={{
         background: "#ffffff",
         border: "0.5px solid rgba(26,26,24,0.12)",
@@ -2311,7 +2311,7 @@ function ProcessPanel({
             const newStage = e.target.value;
             if (newStage !== p.stage) stageChange.mutate({ process: p, newStage });
           }}
-          className="text-[11px] font-medium rounded px-2 py-0.5 outline-none cursor-pointer"
+          className="text-[11px] font-medium  px-2 py-0.5 outline-none cursor-pointer"
           style={{ border: "0.5px solid rgba(26,26,24,0.16)", color: "#1a1a18", background: "#f5f5f3" }}
         >
           {PIPELINE_STAGES.map((s) => (
@@ -3190,7 +3190,7 @@ function AddToProcessModal({
               {[1, 2, 3].map((i) => (
                 <div
                   key={i}
-                  className="h-12 rounded-[8px]"
+                  className="h-12"
                   style={{ background: "#f5f5f3" }}
                 />
               ))}
@@ -3218,7 +3218,7 @@ function AddToProcessModal({
                           key={r.id}
                           disabled={alreadyAdded || isSaving}
                           onClick={() => void handleAdd(r)}
-                          className="w-full text-left px-3 py-2.5 rounded-[8px] flex items-center justify-between gap-3 transition-colors"
+                          className="w-full text-left px-3 py-2.5 flex items-center justify-between gap-3 transition-colors"
                           style={{
                             background: alreadyAdded ? "#f5f5f3" : "#fff",
                             border: "0.5px solid rgba(26,26,24,0.12)",
@@ -3250,7 +3250,7 @@ function AddToProcessModal({
                           </div>
                           {alreadyAdded ? (
                             <span
-                              className="text-[11px] font-medium px-2 py-0.5 rounded shrink-0"
+                              className="text-[11px] font-medium px-2 py-0.5  shrink-0"
                               style={{ background: "#eaf3de", color: "#27500a" }}
                             >
                               Added
@@ -3413,7 +3413,7 @@ function CandidateTimelineTab({
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <span
-                      className="text-[11px] font-medium capitalize px-[6px] py-[2px] rounded"
+                      className="text-[11px] font-medium capitalize px-[6px] py-[2px] "
                       style={{ background: colors.bg, color: colors.color }}
                     >
                       {type}
@@ -3422,17 +3422,17 @@ function CandidateTimelineTab({
                       {formatDate(i.interacted_at)}
                     </span>
                     {i.clients && (
-                      <span className="text-[11px] px-[6px] py-[2px] rounded" style={{ background: "#e6f1fb", color: "#185fa5" }}>
+                      <span className="text-[11px] px-[6px] py-[2px] " style={{ background: "#e6f1fb", color: "#185fa5" }}>
                         {i.clients.company_name}
                       </span>
                     )}
                     {i.client_contacts && (
-                      <span className="text-[11px] px-[6px] py-[2px] rounded" style={{ background: "#f5f5f3", color: "#5f5e5a" }}>
+                      <span className="text-[11px] px-[6px] py-[2px] " style={{ background: "#f5f5f3", color: "#5f5e5a" }}>
                         with {i.client_contacts.name}
                       </span>
                     )}
                     {i.primary_party === "client" && (
-                      <span className="text-[11px] px-[6px] py-[2px] rounded" style={{ background: "#fdf3e7", color: "#633806" }}>
+                      <span className="text-[11px] px-[6px] py-[2px] " style={{ background: "#fdf3e7", color: "#633806" }}>
                         spoke with client
                       </span>
                     )}
@@ -3877,7 +3877,7 @@ function StatusToggle({
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-medium"
+          className="flex items-center gap-1  px-2 py-0.5 text-[11px] font-medium"
           style={{ background: s.bg, color: s.color, border: `0.5px solid ${s.border}` }}
         >
           <span className="capitalize">{current}</span>
@@ -3999,12 +3999,12 @@ function RegistrationFormUploadZone({
           <button
             onClick={handleView}
             disabled={fetchingUrl}
-            className="text-[11px] px-2 py-0.5 rounded shrink-0"
+            className="text-[11px] px-2 py-0.5  shrink-0"
             style={{ background: "#e6f1fb", color: "#185fa5", border: "0.5px solid rgba(24,95,165,0.3)" }}
           >
             {fetchingUrl ? "Opening…" : "View / Download"}
           </button>
-          <span className="text-[11px] px-2 py-0.5 rounded shrink-0" style={{ background: "#eaf3de", color: "#27500a" }}>
+          <span className="text-[11px] px-2 py-0.5  shrink-0" style={{ background: "#eaf3de", color: "#27500a" }}>
             On file
           </span>
         </>
@@ -4220,7 +4220,7 @@ function LogActivityPanel({
                   <button
                     key={party}
                     onClick={() => setPrimaryParty(party)}
-                    className="text-[12px] px-3 py-1.5 rounded-[6px]"
+                    className="text-[12px] px-3 py-1.5"
                     style={{
                       background: primaryParty === party ? "#e6f1fb" : "#f5f5f3",
                       color: primaryParty === party ? "#185fa5" : "#5f5e5a",
@@ -4373,7 +4373,7 @@ function CandidateProfileSection({
                   </span>
                   <span className="flex-1">{m.motivation_text}</span>
                   {m.motivation_type && (
-                    <span className="text-[11px] px-2 py-0.5 rounded" style={{ background: "#e6f1fb", color: "#185fa5" }}>
+                    <span className="text-[11px] px-2 py-0.5 " style={{ background: "#e6f1fb", color: "#185fa5" }}>
                       {m.motivation_type.replace(/_/g, " ")}
                     </span>
                   )}
@@ -4439,12 +4439,12 @@ function CandidateProfileSection({
                   <div className="flex items-center gap-2">
                     {ci.source && <span style={{ color: "#5f5e5a", fontSize: 12 }}>{ci.source}</span>}
                     {ci.stage && (
-                      <span className="text-[11px] px-2 py-0.5 rounded" style={{ background: "#f5f5f3", color: "#5f5e5a" }}>
+                      <span className="text-[11px] px-2 py-0.5 " style={{ background: "#f5f5f3", color: "#5f5e5a" }}>
                         {ci.stage}
                       </span>
                     )}
                     <button
-                      className="text-[11px] px-2 py-0.5 rounded"
+                      className="text-[11px] px-2 py-0.5 "
                       style={{ background: ci.is_active ? "#eaf3de" : "#f5f5f3", color: ci.is_active ? "#27500a" : "#888780", border: "0.5px solid rgba(26,26,24,0.12)" }}
                       onClick={() => {
                         void supabase.from("competing_interviews").update({ is_active: !ci.is_active }).eq("id", ci.id).then(() => {

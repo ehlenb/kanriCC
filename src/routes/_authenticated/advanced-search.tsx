@@ -504,7 +504,7 @@ function LanguageDropdown({
   return (
     <div className="mb-2">
       <button
-        className="flex w-full items-center justify-between rounded px-2 py-1.5 text-[12px] transition-colors"
+        className="flex w-full items-center justify-between  px-2 py-1.5 text-[12px] transition-colors"
         style={{ background: "rgba(26,26,24,0.06)", color: "#1a1a18" }}
         onClick={() => setOpen((v) => !v)}
       >
@@ -522,7 +522,7 @@ function LanguageDropdown({
         </div>
       </button>
       {open && (
-        <div className="mt-1 rounded border overflow-hidden" style={{ borderColor: "rgba(26,26,24,0.12)", background: "#fff" }}>
+        <div className="mt-1  border overflow-hidden" style={{ borderColor: "rgba(26,26,24,0.12)", background: "#fff" }}>
           {LANGUAGE_LEVELS.map((lvl) => (
             <button
               key={lvl}
@@ -558,7 +558,7 @@ function FilterInput({
 }) {
   return (
     <input
-      className="w-full rounded px-2 py-1.5 text-[12px] outline-none"
+      className="w-full  px-2 py-1.5 text-[12px] outline-none"
       style={{ background: "rgba(26,26,24,0.06)", color: "#1a1a18", border: "none" }}
       placeholder={placeholder}
       value={value}
@@ -606,7 +606,7 @@ function LeftFilterPanel({
 
       <FilterLabel>Status</FilterLabel>
       <select
-        className="w-full rounded px-2 py-1.5 text-[12px]"
+        className="w-full  px-2 py-1.5 text-[12px]"
         style={{ background: "rgba(26,26,24,0.06)", color: "#1a1a18", border: "none" }}
         value={filters.status}
         onChange={(e) => set({ status: e.target.value })}
@@ -617,7 +617,7 @@ function LeftFilterPanel({
 
       <FilterLabel>Last touch</FilterLabel>
       <select
-        className="w-full rounded px-2 py-1.5 text-[12px]"
+        className="w-full  px-2 py-1.5 text-[12px]"
         style={{ background: "rgba(26,26,24,0.06)", color: "#1a1a18", border: "none" }}
         value={filters.last_touch}
         onChange={(e) => set({ last_touch: e.target.value })}
@@ -642,7 +642,7 @@ function LeftFilterPanel({
       <div className="flex gap-1.5">
         <input
           type="number"
-          className="w-full rounded px-2 py-1.5 text-[12px]"
+          className="w-full  px-2 py-1.5 text-[12px]"
           style={{ background: "rgba(26,26,24,0.06)", color: "#1a1a18", border: "none" }}
           placeholder="Min"
           min={18}
@@ -652,7 +652,7 @@ function LeftFilterPanel({
         />
         <input
           type="number"
-          className="w-full rounded px-2 py-1.5 text-[12px]"
+          className="w-full  px-2 py-1.5 text-[12px]"
           style={{ background: "rgba(26,26,24,0.06)", color: "#1a1a18", border: "none" }}
           placeholder="Max"
           min={18}
@@ -667,7 +667,7 @@ function LeftFilterPanel({
       <div className="flex gap-1.5">
         <input
           type="number"
-          className="w-full rounded px-2 py-1.5 text-[12px]"
+          className="w-full  px-2 py-1.5 text-[12px]"
           style={{ background: "rgba(26,26,24,0.06)", color: "#1a1a18", border: "none" }}
           placeholder="Min ¥M"
           min={0}
@@ -676,7 +676,7 @@ function LeftFilterPanel({
         />
         <input
           type="number"
-          className="w-full rounded px-2 py-1.5 text-[12px]"
+          className="w-full  px-2 py-1.5 text-[12px]"
           style={{ background: "rgba(26,26,24,0.06)", color: "#1a1a18", border: "none" }}
           placeholder="Max ¥M"
           min={0}
@@ -688,7 +688,7 @@ function LeftFilterPanel({
       {/* Location */}
       <FilterLabel>Preferred location</FilterLabel>
       <select
-        className="w-full rounded px-2 py-1.5 text-[12px]"
+        className="w-full  px-2 py-1.5 text-[12px]"
         style={{ background: "rgba(26,26,24,0.06)", color: "#1a1a18", border: "none" }}
         value={filters.location}
         onChange={(e) => set({ location: e.target.value })}
@@ -717,7 +717,7 @@ function LeftFilterPanel({
       </div>
       <div className="flex gap-1">
         <input
-          className="flex-1 min-w-0 rounded px-2 py-1.5 text-[12px]"
+          className="flex-1 min-w-0  px-2 py-1.5 text-[12px]"
           style={{ background: "rgba(26,26,24,0.06)", color: "#1a1a18", border: "none" }}
           placeholder="Add keyword…"
           value={keywordInput}
@@ -1094,12 +1094,12 @@ function CandidateDrawer({
             <p className="text-[11px] font-medium uppercase tracking-[0.04em] mb-1" style={{ color: "#5f5e5a" }}>Languages</p>
             <div className="flex gap-2 flex-wrap">
               {candidate.japanese_level && (
-                <span className="text-[12px] rounded px-2 py-0.5" style={{ background: "#f5f5f3" }}>
+                <span className="text-[12px]  px-2 py-0.5" style={{ background: "#f5f5f3" }}>
                   JA: {candidate.japanese_level}
                 </span>
               )}
               {candidate.english_level && (
-                <span className="text-[12px] rounded px-2 py-0.5" style={{ background: "#f5f5f3" }}>
+                <span className="text-[12px]  px-2 py-0.5" style={{ background: "#f5f5f3" }}>
                   EN: {candidate.english_level}
                 </span>
               )}
@@ -1203,7 +1203,7 @@ function RightPanel({
 
         <div className="space-y-2">
           <select
-            className="w-full rounded px-2 py-1.5 text-[12px]"
+            className="w-full  px-2 py-1.5 text-[12px]"
             style={{ background: "rgba(26,26,24,0.06)", color: "#1a1a18", border: "none" }}
             value={selectedClientId}
             onChange={(e) => onClientChange(e.target.value)}
@@ -1213,7 +1213,7 @@ function RightPanel({
           </select>
 
           <select
-            className="w-full rounded px-2 py-1.5 text-[12px]"
+            className="w-full  px-2 py-1.5 text-[12px]"
             style={{ background: "rgba(26,26,24,0.06)", color: selectedReqId ? "#1a1a18" : "#888780", border: "none" }}
             value={selectedReqId}
             onChange={(e) => onReqChange(e.target.value)}
@@ -1394,7 +1394,7 @@ function SaveListModal({
             <label className="text-[12px] font-medium block mb-1" style={{ color: "#5f5e5a" }}>List name</label>
             <input
               autoFocus
-              className="w-full rounded px-3 py-2 text-[13px] outline-none"
+              className="w-full  px-3 py-2 text-[13px] outline-none"
               style={{ background: "#f5f5f3", border: "0.5px solid rgba(26,26,24,0.2)", color: "#1a1a18" }}
               placeholder="e.g. Senior Java — Tokyo Q3"
               value={name}

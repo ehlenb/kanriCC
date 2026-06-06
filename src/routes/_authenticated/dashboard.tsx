@@ -747,7 +747,7 @@ function AgendaRow({
                   value={snoozeDate}
                   min={minSnooze}
                   onChange={(e) => setSnoozeDate(e.target.value)}
-                  className="w-full text-[12px] rounded px-2 py-1 outline-none mb-2"
+                  className="w-full text-[12px]  px-2 py-1 outline-none mb-2"
                   style={{ border: "0.5px solid rgba(26,26,24,0.2)", color: "#1a1a18" }}
                 />
                 <button
@@ -792,7 +792,7 @@ function ActivityRow({ item }: { item: RecentInteraction }) {
       style={{ borderBottom: "0.5px solid rgba(26,26,24,0.08)" }}
     >
       <span
-        className="text-[11px] font-medium px-2 py-0.5 rounded mt-0.5 shrink-0"
+        className="text-[11px] font-medium px-2 py-0.5  mt-0.5 shrink-0"
         style={{ background: "#f5f5f3", color: "#5f5e5a" }}
       >
         {typeLabel}

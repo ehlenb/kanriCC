@@ -205,7 +205,7 @@ function JobDetail() {
             <h1 className="text-xl font-medium font-display">{r.title}</h1>
             {r.urgency && r.urgency !== "normal" && (
               <span
-                className="text-[11px] font-medium px-2 py-0.5 rounded"
+                className="text-[11px] font-medium px-2 py-0.5 "
                 style={{ background: urgency.bg, color: urgency.color }}
               >
                 {r.urgency.charAt(0).toUpperCase() + r.urgency.slice(1)}
@@ -213,7 +213,7 @@ function JobDetail() {
             )}
             {!r.is_open && (
               <span
-                className="text-[11px] font-medium px-2 py-0.5 rounded"
+                className="text-[11px] font-medium px-2 py-0.5 "
                 style={{ background: "#f5f5f3", color: "#888780" }}
               >
                 Closed
@@ -335,7 +335,7 @@ function JdViewer({
         <iframe
           src={signedUrl.data}
           title="Job description"
-          className="w-full rounded"
+          className="w-full "
           style={{ height: 480, border: "0.5px solid rgba(26,26,24,0.12)" }}
         />
       ) : jdText && !jdText.startsWith("[PDF") ? (
@@ -489,7 +489,7 @@ function ConditionsCard({
               {mustHave.map((c) => (
                 <span
                   key={c.id}
-                  className="flex items-center gap-1 rounded px-2 py-1 text-[12px]"
+                  className="flex items-center gap-1  px-2 py-1 text-[12px]"
                   style={{
                     borderLeft: "3px solid #27500a",
                     background: "#eaf3de",
@@ -499,7 +499,7 @@ function ConditionsCard({
                   {c.condition_text}
                   <button
                     onClick={() => deleteMutation.mutate(c.id)}
-                    className="ml-0.5 rounded hover:opacity-70"
+                    className="ml-0.5  hover:opacity-70"
                     title="Remove"
                   >
                     <IconX size={10} />
@@ -510,7 +510,7 @@ function ConditionsCard({
 
             <div className="flex gap-1">
               <input
-                className="flex-1 min-w-0 rounded px-2 py-1 text-[12px] outline-none"
+                className="flex-1 min-w-0  px-2 py-1 text-[12px] outline-none"
                 style={{ background: "#f5f5f3", border: "0.5px solid rgba(26,26,24,0.12)", color: "#1a1a18" }}
                 placeholder="Add criterion…"
                 value={mustInput}
@@ -541,7 +541,7 @@ function ConditionsCard({
               {flexible.map((c) => (
                 <span
                   key={c.id}
-                  className="flex items-center gap-1 rounded px-2 py-1 text-[12px]"
+                  className="flex items-center gap-1  px-2 py-1 text-[12px]"
                   style={{
                     borderLeft: "3px solid #ef9f27",
                     background: "#fdf3e7",
@@ -551,7 +551,7 @@ function ConditionsCard({
                   {c.condition_text}
                   <button
                     onClick={() => deleteMutation.mutate(c.id)}
-                    className="ml-0.5 rounded hover:opacity-70"
+                    className="ml-0.5  hover:opacity-70"
                     title="Remove"
                   >
                     <IconX size={10} />
@@ -562,7 +562,7 @@ function ConditionsCard({
 
             <div className="flex gap-1">
               <input
-                className="flex-1 min-w-0 rounded px-2 py-1 text-[12px] outline-none"
+                className="flex-1 min-w-0  px-2 py-1 text-[12px] outline-none"
                 style={{ background: "#f5f5f3", border: "0.5px solid rgba(26,26,24,0.12)", color: "#1a1a18" }}
                 placeholder="Add criterion…"
                 value={flexInput}
@@ -810,7 +810,7 @@ function MatchCandidatesPanel({
                   <span className="text-[13px] font-medium">{m.candidate_name}</span>
                   {m.is_salary_stretch && (
                     <span
-                      className="flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded"
+                      className="flex items-center gap-1 text-[11px] px-1.5 py-0.5 "
                       style={{ background: "#fdf3e7", color: "#633806" }}
                     >
                       <IconAlertTriangle size={10} />
@@ -840,7 +840,7 @@ function MatchCandidatesPanel({
                   Spec
                 </button>
                 <button
-                  className="text-[12px] px-2 py-1 rounded"
+                  className="text-[12px] px-2 py-1 "
                   style={{ color: "#888780" }}
                   onClick={() => setSkipped((s) => new Set([...s, m.candidate_id]))}
                 >

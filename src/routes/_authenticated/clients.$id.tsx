@@ -665,7 +665,7 @@ function ClientDetail() {
         <span className="font-medium">{c.company_name}</span>
         {!c.is_active && (
           <span
-            className="ml-1 text-[11px] px-1.5 py-0.5 rounded"
+            className="ml-1 text-[11px] px-1.5 py-0.5 "
             style={{ background: "#f5f5f3", color: "#888780" }}
           >
             Inactive
@@ -684,7 +684,7 @@ function ClientDetail() {
               Client snapshot
             </span>
             <span
-              className="text-[11px] px-1.5 py-0.5 rounded"
+              className="text-[11px] px-1.5 py-0.5 "
               style={{ background: "var(--color-white)", border: "0.5px solid rgba(26,26,24,0.12)" }}
             >
               ✦ AI generated
@@ -1057,7 +1057,7 @@ function CompanyHeaderCard({
 
       {/* Completeness bar */}
       <div
-        className="flex items-center gap-2 rounded-[6px] px-3 py-2 mb-3"
+        className="flex items-center gap-2 px-3 py-2 mb-3"
         style={{ background: "#e6f1fb" }}
       >
         <IconFileText size={14} style={{ color: "#185fa5" }} />
@@ -1159,7 +1159,7 @@ function ClientStatusSelect({
       onChange={(e) => {
         if (e.target.value !== currentStatus) mutation.mutate(e.target.value);
       }}
-      className="text-[12px] font-medium rounded px-[7px] py-[2px] outline-none cursor-pointer"
+      className="text-[12px] font-medium  px-[7px] py-[2px] outline-none cursor-pointer"
       style={{ border: `0.5px solid ${s.borderColor ?? "rgba(26,26,24,0.12)"}`, ...s }}
     >
       <option value="prospect">Prospect</option>
@@ -1178,7 +1178,7 @@ function MetaPill({
 }) {
   return (
     <span
-      className="text-[12px] px-[7px] py-[2px] rounded"
+      className="text-[12px] px-[7px] py-[2px] "
       style={{
         background: "#f5f5f3",
         border: "0.5px solid rgba(26,26,24,0.12)",
@@ -1277,7 +1277,7 @@ function ContactsCard({
                 {/* Gatekeeper warning */}
                 {contact.role === "hr_gatekeeper" && contact.bypass_hr_warning && (
                   <div
-                    className="text-[12px] px-3 py-2 rounded-[6px] mb-1.5 leading-snug"
+                    className="text-[12px] px-3 py-2 mb-1.5 leading-snug"
                     style={{ background: "#faeeda", color: "#633806" }}
                   >
                     Do not send scheduling requests to the hiring manager directly — {contact.name} will notice and it creates friction.
@@ -1303,14 +1303,14 @@ function ContactsCard({
                         </span>
                       )}
                       <span
-                        className="text-[11px] font-medium px-[7px] py-[2px] rounded border"
+                        className="text-[11px] font-medium px-[7px] py-[2px]  border"
                         style={badge.style}
                       >
                         {badge.label}
                       </span>
                       {contact.is_primary && (
                         <span
-                          className="text-[11px] font-medium px-[7px] py-[2px] rounded border"
+                          className="text-[11px] font-medium px-[7px] py-[2px]  border"
                           style={{ background: "#faeeda", color: "#633806", borderColor: "#fac775" }}
                         >
                           Primary contact
@@ -1350,7 +1350,7 @@ function ContactsCard({
                         onBlur={() => void saveNote()}
                         rows={2}
                         placeholder="Add a note about this person's style, process approach, or how to manage them..."
-                        className="w-full mt-1 text-[12px] leading-[1.4] rounded-[6px] px-2 py-1 resize-none"
+                        className="w-full mt-1 text-[12px] leading-[1.4] px-2 py-1 resize-none"
                         style={{
                           border: "0.5px solid rgba(26,26,24,0.20)",
                           background: "#fafaf9",
@@ -1405,7 +1405,7 @@ function ContactsCard({
                           .filter((i) => i.contact_id === contact.id)
                           .slice(0, 3)
                           .map((i) => (
-                            <div key={i.id} className="flex items-start gap-2 rounded-[6px] px-2 py-1.5" style={{ background: "#f5f5f3" }}>
+                            <div key={i.id} className="flex items-start gap-2 px-2 py-1.5" style={{ background: "#f5f5f3" }}>
                               <span className="text-[11px] capitalize font-medium mt-0.5" style={{ color: "#888780", minWidth: 36 }}>{i.interaction_type}</span>
                               <div className="flex-1 min-w-0">
                                 {i.summary && <p className="text-[12px] truncate">{i.summary}</p>}
@@ -1484,7 +1484,7 @@ function RelationshipDots({
               <button
                 key={i}
                 onClick={() => handleSelect(i)}
-                className="flex items-center gap-3 w-full px-3 py-2 rounded-[6px] text-left transition-colors"
+                className="flex items-center gap-3 w-full px-3 py-2 text-left transition-colors"
                 style={{
                   background: score === i ? "#e6f1fb" : "#f5f5f3",
                   border: score === i ? "0.5px solid #b5d4f4" : "0.5px solid transparent",
@@ -1533,7 +1533,7 @@ function OpenRequisitionsCard({
           <div className="flex items-center gap-2">
             <SL>Open jobs</SL>
             {reqs.length > 0 && (
-              <span className="text-[11px] px-1.5 py-0.5 rounded -mt-2" style={{ background: "#eaf3de", color: "#27500a" }}>
+              <span className="text-[11px] px-1.5 py-0.5  -mt-2" style={{ background: "#eaf3de", color: "#27500a" }}>
                 {reqs.length}
               </span>
             )}
@@ -1660,7 +1660,7 @@ function PipelineBadge({
 }) {
   return (
     <span
-      className="text-[11px] font-medium px-[7px] py-[2px] rounded"
+      className="text-[11px] font-medium px-[7px] py-[2px] "
       style={{ border: "0.5px solid rgba(26,26,24,0.12)", ...style }}
     >
       {children}
@@ -1750,7 +1750,7 @@ function RecommendedActionsPanel({
                   {item.body}
                 </p>
                 <button
-                  className="text-[11px] font-medium px-[9px] py-[4px] rounded flex items-center gap-1"
+                  className="text-[11px] font-medium px-[9px] py-[4px]  flex items-center gap-1"
                   style={{
                     background: s.btnBg,
                     color: s.btnColor,
@@ -1801,7 +1801,7 @@ function QuickActionsCard({
         <button
           onClick={onMeetingPrep}
           disabled={draftLoading}
-          className="flex items-center gap-2 w-full text-left text-[13px] px-3 py-2 rounded-[6px]"
+          className="flex items-center gap-2 w-full text-left text-[13px] px-3 py-2"
           style={{ ...btnBase, opacity: draftLoading ? 0.6 : 1 }}
           onMouseEnter={(e) => { if (!draftLoading) e.currentTarget.style.background = "#f5f5f3"; }}
           onMouseLeave={(e) => { e.currentTarget.style.background = "#fff"; }}
@@ -1813,7 +1813,7 @@ function QuickActionsCard({
         <div className="relative">
           <button
             onClick={() => setShowEventMenu((v) => !v)}
-            className="flex items-center gap-2 w-full text-left text-[13px] px-3 py-2 rounded-[6px]"
+            className="flex items-center gap-2 w-full text-left text-[13px] px-3 py-2"
             style={{ ...btnBase, background: showEventMenu ? "#f5f5f3" : "#fff" }}
           >
             <IconPhone size={14} style={{ color: "#5f5e5a" }} />
@@ -1903,7 +1903,7 @@ function JapanMarketContextCard({ client: c, clientId }: { client: ClientRecord;
           return (
             <div
               key={field}
-              className="rounded-[6px] px-2.5 py-2"
+              className="px-2.5 py-2"
               style={{
                 background: isEditing ? "#f5f5f3" : "transparent",
                 border: isEditing ? "0.5px solid rgba(26,26,24,0.15)" : "0.5px solid transparent",
@@ -1913,7 +1913,7 @@ function JapanMarketContextCard({ client: c, clientId }: { client: ClientRecord;
                 <span className="text-[11px]" style={{ color: "#888780" }}>{label}</span>
                 {!isEditing && (
                   <button
-                    className="text-[10px] px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="text-[10px] px-1.5 py-0.5  opacity-0 group-hover:opacity-100 transition-opacity"
                     style={{ color: "#888780" }}
                     onClick={() => startEdit(field, rawValue)}
                   >
@@ -1937,7 +1937,7 @@ function JapanMarketContextCard({ client: c, clientId }: { client: ClientRecord;
                     style={{ color: "#1a1a18" }}
                   />
                   <button
-                    className="text-[11px] px-2 py-0.5 rounded shrink-0"
+                    className="text-[11px] px-2 py-0.5  shrink-0"
                     style={{ background: "#1a1a18", color: "#fff" }}
                     onMouseDown={(e) => { e.preventDefault(); void saveField(field); }}
                   >
@@ -1960,7 +1960,7 @@ function JapanMarketContextCard({ client: c, clientId }: { client: ClientRecord;
                     {displayValue || "Not set"}
                   </span>
                   <button
-                    className="text-[10px] px-1.5 py-0.5 rounded shrink-0"
+                    className="text-[10px] px-1.5 py-0.5  shrink-0"
                     style={{ color: "#888780", opacity: 0.6 }}
                     onClick={() => startEdit(field, rawValue)}
                     title="Edit"
@@ -2832,7 +2832,7 @@ function ClientTimelineTab({ interactions }: { interactions: Interaction[] }) {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
                   <span
-                    className="text-[11px] font-medium capitalize px-[6px] py-[2px] rounded"
+                    className="text-[11px] font-medium capitalize px-[6px] py-[2px] "
                     style={{ background: colors.bg, color: colors.color }}
                   >
                     {type}
@@ -2841,17 +2841,17 @@ function ClientTimelineTab({ interactions }: { interactions: Interaction[] }) {
                     {formatInteractionDate(item.interacted_at)}
                   </span>
                   {item.client_contacts && (
-                    <span className="text-[11px] px-[6px] py-[2px] rounded" style={{ background: "#f5f5f3", color: "#5f5e5a" }}>
+                    <span className="text-[11px] px-[6px] py-[2px] " style={{ background: "#f5f5f3", color: "#5f5e5a" }}>
                       with {item.client_contacts.name}
                     </span>
                   )}
                   {item.candidates && (
-                    <span className="text-[11px] px-[6px] py-[2px] rounded" style={{ background: "#e6f1fb", color: "#185fa5" }}>
+                    <span className="text-[11px] px-[6px] py-[2px] " style={{ background: "#e6f1fb", color: "#185fa5" }}>
                       re: {item.candidates.full_name}
                     </span>
                   )}
                   {item.primary_party === "candidate" && (
-                    <span className="text-[11px] px-[6px] py-[2px] rounded" style={{ background: "#eaf3de", color: "#27500a" }}>
+                    <span className="text-[11px] px-[6px] py-[2px] " style={{ background: "#eaf3de", color: "#27500a" }}>
                       spoke with candidate
                     </span>
                   )}
@@ -2949,7 +2949,7 @@ function EditableContractTab({ client: c, clientId }: { client: ClientRecord; cl
           </p>
         </div>
         {c.contract_signed && (
-          <span className="text-[11px] px-[7px] py-[2px] rounded" style={{ background: "#eaf3de", color: "#27500a", border: "0.5px solid #c0dd97" }}>
+          <span className="text-[11px] px-[7px] py-[2px] " style={{ background: "#eaf3de", color: "#27500a", border: "0.5px solid #c0dd97" }}>
             Signed
           </span>
         )}

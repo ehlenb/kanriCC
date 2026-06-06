@@ -259,7 +259,7 @@ function JobRow({ job: j }: { job: Job }) {
           <div className="flex items-center gap-2 flex-wrap mb-1">
             <span className="text-[14px] font-medium">{j.title}</span>
             <span
-              className="text-[11px] px-[7px] py-[2px] rounded font-medium"
+              className="text-[11px] px-[7px] py-[2px]  font-medium"
               style={{ background: urgency.bg, color: urgency.color }}
             >
               {urgency.label}
@@ -365,7 +365,7 @@ function PipelinePill({
 }) {
   return (
     <span
-      className="text-[11px] font-medium px-[7px] py-[2px] rounded"
+      className="text-[11px] font-medium px-[7px] py-[2px] "
       style={{
         background: bg,
         color,

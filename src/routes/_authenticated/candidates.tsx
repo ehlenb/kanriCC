@@ -529,7 +529,7 @@ function TouchPill({ iso }: { iso: string | null }) {
 
   return (
     <span
-      className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium"
+      className="shrink-0  px-1.5 py-0.5 text-[10px] font-medium"
       style={styles}
     >
       {relativeTime(iso)}
