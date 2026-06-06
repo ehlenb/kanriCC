@@ -49,8 +49,10 @@ Return a JSON object with exactly these fields (use null for any field not found
   "current_title": string | null,
   "current_company": string | null,
   "age": number | null,
+  "date_of_birth": string | null,
   "email": string | null,
   "phone": string | null,
+  "address": string | null,
   "linkedinUrl": string | null,
   "japanese_level": "Native" | "Fluent" | "High Business" | "Business" | "Low Business" | "High Conversational" | "Conversational" | "Low Conversational" | "Basic" | "None" | null,
   "english_level": "Native" | "Fluent" | "High Business" | "Business" | "Low Business" | "High Conversational" | "Conversational" | "Low Conversational" | "Basic" | "None" | null,
@@ -75,6 +77,8 @@ Return a JSON object with exactly these fields (use null for any field not found
 
 Notes:
 - email: candidate's personal email if present (not the company email).
+- date_of_birth: in "YYYY-MM-DD" format if stated. Null if not found.
+- address: residential address as written on the document. Null if not found.
 - linkedinUrl: full LinkedIn profile URL if present.
 - additionalLanguages: any languages beyond Japanese and English, with level (e.g. "Korean: Business, Mandarin: Conversational"). Null if none.
 - noticePeriodMonths: notice period as integer months if stated. Use notice_period_months for the same value.

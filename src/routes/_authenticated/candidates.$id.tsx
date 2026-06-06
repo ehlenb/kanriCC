@@ -3509,8 +3509,10 @@ type ExtractedCandidate = {
   current_title: string | null;
   current_company: string | null;
   age: number | null;
+  date_of_birth: string | null;
   email: string | null;
   phone: string | null;
+  address: string | null;
   linkedinUrl: string | null;
   japanese_level: string | null;
   english_level: string | null;
@@ -3731,8 +3733,10 @@ const FIELD_SPECS: Array<FieldSpec & { dbKey: string }> = [
   { label: "Current title",        dbKey: "current_title",       get: (e) => e.current_title },
   { label: "Current company",      dbKey: "current_company",     get: (e) => e.current_company },
   { label: "Age",                  dbKey: "age",                 get: (e) => e.age },
+  { label: "Date of birth",        dbKey: "date_of_birth",       get: (e) => e.date_of_birth },
   { label: "Email",                dbKey: "email",               get: (e) => e.email },
   { label: "Phone",                dbKey: "phone",               get: (e) => e.phone },
+  { label: "Address",              dbKey: "address",             get: (e) => e.address },
   { label: "LinkedIn",             dbKey: "linkedin_url",        get: (e) => e.linkedinUrl },
   { label: "Japanese level",       dbKey: "japanese_level",      get: (e) => e.japanese_level },
   { label: "English level",        dbKey: "english_level",       get: (e) => e.english_level },
@@ -3782,7 +3786,8 @@ function ExtractionReviewModal({
     try {
       type CandidatePatch = {
         full_name?: string; full_name_japanese?: string; current_title?: string;
-        current_company?: string; age?: number; email?: string; phone?: string;
+        current_company?: string; age?: number; date_of_birth?: string;
+        email?: string; phone?: string; address?: string;
         linkedin_url?: string; japanese_level?: string; english_level?: string;
         additional_languages?: string; notice_period_months?: number;
         current_base?: number; current_total?: number;
