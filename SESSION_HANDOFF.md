@@ -1,6 +1,6 @@
 # Kanri — Session Handoff Document
 
-> Generated: 1 June 2026
+> Generated: 5 June 2026
 > Build status: **passing** (TypeScript clean, all migrations applied)
 
 ---
@@ -13,55 +13,46 @@ Kanri is an AI-native recruiter intelligence platform and CRM for boutique agenc
 
 **Target users:** Boutique and mid-sized agency recruiting firms. Initial focus: Japan bilingual and gaishikei recruitment. Reference companies: Torch (Vincere ATS, 4 consultants), Robert Walters Japan, Hays.
 
-**Current status:** Candidate page fully revised. Next session is the client page revision.
+**Current status:** Candidate page fully revised (sessions 3 + 4). Next session is the client page revision.
 
 ---
 
-## What Was Completed This Session (3rd session, 1 June 2026)
+## What Was Completed This Session (4th session, 5 June 2026)
 
-### Candidate Page — Full Revision
+### Candidate Page — Notes Tab Redesign
 
-#### Tab reorder
-- Default tab changed to Timeline
-- Order: **Timeline → Candidate notes → Candidate intelligence → Registration**
+Replaced the TipTap HTML template editor with a structured inline form. Each section is a card with click-to-edit field boxes that save on blur.
 
-#### Timeline tab
-- "Log activity" inline form: type (call/email/meeting/job spec sent/linkedin message/other), date, summary, notes, optional linked client
-- Linked client makes the activity appear on the client's timeline too (`client_id` set on the interaction)
-- All 6 interaction types have distinct icons and colours
-- "Paste transcript" still available alongside Log activity
+**Sections (in order):**
+- **Current employment** — Company (`current_company`), Title (`current_title`)
+- **Interview notes** — Large textarea (10 rows) → new `notes_interview` column
+- **Notice period & urgency** — Number input for months + urgency select (Low/Medium/High)
+- **Language assessment** — Japanese select, English select, other languages text
+- **Compensation** — Current base, current bonus, current total, expected min/max (all ¥M inline, saves raw yen)
+- **Recruiter assessment** — Presentation & communication only (`notes_presentation`)
 
-#### Candidate notes tab
-- Removed the 5 autosave NoteSection cards (Presentation, Personality, Pitch, Closing, Internal)
-- Now renders `notes_template` HTML inline as a readable document (click to edit)
-- Empty state guides recruiter to template or upload
-- **Note template** button: full TipTap rich-text editor, pre-populates from all candidate DB data, 2s debounce autosave, Export to Word (.docx)
-- **Upload notes** button: accepts PDF (Claude reads natively), Word (.docx via mammoth), plain text/paste — AI distributes content into the correct template sections
+Removed from notes tab: Candidate Background section (name/age/address/email/phone/LinkedIn), Work History (renamed and converted to free-form Interview Notes), bonus preference, base priority flag, equity, pitch to clients, closing intelligence, personality & working style.
 
-#### Candidate intelligence tab
-- Compensation card: Edit button opens dialog (inputs in ¥M, stores raw yen ×1,000,000); "Sync from notes" button calls `/api/ai/extract-compensation` to parse salary from `notes_template`
-- Collapsible "Candidate profile data" section: status/source, language, job history, motivations, blockers, competing interviews — all editable
+### Registration Tab — Contact Fields Added
 
-#### Registration tab
-- Stripped to: Registration form upload (PDF), CV upload (PDF + AI extraction), Candidate details card
-- Candidate details: Full name (English), Full name (Japanese), Date of birth (date picker → auto-calculates and saves `age`)
-- Removed: address, email, phone, LinkedIn (these live in the note template document instead)
+Added Email, Phone, Address, LinkedIn below Date of birth in the "Candidate details" card. All inline-editable via existing `RegistrationField` component. Labelled as auto-populated from registration form.
 
-#### Candidate profile header
-- Third line added: current salary + expected salary range (only renders when values are non-null)
+### Compensation Card & Edit Dialog — Trimmed
 
-### Migrations Applied
-- **014** — `candidates.address`, `candidates.notes_template`
-- **015** — `candidates.date_of_birth`
+`CompensationCard` (Intelligence tab): removed base priority warning row.
+`EditCompensationDialog`: reduced to 5 fields only — current base, current bonus, current total, expected min, expected max. Removed: base minimum, base is priority checkbox, bonus preference, equity/RSU, notice period.
 
-### Packages Installed
-- `@tiptap/react`, `@tiptap/pm`, `@tiptap/starter-kit`, `@tiptap/extension-underline` — rich text editor
-- `docx` — browser-side Word export
-- `mammoth` — server-side Word (.docx) text extraction
+### Bug Fix — Log Activity Failing
 
-### New AI Endpoints
-- `api/ai/apply-candidate-notes.ts` — distributes raw notes into template sections (text/PDF/Word)
-- `api/ai/extract-compensation.ts` — reads `notes_template`, extracts salary in ¥M, saves raw yen to DB
+`interactions` table CHECK constraint only allowed `'call','email','meeting','note'` but the UI offered `'job spec sent'`, `'linkedin message'`, `'other'`. Any of those three caused a silent DB error. Migration 016 expands the constraint.
+
+### Migration Applied
+- **016** — `candidates.notes_interview` column + expanded `interactions.interaction_type` CHECK constraint
+
+### Dead Code Removed
+- `NoteTemplateModal` (TipTap editor modal) — deleted
+- `UploadNotesDialog` (AI-distribute notes modal) — deleted
+- All associated TipTap/docx imports cleaned up
 
 ---
 
@@ -104,24 +95,26 @@ src/
 ```
 CandidateProfile          — page shell, tab router
 CandidateTimelineTab      — feed + LogActivityPanel + TranscriptPanel
-NotesTab                  — rendered notes_template + NoteTemplateModal + UploadNotesDialog
-  NoteTemplateModal       — TipTap editor, autosave, docx export
-  UploadNotesDialog       — PDF/Word/text upload → AI distributes to template
+NotesTab                  — inline form (no modal)
+  NoteField               — reusable click-to-edit textarea component
+  NoticeUrgencyFields     — notice period number + urgency select
+  LanguageFields          — Japanese/English selects + other text
+  NoteCompensationFields  — ¥M inline fields for all 5 salary columns
 ProcessesPage             — process binder tabs + CompensationCard + CandidateProfileSection
-  CompensationCard        — read-only + Edit + Sync from notes
-  EditCompensationDialog  — all salary fields, inputs in ¥M
+  CompensationCard        — read-only (5 fields) + Edit + Sync from notes
+  EditCompensationDialog  — 5 salary fields, inputs in ¥M
   CandidateProfileSection — collapsible profile data cards
-RegistrationPage          — form upload + CV upload + DobField
+RegistrationPage          — form upload + CV upload + DobField + contact fields
   DobField                — date picker, auto-calculates age on save
-  RegistrationField       — inline-editable text field (supports numeric coercion)
+  RegistrationField       — inline-editable text field
 ```
 
 ### Backend Structure
 ```
 api/
   ai/
-    apply-candidate-notes.ts   # Distributes raw notes into template sections
-    extract-compensation.ts    # Parses salary from notes_template → saves raw yen
+    apply-candidate-notes.ts
+    extract-compensation.ts
     advanced-search.ts
     infer-status.ts
     daily-agenda.ts
@@ -160,6 +153,7 @@ api/
 013_candidate_lists.sql
 014_candidate_registration_fields.sql   # address, notes_template
 015_candidate_dob.sql                   # date_of_birth
+016_candidate_notes_interview.sql       # notes_interview + expanded interactions constraint
 ```
 
 ### Key Salary Convention
