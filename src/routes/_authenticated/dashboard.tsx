@@ -21,7 +21,6 @@ import {
   IconGripVertical,
   IconBellOff,
   IconCheck,
-  IconChevronDown,
   IconLock,
   IconWorld,
 } from "@tabler/icons-react";
@@ -139,6 +138,22 @@ function useDailyAgenda(recruiterId: string) {
   });
 }
 
+function useActiveCandidateCount(recruiterId: string) {
+  return useQuery({
+    queryKey: ["active-candidate-count", recruiterId],
+    staleTime: 30_000,
+    retry: 1,
+    queryFn: async (): Promise<number> => {
+      const { count } = await supabase
+        .from("candidates")
+        .select("id", { count: "exact", head: true })
+        .eq("recruiter_id", recruiterId)
+        .eq("candidate_status", "active");
+      return count ?? 0;
+    },
+  });
+}
+
 function usePipelineData(recruiterId: string) {
   return useQuery({
     queryKey: ["pipeline-detail", recruiterId],
@@ -231,6 +246,32 @@ const KPI_CONFIG: {
   { key: "placements",   label: "Placements",      period: "quarter", tone: "success" },
 ];
 
+type StageKey = "sourced" | "screen" | "client" | "offer" | "placed";
+
+const STAGE_CONFIG: { key: StageKey; label: string }[] = [
+  { key: "sourced", label: "Sourced" },
+  { key: "screen",  label: "Screen" },
+  { key: "client",  label: "Client" },
+  { key: "offer",   label: "Offer" },
+  { key: "placed",  label: "Placed" },
+];
+
+function bucketStage(stage: string): StageKey {
+  if (stage === "Placed") return "placed";
+  if (stage === "Offer") return "offer";
+  if (/^CCM\d+$/.test(stage) || stage === "Buy-In") return "client";
+  if (stage === "Screen" || stage === "Screening") return "screen";
+  return "sourced";
+}
+
+function countByStage(processes: ProcessDetail[]): Record<StageKey, ProcessDetail[]> {
+  const result: Record<StageKey, ProcessDetail[]> = {
+    sourced: [], screen: [], client: [], offer: [], placed: [],
+  };
+  for (const p of processes) result[bucketStage(p.stage)].push(p);
+  return result;
+}
+
 function filterByKpi(processes: ProcessDetail[], key: PipelineKpiType): ProcessDetail[] {
   const weekStart = getWeekStart();
   const quarterStart = getQuarterStart();
@@ -258,9 +299,10 @@ function Dashboard() {
   const agenda = useDailyAgenda(recruiterId);
   const pipelineQ = usePipelineData(recruiterId);
   const activity = useRecentActivity(recruiterId);
+  const activeCandidateCount = useActiveCandidateCount(recruiterId);
 
   const [localItems, setLocalItems] = useState<AgendaItem[]>([]);
-  const [activeKpi, setActiveKpi] = useState<PipelineKpiType | null>(null);
+  const [activeStage, setActiveStage] = useState<StageKey | null>(null);
 
   useEffect(() => {
     if (agenda.data) {
@@ -288,6 +330,11 @@ function Dashboard() {
   }
 
   const allProcesses = pipelineQ.data ?? [];
+  const stageBuckets = countByStage(allProcesses);
+
+  const interviewCount = filterByKpi(allProcesses, "interviewing").length;
+  const offerCount     = filterByKpi(allProcesses, "offers").length;
+  const placedCount    = filterByKpi(allProcesses, "placements").length;
 
   return (
     <div className="px-8 py-7 max-w-6xl space-y-4">
@@ -299,42 +346,78 @@ function Dashboard() {
         </p>
       </div>
 
-      {/* Pipeline — clickable KPI chips + inline detail */}
-      <div className=" p-4" style={{ background: "var(--color-ink-10)", border: "0.5px solid var(--color-border-subtle)" }}>
-        <p className="sl mb-3">Pipeline</p>
-
-        {pipelineQ.isLoading ? (
-          <div className="grid grid-cols-5 gap-2">
-            {[0, 1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-16 w-full " />)}
+      {/* Metric strip */}
+      <div className="grid grid-cols-4" style={{ border: "0.5px solid var(--color-ink-15)" }}>
+        {[
+          { value: activeCandidateCount.data ?? "—", label: "Active", color: "var(--color-ink)" },
+          { value: interviewCount,                    label: "Interviews", color: "var(--color-indigo)" },
+          { value: offerCount,                        label: "Offers", color: "var(--color-gold)" },
+          { value: placedCount,                       label: "Placed QTR", color: "var(--color-moss)" },
+        ].map((stat, i) => (
+          <div
+            key={i}
+            className="flex flex-col px-5 py-4"
+            style={{ borderRight: i < 3 ? "0.5px solid var(--color-ink-15)" : "none" }}
+          >
+            <span className="text-3xl font-display font-semibold leading-none" style={{ color: stat.color }}>
+              {pipelineQ.isLoading && i > 0 ? "—" : stat.value}
+            </span>
+            <span className="mt-1.5 font-mono text-[10px] tracking-[0.1em] uppercase" style={{ color: "var(--color-ink-30)" }}>
+              {stat.label}
+            </span>
           </div>
-        ) : (
-          <div className="grid grid-cols-5 gap-2">
-            {KPI_CONFIG.map((cfg) => {
-              const items = filterByKpi(allProcesses, cfg.key);
-              const isActive = activeKpi === cfg.key;
-              return (
-                <KpiChip
-                  key={cfg.key}
-                  label={cfg.label}
-                  count={items.length}
-                  period={cfg.period}
-                  tone={cfg.tone}
-                  active={isActive}
-                  onClick={() => setActiveKpi(isActive ? null : cfg.key)}
-                />
-              );
-            })}
+        ))}
+      </div>
+
+      {/* Pipeline stages bar */}
+      <div style={{ border: "0.5px solid var(--color-ink-15)" }}>
+        <div className="flex">
+          {STAGE_CONFIG.map((cfg, i) => {
+            const isActive = activeStage === cfg.key;
+            const count = stageBuckets[cfg.key].length;
+            return (
+              <button
+                key={cfg.key}
+                onClick={() => setActiveStage(isActive ? null : cfg.key)}
+                className="flex flex-1 flex-col items-center py-4 transition-colors"
+                style={{
+                  background: isActive ? "var(--color-ink)" : "var(--color-white)",
+                  borderRight: i < 4 ? "0.5px solid var(--color-ink-15)" : "none",
+                  outline: "none",
+                }}
+              >
+                <span
+                  className="font-mono text-[10px] tracking-[0.1em] uppercase mb-2"
+                  style={{ color: isActive ? "rgba(255,255,255,0.5)" : "var(--color-ink-30)" }}
+                >
+                  {cfg.label}
+                </span>
+                <span
+                  className="text-2xl font-display font-semibold leading-none"
+                  style={{ color: isActive ? "var(--color-white)" : "var(--color-ink)" }}
+                >
+                  {pipelineQ.isLoading ? "—" : count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {activeStage && !pipelineQ.isLoading && stageBuckets[activeStage].length > 0 && (
+          <div style={{ borderTop: "0.5px solid var(--color-ink-15)" }}>
+            <PipelineDetailPanel
+              kpiKey={activeStage === "client" ? "interviewing" : activeStage === "offer" ? "offers" : activeStage === "placed" ? "placements" : "cvs"}
+              items={stageBuckets[activeStage]}
+              onNavigate={(candidateId) =>
+                void navigate({ to: "/candidates/$id", params: { id: candidateId }, search: BLANK_CANDIDATE_SEARCH })
+              }
+            />
           </div>
         )}
-
-        {activeKpi && !pipelineQ.isLoading && (
-          <PipelineDetailPanel
-            kpiKey={activeKpi}
-            items={filterByKpi(allProcesses, activeKpi)}
-            onNavigate={(candidateId) =>
-              void navigate({ to: "/candidates/$id", params: { id: candidateId }, search: BLANK_CANDIDATE_SEARCH })
-            }
-          />
+        {activeStage && !pipelineQ.isLoading && stageBuckets[activeStage].length === 0 && (
+          <div className="px-5 py-4" style={{ borderTop: "0.5px solid var(--color-ink-15)" }}>
+            <p className="text-[13px]" style={{ color: "var(--color-ink-30)" }}>No processes at this stage.</p>
+          </div>
         )}
       </div>
 
@@ -399,66 +482,6 @@ function Dashboard() {
 }
 
 // ─── KPI chip ─────────────────────────────────────────────────────────────────
-
-function KpiChip({
-  label,
-  count,
-  period,
-  tone,
-  active,
-  onClick,
-}: {
-  label: string;
-  count: number;
-  period: "week" | "quarter";
-  tone?: "info" | "gold" | "success";
-  active: boolean;
-  onClick: () => void;
-}) {
-  const numColor =
-    tone === "info"    ? "var(--color-indigo)"
-    : tone === "gold"    ? "#a16207"
-    : tone === "success" ? "var(--color-moss)"
-    : "var(--color-ink)";
-
-  const activeBg =
-    tone === "info"    ? "var(--color-indigo-light)"
-    : tone === "gold"    ? "var(--color-gold-light)"
-    : tone === "success" ? "var(--color-moss-light)"
-    : "var(--color-ink-10)";
-
-  return (
-    <button
-      onClick={onClick}
-      className="flex flex-col items-start  p-3 text-left transition-all"
-      style={{
-        background: active ? activeBg : "var(--color-white)",
-        border: active ? `1px solid ${numColor}30` : "0.5px solid var(--color-ink-15)",
-        outline: "none",
-      }}
-    >
-      <div className="flex w-full items-center justify-between mb-1">
-        <span className="text-2xl font-semibold leading-none font-display" style={{ color: numColor }}>
-          {count}
-        </span>
-        <IconChevronDown
-          size={13}
-          style={{
-            color: "var(--color-ink-30)",
-            transform: active ? "rotate(180deg)" : "rotate(0deg)",
-            transition: "transform 150ms",
-          }}
-        />
-      </div>
-      <span className="text-[12px] font-medium leading-tight" style={{ color: "var(--color-ink)" }}>
-        {label}
-      </span>
-      <span className="text-[11px] mt-0.5" style={{ color: "var(--color-ink-30)" }}>
-        {period === "week" ? "this week" : "this quarter"}
-      </span>
-    </button>
-  );
-}
 
 // ─── pipeline detail panel ────────────────────────────────────────────────────
 
