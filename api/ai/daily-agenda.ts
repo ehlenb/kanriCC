@@ -32,12 +32,11 @@ function hoursSince(isoDate: string | null): number {
   return (Date.now() - new Date(isoDate).getTime()) / 3600000;
 }
 
-// Higher CCM number = closer to offer = higher urgency = lower priority_rank value
+// Higher CCM = closer to offer = lower rank number = shown first
 function ccmPriorityRank(stage: string): number {
   const n = parseInt(stage.replace("CCM", ""), 10);
   if (isNaN(n)) return 30;
-  // CCM1 → rank 25, CCM2 → rank 20, CCM3 → rank 15, CCM4+ → rank 12
-  return Math.max(12, 30 - n * 5);
+  return Math.max(12, 30 - n * 5); // CCM1→25, CCM2→20, CCM3→15, CCM4+→12
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -46,38 +45,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { recruiter_id } = req.body as { recruiter_id: string };
   if (!recruiter_id) return res.status(400).json({ error: "recruiter_id is required" });
 
-  const now = new Date().toISOString();
   const twentyFourHoursAgo = new Date(Date.now() - 24 * 3600000).toISOString();
 
   const [
     { data: processes },
-    { data: placedCandidates },
-    { data: openClients },
     { data: newRequisitions },
+    { data: openClients },
   ] = await Promise.all([
+    // All active processes owned by this recruiter
     supabase
       .from("processes")
       .select(
-        "id, stage, last_activity_at, cv_sent_at, offer_date, buy_in_confirmed_at, candidate_id, requisition_id, candidates ( full_name, last_interaction_at ), requisitions ( title, is_open, clients ( company_name ) )",
+        "id, stage, last_activity_at, cv_sent_at, offer_date, buy_in_confirmed_at, not_interested_at, start_date, candidate_id, requisition_id, candidates ( full_name, full_name_japanese, last_interaction_at ), requisitions ( title, is_open, clients ( company_name ) )",
       )
       .eq("owner_recruiter_id", recruiter_id)
-      .not("stage", "in", '("Closed lost","Placed")'),
-    supabase
-      .from("candidates")
-      .select("id, full_name, placement_guarantee_until, last_interaction_at")
-      .eq("recruiter_id", recruiter_id)
-      .eq("candidate_status", "placed")
-      .gt("placement_guarantee_until", now),
-    supabase
-      .from("clients")
-      .select("id, company_name")
-      .eq("recruiter_id", recruiter_id),
+      .not("stage", "in", '("Closed lost")'),
+
+    // New job specs in the last 24h
     supabase
       .from("requisitions")
       .select("id, title, created_at, clients ( company_name )")
       .eq("owner_recruiter_id", recruiter_id)
       .eq("is_open", true)
       .gte("created_at", twentyFourHoursAgo),
+
+    // All clients with open reqs (for staleness check)
+    supabase
+      .from("clients")
+      .select("id, company_name")
+      .eq("recruiter_id", recruiter_id),
   ]);
 
   type AgendaItem = {
@@ -92,25 +88,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const flagged: AgendaItem[] = [];
 
-  // ── 1. New requisitions < 24h — act before competitors do ────────────────────
-  for (const req of newRequisitions ?? []) {
-    const r = req as {
-      id: string;
-      title: string;
-      created_at: string;
-      clients: { company_name: string } | null;
-    };
-    const hrs = hoursSince(r.created_at);
-    flagged.push({
-      entity_type: "requisition",
-      entity_id: r.id,
-      entity_name: `${r.clients?.company_name ?? "Client"} — ${r.title}`,
-      priority_rank: 5, // high but just below active offer-stage candidates
-      flag_reason: `New job spec received ${Math.round(hrs)}h ago. Speed is critical — start sourcing and job speccing candidates now before competing agencies do.`,
-    });
-  }
-
-  // ── 2. Active pipeline processes ─────────────────────────────────────────────
+  // ── PRIORITY 1: Offer stage ───────────────────────────────────────────────────
+  // Any candidate at Offer — highest urgency, candidates compare offers quickly
   for (const proc of processes ?? []) {
     const p = proc as {
       id: string;
@@ -119,54 +98,269 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       cv_sent_at: string | null;
       offer_date: string | null;
       buy_in_confirmed_at: string | null;
+      not_interested_at: string | null;
+      start_date: string | null;
       candidate_id: string;
       requisition_id: string;
-      candidates: { full_name: string; last_interaction_at: string | null } | null;
+      candidates: { full_name: string; full_name_japanese: string | null; last_interaction_at: string | null } | null;
       requisitions: { title: string; is_open: boolean; clients: { company_name: string } | null } | null;
     };
 
+    if (p.stage !== "Offer") continue;
     if (!p.requisitions?.is_open) continue;
+
     const name = p.candidates?.full_name ?? "Unknown";
     const clientName = p.requisitions?.clients?.company_name ?? "";
     const roleTitle = p.requisitions?.title ?? "";
     const ds = daysSince(p.last_activity_at ?? p.candidates?.last_interaction_at ?? null);
-    const bds = p.last_activity_at ? businessDaysSince(p.last_activity_at) : 99;
     const context = clientName ? ` for ${clientName}${roleTitle ? ` — ${roleTitle}` : ""}` : "";
 
-    if (p.stage === "Offer") {
-      flagged.push({
-        entity_type: "candidate",
-        entity_id: p.candidate_id,
-        entity_name: name,
-        process_id: p.id,
-        stage: p.stage,
-        priority_rank: 1, // always top
-        flag_reason: `Offer stage${context}. ${ds >= 2 ? `${ds} days since last activity — candidate may be comparing offers.` : "Active offer — keep the momentum and close."}`,
-      });
-    } else if (/^CCM\d+$/.test(p.stage)) {
+    flagged.push({
+      entity_type: "candidate",
+      entity_id: p.candidate_id,
+      entity_name: name,
+      process_id: p.id,
+      stage: p.stage,
+      priority_rank: 1,
+      flag_reason: `Offer stage${context}. ${ds >= 2 ? `${ds} days since last activity — candidate may be weighing other offers.` : "Active offer — maintain momentum and close."}`,
+    });
+  }
+
+  // ── PRIORITY 2: Final interview feedback pending (CCM + call/meeting logged + no follow-up 24h) ──
+  // Check interactions for each CCM process to see if feedback follow-up is overdue
+  const ccmProcesses = (processes ?? []).filter((proc) => {
+    const p = proc as { stage: string; requisitions: { is_open: boolean } | null };
+    return /^CCM\d+$/.test(p.stage) && p.requisitions?.is_open;
+  });
+
+  if (ccmProcesses.length > 0) {
+    const ccmProcessIds = ccmProcesses.map((p) => (p as { id: string }).id);
+
+    // Get the most recent interaction per process to check for pending feedback
+    const { data: ccmInteractions } = await supabase
+      .from("interactions")
+      .select("process_id, interaction_type, interacted_at, primary_party")
+      .in("process_id", ccmProcessIds)
+      .in("interaction_type", ["call", "meeting", "interview scheduled"])
+      .order("interacted_at", { ascending: false });
+
+    const lastInterviewInteractionByProcess = new Map<string, { interacted_at: string; primary_party: string | null }>();
+    for (const row of (ccmInteractions ?? []) as { process_id: string | null; interaction_type: string; interacted_at: string; primary_party: string | null }[]) {
+      if (row.process_id && !lastInterviewInteractionByProcess.has(row.process_id)) {
+        lastInterviewInteractionByProcess.set(row.process_id, {
+          interacted_at: row.interacted_at,
+          primary_party: row.primary_party,
+        });
+      }
+    }
+
+    for (const proc of ccmProcesses) {
+      const p = proc as {
+        id: string;
+        stage: string;
+        last_activity_at: string | null;
+        candidate_id: string;
+        candidates: { full_name: string; last_interaction_at: string | null } | null;
+        requisitions: { title: string; is_open: boolean; clients: { company_name: string } | null } | null;
+      };
+
+      const name = p.candidates?.full_name ?? "Unknown";
+      const clientName = p.requisitions?.clients?.company_name ?? "";
+      const roleTitle = p.requisitions?.title ?? "";
+      const context = clientName ? ` for ${clientName}${roleTitle ? ` — ${roleTitle}` : ""}` : "";
       const rank = ccmPriorityRank(p.stage);
-      flagged.push({
-        entity_type: "candidate",
-        entity_id: p.candidate_id,
-        entity_name: name,
-        process_id: p.id,
-        stage: p.stage,
-        priority_rank: rank,
-        flag_reason: `${p.stage}${context}. ${bds >= 5 ? `No activity in ${bds} business days — follow up on feedback urgently.` : "Actively interviewing — prepare candidate and check in."}`,
-      });
-    } else if (p.stage === "Buy-In" && !p.buy_in_confirmed_at && ds >= 7) {
-      flagged.push({
-        entity_type: "candidate",
-        entity_id: p.candidate_id,
-        entity_name: name,
-        process_id: p.id,
-        stage: p.stage,
-        priority_rank: 40,
-        flag_reason: `Buy-in not confirmed${context} — ${ds} days since last activity. Risk of losing candidate's consent.`,
-      });
-    } else if (p.stage === "CV Sent" && p.cv_sent_at && businessDaysSince(p.cv_sent_at) >= 5) {
-      const lastInbound = p.candidates?.last_interaction_at;
-      if (!lastInbound || new Date(lastInbound) < new Date(p.cv_sent_at)) {
+
+      const lastInteraction = lastInterviewInteractionByProcess.get(p.id);
+      const bds = p.last_activity_at ? businessDaysSince(p.last_activity_at) : 99;
+
+      // Feedback pending: interview was logged but no follow-up call/email in 24h
+      if (lastInteraction && hoursSince(lastInteraction.interacted_at) >= 24) {
+        const hoursAgo = Math.round(hoursSince(lastInteraction.interacted_at));
+        const party = lastInteraction.primary_party === "client" ? "client" : "candidate";
+        flagged.push({
+          entity_type: "candidate",
+          entity_id: p.candidate_id,
+          entity_name: name,
+          process_id: p.id,
+          stage: p.stage,
+          priority_rank: rank,
+          flag_reason: `${p.stage}${context}. Interview with ${party} logged ${hoursAgo}h ago — feedback not yet followed up. Get feedback from both sides before it goes cold.`,
+        });
+      } else if (!lastInteraction && bds >= 3) {
+        // No interview interaction logged at all but process is stale
+        flagged.push({
+          entity_type: "candidate",
+          entity_id: p.candidate_id,
+          entity_name: name,
+          process_id: p.id,
+          stage: p.stage,
+          priority_rank: rank,
+          flag_reason: `${p.stage}${context}. No interview activity logged in ${bds} business days — follow up on the interview status urgently.`,
+        });
+      }
+    }
+  }
+
+  // ── PRIORITY 3: New job specs < 24h — speed is everything ──────────────────────
+  for (const req of newRequisitions ?? []) {
+    const r = req as {
+      id: string;
+      title: string;
+      created_at: string;
+      clients: { company_name: string } | null;
+    };
+    const hrs = Math.round(hoursSince(r.created_at));
+    flagged.push({
+      entity_type: "requisition",
+      entity_id: r.id,
+      entity_name: `${r.clients?.company_name ?? "Client"} — ${r.title}`,
+      priority_rank: 5,
+      flag_reason: `New job spec received ${hrs}h ago. Speed is critical — identify and spec matched active candidates before competing agencies do.`,
+    });
+  }
+
+  // ── PRIORITY 4: Buy-in confirmed, CV not yet sent ──────────────────────────────
+  for (const proc of processes ?? []) {
+    const p = proc as {
+      id: string;
+      stage: string;
+      cv_sent_at: string | null;
+      buy_in_confirmed_at: string | null;
+      not_interested_at: string | null;
+      candidate_id: string;
+      candidates: { full_name: string; last_interaction_at: string | null } | null;
+      requisitions: { title: string; is_open: boolean; clients: { company_name: string } | null } | null;
+    };
+
+    if (p.stage !== "Buy-In") continue;
+    if (!p.requisitions?.is_open) continue;
+    if (!p.buy_in_confirmed_at) continue; // buy-in not yet confirmed — handled in priority 6
+    if (p.cv_sent_at) continue; // CV already sent
+    if (p.not_interested_at) continue; // candidate declined
+
+    const name = p.candidates?.full_name ?? "Unknown";
+    const clientName = p.requisitions?.clients?.company_name ?? "";
+    const roleTitle = p.requisitions?.title ?? "";
+    const context = clientName ? ` for ${clientName}${roleTitle ? ` — ${roleTitle}` : ""}` : "";
+    const ds = daysSince(p.buy_in_confirmed_at);
+
+    flagged.push({
+      entity_type: "candidate",
+      entity_id: p.candidate_id,
+      entity_name: name,
+      process_id: p.id,
+      stage: p.stage,
+      priority_rank: 8,
+      flag_reason: `Buy-in confirmed${context} — CV not sent yet${ds >= 1 ? ` (${ds} days since buy-in)` : ""}. Send the CV or soft-reject the candidate for this role.`,
+    });
+  }
+
+  // ── PRIORITY 5: CV sent, no client response after 3 business days ──────────────
+  for (const proc of processes ?? []) {
+    const p = proc as {
+      id: string;
+      stage: string;
+      cv_sent_at: string | null;
+      candidate_id: string;
+      candidates: { full_name: string; last_interaction_at: string | null } | null;
+      requisitions: { title: string; is_open: boolean; clients: { company_name: string } | null } | null;
+    };
+
+    if (p.stage !== "CV Sent") continue;
+    if (!p.requisitions?.is_open) continue;
+    if (!p.cv_sent_at) continue;
+
+    const bds = businessDaysSince(p.cv_sent_at);
+    if (bds < 3) continue;
+
+    const name = p.candidates?.full_name ?? "Unknown";
+    const clientName = p.requisitions?.clients?.company_name ?? "";
+    const roleTitle = p.requisitions?.title ?? "";
+    const context = clientName ? ` to ${clientName}${roleTitle ? ` — ${roleTitle}` : ""}` : "";
+
+    flagged.push({
+      entity_type: "candidate",
+      entity_id: p.candidate_id,
+      entity_name: name,
+      process_id: p.id,
+      stage: p.stage,
+      priority_rank: 20,
+      flag_reason: `CV sent${context} — no client response in ${bds} business days. Chase the client for feedback.`,
+    });
+  }
+
+  // ── PRIORITY 6: Buy-in not confirmed, high-fit candidate (7+ days no activity) ─
+  for (const proc of processes ?? []) {
+    const p = proc as {
+      id: string;
+      stage: string;
+      last_activity_at: string | null;
+      buy_in_confirmed_at: string | null;
+      not_interested_at: string | null;
+      candidate_id: string;
+      candidates: { full_name: string; last_interaction_at: string | null } | null;
+      requisitions: { title: string; is_open: boolean; clients: { company_name: string } | null } | null;
+    };
+
+    if (p.stage !== "Buy-In") continue;
+    if (!p.requisitions?.is_open) continue;
+    if (p.buy_in_confirmed_at) continue; // already confirmed — covered in priority 4
+    if (p.not_interested_at) continue; // declined
+
+    const ds = daysSince(p.last_activity_at ?? p.candidates?.last_interaction_at ?? null);
+    if (ds < 7) continue;
+
+    const name = p.candidates?.full_name ?? "Unknown";
+    const clientName = p.requisitions?.clients?.company_name ?? "";
+    const roleTitle = p.requisitions?.title ?? "";
+    const context = clientName ? ` for ${clientName}${roleTitle ? ` — ${roleTitle}` : ""}` : "";
+
+    flagged.push({
+      entity_type: "candidate",
+      entity_id: p.candidate_id,
+      entity_name: name,
+      process_id: p.id,
+      stage: p.stage,
+      priority_rank: 40,
+      flag_reason: `Buy-in not confirmed${context} — ${ds} days since last activity. Re-engage to confirm consent before the window closes.`,
+    });
+  }
+
+  // ── PRIORITY 7: Placed candidates — guarantee cadence check ──────────────────
+  // Milestones: 2 weeks, 1 month, 3 months after start_date
+  for (const proc of processes ?? []) {
+    const p = proc as {
+      id: string;
+      stage: string;
+      start_date: string | null;
+      last_activity_at: string | null;
+      candidate_id: string;
+      candidates: { full_name: string; last_interaction_at: string | null } | null;
+      requisitions: { title: string; is_open: boolean; clients: { company_name: string } | null } | null;
+    };
+
+    if (p.stage !== "Placed") continue;
+    if (!p.start_date) continue;
+
+    const startMs = new Date(p.start_date).getTime();
+    const nowMs = Date.now();
+    const daysSinceStart = Math.floor((nowMs - startMs) / 86400000);
+    const lastTouch = daysSince(p.last_activity_at ?? p.candidates?.last_interaction_at ?? null);
+
+    // Check if we're past a cadence milestone and haven't checked in recently
+    const milestones = [
+      { days: 14, label: "2-week" },
+      { days: 30, label: "1-month" },
+      { days: 90, label: "3-month" },
+    ];
+
+    for (const milestone of milestones) {
+      if (daysSinceStart >= milestone.days && daysSinceStart < milestone.days + 14 && lastTouch >= 7) {
+        const name = p.candidates?.full_name ?? "Unknown";
+        const clientName = p.requisitions?.clients?.company_name ?? "";
+        const roleTitle = p.requisitions?.title ?? "";
+        const context = clientName ? ` at ${clientName}${roleTitle ? ` — ${roleTitle}` : ""}` : "";
+
         flagged.push({
           entity_type: "candidate",
           entity_id: p.candidate_id,
@@ -174,38 +368,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           process_id: p.id,
           stage: p.stage,
           priority_rank: 50,
-          flag_reason: `CV sent ${businessDaysSince(p.cv_sent_at)} business days ago to ${clientName || "client"} — no response yet. Chase the client.`,
+          flag_reason: `Placed${context} — ${milestone.label} check-in due. Started ${daysSinceStart} days ago. Last contact ${lastTouch} days ago. Check in to protect the placement guarantee.`,
         });
+        break; // Only flag once per process
       }
-    } else if (p.stage === "Specs Sent" && ds >= 5) {
-      flagged.push({
-        entity_type: "candidate",
-        entity_id: p.candidate_id,
-        entity_name: name,
-        process_id: p.id,
-        stage: p.stage,
-        priority_rank: 60,
-        flag_reason: `Specs sent ${ds} days ago${context} — follow up to confirm receipt and gauge interest.`,
-      });
     }
   }
 
-  // ── 3. Placed candidates in guarantee period ──────────────────────────────────
-  for (const cand of placedCandidates ?? []) {
-    const c = cand as { id: string; full_name: string; placement_guarantee_until: string; last_interaction_at: string | null };
-    const ds = daysSince(c.last_interaction_at);
-    if (ds >= 14) {
-      flagged.push({
-        entity_type: "candidate",
-        entity_id: c.id,
-        entity_name: c.full_name,
-        priority_rank: 35,
-        flag_reason: `Placed — guarantee period active. Last touch ${ds} days ago. Check in to protect the placement.`,
-      });
-    }
-  }
-
-  // ── 4. Clients with open reqs and no recent interaction ───────────────────────
+  // ── PRIORITY 8: Clients with open reqs and no interaction in 10+ business days ─
   const clientList = (openClients ?? []) as { id: string; company_name: string }[];
   if (clientList.length > 0) {
     const clientIds = clientList.map((cl) => cl.id);
@@ -220,28 +390,41 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!latestByClient.has(row.client_id)) latestByClient.set(row.client_id, row.interacted_at);
     }
 
+    // Check which clients actually have open reqs
+    const { data: openReqClients } = await supabase
+      .from("requisitions")
+      .select("client_id")
+      .eq("owner_recruiter_id", recruiter_id)
+      .eq("is_open", true);
+
+    const clientsWithOpenReqs = new Set(
+      (openReqClients ?? []).map((r) => (r as { client_id: string }).client_id),
+    );
+
     for (const cl of clientList) {
-      const ds = daysSince(latestByClient.get(cl.id) ?? null);
-      if (ds >= 14) {
-        flagged.push({
-          entity_type: "client",
-          entity_id: cl.id,
-          entity_name: cl.company_name,
-          priority_rank: 70,
-          flag_reason: `Open requisition — no client interaction in ${ds} days. Relationship may be going cold.`,
-        });
-      }
+      if (!clientsWithOpenReqs.has(cl.id)) continue;
+      const lastInteracted = latestByClient.get(cl.id) ?? null;
+      const bds = lastInteracted ? businessDaysSince(lastInteracted) : 999;
+      if (bds < 10) continue;
+
+      flagged.push({
+        entity_type: "client",
+        entity_id: cl.id,
+        entity_name: cl.company_name,
+        priority_rank: 70,
+        flag_reason: `Open requisition at ${cl.company_name} — no interaction in ${bds} business days. Relationship may be going cold; check in to show activity.`,
+      });
     }
   }
 
-  // Sort by priority_rank
+  // Sort by priority_rank (lowest = most urgent)
   flagged.sort((a, b) => a.priority_rank - b.priority_rank);
 
   if (flagged.length === 0) {
     return res.status(200).json({ agenda: [] });
   }
 
-  // ── AI ranking pass ────────────────────────────────────────────────────────────
+  // ── AI pass — enrich with specific next actions ────────────────────────────────
   const itemLines = flagged.slice(0, 25).map((item, i) =>
     `${i + 1}. [${item.entity_type.toUpperCase()}] ${item.entity_name}${item.stage ? ` — ${item.stage}` : ""}\n   Reason: ${item.flag_reason}`,
   ).join("\n\n");
@@ -254,16 +437,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 You will receive a list of pipeline items that need attention. Each has a flag reason.
 
 Your job: For each item, write a short, specific, direct action for the recruiter.
-- reason: one plain English sentence. Direct. No fluff. Says WHY it is urgent today specifically.
+- reason: one plain English sentence. Direct. No fluff. Says WHY it is urgent today.
 - suggested_action: one sentence. Concrete. What to do in the next hour.
 - action_type: open_briefing | draft_email | open_process | open_client | open_requisition
 
 Priority context:
-- Offer stage candidates always come first
-- New job specs under 24h are urgent — competing agencies have the same brief
-- Higher CCM round = closer to offer = more urgent
-- Stale processes (5+ business days no contact) need immediate follow-up
-- Speed in recruitment is everything. Be direct about the cost of delay.
+- Offer stage candidates always come first — every day of delay is a risk
+- Final interview feedback: get it from both candidate and client within 24h or the momentum is lost
+- New job specs under 24h: speed is the edge — competing agencies have the same brief
+- Buy-in confirmed, CV not sent: every day you wait is a day the candidate cools
+- CV sent with no client response at 3 business days: chase the client, not tomorrow
+- Buy-in not confirmed at 7 days: re-engage or close the process
+- Placed candidates at milestone check-ins: protecting the guarantee is protecting the fee
+- Stale client relationships: open reqs with no contact go cold fast in Japan
 
 Return valid JSON only. No markdown fences. No commentary.
 {
