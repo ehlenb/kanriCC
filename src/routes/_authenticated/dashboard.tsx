@@ -51,6 +51,7 @@ type AgendaItem = {
   suggested_action: string;
   action_type: string;
   priority_rank: number;
+  client_id?: string;
 };
 
 type MetricKey = "specs" | "cvs" | "interviewing" | "offers" | "placed";
@@ -560,8 +561,14 @@ function Dashboard() {
         onDone={handleDone}
         onSnooze={handleSnooze}
         onNavigate={(item) => {
-          if (item.entity_type === "candidate" || item.entity_type === "requisition") {
+          if (item.entity_type === "candidate") {
             void navigate({ to: "/candidates/$id", params: { id: item.entity_id }, search: BLANK_CANDIDATE_SEARCH });
+          } else if (item.entity_type === "requisition") {
+            if (item.client_id) {
+              void navigate({ to: "/clients/$id", params: { id: item.client_id } });
+            } else {
+              void navigate({ to: "/jobs" });
+            }
           } else {
             void navigate({ to: "/clients/$id", params: { id: item.entity_id } });
           }

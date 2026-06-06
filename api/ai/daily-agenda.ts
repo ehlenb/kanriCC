@@ -64,7 +64,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // New job specs in the last 24h
     supabase
       .from("requisitions")
-      .select("id, title, created_at, clients ( company_name )")
+      .select("id, title, created_at, client_id, clients ( company_name )")
       .eq("owner_recruiter_id", recruiter_id)
       .eq("is_open", true)
       .gte("created_at", twentyFourHoursAgo),
@@ -84,6 +84,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     stage?: string;
     priority_rank: number;
     flag_reason: string;
+    client_id?: string;
   };
 
   const flagged: AgendaItem[] = [];
@@ -207,6 +208,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       id: string;
       title: string;
       created_at: string;
+      client_id: string | null;
       clients: { company_name: string } | null;
     };
     const hrs = Math.round(hoursSince(r.created_at));
@@ -216,6 +218,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       entity_name: `${r.clients?.company_name ?? "Client"} — ${r.title}`,
       priority_rank: 5,
       flag_reason: `New job spec received ${hrs}h ago. Speed is critical — identify and spec matched active candidates before competing agencies do.`,
+      ...(r.client_id ? { client_id: r.client_id } : {}),
     });
   }
 
