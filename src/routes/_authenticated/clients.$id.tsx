@@ -503,7 +503,7 @@ function ClientDetail() {
   if (isLoading) {
     return (
       <div style={{ background: "#eeede8", minHeight: "100vh" }}>
-        <div className="h-12 bg-white" style={{ borderBottom: "0.5px solid rgba(26,26,24,0.12)" }} />
+        <div className="h-12 bg-[--color-white]" style={{ borderBottom: "0.5px solid rgba(26,26,24,0.12)" }} />
         <div className="px-6 pt-5 space-y-3 max-w-4xl">
           <Skeleton className="h-32 w-full " />
           <Skeleton className="h-48 w-full " />
@@ -651,7 +651,7 @@ function ClientDetail() {
       {/* Top bar */}
       <div
         className="flex items-center gap-2 h-12 px-6 text-[13px]"
-        style={{ background: "#fff", borderBottom: "0.5px solid rgba(26,26,24,0.12)" }}
+        style={{ background: "var(--color-white)", borderBottom: "0.5px solid rgba(26,26,24,0.12)" }}
       >
         <button
           onClick={() => navigate({ to: "/clients" })}
@@ -685,7 +685,7 @@ function ClientDetail() {
             </span>
             <span
               className="text-[11px] px-1.5 py-0.5 rounded"
-              style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.12)" }}
+              style={{ background: "var(--color-white)", border: "0.5px solid rgba(26,26,24,0.12)" }}
             >
               ✦ AI generated
             </span>
@@ -770,13 +770,7 @@ function ClientDetail() {
           <button
             key={key}
             onClick={() => setClientTab(key)}
-            className="px-4 py-2 text-[13px] transition-colors"
-            style={{
-              borderBottom: clientTab === key ? "2px solid #1a1a18" : "2px solid transparent",
-              color: clientTab === key ? "#1a1a18" : "#5f5e5a",
-              fontWeight: clientTab === key ? 500 : 400,
-              marginBottom: -1,
-            }}
+            className={`nav-tab text-[13px]${clientTab === key ? " active" : ""}`}
           >
             {label}
           </button>
@@ -929,7 +923,7 @@ function Card({ children, className = "" }: { children: React.ReactNode; classNa
   return (
     <div
       className={` p-[16px_18px] ${className}`}
-      style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.12)" }}
+      style={{ background: "var(--color-white)", border: "0.5px solid rgba(26,26,24,0.12)" }}
     >
       {children}
     </div>
@@ -1796,7 +1790,7 @@ function QuickActionsCard({
 
   const btnBase: React.CSSProperties = {
     border: "0.5px solid rgba(26,26,24,0.12)",
-    background: "#fff",
+    background: "var(--color-white)",
   };
 
   return (
@@ -1833,7 +1827,7 @@ function QuickActionsCard({
               className="absolute left-0 right-0 top-full mt-1  overflow-hidden z-10"
               style={{
                 border: "0.5px solid rgba(26,26,24,0.12)",
-                background: "#fff",
+                background: "var(--color-white)",
                 boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
               }}
             >
@@ -2285,7 +2279,7 @@ function JobsTab({
 
       {/* Add job inline form */}
       {showForm && (
-        <div className=" p-4 space-y-4" style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.12)" }}>
+        <div className=" p-4 space-y-4" style={{ background: "var(--color-white)", border: "0.5px solid rgba(26,26,24,0.12)" }}>
           {/* JD upload */}
           <div
             className=" px-4 py-3 flex items-center gap-3 cursor-pointer"
@@ -2366,7 +2360,7 @@ function JobsTab({
       )}
 
       {openReqs.length === 0 && !showForm && (
-        <div className=" px-5 py-12 text-center" style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.12)" }}>
+        <div className=" px-5 py-12 text-center" style={{ background: "var(--color-white)", border: "0.5px solid rgba(26,26,24,0.12)" }}>
           <p className="text-[13px] font-medium" style={{ color: "#1a1a18" }}>No open jobs.</p>
           <p className="text-[12px] mt-1" style={{ color: "#888780" }}>Upload a job description or fill in the form to add one.</p>
         </div>
@@ -2378,7 +2372,7 @@ function JobsTab({
         {closedReqs.length === 0 ? (
           <p className="text-[13px]" style={{ color: "#888780" }}>No closed jobs.</p>
         ) : (
-          <div className=" overflow-hidden" style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.12)" }}>
+          <div className=" overflow-hidden" style={{ background: "var(--color-white)", border: "0.5px solid rgba(26,26,24,0.12)" }}>
             {closedReqs.map((r) => (
               <div
                 key={r.id}
@@ -2727,7 +2721,7 @@ function ClientEnrichCard({ clientId, companyName }: { clientId: string; company
   ] : [];
 
   return (
-    <div className=" overflow-hidden" style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.12)" }}>
+    <div className=" overflow-hidden" style={{ background: "var(--color-white)", border: "0.5px solid rgba(26,26,24,0.12)" }}>
       <button className="w-full flex items-center gap-2 px-4 py-3 text-left" onClick={() => setExpanded((v) => !v)}>
         <IconSparkles size={13} style={{ color: "#888780" }} />
         <span className="flex-1 text-[12px]" style={{ color: "#5f5e5a" }}>Enrich company profile with web search</span>
@@ -2803,7 +2797,7 @@ function ClientTimelineTab({ interactions }: { interactions: Interaction[] }) {
     return (
       <div
         className=" px-5 py-12 text-center"
-        style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.12)" }}
+        style={{ background: "var(--color-white)", border: "0.5px solid rgba(26,26,24,0.12)" }}
       >
         <p className="text-[13px] font-medium" style={{ color: "#1a1a18" }}>No interactions logged yet.</p>
         <p className="text-[12px] mt-1" style={{ color: "#888780" }}>
@@ -2823,7 +2817,7 @@ function ClientTimelineTab({ interactions }: { interactions: Interaction[] }) {
           <div
             key={item.id}
             className=" p-[14px_18px]"
-            style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.12)" }}
+            style={{ background: "var(--color-white)", border: "0.5px solid rgba(26,26,24,0.12)" }}
           >
             <div className="flex items-start gap-3">
               {/* Icon */}
@@ -2964,7 +2958,7 @@ function EditableContractTab({ client: c, clientId }: { client: ClientRecord; cl
       </div>
 
       {/* Editable fields */}
-      <div className=" p-[18px_20px]" style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.12)" }}>
+      <div className=" p-[18px_20px]" style={{ background: "var(--color-white)", border: "0.5px solid rgba(26,26,24,0.12)" }}>
         <p className="sl mb-4">Contract details</p>
         <ContractFieldRow
           label="Placement fee %"
@@ -3117,7 +3111,7 @@ function ClientIntelligenceCard({
   }
 
   return (
-    <div className=" overflow-hidden" style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.12)" }}>
+    <div className=" overflow-hidden" style={{ background: "var(--color-white)", border: "0.5px solid rgba(26,26,24,0.12)" }}>
       <button className="w-full flex items-center gap-2 px-4 py-3 text-left" onClick={() => setExpanded((v) => !v)}>
         <IconSparkles size={13} style={{ color: "#888780" }} />
         <span className="flex-1 text-[12px] font-medium" style={{ color: "#5f5e5a" }}>Account intelligence</span>

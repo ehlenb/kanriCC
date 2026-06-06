@@ -368,13 +368,7 @@ function CandidateProfile() {
           <button
             key={key}
             onClick={() => setPage(key)}
-            className="px-4 py-2 text-[13px] transition-colors"
-            style={{
-              borderBottom: page === key ? "2px solid #1a1a18" : "2px solid transparent",
-              color: page === key ? "#1a1a18" : "#5f5e5a",
-              fontWeight: page === key ? 500 : 400,
-              marginBottom: -1,
-            }}
+            className={`nav-tab text-[13px]${page === key ? " active" : ""}`}
           >
             {label}
           </button>

@@ -42,7 +42,7 @@ function AuthedShell() {
   }
 
   return (
-    <div className="flex min-h-screen" style={{ background: "#eeede8" }}>
+    <div className="flex min-h-screen" style={{ background: "var(--color-ink-05)" }}>
       <Sidebar
         onSignOut={async () => {
           await signOut();
@@ -79,8 +79,8 @@ function Sidebar({
     <aside
       className="fixed inset-y-0 left-0 z-10 flex w-52 flex-col"
       style={{
-        background: "#f5f5f3",
-        borderRight: "0.5px solid rgba(26,26,24,0.12)",
+        background: "var(--color-white)",
+        borderRight: "1px solid var(--color-ink-15)",
       }}
     >
       {/* Logo */}
@@ -129,7 +129,7 @@ function Sidebar({
               onClick={() =>
                 navigate({ to: "/candidates", search: BLANK_CANDIDATE_SEARCH })
               }
-              className="ml-1 rounded p-0.5 transition-colors hover:bg-black/10"
+              className="ml-1 transition-colors hover:bg-black/10"
               title="Close Advanced Search"
             >
               <IconX size={12} />
