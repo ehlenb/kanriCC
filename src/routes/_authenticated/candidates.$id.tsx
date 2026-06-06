@@ -285,7 +285,7 @@ function CandidateProfile() {
 
   if (!data) {
     return (
-      <div className="p-8 text-sm" style={{ color: "#888780" }}>
+      <div className="p-8 text-sm" style={{ color: "var(--color-ink-30)" }}>
         Candidate not found.
       </div>
     );
@@ -301,7 +301,7 @@ function CandidateProfile() {
       <div className="flex items-center gap-3 mb-4">
         <div
           className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[14px] font-medium"
-          style={{ background: "#e6f1fb", color: "#185fa5" }}
+          style={{ background: "var(--color-indigo-light)", color: "var(--color-indigo)" }}
         >
           {initials(c.full_name)}
         </div>
@@ -309,12 +309,12 @@ function CandidateProfile() {
           <div className="text-[17px] font-medium font-display">
             {c.full_name}{" "}
             {c.full_name_japanese && (
-              <span className="text-[14px] font-normal" style={{ color: "#5f5e5a" }}>
+              <span className="text-[14px] font-normal" style={{ color: "var(--color-ink-60)" }}>
                 / {c.full_name_japanese}
               </span>
             )}
           </div>
-          <div className="text-[12px]" style={{ color: "#5f5e5a" }}>
+          <div className="text-[12px]" style={{ color: "var(--color-ink-60)" }}>
             {[c.current_title, c.current_company, c.age ? `Age ${c.age}` : null]
               .filter(Boolean)
               .join(" · ")}
@@ -322,15 +322,15 @@ function CandidateProfile() {
           {(c.current_total || c.expected_total_min || c.expected_total_max) && (
             <div className="flex items-center gap-2 mt-0.5 text-[12px]">
               {c.current_total && (
-                <span style={{ color: "#1a1a18" }}>
+                <span style={{ color: "var(--color-ink)" }}>
                   Current <strong>{formatYen(c.current_total)}</strong>
                 </span>
               )}
               {c.current_total && (c.expected_total_min || c.expected_total_max) && (
-                <span style={{ color: "#b8b7b2" }}>·</span>
+                <span style={{ color: "var(--color-ink-30)" }}>·</span>
               )}
               {(c.expected_total_min || c.expected_total_max) && (
-                <span style={{ color: "#1a1a18" }}>
+                <span style={{ color: "var(--color-ink)" }}>
                   Expecting{" "}
                   <strong>
                     {c.expected_total_min && c.expected_total_max
@@ -345,7 +345,7 @@ function CandidateProfile() {
         <div className="text-right text-[11px]">
           Last contact:{" "}
           <span
-            style={{ color: daysAgo > 14 ? "#a32d2d" : "#1a1a18", fontWeight: 500 }}
+            style={{ color: daysAgo > 14 ? "var(--color-danger)" : "var(--color-ink)", fontWeight: 500 }}
           >
             {lastContact}
           </span>
@@ -355,7 +355,7 @@ function CandidateProfile() {
       {/* Page tabs */}
       <div
         className="flex mb-4"
-        style={{ borderBottom: "0.5px solid rgba(26,26,24,0.12)" }}
+        style={{ borderBottom: "0.5px solid var(--color-ink-15)" }}
       >
         {(
           [
@@ -439,7 +439,7 @@ function RegistrationPage({
       <Card>
         <div className="flex items-center gap-1.5 mb-3">
           <SectionLabel className="mb-0">Candidate details</SectionLabel>
-          <span className="text-[11px] px-1.5 py-0.5 " style={{ background: "#e6f1fb", color: "#185fa5" }}>
+          <span className="text-[11px] px-1.5 py-0.5 " style={{ background: "var(--color-indigo-light)", color: "var(--color-indigo)" }}>
             auto-populated from form
           </span>
         </div>
@@ -452,7 +452,7 @@ function RegistrationPage({
           <RegistrationField label="Address" fieldKey="address" value={c.address} candidateId={candidateId} placeholder="Tokyo, Minato-ku" />
           <RegistrationField label="LinkedIn" fieldKey="linkedin_url" value={c.linkedin_url} candidateId={candidateId} placeholder="https://linkedin.com/in/…" />
         </div>
-        <p className="mt-3 text-[11px] flex items-center gap-1" style={{ color: "#888780" }}>
+        <p className="mt-3 text-[11px] flex items-center gap-1" style={{ color: "var(--color-ink-30)" }}>
           <IconInfoCircle size={12} />
           Click any field to edit. Age is calculated automatically from date of birth.
         </p>
@@ -499,7 +499,7 @@ function RegistrationField({
   if (editing) {
     return (
       <div className="flex items-center gap-3 py-1">
-        <span className="text-[12px] w-[150px] shrink-0" style={{ color: "#888780" }}>{label}</span>
+        <span className="text-[12px] w-[150px] shrink-0" style={{ color: "var(--color-ink-30)" }}>{label}</span>
         <Input
           type={inputType}
           value={draft}
@@ -522,14 +522,14 @@ function RegistrationField({
       className="flex items-center gap-3 py-1  cursor-pointer group"
       onClick={() => { setDraft(value ?? ""); setEditing(true); }}
     >
-      <span className="text-[12px] w-[150px] shrink-0" style={{ color: "#888780" }}>{label}</span>
+      <span className="text-[12px] w-[150px] shrink-0" style={{ color: "var(--color-ink-30)" }}>{label}</span>
       <span
         className="text-[13px] flex-1 px-1.5 py-0.5  group-hover:bg-[#f5f5f3] transition-colors"
-        style={{ color: value ? "#1a1a18" : "#b8b7b2" }}
+        style={{ color: value ? "var(--color-ink)" : "var(--color-ink-30)" }}
       >
         {value || "—"}
       </span>
-      <IconPencil size={11} className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0" style={{ color: "#b8b7b2" }} />
+      <IconPencil size={11} className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0" style={{ color: "var(--color-ink-30)" }} />
     </div>
   );
 }
@@ -576,7 +576,7 @@ function DobField({
   if (editing) {
     return (
       <div className="flex items-center gap-3 py-1">
-        <span className="text-[12px] w-[150px] shrink-0" style={{ color: "#888780" }}>Date of birth</span>
+        <span className="text-[12px] w-[150px] shrink-0" style={{ color: "var(--color-ink-30)" }}>Date of birth</span>
         <Input
           type="date"
           value={draft}
@@ -598,16 +598,16 @@ function DobField({
       className="flex items-center gap-3 py-1  cursor-pointer group"
       onClick={() => { setDraft(dateOfBirth ?? ""); setEditing(true); }}
     >
-      <span className="text-[12px] w-[150px] shrink-0" style={{ color: "#888780" }}>Date of birth</span>
+      <span className="text-[12px] w-[150px] shrink-0" style={{ color: "var(--color-ink-30)" }}>Date of birth</span>
       <span
         className="text-[13px] flex-1 px-1.5 py-0.5  group-hover:bg-[#f5f5f3] transition-colors"
-        style={{ color: displayDob ? "#1a1a18" : "#b8b7b2" }}
+        style={{ color: displayDob ? "var(--color-ink)" : "var(--color-ink-30)" }}
       >
         {displayDob
           ? `${displayDob}${age != null ? ` (Age ${age})` : ""}`
           : "—"}
       </span>
-      <IconPencil size={11} className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0" style={{ color: "#b8b7b2" }} />
+      <IconPencil size={11} className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0" style={{ color: "var(--color-ink-30)" }} />
     </div>
   );
 }
@@ -687,7 +687,7 @@ function AddMotivationDialog({
               className="min-h-[80px]"
             />
           </div>
-          <p className="text-[11px] flex items-center gap-1" style={{ color: "#888780" }}>
+          <p className="text-[11px] flex items-center gap-1" style={{ color: "var(--color-ink-30)" }}>
             <IconInfoCircle size={12} />
             AI will sequence positioning points using this order
           </p>
@@ -831,7 +831,7 @@ function AddRoleDialog({
           <div className="space-y-1.5">
             <Label>
               Why they left / want to leave{" "}
-              <span className="text-[11px] font-normal" style={{ color: "#a32d2d" }}>
+              <span className="text-[11px] font-normal" style={{ color: "var(--color-danger)" }}>
                 Internal only
               </span>
             </Label>
@@ -840,7 +840,7 @@ function AddRoleDialog({
               value={form.reason_for_leaving_raw}
               onChange={(e) => set("reason_for_leaving_raw", e.target.value)}
               className="min-h-[70px]"
-              style={{ background: form.reason_for_leaving_raw ? "#fcebeb" : undefined }}
+              style={{ background: form.reason_for_leaving_raw ? "var(--color-danger-bg)" : undefined }}
             />
           </div>
         </div>
@@ -1090,25 +1090,25 @@ function RoleBlock({ role, isLast }: { role: Role; isLast: boolean }) {
         className="absolute left-0 top-[6px] h-[9px] w-[9px] rounded-full border-[1.5px]"
         style={
           role.is_current
-            ? { background: "#eaf3de", borderColor: "rgba(39,80,10,0.25)" }
-            : { background: "#e6f1fb", borderColor: "rgba(24,95,165,0.3)" }
+            ? { background: "var(--color-moss-light)", borderColor: "rgba(39,80,10,0.25)" }
+            : { background: "var(--color-indigo-light)", borderColor: "rgba(24,95,165,0.3)" }
         }
       />
 
       {/* Content */}
       <div className="flex items-baseline justify-between mb-0.5">
         <span className="text-[14px] font-medium">{role.company_name}</span>
-        <span className="text-[12px]" style={{ color: "#5f5e5a" }}>
+        <span className="text-[12px]" style={{ color: "var(--color-ink-60)" }}>
           {startYear && endYear ? `${startYear} – ${endYear}` : ""}
           {durationYears ? ` · ${durationYears} year${durationYears !== 1 ? "s" : ""}` : ""}
         </span>
       </div>
-      <div className="text-[12px] mb-2" style={{ color: "#5f5e5a" }}>
+      <div className="text-[12px] mb-2" style={{ color: "var(--color-ink-60)" }}>
         {role.title}
         {role.is_current && (
           <span
             className="ml-2 text-[10px] px-1.5 py-0.5 "
-            style={{ background: "#eaf3de", color: "#27500a" }}
+            style={{ background: "var(--color-moss-light)", color: "var(--color-moss)" }}
           >
             Current
           </span>
@@ -1118,7 +1118,7 @@ function RoleBlock({ role, isLast }: { role: Role; isLast: boolean }) {
       {role.achievement_notes && (
         <div
           className=" p-2.5 text-[13px] leading-relaxed mb-2"
-          style={{ background: "#f5f5f3" }}
+          style={{ background: "var(--color-ink-10)" }}
         >
           {role.achievement_notes}
         </div>
@@ -1128,14 +1128,14 @@ function RoleBlock({ role, isLast }: { role: Role; isLast: boolean }) {
         <>
           <p className="sl mb-1">Why {role.is_current ? "they want to leave" : "they left"}</p>
           {role.is_current && (
-            <p className="text-[11px] mb-1" style={{ color: "#a32d2d" }}>
+            <p className="text-[11px] mb-1" style={{ color: "var(--color-danger)" }}>
               Internal — not for client use
             </p>
           )}
           <div
             className=" p-2.5 text-[13px] leading-relaxed"
             style={{
-              background: role.is_current ? "#fcebeb" : "#f5f5f3",
+              background: role.is_current ? "var(--color-danger-bg)" : "var(--color-ink-10)",
             }}
           >
             {role.reason_for_leaving_raw}
@@ -1199,9 +1199,9 @@ function NotesTab({
                 onClick={() => void saveSource(active ? null : opt.value)}
                 className="px-3 py-1.5 text-[12px] font-medium transition-colors"
                 style={{
-                  background: active ? "#1a1a18" : "#f5f5f3",
-                  color: active ? "#fff" : "#5f5e5a",
-                  border: `0.5px solid ${active ? "#1a1a18" : "rgba(26,26,24,0.12)"}`,
+                  background: active ? "var(--color-ink)" : "var(--color-ink-10)",
+                  color: active ? "var(--color-white)" : "var(--color-ink-60)",
+                  border: `0.5px solid ${active ? "var(--color-ink)" : "rgba(26,26,24,0.12)"}`,
                 }}
               >
                 {opt.label}
@@ -1371,19 +1371,19 @@ function InterviewNotesCard({
 
       {/* AI result preview — shown before accepting */}
       {aiResult && (
-        <div className="mb-3 p-3" style={{ background: "#e6f1fb", border: "0.5px solid #b5d4f4" }}>
+        <div className="mb-3 p-3" style={{ background: "var(--color-indigo-light)", border: "0.5px solid #b5d4f4" }}>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-medium" style={{ color: "#185fa5" }}>AI formatted — review before saving</span>
+            <span className="text-[11px] font-medium" style={{ color: "var(--color-indigo)" }}>AI formatted — review before saving</span>
             <div className="flex items-center gap-2">
               <button
                 className="text-[11px] font-medium px-2 py-0.5 "
-                style={{ background: "#185fa5", color: "#fff" }}
+                style={{ background: "var(--color-indigo)", color: "var(--color-white)" }}
                 onClick={acceptAi}
               >
                 Accept
               </button>
               <button onClick={() => setAiResult(null)}>
-                <IconX size={12} style={{ color: "#185fa5" }} />
+                <IconX size={12} style={{ color: "var(--color-indigo)" }} />
               </button>
             </div>
           </div>
@@ -1392,7 +1392,7 @@ function InterviewNotesCard({
             onChange={(e) => setAiResult(e.target.value)}
             rows={8}
             className="w-full text-[12px] leading-relaxed resize-none bg-transparent outline-none"
-            style={{ color: "#1a1a18" }}
+            style={{ color: "var(--color-ink)" }}
           />
         </div>
       )}
@@ -1408,11 +1408,11 @@ function InterviewNotesCard({
             rows={10}
             placeholder="Career history, transitions, achievements, background context from registration call…"
             className="w-full text-[13px] leading-relaxed px-3 py-2 resize-none"
-            style={{ border: "0.5px solid rgba(26,26,24,0.20)", background: "#fafaf9", color: "#1a1a18", outline: "none" }}
+            style={{ border: "0.5px solid var(--color-ink)", background: "var(--color-white)", color: "var(--color-ink)", outline: "none" }}
           />
           <button
             className="absolute bottom-2 right-2 flex items-center gap-1  px-2 py-1 text-[11px] font-medium"
-            style={{ background: "#1a1a18", color: "#fff" }}
+            style={{ background: "var(--color-ink)", color: "var(--color-white)" }}
             onMouseDown={(e) => { e.preventDefault(); handleBlur(); }}
           >
             <IconCheck size={10} /> Save
@@ -1421,13 +1421,13 @@ function InterviewNotesCard({
       ) : (
         <div
           className="px-3 py-2 cursor-text"
-          style={{ border: "0.5px solid rgba(26,26,24,0.12)", background: "#f5f5f3", minHeight: "130px" }}
+          style={{ border: "0.5px solid var(--color-ink-15)", background: "var(--color-ink-10)", minHeight: "130px" }}
           onClick={() => { setDraft(value ?? ""); setEditing(true); }}
         >
           {value ? (
-            <p className="text-[13px] leading-relaxed whitespace-pre-wrap" style={{ color: "#1a1a18" }}>{value}</p>
+            <p className="text-[13px] leading-relaxed whitespace-pre-wrap" style={{ color: "var(--color-ink)" }}>{value}</p>
           ) : (
-            <p className="text-[13px]" style={{ color: "#b8b7b2" }}>Career history, transitions, achievements, background context from registration call…</p>
+            <p className="text-[13px]" style={{ color: "var(--color-ink-30)" }}>Career history, transitions, achievements, background context from registration call…</p>
           )}
         </div>
       )}
@@ -1464,7 +1464,7 @@ function NoteField({
   return (
     <div className="mb-3 last:mb-0">
       {label && (
-        <p className="text-[11px] font-medium mb-1.5" style={{ color: "#5f5e5a" }}>{label}</p>
+        <p className="text-[11px] font-medium mb-1.5" style={{ color: "var(--color-ink-60)" }}>{label}</p>
       )}
       {editing ? (
         <div className="relative">
@@ -1478,15 +1478,15 @@ function NoteField({
             placeholder={placeholder}
             className="w-full text-[13px] leading-relaxed px-3 py-2 resize-none"
             style={{
-              border: "0.5px solid rgba(26,26,24,0.20)",
-              background: "#fafaf9",
-              color: "#1a1a18",
+              border: "0.5px solid var(--color-ink)",
+              background: "var(--color-white)",
+              color: "var(--color-ink)",
               outline: "none",
             }}
           />
           <button
             className="absolute bottom-2 right-2 flex items-center gap-1  px-2 py-1 text-[11px] font-medium"
-            style={{ background: "#1a1a18", color: "#fff" }}
+            style={{ background: "var(--color-ink)", color: "var(--color-white)" }}
             onMouseDown={(e) => { e.preventDefault(); handleBlur(); }}
           >
             <IconCheck size={10} /> Save
@@ -1496,16 +1496,16 @@ function NoteField({
         <div
           className="px-3 py-2 cursor-text"
           style={{
-            border: "0.5px solid rgba(26,26,24,0.12)",
-            background: "#f5f5f3",
+            border: "0.5px solid var(--color-ink-15)",
+            background: "var(--color-ink-10)",
             minHeight: rows > 3 ? `${rows * 1.65 * 13}px` : "36px",
           }}
           onClick={() => { setDraft(value ?? ""); setEditing(true); }}
         >
           {value ? (
-            <p className="text-[13px] leading-relaxed whitespace-pre-wrap" style={{ color: "#1a1a18" }}>{value}</p>
+            <p className="text-[13px] leading-relaxed whitespace-pre-wrap" style={{ color: "var(--color-ink)" }}>{value}</p>
           ) : (
-            <p className="text-[13px]" style={{ color: "#b8b7b2" }}>{placeholder}</p>
+            <p className="text-[13px]" style={{ color: "var(--color-ink-30)" }}>{placeholder}</p>
           )}
         </div>
       )}
@@ -1548,7 +1548,7 @@ function NoticeUrgencyFields({
       <div className="grid grid-cols-2 gap-3">
         {/* Notice period */}
         <div>
-          <p className="text-[11px] font-medium mb-1.5" style={{ color: "#5f5e5a" }}>Notice period</p>
+          <p className="text-[11px] font-medium mb-1.5" style={{ color: "var(--color-ink-60)" }}>Notice period</p>
           {editingNotice ? (
             <div className="flex items-center gap-2">
               <input
@@ -1561,13 +1561,13 @@ function NoticeUrgencyFields({
                   if (e.key === "Escape") { setNoticeDraft(noticePeriod != null ? String(noticePeriod) : ""); setEditingNotice(false); }
                 }}
                 className="h-[36px] w-16 px-3 text-[13px] outline-none"
-                style={{ border: "0.5px solid rgba(26,26,24,0.20)", background: "#fafaf9", color: "#1a1a18" }}
+                style={{ border: "0.5px solid var(--color-ink)", background: "var(--color-white)", color: "var(--color-ink)" }}
                 placeholder="3"
               />
-              <span className="text-[12px]" style={{ color: "#5f5e5a" }}>months</span>
+              <span className="text-[12px]" style={{ color: "var(--color-ink-60)" }}>months</span>
               <button
                 className="flex items-center gap-1  px-2 py-1 text-[11px] font-medium"
-                style={{ background: "#1a1a18", color: "#fff" }}
+                style={{ background: "var(--color-ink)", color: "var(--color-white)" }}
                 onMouseDown={(e) => { e.preventDefault(); saveNotice(); }}
               >
                 <IconCheck size={10} />
@@ -1576,10 +1576,10 @@ function NoticeUrgencyFields({
           ) : (
             <div
               className="px-3 py-2 cursor-text"
-              style={{ border: "0.5px solid rgba(26,26,24,0.12)", background: "#f5f5f3", minHeight: "36px" }}
+              style={{ border: "0.5px solid var(--color-ink-15)", background: "var(--color-ink-10)", minHeight: "36px" }}
               onClick={() => { setNoticeDraft(noticePeriod != null ? String(noticePeriod) : ""); setEditingNotice(true); }}
             >
-              <span className="text-[13px]" style={{ color: noticePeriod != null ? "#1a1a18" : "#b8b7b2" }}>
+              <span className="text-[13px]" style={{ color: noticePeriod != null ? "var(--color-ink)" : "var(--color-ink-30)" }}>
                 {noticePeriod != null ? `${noticePeriod} month${noticePeriod !== 1 ? "s" : ""}` : "e.g. 3 months"}
               </span>
             </div>
@@ -1588,7 +1588,7 @@ function NoticeUrgencyFields({
 
         {/* Active / Passive */}
         <div>
-          <p className="text-[11px] font-medium mb-1.5" style={{ color: "#5f5e5a" }}>Urgency to move</p>
+          <p className="text-[11px] font-medium mb-1.5" style={{ color: "var(--color-ink-60)" }}>Urgency to move</p>
           <div className="flex gap-2">
             {(["Active", "Passive"] as const).map((opt) => {
               const selected = activePassive === opt;
@@ -1598,9 +1598,9 @@ function NoticeUrgencyFields({
                   onClick={() => onSave("active_passive", selected ? null : opt)}
                   className="flex-1 h-[36px] text-[13px] font-medium transition-colors"
                   style={{
-                    background: selected ? "#1a1a18" : "#f5f5f3",
-                    color: selected ? "#fff" : "#5f5e5a",
-                    border: `0.5px solid ${selected ? "#1a1a18" : "rgba(26,26,24,0.12)"}`,
+                    background: selected ? "var(--color-ink)" : "var(--color-ink-10)",
+                    color: selected ? "var(--color-white)" : "var(--color-ink-60)",
+                    border: `0.5px solid ${selected ? "var(--color-ink)" : "rgba(26,26,24,0.12)"}`,
                   }}
                 >
                   {opt}
@@ -1613,7 +1613,7 @@ function NoticeUrgencyFields({
 
       {/* Urgency notes */}
       <div>
-        <p className="text-[11px] font-medium mb-1.5" style={{ color: "#5f5e5a" }}>Urgency notes</p>
+        <p className="text-[11px] font-medium mb-1.5" style={{ color: "var(--color-ink-60)" }}>Urgency notes</p>
         {editingNotes ? (
           <div className="relative">
             <textarea
@@ -1624,11 +1624,11 @@ function NoticeUrgencyFields({
               rows={3}
               placeholder="Why they are active, when a passive candidate might start looking, timeline context…"
               className="w-full text-[13px] leading-relaxed px-3 py-2 resize-none"
-              style={{ border: "0.5px solid rgba(26,26,24,0.20)", background: "#fafaf9", color: "#1a1a18", outline: "none" }}
+              style={{ border: "0.5px solid var(--color-ink)", background: "var(--color-white)", color: "var(--color-ink)", outline: "none" }}
             />
             <button
               className="absolute bottom-2 right-2 flex items-center gap-1  px-2 py-1 text-[11px] font-medium"
-              style={{ background: "#1a1a18", color: "#fff" }}
+              style={{ background: "var(--color-ink)", color: "var(--color-white)" }}
               onMouseDown={(e) => { e.preventDefault(); saveNotes(); }}
             >
               <IconCheck size={10} /> Save
@@ -1637,13 +1637,13 @@ function NoticeUrgencyFields({
         ) : (
           <div
             className="px-3 py-2 cursor-text"
-            style={{ border: "0.5px solid rgba(26,26,24,0.12)", background: "#f5f5f3", minHeight: "36px" }}
+            style={{ border: "0.5px solid var(--color-ink-15)", background: "var(--color-ink-10)", minHeight: "36px" }}
             onClick={() => { setNotesDraft(urgencyNotes ?? ""); setEditingNotes(true); }}
           >
             {urgencyNotes ? (
-              <p className="text-[13px] leading-relaxed whitespace-pre-wrap" style={{ color: "#1a1a18" }}>{urgencyNotes}</p>
+              <p className="text-[13px] leading-relaxed whitespace-pre-wrap" style={{ color: "var(--color-ink)" }}>{urgencyNotes}</p>
             ) : (
-              <p className="text-[13px]" style={{ color: "#b8b7b2" }}>Why they are active, or when they might start looking…</p>
+              <p className="text-[13px]" style={{ color: "var(--color-ink-30)" }}>Why they are active, or when they might start looking…</p>
             )}
           </div>
         )}
@@ -1707,9 +1707,9 @@ function LanguageFields({
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <p className="text-[11px] font-medium mb-1.5" style={{ color: "#5f5e5a" }}>Japanese</p>
+          <p className="text-[11px] font-medium mb-1.5" style={{ color: "var(--color-ink-60)" }}>Japanese</p>
           <Select value={japanese ?? "__none__"} onValueChange={(v) => onSave("japanese_level", v === "__none__" ? null : v)}>
-            <SelectTrigger className="h-[36px] text-[13px]" style={{ background: "#f5f5f3", border: "0.5px solid rgba(26,26,24,0.12)" }}>
+            <SelectTrigger className="h-[36px] text-[13px]" style={{ background: "var(--color-ink-10)", border: "0.5px solid var(--color-ink-15)" }}>
               <SelectValue placeholder="Select level…" />
             </SelectTrigger>
             <SelectContent>
@@ -1719,9 +1719,9 @@ function LanguageFields({
           </Select>
         </div>
         <div>
-          <p className="text-[11px] font-medium mb-1.5" style={{ color: "#5f5e5a" }}>English</p>
+          <p className="text-[11px] font-medium mb-1.5" style={{ color: "var(--color-ink-60)" }}>English</p>
           <Select value={english ?? "__none__"} onValueChange={(v) => onSave("english_level", v === "__none__" ? null : v)}>
-            <SelectTrigger className="h-[36px] text-[13px]" style={{ background: "#f5f5f3", border: "0.5px solid rgba(26,26,24,0.12)" }}>
+            <SelectTrigger className="h-[36px] text-[13px]" style={{ background: "var(--color-ink-10)", border: "0.5px solid var(--color-ink-15)" }}>
               <SelectValue placeholder="Select level…" />
             </SelectTrigger>
             <SelectContent>
@@ -1734,32 +1734,32 @@ function LanguageFields({
 
       {/* Other language — type name then pick proficiency */}
       <div>
-        <p className="text-[11px] font-medium mb-1.5" style={{ color: "#5f5e5a" }}>Other languages</p>
+        <p className="text-[11px] font-medium mb-1.5" style={{ color: "var(--color-ink-60)" }}>Other languages</p>
 
         {/* Display saved value */}
         {other && !editingName && !showLevelPicker ? (
           <div
             className="flex items-center justify-between px-3 py-2"
-            style={{ border: "0.5px solid rgba(26,26,24,0.12)", background: "#f5f5f3", minHeight: "36px" }}
+            style={{ border: "0.5px solid var(--color-ink-15)", background: "var(--color-ink-10)", minHeight: "36px" }}
           >
-            <span className="text-[13px]" style={{ color: "#1a1a18" }}>{other}</span>
+            <span className="text-[13px]" style={{ color: "var(--color-ink)" }}>{other}</span>
             <div className="flex items-center gap-2">
               <button
                 className="text-[11px]"
-                style={{ color: "#888780" }}
+                style={{ color: "var(--color-ink-30)" }}
                 onClick={() => { setLangName(parsedOtherLang); setShowLevelPicker(true); }}
               >
                 Change level
               </button>
               <button onClick={clearOther}>
-                <IconX size={12} style={{ color: "#b8b7b2" }} />
+                <IconX size={12} style={{ color: "var(--color-ink-30)" }} />
               </button>
             </div>
           </div>
         ) : showLevelPicker ? (
           /* Step 2: pick proficiency */
-          <div className="overflow-hidden" style={{ border: "0.5px solid rgba(26,26,24,0.16)", background: "#fff" }}>
-            <div className="px-3 py-2 text-[12px] font-medium" style={{ background: "#f5f5f3", color: "#5f5e5a" }}>
+          <div className="overflow-hidden" style={{ border: "0.5px solid rgba(26,26,24,0.16)", background: "var(--color-white)" }}>
+            <div className="px-3 py-2 text-[12px] font-medium" style={{ background: "var(--color-ink-10)", color: "var(--color-ink-60)" }}>
               {langName} — select proficiency
             </div>
             <div className="grid grid-cols-3 gap-0">
@@ -1769,12 +1769,12 @@ function LanguageFields({
                   onClick={() => selectLevel(level)}
                   className="px-2 py-2 text-[12px] text-left transition-colors"
                   style={{
-                    color: parsedOtherLevel === level ? "#185fa5" : "#1a1a18",
-                    background: parsedOtherLevel === level ? "#e6f1fb" : "transparent",
+                    color: parsedOtherLevel === level ? "var(--color-indigo)" : "var(--color-ink)",
+                    background: parsedOtherLevel === level ? "var(--color-indigo-light)" : "transparent",
                     borderBottom: "0.5px solid rgba(26,26,24,0.06)",
                   }}
-                  onMouseEnter={(e) => { if (parsedOtherLevel !== level) e.currentTarget.style.background = "#f5f5f3"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = parsedOtherLevel === level ? "#e6f1fb" : "transparent"; }}
+                  onMouseEnter={(e) => { if (parsedOtherLevel !== level) e.currentTarget.style.background = "var(--color-ink-10)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = parsedOtherLevel === level ? "var(--color-indigo-light)" : "transparent"; }}
                 >
                   {level}
                 </button>
@@ -1782,7 +1782,7 @@ function LanguageFields({
             </div>
             <button
               className="w-full text-left px-3 py-2 text-[11px]"
-              style={{ color: "#888780", borderTop: "0.5px solid rgba(26,26,24,0.08)" }}
+              style={{ color: "var(--color-ink-30)", borderTop: "0.5px solid rgba(26,26,24,0.08)" }}
               onClick={() => { setShowLevelPicker(false); setEditingName(false); }}
             >
               Cancel
@@ -1799,12 +1799,12 @@ function LanguageFields({
               onKeyDown={handleLangKeyDown}
               placeholder="e.g. Korean, Mandarin…"
               className="flex-1 h-[36px] px-3 text-[13px] outline-none"
-              style={{ border: "0.5px solid rgba(26,26,24,0.12)", background: "#f5f5f3", color: "#1a1a18" }}
+              style={{ border: "0.5px solid var(--color-ink-15)", background: "var(--color-ink-10)", color: "var(--color-ink)" }}
             />
             {langName.trim() && (
               <button
                 className="flex items-center gap-1 px-3 h-[36px] text-[12px] font-medium shrink-0"
-                style={{ background: "#1a1a18", color: "#fff" }}
+                style={{ background: "var(--color-ink)", color: "var(--color-white)" }}
                 onClick={() => { setEditingName(false); setShowLevelPicker(true); }}
               >
                 <IconCheck size={11} /> Set level
@@ -1874,10 +1874,10 @@ function NoteCompensationFields({
 
     return (
       <div>
-        <p className="text-[11px] font-medium mb-1.5" style={{ color: "#5f5e5a" }}>{label}</p>
+        <p className="text-[11px] font-medium mb-1.5" style={{ color: "var(--color-ink-60)" }}>{label}</p>
         {editing ? (
           <div className="flex items-center gap-1.5">
-            <span className="text-[13px] font-medium shrink-0" style={{ color: "#5f5e5a" }}>¥</span>
+            <span className="text-[13px] font-medium shrink-0" style={{ color: "var(--color-ink-60)" }}>¥</span>
             <input
               autoFocus
               type="number"
@@ -1888,13 +1888,13 @@ function NoteCompensationFields({
                 if (e.key === "Escape") { setDraft(value != null ? String(value / 1_000_000) : ""); setEditing(false); }
               }}
               className="flex-1 h-[36px] px-2 text-[13px] outline-none min-w-0"
-              style={{ border: "0.5px solid rgba(26,26,24,0.20)", background: "#fafaf9", color: "#1a1a18" }}
+              style={{ border: "0.5px solid var(--color-ink)", background: "var(--color-white)", color: "var(--color-ink)" }}
               placeholder="12"
             />
-            <span className="text-[12px] shrink-0" style={{ color: "#888780" }}>M</span>
+            <span className="text-[12px] shrink-0" style={{ color: "var(--color-ink-30)" }}>M</span>
             <button
               className="flex items-center gap-0.5  px-2 h-[36px] text-[11px] font-medium shrink-0"
-              style={{ background: "#1a1a18", color: "#fff" }}
+              style={{ background: "var(--color-ink)", color: "var(--color-white)" }}
               onMouseDown={(e) => { e.preventDefault(); save(); }}
             >
               <IconCheck size={10} />
@@ -1903,10 +1903,10 @@ function NoteCompensationFields({
         ) : (
           <div
             className="px-3 py-2 cursor-text"
-            style={{ border: "0.5px solid rgba(26,26,24,0.12)", background: "#f5f5f3", minHeight: "36px" }}
+            style={{ border: "0.5px solid var(--color-ink-15)", background: "var(--color-ink-10)", minHeight: "36px" }}
             onClick={() => { setDraft(value != null ? String(value / 1_000_000) : ""); setEditing(true); }}
           >
-            <span className="text-[13px]" style={{ color: value != null ? "#1a1a18" : "#b8b7b2" }}>
+            <span className="text-[13px]" style={{ color: value != null ? "var(--color-ink)" : "var(--color-ink-30)" }}>
               {value != null ? formatYen(value) : "¥ —M"}
             </span>
           </div>
@@ -1923,12 +1923,12 @@ function NoteCompensationFields({
         {overrideTotal ? (
           <div>
             <YenField label="Current total" fieldKey="current_total" value={c.current_total} />
-            <p className="text-[10px] mt-0.5" style={{ color: "#b8b7b2" }}>
+            <p className="text-[10px] mt-0.5" style={{ color: "var(--color-ink-30)" }}>
               Manual —{" "}
               <button
                 onClick={restoreAutoTotal}
                 className="underline"
-                style={{ color: "#888780" }}
+                style={{ color: "var(--color-ink-30)" }}
               >
                 Auto
               </button>
@@ -1936,21 +1936,21 @@ function NoteCompensationFields({
           </div>
         ) : (
           <div>
-            <p className="text-[11px] font-medium mb-1.5" style={{ color: "#5f5e5a" }}>Current total</p>
+            <p className="text-[11px] font-medium mb-1.5" style={{ color: "var(--color-ink-60)" }}>Current total</p>
             <div
               className="px-3 py-2"
-              style={{ border: "0.5px solid rgba(26,26,24,0.08)", background: "#f5f5f3", minHeight: "36px" }}
+              style={{ border: "0.5px solid var(--color-border-subtle)", background: "var(--color-ink-10)", minHeight: "36px" }}
             >
-              <span className="text-[13px]" style={{ color: c.current_total != null ? "#1a1a18" : "#b8b7b2" }}>
+              <span className="text-[13px]" style={{ color: c.current_total != null ? "var(--color-ink)" : "var(--color-ink-30)" }}>
                 {c.current_total != null ? formatYen(c.current_total) : "—"}
               </span>
             </div>
-            <p className="text-[10px] mt-0.5" style={{ color: "#b8b7b2" }}>
+            <p className="text-[10px] mt-0.5" style={{ color: "var(--color-ink-30)" }}>
               Auto-calculated —{" "}
               <button
                 onClick={() => setOverrideTotal(true)}
                 className="underline"
-                style={{ color: "#888780" }}
+                style={{ color: "var(--color-ink-30)" }}
               >
                 Override
               </button>
@@ -1959,7 +1959,7 @@ function NoteCompensationFields({
         )}
       </div>
       <div>
-        <p className="text-[11px] font-medium mb-1.5" style={{ color: "#5f5e5a" }}>Expected range</p>
+        <p className="text-[11px] font-medium mb-1.5" style={{ color: "var(--color-ink-60)" }}>Expected range</p>
         <div className="grid grid-cols-2 gap-3">
           <YenField label="Min" fieldKey="expected_total_min" value={c.expected_total_min} />
           <YenField label="Max" fieldKey="expected_total_max" value={c.expected_total_max} />
@@ -1968,7 +1968,7 @@ function NoteCompensationFields({
 
       {/* Free-text compensation notes */}
       <div>
-        <p className="text-[11px] font-medium mb-1.5" style={{ color: "#5f5e5a" }}>Compensation notes</p>
+        <p className="text-[11px] font-medium mb-1.5" style={{ color: "var(--color-ink-60)" }}>Compensation notes</p>
         {editingNotes ? (
           <div className="relative">
             <textarea
@@ -1979,11 +1979,11 @@ function NoteCompensationFields({
               rows={3}
               placeholder="Current/expected comp context, bonus structure details, equity, strong base preference…"
               className="w-full text-[13px] leading-relaxed px-3 py-2 resize-none"
-              style={{ border: "0.5px solid rgba(26,26,24,0.20)", background: "#fafaf9", color: "#1a1a18", outline: "none" }}
+              style={{ border: "0.5px solid var(--color-ink)", background: "var(--color-white)", color: "var(--color-ink)", outline: "none" }}
             />
             <button
               className="absolute bottom-2 right-2 flex items-center gap-1  px-2 py-1 text-[11px] font-medium"
-              style={{ background: "#1a1a18", color: "#fff" }}
+              style={{ background: "var(--color-ink)", color: "var(--color-white)" }}
               onMouseDown={(e) => { e.preventDefault(); saveNotes(); }}
             >
               <IconCheck size={10} /> Save
@@ -1992,13 +1992,13 @@ function NoteCompensationFields({
         ) : (
           <div
             className="px-3 py-2 cursor-text"
-            style={{ border: "0.5px solid rgba(26,26,24,0.12)", background: "#f5f5f3", minHeight: "36px" }}
+            style={{ border: "0.5px solid var(--color-ink-15)", background: "var(--color-ink-10)", minHeight: "36px" }}
             onClick={() => { setNotesDraft(c.comp_notes ?? ""); setEditingNotes(true); }}
           >
             {c.comp_notes ? (
-              <p className="text-[13px] leading-relaxed whitespace-pre-wrap" style={{ color: "#1a1a18" }}>{c.comp_notes}</p>
+              <p className="text-[13px] leading-relaxed whitespace-pre-wrap" style={{ color: "var(--color-ink)" }}>{c.comp_notes}</p>
             ) : (
-              <p className="text-[13px]" style={{ color: "#b8b7b2" }}>Bonus structure, equity, strong base preference, flex details…</p>
+              <p className="text-[13px]" style={{ color: "var(--color-ink-30)" }}>Bonus structure, equity, strong base preference, flex details…</p>
             )}
           </div>
         )}
@@ -2076,7 +2076,7 @@ function ProcessesPage({
       <>
         <div className="py-10 text-center">
           <p className="text-sm font-medium">No active processes.</p>
-          <p className="mt-1 text-[13px]" style={{ color: "#5f5e5a" }}>
+          <p className="mt-1 text-[13px]" style={{ color: "var(--color-ink-60)" }}>
             Add this candidate to an open requisition to start tracking the process.
           </p>
           <button
@@ -2106,10 +2106,10 @@ function ProcessesPage({
     <div>
       {/* Legend + Add button row */}
       <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-3 flex-wrap text-[11px]" style={{ color: "#5f5e5a" }}>
+        <div className="flex items-center gap-3 flex-wrap text-[11px]" style={{ color: "var(--color-ink-60)" }}>
           <TabLegend color="#c0dd97" border="#3B6D11" label="Your req" />
-          <TabLegend color="#d3d1c7" border="#888780" label="Colleague's req" />
-          <TabLegend color="#f7c1c1" border="#a32d2d" label="Not covered by your firm" />
+          <TabLegend color="#d3d1c7" border="var(--color-ink-30)" label="Colleague's req" />
+          <TabLegend color="#f7c1c1" border="var(--color-danger)" label="Not covered by your firm" />
           <StageBadge stage="CCM1" className="text-[10px] py-0" />
           <StageBadge stage="Buy-In" className="text-[10px] py-0" />
           <StageBadge stage="Offer" className="text-[10px] py-0" />
@@ -2286,14 +2286,14 @@ function ProcessPanel({
     <div
       className="rounded-b-xl p-5"
       style={{
-        background: "#ffffff",
-        border: "0.5px solid rgba(26,26,24,0.12)",
+        background: "var(--color-white)",
+        border: "0.5px solid var(--color-ink-15)",
       }}
     >
       {/* Panel header */}
       <div
         className="flex items-center justify-between mb-4 pb-2.5 text-[12px]"
-        style={{ borderBottom: "0.5px solid rgba(26,26,24,0.12)", color: "#5f5e5a" }}
+        style={{ borderBottom: "0.5px solid var(--color-ink-15)", color: "var(--color-ink-60)" }}
       >
         <span className="flex items-center gap-1.5">
           <IconBuilding size={14} />
@@ -2312,7 +2312,7 @@ function ProcessPanel({
             if (newStage !== p.stage) stageChange.mutate({ process: p, newStage });
           }}
           className="text-[11px] font-medium  px-2 py-0.5 outline-none cursor-pointer"
-          style={{ border: "0.5px solid rgba(26,26,24,0.16)", color: "#1a1a18", background: "#f5f5f3" }}
+          style={{ border: "0.5px solid rgba(26,26,24,0.16)", color: "var(--color-ink)", background: "var(--color-ink-10)" }}
         >
           {PIPELINE_STAGES.map((s) => (
             <option key={s} value={s}>{s}</option>
@@ -2490,13 +2490,13 @@ function InterviewPanel({
         <div>
           <SectionLabel>Top motivations for this role</SectionLabel>
           {motivations.length === 0 ? (
-            <p className="text-[13px]" style={{ color: "#888780" }}>No motivations recorded.</p>
+            <p className="text-[13px]" style={{ color: "var(--color-ink-30)" }}>No motivations recorded.</p>
           ) : (
             motivations.map((m) => (
               <div key={m.id} className="flex gap-2 mb-1.5 text-[13px] leading-relaxed">
                 <span
                   className="mt-1.5 h-[5px] w-[5px] shrink-0 rounded-full"
-                  style={{ background: "#888780" }}
+                  style={{ background: "var(--color-ink-30)" }}
                 />
                 <span>{m.motivation_text}</span>
               </div>
@@ -2507,17 +2507,17 @@ function InterviewPanel({
         <div>
           <SectionLabel>Watch out for</SectionLabel>
           {watchOuts.length === 0 ? (
-            <p className="text-[13px]" style={{ color: "#888780" }}>No risk flags recorded.</p>
+            <p className="text-[13px]" style={{ color: "var(--color-ink-30)" }}>No risk flags recorded.</p>
           ) : (
             watchOuts.map((b) => (
               <div key={b.id} className="flex gap-2 mb-1.5 text-[13px] leading-relaxed">
                 <span
                   className="mt-1.5 h-[5px] w-[5px] shrink-0 rounded-full"
-                  style={{ background: "#633806" }}
+                  style={{ background: "var(--color-gold)" }}
                 />
                 <span>
                   <strong>{b.theme}.</strong>{" "}
-                  <span style={{ color: "#5f5e5a" }}>{b.detail}</span>
+                  <span style={{ color: "var(--color-ink-60)" }}>{b.detail}</span>
                 </span>
               </div>
             ))
@@ -2527,7 +2527,7 @@ function InterviewPanel({
 
       {/* CCM feedback — only shown for CCM stages */}
       {ccmNumber !== null && (
-        <div className="mb-4  p-4" style={{ background: "#f5f5f3", border: "0.5px solid rgba(26,26,24,0.12)" }}>
+        <div className="mb-4  p-4" style={{ background: "var(--color-ink-10)", border: "0.5px solid var(--color-ink-15)" }}>
           <SectionLabel>CCM{ccmNumber} client feedback</SectionLabel>
           <div className="flex gap-2 mb-3">
             {(["pass", "pending", "fail"] as const).map((opt) => (
@@ -2537,11 +2537,11 @@ function InterviewPanel({
                 className="text-[12px] px-3 py-1  font-medium transition-colors"
                 style={{
                   background: feedbackOutcome === opt
-                    ? opt === "pass" ? "#eaf3de" : opt === "fail" ? "#fcebeb" : "#fdf3e7"
-                    : "#fff",
+                    ? opt === "pass" ? "var(--color-moss-light)" : opt === "fail" ? "var(--color-danger-bg)" : "var(--color-gold-light)"
+                    : "var(--color-white)",
                   color: feedbackOutcome === opt
-                    ? opt === "pass" ? "#27500a" : opt === "fail" ? "#a32d2d" : "#633806"
-                    : "#888780",
+                    ? opt === "pass" ? "var(--color-moss)" : opt === "fail" ? "var(--color-danger)" : "var(--color-gold)"
+                    : "var(--color-ink-30)",
                   border: feedbackOutcome === opt
                     ? opt === "pass" ? "0.5px solid #b0d88a" : opt === "fail" ? "0.5px solid #f0b0b0" : "0.5px solid #fac775"
                     : "0.5px solid rgba(26,26,24,0.16)",
@@ -2557,7 +2557,7 @@ function InterviewPanel({
             placeholder="Client feedback notes — what did they say? Any concerns raised?"
             rows={3}
             className="w-full  p-3 text-[12px] leading-relaxed resize-none outline-none mb-2"
-            style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.16)", color: "#1a1a18" }}
+            style={{ background: "var(--color-white)", border: "0.5px solid rgba(26,26,24,0.16)", color: "var(--color-ink)" }}
           />
           <button
             className="ab"
@@ -2568,7 +2568,7 @@ function InterviewPanel({
             {savingFeedback ? "Saving…" : p.ccm_feedback_at ? "Update feedback" : "Save feedback"}
           </button>
           {p.ccm_feedback_at && (
-            <span className="text-[11px] ml-2" style={{ color: "#888780" }}>
+            <span className="text-[11px] ml-2" style={{ color: "var(--color-ink-30)" }}>
               Last saved {relativeTime(p.ccm_feedback_at)}
             </span>
           )}
@@ -2594,14 +2594,14 @@ function InterviewPanel({
         return (
           <div
             className=" p-3 text-[13px] mb-3"
-            style={{ background: "#f5f5f3", border: "0.5px dashed rgba(26,26,24,0.22)" }}
+            style={{ background: "var(--color-ink-10)", border: "0.5px dashed rgba(26,26,24,0.22)" }}
           >
-            <span style={{ color: "#888780" }}>No positioning points yet. </span>
+            <span style={{ color: "var(--color-ink-30)" }}>No positioning points yet. </span>
             <button
               onClick={generatePositioning}
               disabled={loadingPositioning}
               className="underline underline-offset-2"
-              style={{ color: "#185fa5" }}
+              style={{ color: "var(--color-indigo)" }}
             >
               {loadingPositioning ? "Generating…" : "Generate with AI"}
             </button>
@@ -2642,11 +2642,11 @@ function InterviewPanel({
         <div
           className="mt-4  p-4 text-[13px] leading-relaxed whitespace-pre-wrap"
           style={{
-            background: "#e6f1fb",
+            background: "var(--color-indigo-light)",
             border: "0.5px solid rgba(24,95,165,0.3)",
           }}
         >
-          <p className="sl mb-2" style={{ color: "#185fa5" }}>Pre-call briefing</p>
+          <p className="sl mb-2" style={{ color: "var(--color-indigo)" }}>Pre-call briefing</p>
           {briefing}
         </div>
       )}
@@ -2655,21 +2655,21 @@ function InterviewPanel({
       {specEmail && (
         <div className="mt-4">
           <div className="flex items-center justify-between mb-1.5">
-            <p className="sl" style={{ color: "#185fa5" }}>Spec email</p>
-            <button onClick={() => setSpecEmail(null)} className="text-[11px]" style={{ color: "#888780" }}>Dismiss</button>
+            <p className="sl" style={{ color: "var(--color-indigo)" }}>Spec email</p>
+            <button onClick={() => setSpecEmail(null)} className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>Dismiss</button>
           </div>
           <textarea
             value={specEmail.email}
             onChange={(e) => setSpecEmail((prev) => prev ? { ...prev, email: e.target.value } : prev)}
             rows={8}
             className="w-full  p-3 text-[13px] leading-relaxed resize-y outline-none mb-2"
-            style={{ background: "#e6f1fb", border: "0.5px solid rgba(24,95,165,0.3)", color: "#1a1a18" }}
+            style={{ background: "var(--color-indigo-light)", border: "0.5px solid rgba(24,95,165,0.3)", color: "var(--color-ink)" }}
           />
           <p className="sl mb-1.5">Talking points (if calling)</p>
           <div className="space-y-1">
             {specEmail.talking_points.map((pt, i) => (
               <div key={i} className="flex gap-2 text-[13px]">
-                <span className="mt-1.5 h-[5px] w-[5px] shrink-0 rounded-full" style={{ background: "#185fa5" }} />
+                <span className="mt-1.5 h-[5px] w-[5px] shrink-0 rounded-full" style={{ background: "var(--color-indigo)" }} />
                 <span>{pt}</span>
               </div>
             ))}
@@ -2681,8 +2681,8 @@ function InterviewPanel({
       {interviewPrep && (
         <div className="mt-4">
           <div className="flex items-center justify-between mb-1.5">
-            <p className="sl" style={{ color: "#185fa5" }}>Interview prep — CCM{ccmNumber}</p>
-            <button onClick={() => setInterviewPrep(null)} className="text-[11px]" style={{ color: "#888780" }}>Dismiss</button>
+            <p className="sl" style={{ color: "var(--color-indigo)" }}>Interview prep — CCM{ccmNumber}</p>
+            <button onClick={() => setInterviewPrep(null)} className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>Dismiss</button>
           </div>
           <p className="sl mb-1">Candidate email</p>
           <textarea
@@ -2690,7 +2690,7 @@ function InterviewPanel({
             onChange={(e) => setInterviewPrep((prev) => prev ? { ...prev, candidate_email: e.target.value } : prev)}
             rows={12}
             className="w-full  p-3 text-[13px] leading-relaxed resize-y outline-none mb-3"
-            style={{ background: "#e6f1fb", border: "0.5px solid rgba(24,95,165,0.3)", color: "#1a1a18" }}
+            style={{ background: "var(--color-indigo-light)", border: "0.5px solid rgba(24,95,165,0.3)", color: "var(--color-ink)" }}
           />
           <p className="sl mb-1">Recruiter prep notes</p>
           <textarea
@@ -2698,7 +2698,7 @@ function InterviewPanel({
             onChange={(e) => setInterviewPrep((prev) => prev ? { ...prev, recruiter_prep_note: e.target.value } : prev)}
             rows={5}
             className="w-full  p-3 text-[13px] leading-relaxed resize-y outline-none"
-            style={{ background: "#f5f5f3", border: "0.5px solid rgba(26,26,24,0.12)", color: "#1a1a18" }}
+            style={{ background: "var(--color-ink-10)", border: "0.5px solid var(--color-ink-15)", color: "var(--color-ink)" }}
           />
         </div>
       )}
@@ -2789,7 +2789,7 @@ I am not asking you to commit. I am asking: would you be comfortable if I shared
 
   return (
     <div>
-      <p className="text-[13px] mb-3" style={{ color: "#5f5e5a" }}>
+      <p className="text-[13px] mb-3" style={{ color: "var(--color-ink-60)" }}>
         Not yet approached. Goal is to get buy-in to submit the profile to the client.
       </p>
 
@@ -2797,13 +2797,13 @@ I am not asking you to commit. I am asking: would you be comfortable if I shared
         <div>
           <SectionLabel>Why this could interest them</SectionLabel>
           {motivations.length === 0 ? (
-            <p className="text-[13px]" style={{ color: "#888780" }}>No motivations recorded.</p>
+            <p className="text-[13px]" style={{ color: "var(--color-ink-30)" }}>No motivations recorded.</p>
           ) : (
             motivations.map((m) => (
               <div key={m.id} className="flex gap-2 mb-1.5 text-[13px] leading-relaxed">
                 <span
                   className="mt-1.5 h-[5px] w-[5px] shrink-0 rounded-full"
-                  style={{ background: "#888780" }}
+                  style={{ background: "var(--color-ink-30)" }}
                 />
                 <span>{m.motivation_text}</span>
               </div>
@@ -2815,18 +2815,18 @@ I am not asking you to commit. I am asking: would you be comfortable if I shared
           {watchOuts.length > 0 ? (
             watchOuts.map((b) => (
               <div key={b.id} className="flex gap-2 mb-1.5 text-[13px] leading-relaxed">
-                <span className="mt-1.5 h-[5px] w-[5px] shrink-0 rounded-full" style={{ background: "#633806" }} />
-                <span><strong>{b.theme}.</strong>{" "}<span style={{ color: "#5f5e5a" }}>{b.detail}</span></span>
+                <span className="mt-1.5 h-[5px] w-[5px] shrink-0 rounded-full" style={{ background: "var(--color-gold)" }} />
+                <span><strong>{b.theme}.</strong>{" "}<span style={{ color: "var(--color-ink-60)" }}>{b.detail}</span></span>
               </div>
             ))
           ) : (
             <>
               <div className="flex gap-2 mb-1.5 text-[13px] leading-relaxed">
-                <span className="mt-1.5 h-[5px] w-[5px] shrink-0 rounded-full" style={{ background: "#633806" }} />
+                <span className="mt-1.5 h-[5px] w-[5px] shrink-0 rounded-full" style={{ background: "var(--color-gold)" }} />
                 <span>Already in other processes — lead with optionality, not competition.</span>
               </div>
               <div className="flex gap-2 mb-1.5 text-[13px] leading-relaxed">
-                <span className="mt-1.5 h-[5px] w-[5px] shrink-0 rounded-full" style={{ background: "#888780" }} />
+                <span className="mt-1.5 h-[5px] w-[5px] shrink-0 rounded-full" style={{ background: "var(--color-ink-30)" }} />
                 <span>Not actively looking — frame as a low-commitment information share.</span>
               </div>
             </>
@@ -2858,8 +2858,8 @@ I am not asking you to commit. I am asking: would you be comfortable if I shared
         <div
           className=" p-4 mb-3 text-[13px] font-mono whitespace-pre-wrap leading-relaxed"
           style={{
-            background: "#f5f5f3",
-            border: "0.5px solid rgba(26,26,24,0.22)",
+            background: "var(--color-ink-10)",
+            border: "0.5px solid var(--color-ink-15)",
           }}
         >
           {emailPitch}
@@ -2870,8 +2870,8 @@ I am not asking you to commit. I am asking: would you be comfortable if I shared
         <div
           className=" p-4 mb-3 text-[13px] whitespace-pre-wrap leading-relaxed"
           style={{
-            background: "#f5f5f3",
-            border: "0.5px solid rgba(26,26,24,0.22)",
+            background: "var(--color-ink-10)",
+            border: "0.5px solid var(--color-ink-15)",
           }}
         >
           {callScript}
@@ -2902,14 +2902,14 @@ I am not asking you to commit. I am asking: would you be comfortable if I shared
           return (
             <div
               className=" p-3 text-[13px]"
-              style={{ background: "#f5f5f3", border: "0.5px dashed rgba(26,26,24,0.22)" }}
+              style={{ background: "var(--color-ink-10)", border: "0.5px dashed rgba(26,26,24,0.22)" }}
             >
-              <span style={{ color: "#888780" }}>No positioning points yet. </span>
+              <span style={{ color: "var(--color-ink-30)" }}>No positioning points yet. </span>
               <button
                 onClick={generatePositioning}
                 disabled={loadingPositioning}
                 className="underline underline-offset-2"
-                style={{ color: "#185fa5" }}
+                style={{ color: "var(--color-indigo)" }}
               >
                 {loadingPositioning ? "Generating…" : "Generate with AI"}
               </button>
@@ -2958,37 +2958,37 @@ function OfferPanel({
       {req && (
         <div
           className=" p-3 px-4 mb-4"
-          style={{ background: "#f5f5f3" }}
+          style={{ background: "var(--color-ink-10)" }}
         >
-          <div className="flex justify-between text-[13px] py-1.5" style={{ borderBottom: "0.5px solid rgba(26,26,24,0.12)" }}>
-            <span style={{ color: "#5f5e5a" }}>Offer range</span>
+          <div className="flex justify-between text-[13px] py-1.5" style={{ borderBottom: "0.5px solid var(--color-ink-15)" }}>
+            <span style={{ color: "var(--color-ink-60)" }}>Offer range</span>
             <span>
               {req.salary_min || req.salary_max
                 ? `${formatYen(req.salary_min)} – ${formatYen(req.salary_max)}`
                 : "—"}
             </span>
           </div>
-          <div className="flex justify-between text-[13px] py-1.5" style={{ borderBottom: "0.5px solid rgba(26,26,24,0.12)" }}>
-            <span style={{ color: "#5f5e5a" }}>vs candidate floor</span>
+          <div className="flex justify-between text-[13px] py-1.5" style={{ borderBottom: "0.5px solid var(--color-ink-15)" }}>
+            <span style={{ color: "var(--color-ink-60)" }}>vs candidate floor</span>
             <span>
               {req.salary_min && c.base_minimum ? (
                 req.salary_min >= c.base_minimum ? (
-                  <span style={{ color: "#27500a", fontWeight: 500 }}>
+                  <span style={{ color: "var(--color-moss)", fontWeight: 500 }}>
                     ✓ Above {formatYen(c.base_minimum)} base minimum
                   </span>
                 ) : (
-                  <span style={{ color: "#a32d2d", fontWeight: 500 }}>
+                  <span style={{ color: "var(--color-danger)", fontWeight: 500 }}>
                     ✗ Below {formatYen(c.base_minimum)} base minimum
                   </span>
                 )
               ) : (
-                <span style={{ color: "#888780" }}>Base minimum not recorded</span>
+                <span style={{ color: "var(--color-ink-30)" }}>Base minimum not recorded</span>
               )}
             </span>
           </div>
           {req.salary_stretch && (
             <div className="flex justify-between text-[13px] py-1.5">
-              <span style={{ color: "#5f5e5a" }}>Stretch available</span>
+              <span style={{ color: "var(--color-ink-60)" }}>Stretch available</span>
               <span>Up to {formatYen(req.salary_stretch)}</span>
             </div>
           )}
@@ -3000,15 +3000,15 @@ function OfferPanel({
         <div>
           <SectionLabel>Closing risks</SectionLabel>
           <div className="flex gap-2 mb-1.5 text-[13px]">
-            <span className="mt-1.5 h-[5px] w-[5px] shrink-0 rounded-full" style={{ background: "#633806" }} />
+            <span className="mt-1.5 h-[5px] w-[5px] shrink-0 rounded-full" style={{ background: "var(--color-gold)" }} />
             <span><strong>Pre-close check.</strong> Have you confirmed what they need to say yes?</span>
           </div>
           <div className="flex gap-2 mb-1.5 text-[13px]">
-            <span className="mt-1.5 h-[5px] w-[5px] shrink-0 rounded-full" style={{ background: "#633806" }} />
+            <span className="mt-1.5 h-[5px] w-[5px] shrink-0 rounded-full" style={{ background: "var(--color-gold)" }} />
             <span><strong>Sony counteroffer.</strong> Prepare them before they resign.</span>
           </div>
           <div className="flex gap-2 mb-1.5 text-[13px]">
-            <span className="mt-1.5 h-[5px] w-[5px] shrink-0 rounded-full" style={{ background: "#633806" }} />
+            <span className="mt-1.5 h-[5px] w-[5px] shrink-0 rounded-full" style={{ background: "var(--color-gold)" }} />
             <span><strong>Family loop.</strong> Has everyone in the decision been informed?</span>
           </div>
         </div>
@@ -3018,11 +3018,11 @@ function OfferPanel({
           <SectionLabel>Counteroffer defense</SectionLabel>
           <div
             className=" p-3 text-[13px] leading-relaxed mb-2"
-            style={{ background: "#f5f5f3", borderLeft: "2px solid rgba(24,95,165,0.3)" }}
+            style={{ background: "var(--color-ink-10)", borderLeft: "2px solid rgba(24,95,165,0.3)" }}
           >
             Ask yourself — why did it take a resignation letter to get this? The reasons you decided to move are still there on Monday morning.
           </div>
-          <p className="text-[11px]" style={{ color: "#888780" }}>
+          <p className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>
             Statistics: 60–80% who accept a counteroffer leave within 6 months. 90% within 12 months.
           </p>
         </div>
@@ -3032,7 +3032,7 @@ function OfferPanel({
       <SectionLabel>Resignation prep talking points</SectionLabel>
       <div
         className=" p-3 text-[13px] leading-relaxed mb-3"
-        style={{ background: "#f5f5f3", borderLeft: "2px solid rgba(24,95,165,0.3)" }}
+        style={{ background: "var(--color-ink-10)", borderLeft: "2px solid rgba(24,95,165,0.3)" }}
       >
         <p className="mb-2">Keep it short and professional. You do not owe a full explanation.</p>
         <p className="mb-2">Thank your manager for the experience. Say you have accepted a role that aligns better with where you want to go next.</p>
@@ -3067,11 +3067,11 @@ function OfferPanel({
       {scriptContent && (
         <div className="mt-4">
           <div className="flex items-center justify-between mb-1.5">
-            <p className="sl" style={{ color: "#185fa5" }}>Closing script</p>
+            <p className="sl" style={{ color: "var(--color-indigo)" }}>Closing script</p>
             <button
               onClick={() => setScriptContent(null)}
               className="text-[11px]"
-              style={{ color: "#888780" }}
+              style={{ color: "var(--color-ink-30)" }}
             >
               Dismiss
             </button>
@@ -3082,9 +3082,9 @@ function OfferPanel({
             rows={18}
             className="w-full  p-3 text-[13px] leading-relaxed resize-y outline-none font-mono"
             style={{
-              background: "#e6f1fb",
+              background: "var(--color-indigo-light)",
               border: "0.5px solid rgba(24,95,165,0.3)",
-              color: "#1a1a18",
+              color: "var(--color-ink)",
             }}
           />
         </div>
@@ -3191,12 +3191,12 @@ function AddToProcessModal({
                 <div
                   key={i}
                   className="h-12"
-                  style={{ background: "#f5f5f3" }}
+                  style={{ background: "var(--color-ink-10)" }}
                 />
               ))}
             </div>
           ) : reqs.length === 0 ? (
-            <p className="text-[13px] py-4 text-center" style={{ color: "#888780" }}>
+            <p className="text-[13px] py-4 text-center" style={{ color: "var(--color-ink-30)" }}>
               No open requisitions. Add one from a client account first.
             </p>
           ) : (
@@ -3205,7 +3205,7 @@ function AddToProcessModal({
                 <div key={clientName}>
                   <p
                     className="text-[11px] font-medium uppercase mb-1.5"
-                    style={{ color: "#888780", letterSpacing: "0.04em" }}
+                    style={{ color: "var(--color-ink-30)", letterSpacing: "0.04em" }}
                   >
                     {clientName}
                   </p>
@@ -3220,24 +3220,24 @@ function AddToProcessModal({
                           onClick={() => void handleAdd(r)}
                           className="w-full text-left px-3 py-2.5 flex items-center justify-between gap-3 transition-colors"
                           style={{
-                            background: alreadyAdded ? "#f5f5f3" : "#fff",
-                            border: "0.5px solid rgba(26,26,24,0.12)",
+                            background: alreadyAdded ? "var(--color-ink-10)" : "var(--color-white)",
+                            border: "0.5px solid var(--color-ink-15)",
                             opacity: alreadyAdded ? 0.6 : 1,
                             cursor: alreadyAdded ? "default" : "pointer",
                           }}
                           onMouseEnter={(e) => {
                             if (!alreadyAdded)
-                              e.currentTarget.style.background = "#f5f5f3";
+                              e.currentTarget.style.background = "var(--color-ink-10)";
                           }}
                           onMouseLeave={(e) => {
                             if (!alreadyAdded)
-                              e.currentTarget.style.background = "#fff";
+                              e.currentTarget.style.background = "var(--color-white)";
                           }}
                         >
                           <div className="min-w-0">
                             <p className="text-[13px] font-medium truncate">{r.title}</p>
                             {(r.salary_min || r.salary_max) && (
-                              <p className="text-[11px] mt-0.5" style={{ color: "#888780" }}>
+                              <p className="text-[11px] mt-0.5" style={{ color: "var(--color-ink-30)" }}>
                                 {r.salary_min
                                   ? `¥${(r.salary_min / 1_000_000).toFixed(1)}M`
                                   : "—"}
@@ -3251,16 +3251,16 @@ function AddToProcessModal({
                           {alreadyAdded ? (
                             <span
                               className="text-[11px] font-medium px-2 py-0.5  shrink-0"
-                              style={{ background: "#eaf3de", color: "#27500a" }}
+                              style={{ background: "var(--color-moss-light)", color: "var(--color-moss)" }}
                             >
                               Added
                             </span>
                           ) : isSaving ? (
-                            <span className="text-[11px] shrink-0" style={{ color: "#888780" }}>
+                            <span className="text-[11px] shrink-0" style={{ color: "var(--color-ink-30)" }}>
                               Saving…
                             </span>
                           ) : (
-                            <IconPlus size={14} style={{ color: "#888780", flexShrink: 0 }} />
+                            <IconPlus size={14} style={{ color: "var(--color-ink-30)", flexShrink: 0 }} />
                           )}
                         </button>
                       );
@@ -3293,12 +3293,12 @@ const CAND_INTERACTION_ICON: Record<string, React.ElementType> = {
   other:             IconClipboard,
 };
 const CAND_INTERACTION_COLORS: Record<string, { bg: string; color: string }> = {
-  call:              { bg: "#e6f1fb", color: "#185fa5" },
-  email:             { bg: "#f5f5f3", color: "#5f5e5a" },
-  meeting:           { bg: "#eaf3de", color: "#3b6d11" },
+  call:              { bg: "var(--color-indigo-light)", color: "var(--color-indigo)" },
+  email:             { bg: "var(--color-ink-10)", color: "var(--color-ink-60)" },
+  meeting:           { bg: "var(--color-moss-light)", color: "#3b6d11" },
   "job spec sent":   { bg: "#fef3e2", color: "#974c00" },
   "linkedin message":{ bg: "#f0eafb", color: "#6b3fa0" },
-  other:             { bg: "#f5f5f3", color: "#888780" },
+  other:             { bg: "var(--color-ink-10)", color: "var(--color-ink-30)" },
 };
 
 function CandidateTimelineTab({
@@ -3338,7 +3338,7 @@ function CandidateTimelineTab({
     <div className="space-y-3">
       {/* Action bar */}
       <div className="flex items-center justify-between">
-        <p className="text-[12px]" style={{ color: "#888780" }}>
+        <p className="text-[12px]" style={{ color: "var(--color-ink-30)" }}>
           {feed.length} {feed.length === 1 ? "entry" : "entries"}
         </p>
         <div className="flex items-center gap-2">
@@ -3381,10 +3381,10 @@ function CandidateTimelineTab({
       {feed.length === 0 && !showTranscript && (
         <div
           className=" px-5 py-12 text-center"
-          style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.12)" }}
+          style={{ background: "var(--color-white)", border: "0.5px solid var(--color-ink-15)" }}
         >
-          <p className="text-[13px] font-medium" style={{ color: "#1a1a18" }}>No activity recorded yet.</p>
-          <p className="text-[12px] mt-1" style={{ color: "#888780" }}>
+          <p className="text-[13px] font-medium" style={{ color: "var(--color-ink)" }}>No activity recorded yet.</p>
+          <p className="text-[12px] mt-1" style={{ color: "var(--color-ink-30)" }}>
             Interactions linked to this candidate and their active processes will appear here.
           </p>
         </div>
@@ -3401,7 +3401,7 @@ function CandidateTimelineTab({
             <div
               key={`i-${i.id}`}
               className=" p-[14px_18px]"
-              style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.12)" }}
+              style={{ background: "var(--color-white)", border: "0.5px solid var(--color-ink-15)" }}
             >
               <div className="flex items-start gap-3">
                 <div
@@ -3418,21 +3418,21 @@ function CandidateTimelineTab({
                     >
                       {type}
                     </span>
-                    <span className="text-[11px]" style={{ color: "#b8b7b2" }}>
+                    <span className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>
                       {formatDate(i.interacted_at)}
                     </span>
                     {i.clients && (
-                      <span className="text-[11px] px-[6px] py-[2px] " style={{ background: "#e6f1fb", color: "#185fa5" }}>
+                      <span className="text-[11px] px-[6px] py-[2px] " style={{ background: "var(--color-indigo-light)", color: "var(--color-indigo)" }}>
                         {i.clients.company_name}
                       </span>
                     )}
                     {i.client_contacts && (
-                      <span className="text-[11px] px-[6px] py-[2px] " style={{ background: "#f5f5f3", color: "#5f5e5a" }}>
+                      <span className="text-[11px] px-[6px] py-[2px] " style={{ background: "var(--color-ink-10)", color: "var(--color-ink-60)" }}>
                         with {i.client_contacts.name}
                       </span>
                     )}
                     {i.primary_party === "client" && (
-                      <span className="text-[11px] px-[6px] py-[2px] " style={{ background: "#fdf3e7", color: "#633806" }}>
+                      <span className="text-[11px] px-[6px] py-[2px] " style={{ background: "var(--color-gold-light)", color: "var(--color-gold)" }}>
                         spoke with client
                       </span>
                     )}
@@ -3441,12 +3441,12 @@ function CandidateTimelineTab({
                     <p className="text-[13px] font-medium mb-0.5">{i.summary}</p>
                   )}
                   {i.full_notes && (
-                    <p className="text-[12px] leading-relaxed" style={{ color: "#5f5e5a" }}>
+                    <p className="text-[12px] leading-relaxed" style={{ color: "var(--color-ink-60)" }}>
                       {i.full_notes}
                     </p>
                   )}
                   {!i.summary && !i.full_notes && (
-                    <p className="text-[12px]" style={{ color: "#b8b7b2" }}>No notes recorded.</p>
+                    <p className="text-[12px]" style={{ color: "var(--color-ink-30)" }}>No notes recorded.</p>
                   )}
                 </div>
               </div>
@@ -3460,14 +3460,14 @@ function CandidateTimelineTab({
           <div
             key={`p-${p.id}`}
             className="flex items-center gap-3  px-4 py-3"
-            style={{ background: "#f5f5f3", border: "0.5px solid rgba(26,26,24,0.08)" }}
+            style={{ background: "var(--color-ink-10)", border: "0.5px solid var(--color-border-subtle)" }}
           >
             <StageBadge stage={p.stage} className="text-[11px]" />
-            <span className="flex-1 text-[12px]" style={{ color: "#5f5e5a" }}>
+            <span className="flex-1 text-[12px]" style={{ color: "var(--color-ink-60)" }}>
               {p.requisitions?.clients?.company_name ?? "—"}
               {p.requisitions?.title ? ` — ${p.requisitions.title}` : ""}
             </span>
-            <span className="text-[11px]" style={{ color: "#b8b7b2" }}>
+            <span className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>
               {formatDate(p.updated_at)}
             </span>
           </div>
@@ -3590,8 +3590,8 @@ function CvUploadZone({
       <div
         className=" px-4 py-3 flex items-center gap-3 transition-colors"
         style={{
-          background: dragging ? "#e6f1fb" : "#f5f5f3",
-          border: `0.5px dashed ${dragging ? "#185fa5" : "rgba(26,26,24,0.2)"}`,
+          background: dragging ? "var(--color-indigo-light)" : "var(--color-ink-10)",
+          border: `0.5px dashed ${dragging ? "var(--color-indigo)" : "rgba(26,26,24,0.2)"}`,
           cursor: state === "uploading" || state === "extracting" ? "default" : "pointer",
         }}
         onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
@@ -3606,29 +3606,29 @@ function CvUploadZone({
           if (state !== "uploading" && state !== "extracting") inputRef.current?.click();
         }}
       >
-        <IconFileText size={16} style={{ color: "#888780", flexShrink: 0 }} />
+        <IconFileText size={16} style={{ color: "var(--color-ink-30)", flexShrink: 0 }} />
         <div className="flex-1 min-w-0">
           {state === "idle" && (
-            <p className="text-[12px]" style={{ color: "#5f5e5a" }}>
+            <p className="text-[12px]" style={{ color: "var(--color-ink-60)" }}>
               {cvUrl
                 ? "CV on file — drop a new PDF to re-extract"
                 : "Drop a PDF CV here or click to upload"}
             </p>
           )}
           {state === "uploading" && (
-            <p className="text-[12px]" style={{ color: "#185fa5" }}>Uploading…</p>
+            <p className="text-[12px]" style={{ color: "var(--color-indigo)" }}>Uploading…</p>
           )}
           {state === "uploaded" && (
-            <p className="text-[12px]" style={{ color: "#27500a" }}>Uploaded — ready to extract</p>
+            <p className="text-[12px]" style={{ color: "var(--color-moss)" }}>Uploaded — ready to extract</p>
           )}
           {state === "extracting" && (
-            <p className="text-[12px]" style={{ color: "#185fa5" }}>Extracting with AI…</p>
+            <p className="text-[12px]" style={{ color: "var(--color-indigo)" }}>Extracting with AI…</p>
           )}
           {state === "done" && (
-            <p className="text-[12px]" style={{ color: "#27500a" }}>Extraction complete</p>
+            <p className="text-[12px]" style={{ color: "var(--color-moss)" }}>Extraction complete</p>
           )}
           {state === "error" && (
-            <p className="text-[12px]" style={{ color: "#a32d2d" }}>Failed — click to retry</p>
+            <p className="text-[12px]" style={{ color: "var(--color-danger)" }}>Failed — click to retry</p>
           )}
         </div>
         {state === "uploaded" && uploadedPath && (
@@ -3729,7 +3729,7 @@ function ExtractionReviewModal({
     return (
       <div key={label} className="flex items-baseline justify-between gap-4 py-1.5"
         style={{ borderBottom: "0.5px solid rgba(26,26,24,0.08)" }}>
-        <span className="text-[12px]" style={{ color: "#888780" }}>{label}</span>
+        <span className="text-[12px]" style={{ color: "var(--color-ink-30)" }}>{label}</span>
         <span className="text-[13px] font-medium">{String(value)}</span>
       </div>
     );
@@ -3744,7 +3744,7 @@ function ExtractionReviewModal({
           <DialogTitle>CV extraction review</DialogTitle>
         </DialogHeader>
 
-        <p className="text-[12px] mb-3" style={{ color: "#888780" }}>
+        <p className="text-[12px] mb-3" style={{ color: "var(--color-ink-30)" }}>
           Review the extracted data below. Click "Apply fields" to merge into the candidate record.
           Work history must be added manually.
         </p>
@@ -3772,16 +3772,16 @@ function ExtractionReviewModal({
             <div className="space-y-1.5">
               {x.roles.map((r, i) => (
                 <div key={i} className=" px-3 py-2"
-                  style={{ background: "#f5f5f3", border: "0.5px solid rgba(26,26,24,0.08)" }}>
+                  style={{ background: "var(--color-ink-10)", border: "0.5px solid var(--color-border-subtle)" }}>
                   <p className="text-[12px] font-medium">{r.company_name} — {r.title}</p>
-                  <p className="text-[11px]" style={{ color: "#888780" }}>
+                  <p className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>
                     {r.start_date ?? "?"} – {r.is_current ? "Present" : (r.end_date ?? "?")}
                   </p>
                   {r.description && (
-                    <p className="text-[11px] mt-0.5" style={{ color: "#5f5e5a" }}>{r.description}</p>
+                    <p className="text-[11px] mt-0.5" style={{ color: "var(--color-ink-60)" }}>{r.description}</p>
                   )}
                   {r.reasonForLeaving && (
-                    <p className="text-[11px] mt-0.5" style={{ color: "#888780" }}>Left: {r.reasonForLeaving}</p>
+                    <p className="text-[11px] mt-0.5" style={{ color: "var(--color-ink-30)" }}>Left: {r.reasonForLeaving}</p>
                   )}
                 </div>
               ))}
@@ -3803,9 +3803,9 @@ function ExtractionReviewModal({
 // ─── candidate status toggle ──────────────────────────────────────────────────
 
 const STATUS_STYLE: Record<string, { bg: string; color: string; border: string }> = {
-  active:  { bg: "#eaf3de", color: "#27500a", border: "#b0d88a" },
-  passive: { bg: "#fdf3e7", color: "#633806", border: "#fac775" },
-  placed:  { bg: "#e6f1fb", color: "#185fa5", border: "#9ec5ef" },
+  active:  { bg: "var(--color-moss-light)", color: "var(--color-moss)", border: "#b0d88a" },
+  passive: { bg: "var(--color-gold-light)", color: "var(--color-gold)", border: "#fac775" },
+  placed:  { bg: "var(--color-indigo-light)", color: "var(--color-indigo)", border: "#9ec5ef" },
 };
 
 const STATUS_OPTIONS_LIST = [
@@ -3887,7 +3887,7 @@ function StatusToggle({
         {open && (
           <div
             className="absolute left-0 z-20 mt-0.5 w-32 overflow-hidden  "
-            style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.16)", top: "100%" }}
+            style={{ background: "var(--color-white)", border: "0.5px solid rgba(26,26,24,0.16)", top: "100%" }}
           >
             {STATUS_OPTIONS_LIST.map((opt) => {
               const st = STATUS_STYLE[opt.value];
@@ -3912,7 +3912,7 @@ function StatusToggle({
       </div>
 
       {isManual && (
-        <IconPencil size={10} style={{ color: "#888780" }} title="Manually set" />
+        <IconPencil size={10} style={{ color: "var(--color-ink-30)" }} title="Manually set" />
       )}
 
       {showCoin && (
@@ -3921,7 +3921,7 @@ function StatusToggle({
           <button
             type="button"
             className="text-[10px] leading-none"
-            style={{ color: "#888780" }}
+            style={{ color: "var(--color-ink-30)" }}
             title="Dismiss placement flag"
             onClick={(e) => void dismissCoin(e)}
           >
@@ -3981,12 +3981,12 @@ function RegistrationFormUploadZone({
   return (
     <div
       className=" px-4 py-3 flex items-center gap-3 cursor-pointer transition-colors"
-      style={{ background: "#f5f5f3", border: "0.5px dashed rgba(26,26,24,0.2)" }}
+      style={{ background: "var(--color-ink-10)", border: "0.5px dashed rgba(26,26,24,0.2)" }}
       onClick={() => !uploading && inputRef.current?.click()}
     >
-      <IconFileText size={16} style={{ color: "#888780", flexShrink: 0 }} />
+      <IconFileText size={16} style={{ color: "var(--color-ink-30)", flexShrink: 0 }} />
       <div className="flex-1 min-w-0">
-        <p className="text-[12px]" style={{ color: "#5f5e5a" }}>
+        <p className="text-[12px]" style={{ color: "var(--color-ink-60)" }}>
           {uploading
             ? "Uploading…"
             : registrationFormUrl
@@ -4000,11 +4000,11 @@ function RegistrationFormUploadZone({
             onClick={handleView}
             disabled={fetchingUrl}
             className="text-[11px] px-2 py-0.5  shrink-0"
-            style={{ background: "#e6f1fb", color: "#185fa5", border: "0.5px solid rgba(24,95,165,0.3)" }}
+            style={{ background: "var(--color-indigo-light)", color: "var(--color-indigo)", border: "0.5px solid rgba(24,95,165,0.3)" }}
           >
             {fetchingUrl ? "Opening…" : "View / Download"}
           </button>
-          <span className="text-[11px] px-2 py-0.5  shrink-0" style={{ background: "#eaf3de", color: "#27500a" }}>
+          <span className="text-[11px] px-2 py-0.5  shrink-0" style={{ background: "var(--color-moss-light)", color: "var(--color-moss)" }}>
             On file
           </span>
         </>
@@ -4050,30 +4050,30 @@ function CandidateIntelligenceCard({
   }
 
   return (
-    <div className=" overflow-hidden" style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.12)" }}>
+    <div className=" overflow-hidden" style={{ background: "var(--color-white)", border: "0.5px solid var(--color-ink-15)" }}>
       <button
         className="w-full flex items-center gap-2 px-4 py-3 text-left"
         onClick={() => setExpanded((v) => !v)}
       >
-        <IconSparkles size={13} style={{ color: "#888780" }} />
-        <span className="flex-1 text-[12px] font-medium" style={{ color: "#5f5e5a" }}>
+        <IconSparkles size={13} style={{ color: "var(--color-ink-30)" }} />
+        <span className="flex-1 text-[12px] font-medium" style={{ color: "var(--color-ink-60)" }}>
           Candidate intelligence
         </span>
         {aiContextUpdatedAt && (
-          <span className="text-[11px]" style={{ color: "#b8b7b2" }}>
+          <span className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>
             Updated {relativeTime(aiContextUpdatedAt)}
           </span>
         )}
-        <span className="text-[11px]" style={{ color: "#b8b7b2" }}>{expanded ? "▴" : "▾"}</span>
+        <span className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>{expanded ? "▴" : "▾"}</span>
       </button>
       {expanded && (
         <div className="px-4 pb-4">
           {aiContext ? (
-            <p className="text-[13px] leading-relaxed whitespace-pre-wrap mb-3" style={{ color: "#1a1a18" }}>
+            <p className="text-[13px] leading-relaxed whitespace-pre-wrap mb-3" style={{ color: "var(--color-ink)" }}>
               {aiContext}
             </p>
           ) : (
-            <p className="text-[13px] mb-3" style={{ color: "#888780" }}>
+            <p className="text-[13px] mb-3" style={{ color: "var(--color-ink-30)" }}>
               No intelligence summary yet. Click refresh to generate one from the candidate's interactions.
             </p>
           )}
@@ -4222,8 +4222,8 @@ function LogActivityPanel({
                     onClick={() => setPrimaryParty(party)}
                     className="text-[12px] px-3 py-1.5"
                     style={{
-                      background: primaryParty === party ? "#e6f1fb" : "#f5f5f3",
-                      color: primaryParty === party ? "#185fa5" : "#5f5e5a",
+                      background: primaryParty === party ? "var(--color-indigo-light)" : "var(--color-ink-10)",
+                      color: primaryParty === party ? "var(--color-indigo)" : "var(--color-ink-60)",
                       border: `0.5px solid ${primaryParty === party ? "#b5d4f4" : "rgba(26,26,24,0.12)"}`,
                     }}
                   >
@@ -4231,7 +4231,7 @@ function LogActivityPanel({
                   </button>
                 ))}
               </div>
-              <p className="text-[11px]" style={{ color: "#888780" }}>This activity will appear on both timelines.</p>
+              <p className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>This activity will appear on both timelines.</p>
             </div>
           )}
         </div>
@@ -4275,9 +4275,9 @@ function CandidateProfileSection({
         className="flex items-center gap-2 w-full text-left"
         onClick={() => setProfileOpen((v) => !v)}
       >
-        <span className="text-[12px] font-medium" style={{ color: "#5f5e5a" }}>Candidate profile data</span>
-        <span className="text-[11px]" style={{ color: "#b8b7b2" }}>{profileOpen ? "▴" : "▾"}</span>
-        <span className="text-[11px] ml-auto" style={{ color: "#b8b7b2" }}>feeds AI context</span>
+        <span className="text-[12px] font-medium" style={{ color: "var(--color-ink-60)" }}>Candidate profile data</span>
+        <span className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>{profileOpen ? "▴" : "▾"}</span>
+        <span className="text-[11px] ml-auto" style={{ color: "var(--color-ink-30)" }}>feeds AI context</span>
       </button>
 
       {profileOpen && (
@@ -4303,7 +4303,7 @@ function CandidateProfileSection({
               <FieldRow label="Urgency to move">
                 {c.active_passive ? (
                   <span style={{
-                    color: c.active_passive === "Active" ? "#27500a" : "#888780",
+                    color: c.active_passive === "Active" ? "var(--color-moss)" : "var(--color-ink-30)",
                     fontWeight: c.active_passive === "Active" ? 500 : 400,
                   }}>
                     {c.active_passive}
@@ -4333,7 +4333,7 @@ function CandidateProfileSection({
               </button>
             </div>
             {roles.length === 0 ? (
-              <p className="text-[13px]" style={{ color: "#888780" }}>No roles added yet.</p>
+              <p className="text-[13px]" style={{ color: "var(--color-ink-30)" }}>No roles added yet.</p>
             ) : (
               <div className="pl-1 mt-1">
                 {roles.map((role, i) => (
@@ -4357,23 +4357,23 @@ function CandidateProfileSection({
               </button>
             </div>
             {motivations.length === 0 ? (
-              <p className="text-[13px]" style={{ color: "#888780" }}>No motivations recorded yet.</p>
+              <p className="text-[13px]" style={{ color: "var(--color-ink-30)" }}>No motivations recorded yet.</p>
             ) : (
               motivations.map((m) => (
                 <div
                   key={m.id}
                   className="flex items-center gap-2  border px-3 py-2 text-[13px] mb-1.5"
-                  style={{ background: "#f5f5f3", borderColor: "rgba(26,26,24,0.12)" }}
+                  style={{ background: "var(--color-ink-10)", borderColor: "rgba(26,26,24,0.12)" }}
                 >
                   <span
                     className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-medium"
-                    style={{ background: "#e6f1fb", color: "#185fa5" }}
+                    style={{ background: "var(--color-indigo-light)", color: "var(--color-indigo)" }}
                   >
                     {m.rank}
                   </span>
                   <span className="flex-1">{m.motivation_text}</span>
                   {m.motivation_type && (
-                    <span className="text-[11px] px-2 py-0.5 " style={{ background: "#e6f1fb", color: "#185fa5" }}>
+                    <span className="text-[11px] px-2 py-0.5 " style={{ background: "var(--color-indigo-light)", color: "var(--color-indigo)" }}>
                       {m.motivation_type.replace(/_/g, " ")}
                     </span>
                   )}
@@ -4381,7 +4381,7 @@ function CandidateProfileSection({
               ))
             )}
             {motivations.length > 0 && (
-              <p className="mt-2 text-[11px] flex items-center gap-1" style={{ color: "#888780" }}>
+              <p className="mt-2 text-[11px] flex items-center gap-1" style={{ color: "var(--color-ink-30)" }}>
                 <IconInfoCircle size={12} />
                 AI uses this ranking to sequence positioning talking points
               </p>
@@ -4397,7 +4397,7 @@ function CandidateProfileSection({
               </button>
             </div>
             {blockers.length === 0 ? (
-              <p className="text-[13px]" style={{ color: "#888780" }}>
+              <p className="text-[13px]" style={{ color: "var(--color-ink-30)" }}>
                 None recorded. Add family constraints, geographic limits, or other context.
               </p>
             ) : (
@@ -4405,11 +4405,11 @@ function CandidateProfileSection({
                 <div key={b.id} className="flex gap-2 mb-1.5 text-[13px] leading-relaxed">
                   <span
                     className="mt-[7px] h-[5px] w-[5px] shrink-0 rounded-full"
-                    style={{ background: b.is_risk ? "#633806" : "#888780" }}
+                    style={{ background: b.is_risk ? "var(--color-gold)" : "var(--color-ink-30)" }}
                   />
                   <span>
                     <strong>{b.theme}.</strong>{" "}
-                    <span style={{ color: b.is_risk ? "#1a1a18" : "#5f5e5a" }}>{b.detail}</span>
+                    <span style={{ color: b.is_risk ? "var(--color-ink)" : "var(--color-ink-60)" }}>{b.detail}</span>
                   </span>
                 </div>
               ))
@@ -4425,27 +4425,27 @@ function CandidateProfileSection({
               </button>
             </div>
             {competing.length === 0 ? (
-              <p className="text-[13px]" style={{ color: "#888780" }}>None recorded at registration.</p>
+              <p className="text-[13px]" style={{ color: "var(--color-ink-30)" }}>None recorded at registration.</p>
             ) : (
               competing.map((ci) => (
                 <div
                   key={ci.id}
                   className="flex items-center justify-between py-1.5 text-[13px]"
-                  style={{ borderBottom: "0.5px solid rgba(26,26,24,0.12)", opacity: ci.is_active ? 1 : 0.45 }}
+                  style={{ borderBottom: "0.5px solid var(--color-ink-15)", opacity: ci.is_active ? 1 : 0.45 }}
                 >
                   <span className="font-medium" style={{ textDecoration: ci.is_active ? "none" : "line-through" }}>
                     {ci.company_name}
                   </span>
                   <div className="flex items-center gap-2">
-                    {ci.source && <span style={{ color: "#5f5e5a", fontSize: 12 }}>{ci.source}</span>}
+                    {ci.source && <span style={{ color: "var(--color-ink-60)", fontSize: 12 }}>{ci.source}</span>}
                     {ci.stage && (
-                      <span className="text-[11px] px-2 py-0.5 " style={{ background: "#f5f5f3", color: "#5f5e5a" }}>
+                      <span className="text-[11px] px-2 py-0.5 " style={{ background: "var(--color-ink-10)", color: "var(--color-ink-60)" }}>
                         {ci.stage}
                       </span>
                     )}
                     <button
                       className="text-[11px] px-2 py-0.5 "
-                      style={{ background: ci.is_active ? "#eaf3de" : "#f5f5f3", color: ci.is_active ? "#27500a" : "#888780", border: "0.5px solid rgba(26,26,24,0.12)" }}
+                      style={{ background: ci.is_active ? "var(--color-moss-light)" : "var(--color-ink-10)", color: ci.is_active ? "var(--color-moss)" : "var(--color-ink-30)", border: "0.5px solid var(--color-ink-15)" }}
                       onClick={() => {
                         void supabase.from("competing_interviews").update({ is_active: !ci.is_active }).eq("id", ci.id).then(() => {
                           void qc.invalidateQueries({ queryKey: ["candidate-profile", candidateId] });
@@ -4585,7 +4585,7 @@ function EditCompensationDialog({
       <div className="space-y-1.5">
         <Label className="text-[12px]">{label}</Label>
         <div className="relative">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[12px]" style={{ color: "#888780" }}>¥</span>
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[12px]" style={{ color: "var(--color-ink-30)" }}>¥</span>
           <Input
             type="number"
             value={form[k]}
@@ -4594,7 +4594,7 @@ function EditCompensationDialog({
             placeholder="e.g. 12"
           />
         </div>
-        <p className="text-[11px]" style={{ color: "#b8b7b2" }}>Enter in ¥M — type 12 for ¥12M</p>
+        <p className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>Enter in ¥M — type 12 for ¥12M</p>
       </div>
     );
   }
