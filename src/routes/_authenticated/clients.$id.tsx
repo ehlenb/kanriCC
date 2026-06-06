@@ -2918,11 +2918,7 @@ function EditableContractTab({ client: c, clientId }: { client: ClientRecord; cl
       const path = `contracts/${clientId}/${Date.now()}_${file.name.replace(/\s+/g, "_")}`;
       const { error } = await supabase.storage.from("resumes").upload(path, file);
       if (error) throw error;
-      await supabase.from("clients").update({ contract_signed: true, contract_url: path }).eq("id", clientId);
-      void qc.invalidateQueries({ queryKey: ["client", clientId] });
-      toast.success("Contract uploaded.");
-
-      // Try to extract fields from text (PDF/DOCX)
+      // Try to extract fields from text (PDF/DOCX) before marking signed
       let text = "";
       if (file.name.endsWith(".docx")) {
         const mammoth = await import("mammoth");
@@ -2930,6 +2926,8 @@ function EditableContractTab({ client: c, clientId }: { client: ClientRecord; cl
         const result = await mammoth.extractRawText({ arrayBuffer: buf });
         text = result.value;
       }
+
+      let extractedFields: { fee_pct?: number; started_at?: string } = {};
       if (text.length > 50) {
         setExtracting(true);
         try {
@@ -2940,13 +2938,24 @@ function EditableContractTab({ client: c, clientId }: { client: ClientRecord; cl
           });
           const json = (await resp.json()) as { data?: { fee_pct?: number; started_at?: string } };
           if (json.data && Object.keys(json.data).length > 0) {
-            await supabase.from("clients").update(json.data).eq("id", clientId);
-            void qc.invalidateQueries({ queryKey: ["client", clientId] });
-            toast.success("Contract fields extracted and saved.");
+            extractedFields = json.data;
           }
+        } catch {
+          toast.error("Could not extract contract fields. Upload saved, but fee % and start date were not auto-filled.");
         } finally {
           setExtracting(false);
         }
+      }
+
+      await supabase
+        .from("clients")
+        .update({ contract_signed: true, contract_url: path, ...extractedFields })
+        .eq("id", clientId);
+      void qc.invalidateQueries({ queryKey: ["client", clientId] });
+      if (Object.keys(extractedFields).length > 0) {
+        toast.success("Contract uploaded and fields extracted.");
+      } else {
+        toast.success("Contract uploaded.");
       }
     } catch {
       toast.error("Contract upload failed.");
