@@ -1249,9 +1249,19 @@ function NotesTab({
       <InterviewNotesCard
         value={c.notes_interview}
         onSave={(v) => void saveField("notes_interview", v)}
-        locationPreferences={c.location_preferences}
-        onSaveLocation={(v) => void saveField("location_preferences", v)}
       />
+
+      {/* Location Preferences */}
+      <Card>
+        <SectionLabel>Location preferences</SectionLabel>
+        <NoteField
+          label=""
+          value={c.location_preferences}
+          placeholder="e.g. Tokyo preferred, ideally Shinjuku area or within 30min by train. Open to Yokohama. Not available for Osaka."
+          onSave={(v) => void saveField("location_preferences", v)}
+          rows={3}
+        />
+      </Card>
 
       {/* Industry Preferences */}
       <Card>
@@ -1316,21 +1326,15 @@ function NotesTab({
 function InterviewNotesCard({
   value,
   onSave,
-  locationPreferences,
-  onSaveLocation,
 }: {
   value: string | null | undefined;
   onSave: (v: string | null) => void;
-  locationPreferences?: string | null;
-  onSaveLocation?: (v: string | null) => void;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [aiResult, setAiResult] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value ?? "");
-  const [locationDraft, setLocationDraft] = useState(locationPreferences ?? "");
-  const [locationEditing, setLocationEditing] = useState(false);
 
   function handleBlur() {
     setEditing(false);
@@ -1385,49 +1389,8 @@ function InterviewNotesCard({
     toast.success("Notes saved.");
   }
 
-  function handleLocationBlur() {
-    setLocationEditing(false);
-    const trimmed = locationDraft.trim();
-    if (trimmed !== (locationPreferences ?? "").trim()) onSaveLocation?.(trimmed || null);
-  }
-
   return (
     <Card>
-      {/* Location preferences — free-text, shown first */}
-      <div className="mb-4">
-        <SectionLabel className="mb-1">Location preferences</SectionLabel>
-        {locationEditing ? (
-          <textarea
-            autoFocus
-            className="w-full text-[13px] leading-relaxed resize-none p-2"
-            style={{
-              background: "var(--color-ink-10)",
-              border: "0.5px solid var(--color-ink-15)",
-              color: "var(--color-ink)",
-              minHeight: 60,
-              outline: "none",
-            }}
-            rows={3}
-            value={locationDraft}
-            onChange={(e) => setLocationDraft(e.target.value)}
-            onBlur={handleLocationBlur}
-            placeholder="e.g. Tokyo preferred, ideally Shinjuku area or within 30min by train. Open to Yokohama. Not available for Osaka."
-          />
-        ) : (
-          <div
-            className="text-[13px] leading-relaxed cursor-text min-h-[36px] px-2 py-1.5"
-            style={{
-              color: locationPreferences ? "var(--color-ink)" : "var(--color-ink-30)",
-              background: "var(--color-ink-10)",
-              border: "0.5px solid transparent",
-            }}
-            onClick={() => { setLocationDraft(locationPreferences ?? ""); setLocationEditing(true); }}
-          >
-            {locationPreferences || "Click to add location preferences…"}
-          </div>
-        )}
-      </div>
-
       <div className="flex items-center justify-between mb-2">
         <SectionLabel>Interview notes</SectionLabel>
         <button
