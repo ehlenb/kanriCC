@@ -477,6 +477,16 @@ function Dashboard() {
         {/* Saved lists widget */}
         <SavedListsWidget recruiterId={user?.id ?? ""} />
       </div>
+
+      {/* Brand surface */}
+      <div className="surface-dark px-8 py-10">
+        <p className="font-display text-2xl font-medium leading-snug" style={{ color: "var(--color-white)" }}>
+          候補者の文脈を、すべての会話に。
+        </p>
+        <p className="mt-1 text-[15px] font-light tracking-wide" style={{ color: "rgba(253,252,250,0.55)" }}>
+          Every relationship. Always remembered.
+        </p>
+      </div>
     </div>
   );
 }
