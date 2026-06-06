@@ -502,8 +502,8 @@ function ClientDetail() {
 
   if (isLoading) {
     return (
-      <div style={{ background: "#eeede8", minHeight: "100vh" }}>
-        <div className="h-12 bg-[--color-white]" style={{ borderBottom: "0.5px solid rgba(26,26,24,0.12)" }} />
+      <div style={{ background: "var(--color-ink-10)", minHeight: "100vh" }}>
+        <div className="h-12 bg-[--color-white]" style={{ borderBottom: "0.5px solid var(--color-ink-15)" }} />
         <div className="px-6 pt-5 space-y-3 max-w-4xl">
           <Skeleton className="h-32 w-full " />
           <Skeleton className="h-48 w-full " />
@@ -514,7 +514,7 @@ function ClientDetail() {
 
   if (!data?.client) {
     return (
-      <div style={{ background: "#eeede8", minHeight: "100vh" }} className="p-8 text-sm" >
+      <div style={{ background: "var(--color-ink-10)", minHeight: "100vh" }} className="p-8 text-sm" >
         Client not found.
       </div>
     );
@@ -647,16 +647,16 @@ function ClientDetail() {
   }
 
   return (
-    <div style={{ background: "#eeede8", minHeight: "100vh" }}>
+    <div style={{ background: "var(--color-ink-10)", minHeight: "100vh" }}>
       {/* Top bar */}
       <div
         className="flex items-center gap-2 h-12 px-6 text-[13px]"
-        style={{ background: "var(--color-white)", borderBottom: "0.5px solid rgba(26,26,24,0.12)" }}
+        style={{ background: "var(--color-white)", borderBottom: "0.5px solid var(--color-ink-15)" }}
       >
         <button
           onClick={() => navigate({ to: "/clients" })}
           className="flex items-center gap-1 transition-colors"
-          style={{ color: "#888780" }}
+          style={{ color: "var(--color-ink-30)" }}
         >
           <IconArrowLeft size={14} />
           Accounts
@@ -666,7 +666,7 @@ function ClientDetail() {
         {!c.is_active && (
           <span
             className="ml-1 text-[11px] px-1.5 py-0.5 "
-            style={{ background: "#f5f5f3", color: "#888780" }}
+            style={{ background: "var(--color-ink-10)", color: "var(--color-ink-30)" }}
           >
             Inactive
           </span>
@@ -676,16 +676,16 @@ function ClientDetail() {
       {/* Client snapshot */}
       <div
         className="mx-6 mt-5  p-[14px_18px]"
-        style={{ background: "#f5f5f3", border: "0.5px solid rgba(26,26,24,0.12)" }}
+        style={{ background: "var(--color-ink-10)", border: "0.5px solid var(--color-ink-15)" }}
       >
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <span className="text-[12px] font-medium" style={{ color: "#5f5e5a" }}>
+            <span className="text-[12px] font-medium" style={{ color: "var(--color-ink-60)" }}>
               Client snapshot
             </span>
             <span
               className="text-[11px] px-1.5 py-0.5 "
-              style={{ background: "var(--color-white)", border: "0.5px solid rgba(26,26,24,0.12)" }}
+              style={{ background: "var(--color-white)", border: "0.5px solid var(--color-ink-15)" }}
             >
               ✦ AI generated
             </span>
@@ -723,7 +723,7 @@ function ClientDetail() {
             <div>
               <p className="sl mb-1.5">Active in process</p>
               {activePipeline.length === 0 ? (
-                <p className="text-[13px]" style={{ color: "#888780" }}>
+                <p className="text-[13px]" style={{ color: "var(--color-ink-30)" }}>
                   No active candidates with this client.
                 </p>
               ) : (
@@ -731,7 +731,7 @@ function ClientDetail() {
                   <p key={p.id} className="text-[13px] mb-0.5">
                     <span className="font-medium">{p.candidates?.full_name ?? "—"}</span>
                     {" — "}
-                    <span style={{ color: "#5f5e5a" }}>
+                    <span style={{ color: "var(--color-ink-60)" }}>
                       {p.reqTitle} ({p.stage})
                     </span>
                   </p>
@@ -741,13 +741,13 @@ function ClientDetail() {
             {/* Col 3: Watch out */}
             <div>
               <p className="sl mb-1.5">Watch out</p>
-              <p className="text-[13px] leading-relaxed" style={{ color: "#a32d2d" }}>
+              <p className="text-[13px] leading-relaxed" style={{ color: "var(--color-danger)" }}>
                 {snapshotData.watchOut}
               </p>
             </div>
           </div>
         ) : (
-          <p className="text-[13px]" style={{ color: "#888780" }}>
+          <p className="text-[13px]" style={{ color: "var(--color-ink-30)" }}>
             Generate a snapshot to see where things stand, who is active, and what to watch for today.
           </p>
         )}
@@ -756,7 +756,7 @@ function ClientDetail() {
       {/* Tab switcher */}
       <div
         className="flex gap-0 mx-6 mt-4"
-        style={{ borderBottom: "0.5px solid rgba(26,26,24,0.12)" }}
+        style={{ borderBottom: "0.5px solid var(--color-ink-15)" }}
       >
         {(
           [
@@ -923,7 +923,7 @@ function Card({ children, className = "" }: { children: React.ReactNode; classNa
   return (
     <div
       className={` p-[16px_18px] ${className}`}
-      style={{ background: "var(--color-white)", border: "0.5px solid rgba(26,26,24,0.12)" }}
+      style={{ background: "var(--color-white)", border: "0.5px solid var(--color-ink-15)" }}
     >
       {children}
     </div>
@@ -934,7 +934,7 @@ function SL({ children }: { children: React.ReactNode }) {
   return (
     <p
       className="text-[11px] font-medium uppercase tracking-[0.04em] mb-2"
-      style={{ color: "#5f5e5a" }}
+      style={{ color: "var(--color-ink-60)" }}
     >
       {children}
     </p>
@@ -970,7 +970,7 @@ function CompanyHeaderCard({
       <div className="flex items-start gap-3 mb-4">
         <div
           className="flex h-11 w-11 shrink-0 items-center justify-center  text-[13px] font-medium"
-          style={{ background: "#e6f1fb", color: "#185fa5" }}
+          style={{ background: "var(--color-indigo-light)", color: "var(--color-indigo)" }}
         >
           {initials(c.company_name)}
         </div>
@@ -984,7 +984,7 @@ function CompanyHeaderCard({
               contractSigned={c.contract_signed}
             />
             {c.contract_signed && (
-              <MetaPill style={{ background: "#eaf3de", color: "#27500a", borderColor: "#c0dd97" }}>Contract signed</MetaPill>
+              <MetaPill style={{ background: "var(--color-moss-light)", color: "var(--color-moss)", borderColor: "#c0dd97" }}>Contract signed</MetaPill>
             )}
             {c.employee_japanese_pct != null && (
               <MetaPill>
@@ -1004,7 +1004,7 @@ function CompanyHeaderCard({
               </MetaPill>
             )}
             {openReqsCount > 0 && (
-              <MetaPill style={{ background: "#faeeda", color: "#633806", borderColor: "#fac775" }}>
+              <MetaPill style={{ background: "var(--color-gold-light)", color: "var(--color-gold)", borderColor: "#fac775" }}>
                 {openReqsCount} open job{openReqsCount !== 1 ? "s" : ""}
               </MetaPill>
             )}
@@ -1029,26 +1029,26 @@ function CompanyHeaderCard({
           {
             label: "Placements",
             value: stats.placements,
-            color: stats.placements > 0 ? "#27500a" : undefined,
+            color: stats.placements > 0 ? "var(--color-moss)" : undefined,
           },
           {
             label: "Feedback overdue",
             value: stats.feedbackOverdue,
-            color: stats.feedbackOverdue > 0 ? "#a32d2d" : undefined,
+            color: stats.feedbackOverdue > 0 ? "var(--color-danger)" : undefined,
           },
         ].map(({ label, value, color }) => (
           <div
             key={label}
             className=" p-[10px_12px]"
-            style={{ background: "#f5f5f3" }}
+            style={{ background: "var(--color-ink-10)" }}
           >
             <p
               className="text-[18px] font-medium leading-none mb-1 font-display"
-              style={{ color: color ?? "#1a1a18" }}
+              style={{ color: color ?? "var(--color-ink)" }}
             >
               {value}
             </p>
-            <p className="text-[11px]" style={{ color: "#888780" }}>
+            <p className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>
               {label}
             </p>
           </div>
@@ -1058,11 +1058,11 @@ function CompanyHeaderCard({
       {/* Completeness bar */}
       <div
         className="flex items-center gap-2 px-3 py-2 mb-3"
-        style={{ background: "#e6f1fb" }}
+        style={{ background: "var(--color-indigo-light)" }}
       >
-        <IconFileText size={14} style={{ color: "#185fa5" }} />
+        <IconFileText size={14} style={{ color: "var(--color-indigo)" }} />
         <div className="flex-1 min-w-0">
-          <p className="text-[12px]" style={{ color: "#185fa5" }}>
+          <p className="text-[12px]" style={{ color: "var(--color-indigo)" }}>
             Client intel — {completeness.score}% complete
             {completeness.missing.length > 0 && (
               <span className="ml-1">
@@ -1077,12 +1077,12 @@ function CompanyHeaderCard({
             style={{
               width: `${completeness.score}%`,
               height: "100%",
-              background: "#185fa5",
+              background: "var(--color-indigo)",
               borderRadius: 2,
             }}
           />
         </div>
-        <span className="text-[11px] font-medium shrink-0" style={{ color: "#185fa5" }}>
+        <span className="text-[11px] font-medium shrink-0" style={{ color: "var(--color-indigo)" }}>
           {completeness.score}%
         </span>
       </div>
@@ -1097,13 +1097,13 @@ function CompanyHeaderCard({
             onChange={(e) => setStrategyDraft(e.target.value)}
             onBlur={saveStrategy}
             className="w-full text-[13px] leading-[1.55] bg-transparent border-none outline-none resize-none"
-            style={{ color: "#1a1a18" }}
+            style={{ color: "var(--color-ink)" }}
             rows={4}
           />
         ) : (
           <p
             className="text-[13px] leading-[1.55] cursor-text"
-            style={{ color: c.strategy_notes ? "#1a1a18" : "#888780" }}
+            style={{ color: c.strategy_notes ? "var(--color-ink)" : "var(--color-ink-30)" }}
             onClick={() => {
               setStrategyDraft(c.strategy_notes ?? "");
               setEditingStrategy(true);
@@ -1146,9 +1146,9 @@ function ClientStatusSelect({
   });
 
   const styles: Record<string, React.CSSProperties> = {
-    active:   { background: "#eaf3de", color: "#27500a", borderColor: "#c0dd97" },
-    prospect: { background: "#fdf3e7", color: "#633806", borderColor: "#fac775" },
-    inactive: { background: "#f5f5f3", color: "#888780", borderColor: "rgba(26,26,24,0.12)" },
+    active:   { background: "var(--color-moss-light)", color: "var(--color-moss)", borderColor: "#c0dd97" },
+    prospect: { background: "var(--color-gold-light)", color: "var(--color-gold)", borderColor: "#fac775" },
+    inactive: { background: "var(--color-ink-10)", color: "var(--color-ink-30)", borderColor: "var(--color-ink-15)" },
   };
   const s = styles[currentStatus] ?? styles.prospect;
 
@@ -1160,7 +1160,7 @@ function ClientStatusSelect({
         if (e.target.value !== currentStatus) mutation.mutate(e.target.value);
       }}
       className="text-[12px] font-medium  px-[7px] py-[2px] outline-none cursor-pointer"
-      style={{ border: `0.5px solid ${s.borderColor ?? "rgba(26,26,24,0.12)"}`, ...s }}
+      style={{ border: `0.5px solid ${s.borderColor ?? "var(--color-ink-15)"}`, ...s }}
     >
       <option value="prospect">Prospect</option>
       <option value="active">Active</option>
@@ -1180,9 +1180,9 @@ function MetaPill({
     <span
       className="text-[12px] px-[7px] py-[2px] "
       style={{
-        background: "#f5f5f3",
-        border: "0.5px solid rgba(26,26,24,0.12)",
-        color: "#5f5e5a",
+        background: "var(--color-ink-10)",
+        border: "0.5px solid var(--color-ink-15)",
+        color: "var(--color-ink-60)",
         ...style,
       }}
     >
@@ -1194,33 +1194,33 @@ function MetaPill({
 // ─── contacts card ────────────────────────────────────────────────────────────
 
 const ROLE_AVATAR: Record<ContactRole, React.CSSProperties> = {
-  hiring_manager: { background: "#e6f1fb", color: "#185fa5" },
-  hr_gatekeeper: { background: "#f5f5f3", color: "#888780" },
-  ta_coordinator: { background: "#faeeda", color: "#633806" },
-  executive: { background: "#faeeda", color: "#633806" },
-  other: { background: "#f5f5f3", color: "#888780" },
+  hiring_manager: { background: "var(--color-indigo-light)", color: "var(--color-indigo)" },
+  hr_gatekeeper: { background: "var(--color-ink-10)", color: "var(--color-ink-30)" },
+  ta_coordinator: { background: "var(--color-gold-light)", color: "var(--color-gold)" },
+  executive: { background: "var(--color-gold-light)", color: "var(--color-gold)" },
+  other: { background: "var(--color-ink-10)", color: "var(--color-ink-30)" },
 };
 
 const ROLE_BADGE: Record<ContactRole, { label: string; style: React.CSSProperties }> = {
   hiring_manager: {
     label: "Decision maker",
-    style: { background: "#e6f1fb", color: "#185fa5", borderColor: "#b5d4f4" },
+    style: { background: "var(--color-indigo-light)", color: "var(--color-indigo)", borderColor: "#b5d4f4" },
   },
   hr_gatekeeper: {
     label: "HR gatekeeper",
-    style: { background: "#f5f5f3", color: "#888780", borderColor: "rgba(26,26,24,0.12)" },
+    style: { background: "var(--color-ink-10)", color: "var(--color-ink-30)", borderColor: "var(--color-ink-15)" },
   },
   ta_coordinator: {
     label: "Scheduling owner",
-    style: { background: "#faeeda", color: "#633806", borderColor: "#fac775" },
+    style: { background: "var(--color-gold-light)", color: "var(--color-gold)", borderColor: "#fac775" },
   },
   executive: {
     label: "Executive",
-    style: { background: "#faeeda", color: "#633806", borderColor: "#fac775" },
+    style: { background: "var(--color-gold-light)", color: "var(--color-gold)", borderColor: "#fac775" },
   },
   other: {
     label: "Contact",
-    style: { background: "#f5f5f3", color: "#888780", borderColor: "rgba(26,26,24,0.12)" },
+    style: { background: "var(--color-ink-10)", color: "var(--color-ink-30)", borderColor: "var(--color-ink-15)" },
   },
 };
 
@@ -1263,7 +1263,7 @@ function ContactsCard({
       </div>
 
       {contacts.length === 0 ? (
-        <p className="text-[13px]" style={{ color: "#888780" }}>
+        <p className="text-[13px]" style={{ color: "var(--color-ink-30)" }}>
           No contacts added. Add your hiring manager and HR gatekeeper first.
         </p>
       ) : (
@@ -1278,7 +1278,7 @@ function ContactsCard({
                 {contact.role === "hr_gatekeeper" && contact.bypass_hr_warning && (
                   <div
                     className="text-[12px] px-3 py-2 mb-1.5 leading-snug"
-                    style={{ background: "#faeeda", color: "#633806" }}
+                    style={{ background: "var(--color-gold-light)", color: "var(--color-gold)" }}
                   >
                     Do not send scheduling requests to the hiring manager directly — {contact.name} will notice and it creates friction.
                   </div>
@@ -1298,7 +1298,7 @@ function ContactsCard({
                     <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
                       <span className="text-[13px] font-medium">{contact.name}</span>
                       {contact.title && (
-                        <span className="text-[12px]" style={{ color: "#888780" }}>
+                        <span className="text-[12px]" style={{ color: "var(--color-ink-30)" }}>
                           · {contact.title}
                         </span>
                       )}
@@ -1311,7 +1311,7 @@ function ContactsCard({
                       {contact.is_primary && (
                         <span
                           className="text-[11px] font-medium px-[7px] py-[2px]  border"
-                          style={{ background: "#faeeda", color: "#633806", borderColor: "#fac775" }}
+                          style={{ background: "var(--color-gold-light)", color: "var(--color-gold)", borderColor: "#fac775" }}
                         >
                           Primary contact
                         </span>
@@ -1322,13 +1322,13 @@ function ContactsCard({
                     {(contact.email || contact.phone || contact.linkedin_url) && (
                       <div className="flex items-center gap-3 mt-0.5 mb-1">
                         {contact.email && (
-                          <a href={`mailto:${contact.email}`} className="text-[11px]" style={{ color: "#185fa5" }}>{contact.email}</a>
+                          <a href={`mailto:${contact.email}`} className="text-[11px]" style={{ color: "var(--color-indigo)" }}>{contact.email}</a>
                         )}
                         {contact.phone && (
-                          <span className="text-[11px]" style={{ color: "#5f5e5a" }}>{contact.phone}</span>
+                          <span className="text-[11px]" style={{ color: "var(--color-ink-60)" }}>{contact.phone}</span>
                         )}
                         {contact.linkedin_url && (
-                          <a href={contact.linkedin_url} target="_blank" rel="noreferrer" className="text-[11px] underline underline-offset-2" style={{ color: "#185fa5" }}>LinkedIn</a>
+                          <a href={contact.linkedin_url} target="_blank" rel="noreferrer" className="text-[11px] underline underline-offset-2" style={{ color: "var(--color-indigo)" }}>LinkedIn</a>
                         )}
                       </div>
                     )}
@@ -1353,8 +1353,8 @@ function ContactsCard({
                         className="w-full mt-1 text-[12px] leading-[1.4] px-2 py-1 resize-none"
                         style={{
                           border: "0.5px solid rgba(26,26,24,0.20)",
-                          background: "#fafaf9",
-                          color: "#1a1a18",
+                          background: "var(--color-white)",
+                          color: "var(--color-ink)",
                           outline: "none",
                         }}
                       />
@@ -1368,14 +1368,14 @@ function ContactsCard({
                         {contact.notes ? (
                           <p
                             className="text-[12px] leading-[1.4]"
-                            style={{ color: "#5f5e5a" }}
+                            style={{ color: "var(--color-ink-60)" }}
                           >
                             {contact.notes}
                           </p>
                         ) : (
                           <p
                             className="text-[12px] leading-[1.4]"
-                            style={{ color: "#b8b7b2" }}
+                            style={{ color: "var(--color-ink-30)" }}
                           >
                             Add a note about this contact...
                           </p>
@@ -1385,8 +1385,8 @@ function ContactsCard({
 
                     {/* Contact activity footer */}
                     {onLogActivity && (
-                      <div className="flex items-center justify-between mt-2 pt-2" style={{ borderTop: "0.5px solid rgba(26,26,24,0.08)" }}>
-                        <span className="text-[11px]" style={{ color: "#b8b7b2" }}>
+                      <div className="flex items-center justify-between mt-2 pt-2" style={{ borderTop: "0.5px solid var(--color-border-subtle)" }}>
+                        <span className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>
                           {(interactions ?? []).filter((i) => i.contact_id === contact.id).length} interaction{(interactions ?? []).filter((i) => i.contact_id === contact.id).length !== 1 ? "s" : ""} logged
                         </span>
                         <button
@@ -1405,11 +1405,11 @@ function ContactsCard({
                           .filter((i) => i.contact_id === contact.id)
                           .slice(0, 3)
                           .map((i) => (
-                            <div key={i.id} className="flex items-start gap-2 px-2 py-1.5" style={{ background: "#f5f5f3" }}>
-                              <span className="text-[11px] capitalize font-medium mt-0.5" style={{ color: "#888780", minWidth: 36 }}>{i.interaction_type}</span>
+                            <div key={i.id} className="flex items-start gap-2 px-2 py-1.5" style={{ background: "var(--color-ink-10)" }}>
+                              <span className="text-[11px] capitalize font-medium mt-0.5" style={{ color: "var(--color-ink-30)", minWidth: 36 }}>{i.interaction_type}</span>
                               <div className="flex-1 min-w-0">
                                 {i.summary && <p className="text-[12px] truncate">{i.summary}</p>}
-                                <p className="text-[11px]" style={{ color: "#b8b7b2" }}>
+                                <p className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>
                                   {new Date(i.interacted_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
                                 </p>
                               </div>
@@ -1437,8 +1437,8 @@ const DOT_LABELS: Record<number, string> = {
 };
 
 function dotStyle(dotIndex: number, score: number | null): React.CSSProperties {
-  if (!score || dotIndex > score) return { background: "#f5f5f3", border: "0.5px solid rgba(26,26,24,0.12)" };
-  return { background: score >= 4 ? "#185fa5" : "#b5d4f4" };
+  if (!score || dotIndex > score) return { background: "var(--color-ink-10)", border: "0.5px solid var(--color-ink-15)" };
+  return { background: score >= 4 ? "var(--color-indigo)" : "#b5d4f4" };
 }
 
 function RelationshipDots({
@@ -1469,7 +1469,7 @@ function RelationshipDots({
             style={dotStyle(i, score)}
           />
         ))}
-        <span className="ml-1.5 text-[11px]" style={{ color: "#888780" }}>
+        <span className="ml-1.5 text-[11px]" style={{ color: "var(--color-ink-30)" }}>
           {score ? DOT_LABELS[score] : "Rate relationship"}
         </span>
       </button>
@@ -1486,7 +1486,7 @@ function RelationshipDots({
                 onClick={() => handleSelect(i)}
                 className="flex items-center gap-3 w-full px-3 py-2 text-left transition-colors"
                 style={{
-                  background: score === i ? "#e6f1fb" : "#f5f5f3",
+                  background: score === i ? "var(--color-indigo-light)" : "var(--color-ink-10)",
                   border: score === i ? "0.5px solid #b5d4f4" : "0.5px solid transparent",
                 }}
               >
@@ -1499,7 +1499,7 @@ function RelationshipDots({
                     />
                   ))}
                 </div>
-                <span className="text-[12px]" style={{ color: "#1a1a18" }}>
+                <span className="text-[12px]" style={{ color: "var(--color-ink)" }}>
                   {i} — {DOT_LABELS[i]}
                 </span>
               </button>
@@ -1533,7 +1533,7 @@ function OpenRequisitionsCard({
           <div className="flex items-center gap-2">
             <SL>Open jobs</SL>
             {reqs.length > 0 && (
-              <span className="text-[11px] px-1.5 py-0.5  -mt-2" style={{ background: "#eaf3de", color: "#27500a" }}>
+              <span className="text-[11px] px-1.5 py-0.5  -mt-2" style={{ background: "var(--color-moss-light)", color: "var(--color-moss)" }}>
                 {reqs.length}
               </span>
             )}
@@ -1543,7 +1543,7 @@ function OpenRequisitionsCard({
       )}
 
       {reqs.length === 0 && (
-        <p className="text-[13px]" style={{ color: "#888780" }}>
+        <p className="text-[13px]" style={{ color: "var(--color-ink-30)" }}>
           No open jobs. Add one to start building the pipeline.
         </p>
       )}
@@ -1562,7 +1562,7 @@ function OpenRequisitionsCard({
           <div
             key={r.id}
             className="flex gap-3 py-3"
-            style={{ borderBottom: "0.5px solid rgba(26,26,24,0.08)" }}
+            style={{ borderBottom: "0.5px solid var(--color-border-subtle)" }}
           >
             {/* Left bar */}
             <div
@@ -1573,7 +1573,7 @@ function OpenRequisitionsCard({
             {/* Content */}
             <div className="flex-1 min-w-0">
               <p className="text-[13px] font-medium mb-0.5">{r.title}</p>
-              <p className="text-[12px] mb-1.5" style={{ color: "#5f5e5a" }}>
+              <p className="text-[12px] mb-1.5" style={{ color: "var(--color-ink-60)" }}>
                 {[
                   r.salary_range_text
                     ? r.salary_range_text
@@ -1592,35 +1592,35 @@ function OpenRequisitionsCard({
               {/* Pipeline badges */}
               <div className="flex items-center gap-1 flex-wrap">
                 {inInterview.length > 0 && (
-                  <PipelineBadge style={{ background: "#e6f1fb", color: "#185fa5" }}>
+                  <PipelineBadge style={{ background: "var(--color-indigo-light)", color: "var(--color-indigo)" }}>
                     {inInterview.length} in interview
                   </PipelineBadge>
                 )}
                 {atOffer.length > 0 && (
-                  <PipelineBadge style={{ background: "#fff3e0", color: "#633806", borderColor: "#ef9f27" }}>
+                  <PipelineBadge style={{ background: "#fff3e0", color: "var(--color-gold)", borderColor: "#ef9f27" }}>
                     {atOffer.length} at offer
                   </PipelineBadge>
                 )}
                 {cvsSent.length > 0 && inInterview.length === 0 && (
-                  <PipelineBadge style={{ background: "#f5f5f3", color: "#888780" }}>
+                  <PipelineBadge style={{ background: "var(--color-ink-10)", color: "var(--color-ink-30)" }}>
                     {cvsSent.length} CV sent
                   </PipelineBadge>
                 )}
                 {buyIn.length > 0 && (
-                  <PipelineBadge style={{ background: "#faeeda", color: "#633806" }}>
+                  <PipelineBadge style={{ background: "var(--color-gold-light)", color: "var(--color-gold)" }}>
                     {buyIn.length} buy-in secured
                   </PipelineBadge>
                 )}
                 {active.length === 0 && (
-                  <PipelineBadge style={{ background: "#f5f5f3", color: "#888780" }}>
+                  <PipelineBadge style={{ background: "var(--color-ink-10)", color: "var(--color-ink-30)" }}>
                     No pipeline
                   </PipelineBadge>
                 )}
                 <PipelineBadge
                   style={
                     r.is_backfill
-                      ? { background: "#f5f5f3", color: "#888780" }
-                      : { background: "#eaf3de", color: "#27500a" }
+                      ? { background: "var(--color-ink-10)", color: "var(--color-ink-30)" }
+                      : { background: "var(--color-moss-light)", color: "var(--color-moss)" }
                   }
                 >
                   {r.is_backfill ? "Backfill" : "Net-new"}
@@ -1633,15 +1633,15 @@ function OpenRequisitionsCard({
 
       {/* Closed reqs */}
       {closedReqs.length > 0 && (
-        <div className="mt-3 pt-3" style={{ borderTop: "0.5px solid rgba(26,26,24,0.08)" }}>
+        <div className="mt-3 pt-3" style={{ borderTop: "0.5px solid var(--color-border-subtle)" }}>
           <p className="sl mb-2">Closed</p>
           {closedReqs.map((r) => (
             <div
               key={r.id}
               className="flex items-center gap-2 py-1.5 text-[12px]"
-              style={{ color: "#888780" }}
+              style={{ color: "var(--color-ink-30)" }}
             >
-              <div className="w-1 h-4 rounded-sm shrink-0" style={{ background: "rgba(26,26,24,0.12)" }} />
+              <div className="w-1 h-4 rounded-sm shrink-0" style={{ background: "var(--color-ink-15)" }} />
               {r.title}
             </div>
           ))}
@@ -1661,7 +1661,7 @@ function PipelineBadge({
   return (
     <span
       className="text-[11px] font-medium px-[7px] py-[2px] "
-      style={{ border: "0.5px solid rgba(26,26,24,0.12)", ...style }}
+      style={{ border: "0.5px solid var(--color-ink-15)", ...style }}
     >
       {children}
     </span>
@@ -1676,36 +1676,36 @@ const ACTION_STYLE: Record<
   { bg: string; border: string; titleColor: string; bodyColor: string; btnBg: string; btnColor: string }
 > = {
   urgent: {
-    bg: "#fcebeb",
-    border: "#a32d2d",
+    bg: "var(--color-danger-bg)",
+    border: "var(--color-danger)",
     titleColor: "#791f1f",
-    bodyColor: "#a32d2d",
-    btnBg: "#a32d2d",
-    btnColor: "#fff",
+    bodyColor: "var(--color-danger)",
+    btnBg: "var(--color-danger)",
+    btnColor: "var(--color-white)",
   },
   warning: {
-    bg: "#faeeda",
+    bg: "var(--color-gold-light)",
     border: "#ef9f27",
-    titleColor: "#633806",
+    titleColor: "var(--color-gold)",
     bodyColor: "#854f0b",
-    btnBg: "#633806",
-    btnColor: "#fff",
+    btnBg: "var(--color-gold)",
+    btnColor: "var(--color-white)",
   },
   info: {
-    bg: "#e6f1fb",
-    border: "#185fa5",
+    bg: "var(--color-indigo-light)",
+    border: "var(--color-indigo)",
     titleColor: "#0c447c",
-    bodyColor: "#185fa5",
-    btnBg: "#185fa5",
-    btnColor: "#fff",
+    bodyColor: "var(--color-indigo)",
+    btnBg: "var(--color-indigo)",
+    btnColor: "var(--color-white)",
   },
   nudge: {
-    bg: "#eaf3de",
+    bg: "var(--color-moss-light)",
     border: "#639922",
-    titleColor: "#27500a",
+    titleColor: "var(--color-moss)",
     bodyColor: "#3b6d11",
-    btnBg: "#27500a",
-    btnColor: "#fff",
+    btnBg: "var(--color-moss)",
+    btnColor: "var(--color-white)",
   },
 };
 
@@ -1726,7 +1726,7 @@ function RecommendedActionsPanel({
     <Card>
       <SL>Recommended actions</SL>
       {actions.length === 0 ? (
-        <p className="text-[13px]" style={{ color: "#888780" }}>
+        <p className="text-[13px]" style={{ color: "var(--color-ink-30)" }}>
           No action items right now. Good work.
         </p>
       ) : (
@@ -1789,7 +1789,7 @@ function QuickActionsCard({
   const [showEventMenu, setShowEventMenu] = useState(false);
 
   const btnBase: React.CSSProperties = {
-    border: "0.5px solid rgba(26,26,24,0.12)",
+    border: "0.5px solid var(--color-ink-15)",
     background: "var(--color-white)",
   };
 
@@ -1803,10 +1803,10 @@ function QuickActionsCard({
           disabled={draftLoading}
           className="flex items-center gap-2 w-full text-left text-[13px] px-3 py-2"
           style={{ ...btnBase, opacity: draftLoading ? 0.6 : 1 }}
-          onMouseEnter={(e) => { if (!draftLoading) e.currentTarget.style.background = "#f5f5f3"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = "#fff"; }}
+          onMouseEnter={(e) => { if (!draftLoading) e.currentTarget.style.background = "var(--color-ink-10)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "var(--color-white)"; }}
         >
-          <IconSparkles size={14} style={{ color: "#5f5e5a" }} />
+          <IconSparkles size={14} style={{ color: "var(--color-ink-60)" }} />
           {draftLoading ? "Generating…" : "Prep for client meeting ↗"}
         </button>
 
@@ -1814,11 +1814,11 @@ function QuickActionsCard({
           <button
             onClick={() => setShowEventMenu((v) => !v)}
             className="flex items-center gap-2 w-full text-left text-[13px] px-3 py-2"
-            style={{ ...btnBase, background: showEventMenu ? "#f5f5f3" : "#fff" }}
+            style={{ ...btnBase, background: showEventMenu ? "var(--color-ink-10)" : "var(--color-white)" }}
           >
-            <IconPhone size={14} style={{ color: "#5f5e5a" }} />
+            <IconPhone size={14} style={{ color: "var(--color-ink-60)" }} />
             Log event
-            <span className="ml-auto text-[10px]" style={{ color: "#b8b7b2" }}>
+            <span className="ml-auto text-[10px]" style={{ color: "var(--color-ink-30)" }}>
               {showEventMenu ? "▴" : "▾"}
             </span>
           </button>
@@ -1826,7 +1826,7 @@ function QuickActionsCard({
             <div
               className="absolute left-0 right-0 top-full mt-1  overflow-hidden z-10"
               style={{
-                border: "0.5px solid rgba(26,26,24,0.12)",
+                border: "0.5px solid var(--color-ink-15)",
                 background: "var(--color-white)",
                 boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
               }}
@@ -1838,8 +1838,8 @@ function QuickActionsCard({
                     key={type}
                     onClick={() => { setShowEventMenu(false); onLogEvent(type); }}
                     className="flex items-center gap-2 w-full text-left text-[13px] px-3 py-2"
-                    onMouseEnter={(e) => { e.currentTarget.style.background = "#f5f5f3"; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.background = "#fff"; }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = "var(--color-ink-10)"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = "var(--color-white)"; }}
                   >
                     {label}
                   </button>
@@ -1905,16 +1905,16 @@ function JapanMarketContextCard({ client: c, clientId }: { client: ClientRecord;
               key={field}
               className="px-2.5 py-2"
               style={{
-                background: isEditing ? "#f5f5f3" : "transparent",
+                background: isEditing ? "var(--color-ink-10)" : "transparent",
                 border: isEditing ? "0.5px solid rgba(26,26,24,0.15)" : "0.5px solid transparent",
               }}
             >
               <div className="flex items-center justify-between gap-2 mb-0.5">
-                <span className="text-[11px]" style={{ color: "#888780" }}>{label}</span>
+                <span className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>{label}</span>
                 {!isEditing && (
                   <button
                     className="text-[10px] px-1.5 py-0.5  opacity-0 group-hover:opacity-100 transition-opacity"
-                    style={{ color: "#888780" }}
+                    style={{ color: "var(--color-ink-30)" }}
                     onClick={() => startEdit(field, rawValue)}
                   >
                     <IconPencil size={10} />
@@ -1934,18 +1934,18 @@ function JapanMarketContextCard({ client: c, clientId }: { client: ClientRecord;
                     }}
                     placeholder={placeholder}
                     className="flex-1 text-[13px] bg-transparent outline-none"
-                    style={{ color: "#1a1a18" }}
+                    style={{ color: "var(--color-ink)" }}
                   />
                   <button
                     className="text-[11px] px-2 py-0.5  shrink-0"
-                    style={{ background: "#1a1a18", color: "#fff" }}
+                    style={{ background: "var(--color-ink)", color: "var(--color-white)" }}
                     onMouseDown={(e) => { e.preventDefault(); void saveField(field); }}
                   >
                     Save
                   </button>
                   <button
                     className="text-[11px] shrink-0"
-                    style={{ color: "#888780" }}
+                    style={{ color: "var(--color-ink-30)" }}
                     onMouseDown={(e) => { e.preventDefault(); setEditing(null); }}
                   >
                     Cancel
@@ -1955,13 +1955,13 @@ function JapanMarketContextCard({ client: c, clientId }: { client: ClientRecord;
                 <div className="flex items-center justify-between gap-2 group">
                   <span
                     className="text-[13px] font-medium"
-                    style={{ color: displayValue ? "#1a1a18" : "#b8b7b2" }}
+                    style={{ color: displayValue ? "var(--color-ink)" : "var(--color-ink-30)" }}
                   >
                     {displayValue || "Not set"}
                   </span>
                   <button
                     className="text-[10px] px-1.5 py-0.5  shrink-0"
-                    style={{ color: "#888780", opacity: 0.6 }}
+                    style={{ color: "var(--color-ink-30)", opacity: 0.6 }}
                     onClick={() => startEdit(field, rawValue)}
                     title="Edit"
                   >
@@ -1973,7 +1973,7 @@ function JapanMarketContextCard({ client: c, clientId }: { client: ClientRecord;
           );
         })}
       </div>
-      <p className="text-[12px] leading-snug" style={{ color: "#888780" }}>
+      <p className="text-[12px] leading-snug" style={{ color: "var(--color-ink-30)" }}>
         Use these facts when pitching {c.company_name} to candidates from domestic firms.
       </p>
     </Card>
@@ -2266,10 +2266,10 @@ function JobsTab({
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <IconBriefcase size={16} style={{ color: "#5f5e5a" }} />
+          <IconBriefcase size={16} style={{ color: "var(--color-ink-60)" }} />
           <span className="text-[13px] font-medium">
             {openReqs.length} open job{openReqs.length !== 1 ? "s" : ""}
-            {closedReqs.length > 0 && <span className="ml-1 font-normal" style={{ color: "#888780" }}>· {closedReqs.length} closed</span>}
+            {closedReqs.length > 0 && <span className="ml-1 font-normal" style={{ color: "var(--color-ink-30)" }}>· {closedReqs.length} closed</span>}
           </span>
         </div>
         <button className="ab" onClick={() => setShowForm((v) => !v)}>
@@ -2279,23 +2279,23 @@ function JobsTab({
 
       {/* Add job inline form */}
       {showForm && (
-        <div className=" p-4 space-y-4" style={{ background: "var(--color-white)", border: "0.5px solid rgba(26,26,24,0.12)" }}>
+        <div className=" p-4 space-y-4" style={{ background: "var(--color-white)", border: "0.5px solid var(--color-ink-15)" }}>
           {/* JD upload */}
           <div
             className=" px-4 py-3 flex items-center gap-3 cursor-pointer"
             style={{
-              background: jdText ? "#eaf3de" : "#f5f5f3",
+              background: jdText ? "var(--color-moss-light)" : "var(--color-ink-10)",
               border: `0.5px dashed ${jdText ? "rgba(39,80,10,0.3)" : "rgba(26,26,24,0.2)"}`,
             }}
             onClick={() => !jdUploading && jdInputRef.current?.click()}
           >
-            <IconUpload size={14} style={{ color: jdText ? "#3b6d11" : "#888780", flexShrink: 0 }} />
+            <IconUpload size={14} style={{ color: jdText ? "#3b6d11" : "var(--color-ink-30)", flexShrink: 0 }} />
             <div className="flex-1 min-w-0">
-              <p className="text-[12px]" style={{ color: "#5f5e5a" }}>
+              <p className="text-[12px]" style={{ color: "var(--color-ink-60)" }}>
                 {jdUploading ? "Uploading…" : extracting ? "Extracting fields…" : jdText ? "JD uploaded — fields extracted below" : "Upload job description (PDF or DOCX) — AI will fill what it can"}
               </p>
             </div>
-            {jdText && <span className="text-[11px]" style={{ color: "#27500a" }}>✓</span>}
+            {jdText && <span className="text-[11px]" style={{ color: "var(--color-moss)" }}>✓</span>}
             <input ref={jdInputRef} type="file" accept=".pdf,.docx" className="hidden"
               onChange={(e) => { const f = e.target.files?.[0]; if (f) void handleJdFile(f); e.target.value = ""; }} />
           </div>
@@ -2360,29 +2360,29 @@ function JobsTab({
       )}
 
       {openReqs.length === 0 && !showForm && (
-        <div className=" px-5 py-12 text-center" style={{ background: "var(--color-white)", border: "0.5px solid rgba(26,26,24,0.12)" }}>
-          <p className="text-[13px] font-medium" style={{ color: "#1a1a18" }}>No open jobs.</p>
-          <p className="text-[12px] mt-1" style={{ color: "#888780" }}>Upload a job description or fill in the form to add one.</p>
+        <div className=" px-5 py-12 text-center" style={{ background: "var(--color-white)", border: "0.5px solid var(--color-ink-15)" }}>
+          <p className="text-[13px] font-medium" style={{ color: "var(--color-ink)" }}>No open jobs.</p>
+          <p className="text-[12px] mt-1" style={{ color: "var(--color-ink-30)" }}>Upload a job description or fill in the form to add one.</p>
         </div>
       )}
 
       {/* Closed jobs — always render section */}
       <div>
-        <p className="text-[11px] font-medium uppercase tracking-[0.04em] mb-2" style={{ color: "#5f5e5a" }}>Closed jobs</p>
+        <p className="text-[11px] font-medium uppercase tracking-[0.04em] mb-2" style={{ color: "var(--color-ink-60)" }}>Closed jobs</p>
         {closedReqs.length === 0 ? (
-          <p className="text-[13px]" style={{ color: "#888780" }}>No closed jobs.</p>
+          <p className="text-[13px]" style={{ color: "var(--color-ink-30)" }}>No closed jobs.</p>
         ) : (
-          <div className=" overflow-hidden" style={{ background: "var(--color-white)", border: "0.5px solid rgba(26,26,24,0.12)" }}>
+          <div className=" overflow-hidden" style={{ background: "var(--color-white)", border: "0.5px solid var(--color-ink-15)" }}>
             {closedReqs.map((r) => (
               <div
                 key={r.id}
                 className="flex items-center gap-2 px-4 py-2.5 text-[12px]"
-                style={{ borderBottom: "0.5px solid rgba(26,26,24,0.06)", color: "#888780" }}
+                style={{ borderBottom: "0.5px solid rgba(26,26,24,0.06)", color: "var(--color-ink-30)" }}
               >
-                <div className="w-1 h-4 rounded-sm shrink-0" style={{ background: "rgba(26,26,24,0.12)" }} />
+                <div className="w-1 h-4 rounded-sm shrink-0" style={{ background: "var(--color-ink-15)" }} />
                 {r.title}
                 {r.salary_range_text && (
-                  <span className="ml-auto shrink-0" style={{ color: "#b8b7b2" }}>{r.salary_range_text}</span>
+                  <span className="ml-auto shrink-0" style={{ color: "var(--color-ink-30)" }}>{r.salary_range_text}</span>
                 )}
               </div>
             ))}
@@ -2579,7 +2579,7 @@ function DraftModal({
                 className="ab flex items-center gap-1"
                 onClick={copy}
               >
-                {copied ? <IconCheck size={11} style={{ color: "#27500a" }} /> : <IconCopy size={11} />}
+                {copied ? <IconCheck size={11} style={{ color: "var(--color-moss)" }} /> : <IconCopy size={11} />}
                 {copied ? "Copied" : "Copy"}
               </button>
             </div>
@@ -2594,7 +2594,7 @@ function DraftModal({
               className="w-full  p-3 text-[13px] leading-relaxed resize-none"
               style={{
                 border: "0.5px solid rgba(26,26,24,0.20)",
-                background: "#fafaf9",
+                background: "var(--color-white)",
                 minHeight: 320,
                 outline: "none",
                 fontFamily: "inherit",
@@ -2604,7 +2604,7 @@ function DraftModal({
             <div
               className="text-[13px] leading-relaxed  p-3"
               style={{
-                background: "#f5f5f3",
+                background: "var(--color-ink-10)",
                 whiteSpace: "pre-wrap",
                 wordBreak: "break-word",
               }}
@@ -2614,7 +2614,7 @@ function DraftModal({
           )}
         </div>
 
-        <p className="text-[11px] mt-2" style={{ color: "#888780" }}>
+        <p className="text-[11px] mt-2" style={{ color: "var(--color-ink-30)" }}>
           AI-generated draft — review and edit before sending. Never send automatically.
         </p>
 
@@ -2721,15 +2721,15 @@ function ClientEnrichCard({ clientId, companyName }: { clientId: string; company
   ] : [];
 
   return (
-    <div className=" overflow-hidden" style={{ background: "var(--color-white)", border: "0.5px solid rgba(26,26,24,0.12)" }}>
+    <div className=" overflow-hidden" style={{ background: "var(--color-white)", border: "0.5px solid var(--color-ink-15)" }}>
       <button className="w-full flex items-center gap-2 px-4 py-3 text-left" onClick={() => setExpanded((v) => !v)}>
-        <IconSparkles size={13} style={{ color: "#888780" }} />
-        <span className="flex-1 text-[12px]" style={{ color: "#5f5e5a" }}>Enrich company profile with web search</span>
-        <span className="text-[11px]" style={{ color: "#b8b7b2" }}>{expanded ? "▴" : "▾"}</span>
+        <IconSparkles size={13} style={{ color: "var(--color-ink-30)" }} />
+        <span className="flex-1 text-[12px]" style={{ color: "var(--color-ink-60)" }}>Enrich company profile with web search</span>
+        <span className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>{expanded ? "▴" : "▾"}</span>
       </button>
       {expanded && (
         <div className="px-4 pb-4">
-          <p className="text-[11px] mb-2" style={{ color: "#888780" }}>
+          <p className="text-[11px] mb-2" style={{ color: "var(--color-ink-30)" }}>
             Search uses <strong>{companyName}</strong> as the company name. Add the company URL for more accurate results.
           </p>
           <Input
@@ -2743,27 +2743,27 @@ function ClientEnrichCard({ clientId, companyName }: { clientId: string; company
             {loading ? "Searching…" : "Search and enrich"}
           </button>
           {result && (
-            <div className="mt-3  p-3" style={{ background: "#f5f5f3" }}>
+            <div className="mt-3  p-3" style={{ background: "var(--color-ink-10)" }}>
               <p className="sl mb-2">Enrichment results — review before applying</p>
               <div className="space-y-1.5 mb-3">
                 {previewRows.filter((r) => r.value != null).map(({ label, value }) => (
                   <div key={label} className="flex items-start justify-between gap-3">
-                    <span className="text-[11px]" style={{ color: "#888780" }}>{label}</span>
-                    <span className="text-[12px] font-medium text-right" style={{ maxWidth: 240, color: "#1a1a18" }}>{value}</span>
+                    <span className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>{label}</span>
+                    <span className="text-[12px] font-medium text-right" style={{ maxWidth: 240, color: "var(--color-ink)" }}>{value}</span>
                   </div>
                 ))}
                 {previewRows.every((r) => r.value == null) && (
-                  <p className="text-[12px]" style={{ color: "#888780" }}>No data found. Try adding the company URL.</p>
+                  <p className="text-[12px]" style={{ color: "var(--color-ink-30)" }}>No data found. Try adding the company URL.</p>
                 )}
               </div>
               {result.sourceUrls && result.sourceUrls.length > 0 && (
-                <p className="text-[11px] mb-3" style={{ color: "#b8b7b2" }}>
+                <p className="text-[11px] mb-3" style={{ color: "var(--color-ink-30)" }}>
                   Sources: {result.sourceUrls.slice(0, 3).map((u) => new URL(u).hostname).join(", ")}
                 </p>
               )}
               <div className="flex gap-2">
                 <button className="ab" onClick={() => void apply()} disabled={applying}>{applying ? "Applying…" : "Apply to profile"}</button>
-                <button className="text-[11px]" style={{ color: "#888780" }} onClick={() => setResult(null)}>Discard</button>
+                <button className="text-[11px]" style={{ color: "var(--color-ink-30)" }} onClick={() => setResult(null)}>Discard</button>
               </div>
             </div>
           )}
@@ -2782,9 +2782,9 @@ const INTERACTION_ICON: Record<string, React.ElementType> = {
 };
 
 const INTERACTION_COLORS: Record<string, { bg: string; color: string }> = {
-  call:    { bg: "#e6f1fb", color: "#185fa5" },
-  email:   { bg: "#f5f5f3", color: "#5f5e5a" },
-  meeting: { bg: "#eaf3de", color: "#3b6d11" },
+  call:    { bg: "var(--color-indigo-light)", color: "var(--color-indigo)" },
+  email:   { bg: "var(--color-ink-10)", color: "var(--color-ink-60)" },
+  meeting: { bg: "var(--color-moss-light)", color: "#3b6d11" },
 };
 
 function formatInteractionDate(iso: string): string {
@@ -2797,10 +2797,10 @@ function ClientTimelineTab({ interactions }: { interactions: Interaction[] }) {
     return (
       <div
         className=" px-5 py-12 text-center"
-        style={{ background: "var(--color-white)", border: "0.5px solid rgba(26,26,24,0.12)" }}
+        style={{ background: "var(--color-white)", border: "0.5px solid var(--color-ink-15)" }}
       >
-        <p className="text-[13px] font-medium" style={{ color: "#1a1a18" }}>No interactions logged yet.</p>
-        <p className="text-[12px] mt-1" style={{ color: "#888780" }}>
+        <p className="text-[13px] font-medium" style={{ color: "var(--color-ink)" }}>No interactions logged yet.</p>
+        <p className="text-[12px] mt-1" style={{ color: "var(--color-ink-30)" }}>
           Use "Log event" to record calls, emails, and meetings with this client.
         </p>
       </div>
@@ -2817,7 +2817,7 @@ function ClientTimelineTab({ interactions }: { interactions: Interaction[] }) {
           <div
             key={item.id}
             className=" p-[14px_18px]"
-            style={{ background: "var(--color-white)", border: "0.5px solid rgba(26,26,24,0.12)" }}
+            style={{ background: "var(--color-white)", border: "0.5px solid var(--color-ink-15)" }}
           >
             <div className="flex items-start gap-3">
               {/* Icon */}
@@ -2837,21 +2837,21 @@ function ClientTimelineTab({ interactions }: { interactions: Interaction[] }) {
                   >
                     {type}
                   </span>
-                  <span className="text-[11px]" style={{ color: "#b8b7b2" }}>
+                  <span className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>
                     {formatInteractionDate(item.interacted_at)}
                   </span>
                   {item.client_contacts && (
-                    <span className="text-[11px] px-[6px] py-[2px] " style={{ background: "#f5f5f3", color: "#5f5e5a" }}>
+                    <span className="text-[11px] px-[6px] py-[2px] " style={{ background: "var(--color-ink-10)", color: "var(--color-ink-60)" }}>
                       with {item.client_contacts.name}
                     </span>
                   )}
                   {item.candidates && (
-                    <span className="text-[11px] px-[6px] py-[2px] " style={{ background: "#e6f1fb", color: "#185fa5" }}>
+                    <span className="text-[11px] px-[6px] py-[2px] " style={{ background: "var(--color-indigo-light)", color: "var(--color-indigo)" }}>
                       re: {item.candidates.full_name}
                     </span>
                   )}
                   {item.primary_party === "candidate" && (
-                    <span className="text-[11px] px-[6px] py-[2px] " style={{ background: "#eaf3de", color: "#27500a" }}>
+                    <span className="text-[11px] px-[6px] py-[2px] " style={{ background: "var(--color-moss-light)", color: "var(--color-moss)" }}>
                       spoke with candidate
                     </span>
                   )}
@@ -2861,12 +2861,12 @@ function ClientTimelineTab({ interactions }: { interactions: Interaction[] }) {
                   <p className="text-[13px] font-medium mb-0.5">{item.summary}</p>
                 )}
                 {item.full_notes && (
-                  <p className="text-[12px] leading-relaxed" style={{ color: "#5f5e5a" }}>
+                  <p className="text-[12px] leading-relaxed" style={{ color: "var(--color-ink-60)" }}>
                     {item.full_notes}
                   </p>
                 )}
                 {!item.summary && !item.full_notes && (
-                  <p className="text-[12px]" style={{ color: "#b8b7b2" }}>No notes recorded.</p>
+                  <p className="text-[12px]" style={{ color: "var(--color-ink-30)" }}>No notes recorded.</p>
                 )}
               </div>
             </div>
@@ -2934,22 +2934,22 @@ function EditableContractTab({ client: c, clientId }: { client: ClientRecord; cl
       <div
         className=" px-4 py-4 flex items-center gap-3 cursor-pointer"
         style={{
-          background: c.contract_signed ? "#eaf3de" : "#f5f5f3",
+          background: c.contract_signed ? "var(--color-moss-light)" : "var(--color-ink-10)",
           border: `0.5px dashed ${c.contract_signed ? "rgba(39,80,10,0.3)" : "rgba(26,26,24,0.2)"}`,
         }}
         onClick={() => !uploading && fileRef.current?.click()}
       >
-        <IconUpload size={16} style={{ color: c.contract_signed ? "#3b6d11" : "#888780", flexShrink: 0 }} />
+        <IconUpload size={16} style={{ color: c.contract_signed ? "#3b6d11" : "var(--color-ink-30)", flexShrink: 0 }} />
         <div className="flex-1 min-w-0">
-          <p className="text-[13px] font-medium" style={{ color: c.contract_signed ? "#27500a" : "#1a1a18" }}>
+          <p className="text-[13px] font-medium" style={{ color: c.contract_signed ? "var(--color-moss)" : "var(--color-ink)" }}>
             {uploading ? "Uploading…" : extracting ? "Extracting fields…" : c.contract_signed ? "Contract on file" : "Upload contract"}
           </p>
-          <p className="text-[11px]" style={{ color: "#888780" }}>
+          <p className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>
             {c.contract_signed ? "PDF or DOCX — re-upload to update" : "PDF or DOCX — AI will extract fee % and start date"}
           </p>
         </div>
         {c.contract_signed && (
-          <span className="text-[11px] px-[7px] py-[2px] " style={{ background: "#eaf3de", color: "#27500a", border: "0.5px solid #c0dd97" }}>
+          <span className="text-[11px] px-[7px] py-[2px] " style={{ background: "var(--color-moss-light)", color: "var(--color-moss)", border: "0.5px solid #c0dd97" }}>
             Signed
           </span>
         )}
@@ -2958,7 +2958,7 @@ function EditableContractTab({ client: c, clientId }: { client: ClientRecord; cl
       </div>
 
       {/* Editable fields */}
-      <div className=" p-[18px_20px]" style={{ background: "var(--color-white)", border: "0.5px solid rgba(26,26,24,0.12)" }}>
+      <div className=" p-[18px_20px]" style={{ background: "var(--color-white)", border: "0.5px solid var(--color-ink-15)" }}>
         <p className="sl mb-4">Contract details</p>
         <ContractFieldRow
           label="Placement fee %"
@@ -3030,8 +3030,8 @@ function ContractFieldRow({
   }
 
   return (
-    <div className="flex items-baseline justify-between gap-4 py-2.5" style={{ borderBottom: "0.5px solid rgba(26,26,24,0.08)" }}>
-      <span className="text-[12px]" style={{ color: "#888780", minWidth: 120 }}>{label}</span>
+    <div className="flex items-baseline justify-between gap-4 py-2.5" style={{ borderBottom: "0.5px solid var(--color-border-subtle)" }}>
+      <span className="text-[12px]" style={{ color: "var(--color-ink-30)", minWidth: 120 }}>{label}</span>
       {editing ? (
         type === "select" ? (
           <select
@@ -3040,7 +3040,7 @@ function ContractFieldRow({
             onChange={(e) => setDraft(e.target.value)}
             onBlur={() => void save()}
             className="text-[13px] font-medium bg-transparent outline-none border-b"
-            style={{ borderColor: "rgba(26,26,24,0.20)", color: "#1a1a18" }}
+            style={{ borderColor: "rgba(26,26,24,0.20)", color: "var(--color-ink)" }}
           >
             {(selectOptions ?? []).map((o) => <option key={o} value={o}>{o}</option>)}
           </select>
@@ -3054,13 +3054,13 @@ function ContractFieldRow({
             onKeyDown={(e) => { if (e.key === "Enter") void save(); if (e.key === "Escape") setEditing(false); }}
             placeholder={placeholder}
             className="text-[13px] font-medium text-right bg-transparent outline-none border-b flex-1 ml-4"
-            style={{ borderColor: "rgba(26,26,24,0.20)", color: "#1a1a18" }}
+            style={{ borderColor: "rgba(26,26,24,0.20)", color: "var(--color-ink)" }}
           />
         )
       ) : (
         <button
           className="text-[13px] font-medium"
-          style={{ color: display ? "#1a1a18" : "#b8b7b2" }}
+          style={{ color: display ? "var(--color-ink)" : "var(--color-ink-30)" }}
           onClick={() => { setDraft(value); setEditing(true); }}
           title="Click to edit"
         >
@@ -3111,21 +3111,21 @@ function ClientIntelligenceCard({
   }
 
   return (
-    <div className=" overflow-hidden" style={{ background: "var(--color-white)", border: "0.5px solid rgba(26,26,24,0.12)" }}>
+    <div className=" overflow-hidden" style={{ background: "var(--color-white)", border: "0.5px solid var(--color-ink-15)" }}>
       <button className="w-full flex items-center gap-2 px-4 py-3 text-left" onClick={() => setExpanded((v) => !v)}>
-        <IconSparkles size={13} style={{ color: "#888780" }} />
-        <span className="flex-1 text-[12px] font-medium" style={{ color: "#5f5e5a" }}>Account intelligence</span>
+        <IconSparkles size={13} style={{ color: "var(--color-ink-30)" }} />
+        <span className="flex-1 text-[12px] font-medium" style={{ color: "var(--color-ink-60)" }}>Account intelligence</span>
         {aiContextUpdatedAt && (
-          <span className="text-[11px]" style={{ color: "#b8b7b2" }}>Updated {relTime(aiContextUpdatedAt)}</span>
+          <span className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>Updated {relTime(aiContextUpdatedAt)}</span>
         )}
-        <span className="text-[11px]" style={{ color: "#b8b7b2" }}>{expanded ? "▴" : "▾"}</span>
+        <span className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>{expanded ? "▴" : "▾"}</span>
       </button>
       {expanded && (
         <div className="px-4 pb-4">
           {aiContext ? (
-            <p className="text-[13px] leading-relaxed whitespace-pre-wrap mb-3" style={{ color: "#1a1a18" }}>{aiContext}</p>
+            <p className="text-[13px] leading-relaxed whitespace-pre-wrap mb-3" style={{ color: "var(--color-ink)" }}>{aiContext}</p>
           ) : (
-            <p className="text-[13px] mb-3" style={{ color: "#888780" }}>
+            <p className="text-[13px] mb-3" style={{ color: "var(--color-ink-30)" }}>
               No intelligence summary yet. Click refresh to generate one from the account history.
             </p>
           )}
