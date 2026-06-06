@@ -496,23 +496,6 @@ function Dashboard() {
         </p>
       </div>
 
-      {/* Priority actions */}
-      <PrioritySection
-        items={agendaItems}
-        isLoading={agenda.isLoading}
-        showAll={showAllAgenda}
-        onToggleShowAll={() => setShowAllAgenda((v) => !v)}
-        onDone={handleDone}
-        onSnooze={handleSnooze}
-        onNavigate={(item) => {
-          if (item.entity_type === "candidate" || item.entity_type === "requisition") {
-            void navigate({ to: "/candidates/$id", params: { id: item.entity_id }, search: BLANK_CANDIDATE_SEARCH });
-          } else {
-            void navigate({ to: "/clients/$id", params: { id: item.entity_id } });
-          }
-        }}
-      />
-
       {/* Metric strip */}
       <div style={{ border: "0.5px solid var(--color-ink-15)" }}>
         <div className="grid grid-cols-5">
@@ -567,6 +550,23 @@ function Dashboard() {
           </div>
         )}
       </div>
+
+      {/* Priority actions */}
+      <PrioritySection
+        items={agendaItems}
+        isLoading={agenda.isLoading}
+        showAll={showAllAgenda}
+        onToggleShowAll={() => setShowAllAgenda((v) => !v)}
+        onDone={handleDone}
+        onSnooze={handleSnooze}
+        onNavigate={(item) => {
+          if (item.entity_type === "candidate" || item.entity_type === "requisition") {
+            void navigate({ to: "/candidates/$id", params: { id: item.entity_id }, search: BLANK_CANDIDATE_SEARCH });
+          } else {
+            void navigate({ to: "/clients/$id", params: { id: item.entity_id } });
+          }
+        }}
+      />
 
       {/* Competing interviews section */}
       <CompetingSection recruiterId={recruiterId} />
