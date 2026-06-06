@@ -3626,7 +3626,12 @@ function CvUploadZone({
         setState("error");
         return;
       }
-      const data = (await resp.json()) as ExtractedCandidate;
+      const data = (await resp.json()) as ExtractedCandidate & { error?: string };
+      if (data.error) {
+        toast.error("Could not extract CV data. Try again.");
+        setState("error");
+        return;
+      }
       setState("done");
       onExtracted(data);
     } catch (err) {
@@ -4126,7 +4131,12 @@ function RegistrationFormUploadZone({
         setState("error");
         return;
       }
-      const data = (await resp.json()) as ExtractedCandidate;
+      const data = (await resp.json()) as ExtractedCandidate & { error?: string };
+      if (data.error) {
+        toast.error("Could not extract registration form data. Try again.");
+        setState("error");
+        return;
+      }
       setState("done");
       onExtracted(data);
     } catch {
