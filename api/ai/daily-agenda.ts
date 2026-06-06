@@ -36,7 +36,11 @@ function hoursSince(isoDate: string | null): number {
 function ccmPriorityRank(stage: string): number {
   const n = parseInt(stage.replace("CCM", ""), 10);
   if (isNaN(n)) return 30;
-  return Math.max(12, 30 - n * 5); // CCM1→25, CCM2→20, CCM3→15, CCM4+→12
+  if (n <= 1) return 25;
+  if (n === 2) return 20;
+  if (n === 3) return 15;
+  if (n === 4) return 12;
+  return 10; // CCM5+
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -44,6 +48,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const { recruiter_id } = req.body as { recruiter_id: string };
   if (!recruiter_id) return res.status(400).json({ error: "recruiter_id is required" });
+
+  const { data: recruiterRow } = await supabase
+    .from("recruiters")
+    .select("team_id")
+    .eq("id", recruiter_id)
+    .single();
+  if (!recruiterRow) return res.status(404).json({ error: "Recruiter not found" });
+  const team_id = recruiterRow.team_id;
 
   const twentyFourHoursAgo = new Date(Date.now() - 24 * 3600000).toISOString();
 
@@ -69,11 +81,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .eq("is_open", true)
       .gte("created_at", twentyFourHoursAgo),
 
-    // All clients with open reqs (for staleness check)
+    // All clients with open reqs (for staleness check) — team-scoped
     supabase
       .from("clients")
       .select("id, company_name")
-      .eq("recruiter_id", recruiter_id),
+      .eq("team_id", team_id),
   ]);
 
   type AgendaItem = {
@@ -137,21 +149,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (ccmProcesses.length > 0) {
     const ccmProcessIds = ccmProcesses.map((p) => (p as { id: string }).id);
 
-    // Get the most recent interaction per process to check for pending feedback
+    // Get all interactions for CCM processes to check for pending feedback
     const { data: ccmInteractions } = await supabase
       .from("interactions")
       .select("process_id, interaction_type, interacted_at, primary_party")
       .in("process_id", ccmProcessIds)
-      .in("interaction_type", ["call", "meeting", "interview scheduled"])
       .order("interacted_at", { ascending: false });
 
+    type InteractionRow = { process_id: string | null; interaction_type: string; interacted_at: string; primary_party: string | null };
+    const allRows = (ccmInteractions ?? []) as InteractionRow[];
+
+    // Last interview-type interaction per process
     const lastInterviewInteractionByProcess = new Map<string, { interacted_at: string; primary_party: string | null }>();
-    for (const row of (ccmInteractions ?? []) as { process_id: string | null; interaction_type: string; interacted_at: string; primary_party: string | null }[]) {
-      if (row.process_id && !lastInterviewInteractionByProcess.has(row.process_id)) {
+    for (const row of allRows) {
+      if (
+        row.process_id &&
+        !lastInterviewInteractionByProcess.has(row.process_id) &&
+        ["call", "meeting", "interview scheduled"].includes(row.interaction_type)
+      ) {
         lastInterviewInteractionByProcess.set(row.process_id, {
           interacted_at: row.interacted_at,
           primary_party: row.primary_party,
         });
+      }
+    }
+
+    // Most recent interaction of ANY type per process
+    const lastAnyInteractionByProcess = new Map<string, string>();
+    for (const row of allRows) {
+      if (row.process_id && !lastAnyInteractionByProcess.has(row.process_id)) {
+        lastAnyInteractionByProcess.set(row.process_id, row.interacted_at);
       }
     }
 
@@ -172,10 +199,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const rank = ccmPriorityRank(p.stage);
 
       const lastInteraction = lastInterviewInteractionByProcess.get(p.id);
+      const lastAny = lastAnyInteractionByProcess.get(p.id);
       const bds = p.last_activity_at ? businessDaysSince(p.last_activity_at) : 99;
 
-      // Feedback pending: interview was logged but no follow-up call/email in 24h
-      if (lastInteraction && hoursSince(lastInteraction.interacted_at) >= 24) {
+      // If ANY interaction was logged after the last interview interaction, feedback has been followed up
+      const followedUp =
+        lastInteraction && lastAny && lastAny > lastInteraction.interacted_at;
+
+      // Feedback pending: interview was logged, no follow-up interaction of any type in 24h
+      if (lastInteraction && !followedUp && hoursSince(lastInteraction.interacted_at) >= 24) {
         const hoursAgo = Math.round(hoursSince(lastInteraction.interacted_at));
         const party = lastInteraction.primary_party === "client" ? "client" : "candidate";
         flagged.push({
