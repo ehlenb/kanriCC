@@ -34,7 +34,7 @@ function AuthedShell() {
     return (
       <div
         className="flex min-h-screen items-center justify-center text-sm"
-        style={{ color: "#888780" }}
+        style={{ color: "var(--color-ink-30)" }}
       >
         Loading…
       </div>
@@ -87,7 +87,7 @@ function Sidebar({
       <div className="flex items-center gap-2 px-4 py-5">
         <div
           className="h-5 w-5"
-          style={{ background: "#1a1a18" }}
+          style={{ background: "var(--color-ink)" }}
         />
         <span className="text-base font-semibold tracking-tight font-display">Kanri</span>
       </div>
@@ -104,7 +104,7 @@ function Sidebar({
                   background: active
                     ? "rgba(26,26,24,0.07)"
                     : "transparent",
-                  color: active ? "#1a1a18" : "#5f5e5a",
+                  color: active ? "var(--color-ink)" : "var(--color-ink-60)",
                   fontWeight: active ? 500 : 400,
                 }}
               >
@@ -121,7 +121,7 @@ function Sidebar({
             className="flex items-center justify-between  px-3 py-2 text-sm"
             style={{
               background: "rgba(26,26,24,0.07)",
-              color: "#1a1a18",
+              color: "var(--color-ink)",
             }}
           >
             <span style={{ fontStyle: "italic", fontWeight: 400 }}>Advanced Search</span>
@@ -146,18 +146,18 @@ function Sidebar({
         <div className="flex items-center gap-2  px-2 py-2 mb-1">
           <div
             className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-medium"
-            style={{ background: "#eeede8", color: "#1a1a18" }}
+            style={{ background: "var(--color-ink-10)", color: "var(--color-ink)" }}
           >
             {initials(email.split("@")[0] || "U")}
           </div>
-          <p className="min-w-0 flex-1 truncate text-xs" style={{ color: "#1a1a18" }}>
+          <p className="min-w-0 flex-1 truncate text-xs" style={{ color: "var(--color-ink)" }}>
             {email}
           </p>
         </div>
         <button
           onClick={onSignOut}
           className="flex w-full items-center gap-2  px-3 py-2 text-xs transition-colors hover:bg-surface-2"
-          style={{ color: "#5f5e5a" }}
+          style={{ color: "var(--color-ink-60)" }}
         >
           <IconLogout size={14} />
           Sign out

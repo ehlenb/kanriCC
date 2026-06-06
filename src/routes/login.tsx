@@ -52,12 +52,12 @@ function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen" style={{ background: "#eeede8" }}>
+    <div className="min-h-screen" style={{ background: "var(--color-ink-10)" }}>
       <header className="mx-auto flex max-w-5xl items-center px-6 py-6">
         <Link to="/" className="flex items-center gap-2">
           <div
             className="h-5 w-5 rounded-sm"
-            style={{ background: "#1a1a18" }}
+            style={{ background: "var(--color-ink)" }}
           />
           <span className="text-base font-semibold tracking-tight">Kanri</span>
         </Link>
@@ -67,7 +67,7 @@ function LoginPage() {
         <h1 className="text-2xl font-semibold tracking-tight font-display">
           {mode === "signin" ? "Sign in to Kanri" : "Create your account"}
         </h1>
-        <p className="mt-1 text-sm" style={{ color: "#5f5e5a" }}>
+        <p className="mt-1 text-sm" style={{ color: "var(--color-ink-60)" }}>
           {mode === "signin"
             ? "Welcome back."
             : "A quiet workspace for your candidates."}
@@ -108,14 +108,14 @@ function LoginPage() {
           </Button>
         </form>
 
-        <p className="mt-6 text-center text-sm" style={{ color: "#5f5e5a" }}>
+        <p className="mt-6 text-center text-sm" style={{ color: "var(--color-ink-60)" }}>
           {mode === "signin" ? "New to Kanri?" : "Already have an account?"}{" "}
           <button
             onClick={() =>
               setMode(mode === "signin" ? "signup" : "signin")
             }
             className="underline-offset-4 hover:underline"
-            style={{ color: "#1a1a18" }}
+            style={{ color: "var(--color-ink)" }}
           >
             {mode === "signin" ? "Create an account" : "Sign in"}
           </button>
