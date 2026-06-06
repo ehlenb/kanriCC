@@ -160,7 +160,7 @@ One paragraph on the most likely way you lose this candidate and what to watch f
 
   const msg = await anthropic.messages.create({
     model: "claude-sonnet-4-5-20250929",
-    max_tokens: 1024,
+    max_tokens: 2000,
     messages: [{ role: "user", content: prompt }],
   });
 
