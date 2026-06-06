@@ -40,6 +40,9 @@ import {
   IconCopy,
   IconCheck,
   IconEdit,
+  IconUpload,
+  IconBriefcase,
+  IconX,
 } from "@tabler/icons-react";
 
 export const Route = createFileRoute("/_authenticated/clients/$id")({
@@ -97,6 +100,9 @@ type ReqWithPipeline = {
   salary_min: number | null;
   salary_max: number | null;
   salary_stretch: number | null;
+  salary_range_text: string | null;
+  location: string | null;
+  urgency_date: string | null;
   is_open: boolean;
   is_backfill: boolean;
   interview_rounds: number | null;
@@ -113,6 +119,10 @@ type Interaction = {
   full_notes: string | null;
   interacted_at: string;
   candidate_id: string | null;
+  contact_id: string | null;
+  primary_party: string | null;
+  candidates: { id: string; full_name: string } | null;
+  client_contacts: { id: string; name: string } | null;
 };
 
 // ─── action item type ─────────────────────────────────────────────────────────
@@ -136,6 +146,8 @@ type ActionItem = {
 function useClientDetail(id: string) {
   return useQuery({
     queryKey: ["client", id],
+    staleTime: 30_000,
+    retry: 1,
     queryFn: async () => {
       const [
         { data: client, error },
@@ -143,16 +155,22 @@ function useClientDetail(id: string) {
         { data: reqs },
         { data: interactions },
       ] = await Promise.all([
-        supabase.from("clients").select("*").eq("id", id).single(),
+        supabase
+          .from("clients")
+          .select(
+            "id, company_name, logo_url, is_active, status, fee_pct, started_at, years_in_japan, japan_team_size, japan_team_japanese_pct, employee_japanese_pct, japan_role_in_group, kk_entity, strategy_notes, contract_signed, contract_url, ai_context, ai_context_updated_at",
+          )
+          .eq("id", id)
+          .single(),
         supabase
           .from("client_contacts")
-          .select("id, name, role, title, notes, relationship_score, bypass_hr_warning, is_primary")
+          .select("id, name, role, title, notes, email, phone, linkedin_url, relationship_score, bypass_hr_warning, is_primary")
           .eq("client_id", id)
           .order("created_at"),
         supabase
           .from("requisitions")
           .select(
-            `id, title, salary_min, salary_max, salary_stretch, is_open, is_backfill,
+            `id, title, salary_min, salary_max, salary_stretch, salary_range_text, location, urgency_date, is_open, is_backfill,
              interview_rounds, hiring_manager_id, why_role_opened, strategic_context,
              processes (
                id, stage, coverage_type, updated_at,
@@ -163,7 +181,9 @@ function useClientDetail(id: string) {
           .order("created_at", { ascending: false }),
         supabase
           .from("interactions")
-          .select("id, interaction_type, summary, full_notes, interacted_at, candidate_id")
+          .select(
+            "id, interaction_type, summary, full_notes, interacted_at, candidate_id, contact_id, primary_party, candidates(id, full_name), client_contacts(id, name)",
+          )
           .eq("client_id", id)
           .order("interacted_at", { ascending: false })
           .limit(50),
@@ -463,10 +483,10 @@ function ClientDetail() {
   const { data, isLoading } = useClientDetail(id);
   const qc = useQueryClient();
 
-  const [clientTab, setClientTab] = useState<"timeline" | "info" | "contract">("timeline");
+  const [clientTab, setClientTab] = useState<"timeline" | "info" | "contacts" | "jobs" | "contract">("timeline");
   const [addContactOpen, setAddContactOpen] = useState(false);
-  const [addReqOpen, setAddReqOpen] = useState(false);
   const [logInteractionOpen, setLogInteractionOpen] = useState(false);
+  const [logForContactId, setLogForContactId] = useState<string | null>(null);
   const [logEventType, setLogEventType] = useState<"call" | "email" | "meeting">("call");
   const [snapshotData, setSnapshotData] = useState<{
     whereThingsStand: string;
@@ -739,9 +759,11 @@ function ClientDetail() {
       >
         {(
           [
-            { key: "timeline", label: "Timeline" },
-            { key: "info",     label: "Client info" },
-            { key: "contract", label: "Contract" },
+            { key: "timeline",  label: "Timeline" },
+            { key: "info",      label: "Client info" },
+            { key: "contacts",  label: "Contacts" },
+            { key: "jobs",      label: "Jobs" },
+            { key: "contract",  label: "Contract" },
           ] as const
         ).map(({ key, label }) => (
           <button
@@ -779,7 +801,6 @@ function ClientDetail() {
               draftLoading={draftLoading}
             />
             <QuickActionsCard
-              onLogReq={() => setAddReqOpen(true)}
               onLogEvent={(type) => { setLogEventType(type); setLogInteractionOpen(true); }}
               onMeetingPrep={() => void generateMeetingPrep()}
               draftLoading={draftLoading}
@@ -800,7 +821,6 @@ function ClientDetail() {
         >
           {/* ── LEFT COLUMN ── */}
           <div className="space-y-3">
-            {/* Company header card */}
             <CompanyHeaderCard
               client={c}
               completeness={completeness}
@@ -814,30 +834,11 @@ function ClientDetail() {
                   .then(() => qc.invalidateQueries({ queryKey: ["client", id] }));
               }}
             />
-
-            {/* Enrich company profile */}
             <ClientEnrichCard clientId={id} companyName={c.company_name} />
-
-            {/* Account intelligence */}
             <ClientIntelligenceCard
               clientId={id}
               aiContext={c.ai_context}
               aiContextUpdatedAt={c.ai_context_updated_at}
-            />
-
-            {/* Contacts card */}
-            <ContactsCard
-              contacts={contacts}
-              clientId={id}
-              onAdd={() => setAddContactOpen(true)}
-            />
-
-            {/* Open jobs */}
-            <OpenRequisitionsCard
-              reqs={openReqs}
-              closedReqs={closedReqs}
-              contacts={contacts}
-              onAdd={() => setAddReqOpen(true)}
             />
           </div>
 
@@ -850,20 +851,48 @@ function ClientDetail() {
               draftLoading={draftLoading}
             />
             <QuickActionsCard
-              onLogReq={() => setAddReqOpen(true)}
               onLogEvent={(type) => { setLogEventType(type); setLogInteractionOpen(true); }}
               onMeetingPrep={() => void generateMeetingPrep()}
               draftLoading={draftLoading}
             />
-            <JapanMarketContextCard client={c} />
+            <JapanMarketContextCard client={c} clientId={id} />
           </div>
+        </div>
+      )}
+
+      {/* ── CONTACTS TAB ── */}
+      {clientTab === "contacts" && (
+        <div className="px-6 pt-4 pb-8 max-w-3xl space-y-3">
+          <ContactsCard
+            contacts={contacts}
+            clientId={id}
+            interactions={interactions}
+            onAdd={() => setAddContactOpen(true)}
+            onLogActivity={(contactId) => {
+              setLogForContactId(contactId);
+              setLogInteractionOpen(true);
+            }}
+          />
+        </div>
+      )}
+
+      {/* ── JOBS TAB ── */}
+      {clientTab === "jobs" && (
+        <div className="px-6 pt-4 pb-8 max-w-3xl">
+          <JobsTab
+            clientId={id}
+            recruiterId={user!.id}
+            openReqs={openReqs}
+            closedReqs={closedReqs}
+            contacts={contacts}
+          />
         </div>
       )}
 
       {/* ── CONTRACT TAB ── */}
       {clientTab === "contract" && (
         <div className="px-6 pt-4 pb-8 max-w-xl">
-          <ClientContractTab client={c} />
+          <EditableContractTab client={c} clientId={id} />
         </div>
       )}
 
@@ -874,18 +903,14 @@ function ClientDetail() {
         open={addContactOpen}
         onClose={() => setAddContactOpen(false)}
       />
-      <RequisitionIntakeModal
-        clientId={id}
-        recruiterId={user!.id}
-        open={addReqOpen}
-        onClose={() => setAddReqOpen(false)}
-      />
       <LogInteractionDialog
         clientId={id}
         recruiterId={user!.id}
+        contacts={contacts}
         open={logInteractionOpen}
-        onClose={() => setLogInteractionOpen(false)}
+        onClose={() => { setLogInteractionOpen(false); setLogForContactId(null); }}
         initialType={logEventType}
+        initialContactId={logForContactId}
       />
       <DraftModal
         draft={draftModal}
@@ -1205,11 +1230,15 @@ const ROLE_BADGE: Record<ContactRole, { label: string; style: React.CSSPropertie
 function ContactsCard({
   contacts,
   clientId,
+  interactions,
   onAdd,
+  onLogActivity,
 }: {
   contacts: Contact[];
   clientId: string;
+  interactions?: Interaction[];
   onAdd: () => void;
+  onLogActivity?: (contactId: string) => void;
 }) {
   const qc = useQueryClient();
   const [editingNote, setEditingNote] = useState<{ contactId: string; value: string } | null>(null);
@@ -1356,6 +1385,41 @@ function ContactsCard({
                         )}
                       </button>
                     )}
+
+                    {/* Contact activity footer */}
+                    {onLogActivity && (
+                      <div className="flex items-center justify-between mt-2 pt-2" style={{ borderTop: "0.5px solid rgba(26,26,24,0.08)" }}>
+                        <span className="text-[11px]" style={{ color: "#b8b7b2" }}>
+                          {(interactions ?? []).filter((i) => i.contact_id === contact.id).length} interaction{(interactions ?? []).filter((i) => i.contact_id === contact.id).length !== 1 ? "s" : ""} logged
+                        </span>
+                        <button
+                          className="ab"
+                          onClick={() => onLogActivity(contact.id)}
+                        >
+                          <IconPlus size={10} /> Log activity
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Recent contact interactions */}
+                    {onLogActivity && (interactions ?? []).filter((i) => i.contact_id === contact.id).length > 0 && (
+                      <div className="mt-2 space-y-1.5">
+                        {(interactions ?? [])
+                          .filter((i) => i.contact_id === contact.id)
+                          .slice(0, 3)
+                          .map((i) => (
+                            <div key={i.id} className="flex items-start gap-2 rounded-[6px] px-2 py-1.5" style={{ background: "#f5f5f3" }}>
+                              <span className="text-[11px] capitalize font-medium mt-0.5" style={{ color: "#888780", minWidth: 36 }}>{i.interaction_type}</span>
+                              <div className="flex-1 min-w-0">
+                                {i.summary && <p className="text-[12px] truncate">{i.summary}</p>}
+                                <p className="text-[11px]" style={{ color: "#b8b7b2" }}>
+                                  {new Date(i.interacted_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1457,30 +1521,29 @@ function OpenRequisitionsCard({
   closedReqs,
   contacts,
   onAdd,
+  showHeader = true,
 }: {
   reqs: ReqWithPipeline[];
   closedReqs: ReqWithPipeline[];
   contacts: Contact[];
-  onAdd: () => void;
+  onAdd?: () => void;
+  showHeader?: boolean;
 }) {
   return (
     <Card>
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <SL>Open jobs</SL>
-          {reqs.length > 0 && (
-            <span
-              className="text-[11px] px-1.5 py-0.5 rounded -mt-2"
-              style={{ background: "#eaf3de", color: "#27500a" }}
-            >
-              {reqs.length}
-            </span>
-          )}
+      {showHeader && (
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <SL>Open jobs</SL>
+            {reqs.length > 0 && (
+              <span className="text-[11px] px-1.5 py-0.5 rounded -mt-2" style={{ background: "#eaf3de", color: "#27500a" }}>
+                {reqs.length}
+              </span>
+            )}
+          </div>
+          {onAdd && <button className="ab" onClick={onAdd}><IconPlus size={11} /> Add</button>}
         </div>
-        <button className="ab" onClick={onAdd}>
-          <IconPlus size={11} /> Add
-        </button>
-      </div>
+      )}
 
       {reqs.length === 0 && (
         <p className="text-[13px]" style={{ color: "#888780" }}>
@@ -1515,11 +1578,15 @@ function OpenRequisitionsCard({
               <p className="text-[13px] font-medium mb-0.5">{r.title}</p>
               <p className="text-[12px] mb-1.5" style={{ color: "#5f5e5a" }}>
                 {[
-                  r.salary_min || r.salary_max
+                  r.salary_range_text
+                    ? r.salary_range_text
+                    : r.salary_min || r.salary_max
                     ? `${formatYen(r.salary_min)}–${formatYen(r.salary_max)} base`
                     : null,
+                  r.location ?? null,
                   r.interview_rounds ? `${r.interview_rounds} rounds` : null,
                   hm ? `HM: ${hm.name}` : null,
+                  r.urgency_date ? `Close by ${new Date(r.urgency_date).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}` : null,
                 ]
                   .filter(Boolean)
                   .join(" · ")}
@@ -1714,12 +1781,10 @@ function RecommendedActionsPanel({
 // ─── quick actions card ───────────────────────────────────────────────────────
 
 function QuickActionsCard({
-  onLogReq,
   onLogEvent,
   onMeetingPrep,
   draftLoading,
 }: {
-  onLogReq: () => void;
   onLogEvent: (type: "call" | "email" | "meeting") => void;
   onMeetingPrep: () => void;
   draftLoading: boolean;
@@ -1736,7 +1801,6 @@ function QuickActionsCard({
       <SL>Quick actions</SL>
       <div className="space-y-1.5">
 
-        {/* Prep for client meeting */}
         <button
           onClick={onMeetingPrep}
           disabled={draftLoading}
@@ -1749,19 +1813,6 @@ function QuickActionsCard({
           {draftLoading ? "Generating…" : "Prep for client meeting ↗"}
         </button>
 
-        {/* Log new job */}
-        <button
-          onClick={onLogReq}
-          className="flex items-center gap-2 w-full text-left text-[13px] px-3 py-2 rounded-[6px]"
-          style={btnBase}
-          onMouseEnter={(e) => { e.currentTarget.style.background = "#f5f5f3"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = "#fff"; }}
-        >
-          <IconPlus size={14} style={{ color: "#5f5e5a" }} />
-          Log new job
-        </button>
-
-        {/* Log event — dropdown */}
         <div className="relative">
           <button
             onClick={() => setShowEventMenu((v) => !v)}
@@ -1774,7 +1825,6 @@ function QuickActionsCard({
               {showEventMenu ? "▴" : "▾"}
             </span>
           </button>
-
           {showEventMenu && (
             <div
               className="absolute left-0 right-0 top-full mt-1 rounded-[8px] overflow-hidden z-10"
@@ -1807,58 +1857,88 @@ function QuickActionsCard({
   );
 }
 
-// ─── japan market context card ────────────────────────────────────────────────
+// ─── japan market context card (editable) ─────────────────────────────────────
 
-function JapanMarketContextCard({ client: c }: { client: ClientRecord }) {
-  const rows: Array<{ label: string; value: React.ReactNode }> = [
-    {
-      label: "Years in Japan",
-      value: c.years_in_japan ? `${c.years_in_japan} years` : "—",
-    },
-    {
-      label: "Employees in Japan",
-      value: c.japan_team_size ? `~${c.japan_team_size.toLocaleString()}` : "—",
-    },
-    {
-      label: "% Japanese nationals",
-      value: c.japan_team_japanese_pct ? `~${c.japan_team_japanese_pct}%` : "—",
-    },
-    {
-      label: "Japan role in group",
-      value: c.japan_role_in_group ?? "—",
-    },
-    {
-      label: "KK entity",
-      value:
-        c.kk_entity === "true" || c.kk_entity === "Yes" ? (
-          <span style={{ color: "#27500a" }}>Yes</span>
-        ) : c.kk_entity === "false" || c.kk_entity === "No" ? (
-          <span style={{ color: "#a32d2d" }}>No</span>
-        ) : c.kk_entity ? (
-          <span style={{ color: "#27500a" }}>{c.kk_entity}</span>
-        ) : (
-          "—"
-        ),
-    },
+function JapanMarketContextCard({ client: c, clientId }: { client: ClientRecord; clientId: string }) {
+  const qc = useQueryClient();
+
+  type EditableField = "years_in_japan" | "japan_team_size" | "japan_team_japanese_pct" | "japan_role_in_group" | "kk_entity";
+  const [editing, setEditing] = useState<EditableField | null>(null);
+  const [draft, setDraft] = useState<string>("");
+
+  function startEdit(field: EditableField, current: string | number | null) {
+    setEditing(field);
+    setDraft(current != null ? String(current) : "");
+  }
+
+  async function saveField(field: EditableField) {
+    setEditing(null);
+    let numValue: number | null = null;
+    let strValue: string | null = draft.trim() || null;
+    const isNumericField = field === "years_in_japan" || field === "japan_team_size" || field === "japan_team_japanese_pct";
+    if (isNumericField) {
+      const n = parseInt(draft.trim());
+      numValue = isNaN(n) ? null : n;
+    }
+    if (field === "years_in_japan") {
+      await supabase.from("clients").update({ years_in_japan: numValue }).eq("id", clientId);
+    } else if (field === "japan_team_size") {
+      await supabase.from("clients").update({ japan_team_size: numValue }).eq("id", clientId);
+    } else if (field === "japan_team_japanese_pct") {
+      await supabase.from("clients").update({ japan_team_japanese_pct: numValue }).eq("id", clientId);
+    } else if (field === "japan_role_in_group") {
+      await supabase.from("clients").update({ japan_role_in_group: strValue }).eq("id", clientId);
+    } else if (field === "kk_entity") {
+      await supabase.from("clients").update({ kk_entity: strValue }).eq("id", clientId);
+    }
+    void qc.invalidateQueries({ queryKey: ["client", clientId] });
+  }
+
+  const fields: Array<{ field: EditableField; label: string; displayValue: string; placeholder: string }> = [
+    { field: "years_in_japan", label: "Years in Japan", displayValue: c.years_in_japan ? `${c.years_in_japan} years` : "—", placeholder: "e.g. 15" },
+    { field: "japan_team_size", label: "Employees in Japan", displayValue: c.japan_team_size ? `~${c.japan_team_size.toLocaleString()}` : "—", placeholder: "e.g. 200" },
+    { field: "japan_team_japanese_pct", label: "% Japanese nationals", displayValue: c.japan_team_japanese_pct ? `~${c.japan_team_japanese_pct}%` : "—", placeholder: "e.g. 70" },
+    { field: "japan_role_in_group", label: "Japan role in group", displayValue: c.japan_role_in_group ?? "—", placeholder: "e.g. Regional HQ" },
+    { field: "kk_entity", label: "KK entity", displayValue: c.kk_entity ?? "—", placeholder: "Yes / No / Entity name" },
   ];
 
   return (
     <Card>
       <SL>Japan market context</SL>
-      <div className="space-y-2 mb-3">
-        {rows.map(({ label, value }) => (
+      <div className="space-y-1 mb-3">
+        {fields.map(({ field, label, displayValue, placeholder }) => (
           <div
-            key={label}
-            className="flex justify-between text-[12px] py-1"
+            key={field}
+            className="flex items-center justify-between text-[12px] py-1.5"
             style={{ borderBottom: "0.5px solid rgba(26,26,24,0.08)" }}
           >
-            <span style={{ color: "#5f5e5a" }}>{label}</span>
-            <span className="font-medium">{value}</span>
+            <span style={{ color: "#5f5e5a", minWidth: 140 }}>{label}</span>
+            {editing === field ? (
+              <input
+                autoFocus
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onBlur={() => void saveField(field)}
+                onKeyDown={(e) => { if (e.key === "Enter") void saveField(field); if (e.key === "Escape") setEditing(null); }}
+                placeholder={placeholder}
+                className="text-[12px] text-right bg-transparent outline-none border-b flex-1 ml-4"
+                style={{ borderColor: "rgba(26,26,24,0.20)", color: "#1a1a18" }}
+              />
+            ) : (
+              <button
+                className="text-right font-medium flex-1 ml-4 truncate"
+                style={{ color: displayValue === "—" ? "#b8b7b2" : "#1a1a18" }}
+                onClick={() => startEdit(field, field === "years_in_japan" ? c.years_in_japan : field === "japan_team_size" ? c.japan_team_size : field === "japan_team_japanese_pct" ? c.japan_team_japanese_pct : field === "japan_role_in_group" ? c.japan_role_in_group : c.kk_entity)}
+                title="Click to edit"
+              >
+                {displayValue}
+              </button>
+            )}
           </div>
         ))}
       </div>
       <p className="text-[12px] leading-snug" style={{ color: "#888780" }}>
-        Use these facts when pitching {c.company_name} to candidates from domestic firms who are concerned about moving.
+        Click any field to edit. Use these facts when pitching {c.company_name} to candidates from domestic firms.
       </p>
     </Card>
   );
@@ -1998,107 +2078,54 @@ function AddContactDialog({
   );
 }
 
-// ─── requisition intake modal ─────────────────────────────────────────────────
+// ─── jobs tab ─────────────────────────────────────────────────────────────────
 
-type InterviewRound = { interviewer: string; focus: string };
-
-const EMPTY_REQ = {
-  title: "",
-  is_backfill: false,
-  why_role_opened: "",
-  strategic_context: "",
-  salary_min: "",
-  salary_max: "",
-  salary_stretch: "",
-  urgency: "normal",
-  ideal_candidate_notes: "",
-  age_min: "",
-  age_max: "",
-  japanese_level_required: "",
-  english_level_required: "",
-  industry_must_haves: "",
-  flexibility_notes: "",
-  interview_rounds: "",
-  interview_structure: [] as InterviewRound[],
-  has_skills_test: false,
-  skills_test_notes: "",
-  hm_can_meet_in_person: "" as "" | "true" | "false",
-  hm_communication_style: "",
-  hm_rejection_patterns: "",
-  hm_priority_beyond_jd: "",
-  other_agencies: "" as "" | "true" | "false",
-  other_agency_names: "",
-  open_to_foreign_candidates: "" as "" | "true" | "false",
-  internal_candidate: "" as "" | "true" | "false",
-  target_start_date: "",
+type AddJobForm = {
+  title: string;
+  salary_range_text: string;
+  location: string;
+  urgency_date: string;
+  hiring_manager_id: string;
+  why_role_opened: string;
+  strategic_context: string;
 };
 
-function triState(v: "" | "true" | "false"): boolean | null {
-  if (v === "true") return true;
-  if (v === "false") return false;
-  return null;
-}
+const EMPTY_ADD_JOB: AddJobForm = {
+  title: "",
+  salary_range_text: "",
+  location: "",
+  urgency_date: "",
+  hiring_manager_id: "",
+  why_role_opened: "",
+  strategic_context: "",
+};
 
-function TriSelect({
-  value,
-  onChange,
-}: {
-  value: "" | "true" | "false";
-  onChange: (v: "" | "true" | "false") => void;
-}) {
-  return (
-    <Select value={value} onValueChange={(v) => onChange(v as "" | "true" | "false")}>
-      <SelectTrigger>
-        <SelectValue placeholder="Unknown" />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="">Unknown</SelectItem>
-        <SelectItem value="true">Yes</SelectItem>
-        <SelectItem value="false">No</SelectItem>
-      </SelectContent>
-    </Select>
-  );
-}
-
-function IntakeSectionHeader({ label }: { label: string }) {
-  return (
-    <div className="flex items-center gap-2 mb-2 mt-1">
-      <span
-        className="text-[11px] font-medium uppercase shrink-0"
-        style={{ color: "#5f5e5a", letterSpacing: "0.04em" }}
-      >
-        {label}
-      </span>
-      <div style={{ flex: 1, height: "0.5px", background: "rgba(26,26,24,0.12)" }} />
-    </div>
-  );
-}
-
-function RequisitionIntakeModal({
+function JobsTab({
   clientId,
   recruiterId,
-  open,
-  onClose,
+  openReqs,
+  closedReqs,
+  contacts,
 }: {
   clientId: string;
   recruiterId: string;
-  open: boolean;
-  onClose: () => void;
+  openReqs: ReqWithPipeline[];
+  closedReqs: ReqWithPipeline[];
+  contacts: Contact[];
 }) {
   const qc = useQueryClient();
-  const [form, setForm] = useState(EMPTY_REQ);
-  const [generatingContext, setGeneratingContext] = useState(false);
-  const [jdUploading, setJdUploading] = useState(false);
+  const jdInputRef = useRef<HTMLInputElement>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState<AddJobForm>(EMPTY_ADD_JOB);
   const [jdText, setJdText] = useState("");
   const [jdUrl, setJdUrl] = useState("");
-  const [extractingConditions, setExtractingConditions] = useState(false);
-  const [suggestedConditions, setSuggestedConditions] = useState<Array<{ condition_text: string; condition_type: string; source: string; priority_rank: number }>>([]);
-  const jdInputRef = useRef<HTMLInputElement>(null);
+  const [jdUploading, setJdUploading] = useState(false);
+  const [extracting, setExtracting] = useState(false);
+  const [generatingContext, setGeneratingContext] = useState(false);
 
   async function handleJdFile(file: File) {
     setJdUploading(true);
     try {
-      // Extract text client-side for PDF using mammoth for docx, or send as-is
       let extractedText = "";
       if (file.name.endsWith(".docx")) {
         const mammoth = await import("mammoth");
@@ -2113,84 +2140,56 @@ function RequisitionIntakeModal({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ pdf_base64: base64 }),
         });
-        const data = (await resp.json()) as { text?: string; error?: string };
-        extractedText = data.text?.trim() ?? `[PDF: ${file.name}]`;
+        const data = (await resp.json()) as { text?: string };
+        extractedText = data.text?.trim() ?? "";
       }
-      // Upload to storage
       const path = `${recruiterId}/${clientId}/jd_${Date.now()}_${file.name.replace(/\s+/g, "_")}`;
       const { error } = await supabase.storage.from("resumes").upload(path, file);
       if (!error) setJdUrl(path);
       setJdText(extractedText);
-      if (extractedText.length > 50 && !extractedText.startsWith("[PDF")) {
-        void extractConditions(extractedText);
-      }
       toast.success("JD uploaded.");
-    } catch { toast.error("JD upload failed."); }
-    finally { setJdUploading(false); }
-  }
-
-  async function extractConditions(text: string) {
-    setExtractingConditions(true);
-    try {
-      const resp = await fetch("/api/ai/extract-conditions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ requisition_id: "preview", jd_text: text }),
-      });
-      const data = (await resp.json()) as { conditions?: typeof suggestedConditions };
-      if (data.conditions) setSuggestedConditions(data.conditions);
-    } catch { /* silent */ }
-    finally { setExtractingConditions(false); }
-  }
-
-  function wan(v: string): number | null {
-    const n = parseInt(v);
-    return isNaN(n) ? null : n * 10_000;
-  }
-
-  function handleRoundsChange(v: string) {
-    const n = Math.min(Math.max(parseInt(v) || 0, 0), 10);
-    setForm((p) => ({
-      ...p,
-      interview_rounds: v,
-      interview_structure: Array.from({ length: n }, (_, i) =>
-        p.interview_structure[i] ?? { interviewer: "", focus: "" },
-      ),
-    }));
-  }
-
-  function updateRound(index: number, field: keyof InterviewRound, value: string) {
-    setForm((p) => {
-      const updated = [...p.interview_structure];
-      updated[index] = { ...updated[index], [field]: value };
-      return { ...p, interview_structure: updated };
-    });
+      if (extractedText.length > 50) {
+        setExtracting(true);
+        try {
+          const resp = await fetch("/api/ai/extract-req-fields", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ jd_text: extractedText }),
+          });
+          const json = (await resp.json()) as { data?: Partial<AddJobForm> };
+          if (json.data) {
+            setForm((p) => ({
+              ...p,
+              title: json.data?.title ?? p.title,
+              salary_range_text: json.data?.salary_range_text ?? p.salary_range_text,
+              location: json.data?.location ?? p.location,
+            }));
+            toast.success("Fields extracted from JD — review before saving.");
+          }
+        } finally {
+          setExtracting(false);
+        }
+      }
+    } catch {
+      toast.error("JD upload failed.");
+    } finally {
+      setJdUploading(false);
+    }
   }
 
   async function generateStrategicContext() {
-    if (!form.title.trim()) {
-      toast.error("Enter a role title first");
-      return;
-    }
+    if (!form.title.trim()) { toast.error("Enter a role title first."); return; }
     setGeneratingContext(true);
     try {
       const resp = await fetch("/api/ai/req-strategic-context", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          clientId,
-          title: form.title.trim(),
-          whyRoleOpened: form.why_role_opened.trim(),
-          isBackfill: form.is_backfill,
-        }),
+        body: JSON.stringify({ clientId, title: form.title.trim(), whyRoleOpened: form.why_role_opened.trim(), isBackfill: false }),
       });
       const json = (await resp.json()) as { content?: string };
-      if (json.content) {
-        setForm((p) => ({ ...p, strategic_context: json.content! }));
-        toast.success("Draft generated — review and edit before saving");
-      }
+      if (json.content) setForm((p) => ({ ...p, strategic_context: json.content! }));
     } catch {
-      toast.error("Failed to generate draft");
+      toast.error("Failed to generate draft.");
     } finally {
       setGeneratingContext(false);
     }
@@ -2198,506 +2197,144 @@ function RequisitionIntakeModal({
 
   const mutation = useMutation({
     mutationFn: async () => {
-      const structurePayload =
-        form.interview_structure.length > 0
-          ? form.interview_structure.map((r, i) => ({
-              round: i + 1,
-              interviewer: r.interviewer.trim(),
-              focus: r.focus.trim(),
-            }))
-          : null;
-
-      const { data: insertedReq, error } = await supabase.from("requisitions").insert({
+      const { error } = await supabase.from("requisitions").insert({
         client_id: clientId,
         recruiter_id: recruiterId,
         is_open: true,
+        is_backfill: false,
         title: form.title.trim(),
-        is_backfill: form.is_backfill,
+        salary_range_text: form.salary_range_text.trim() || null,
+        location: form.location.trim() || null,
+        urgency_date: form.urgency_date || null,
+        hiring_manager_id: form.hiring_manager_id || null,
         why_role_opened: form.why_role_opened.trim() || null,
         strategic_context: form.strategic_context.trim() || null,
-        salary_min: wan(form.salary_min),
-        salary_max: wan(form.salary_max),
-        salary_stretch: wan(form.salary_stretch),
-        urgency: form.urgency || null,
-        jd_url: jdUrl || null,
         jd_text: jdText || null,
-        ideal_candidate_notes: form.ideal_candidate_notes.trim() || null,
-        age_min: form.age_min ? parseInt(form.age_min) : null,
-        age_max: form.age_max ? parseInt(form.age_max) : null,
-        japanese_level_required: form.japanese_level_required || null,
-        english_level_required: form.english_level_required || null,
-        industry_must_haves: form.industry_must_haves.trim() || null,
-        flexibility_notes: form.flexibility_notes.trim() || null,
-        interview_rounds: form.interview_rounds ? parseInt(form.interview_rounds) : null,
-        interview_structure: structurePayload,
-        has_skills_test: form.has_skills_test,
-        skills_test_notes: form.skills_test_notes.trim() || null,
-        hm_can_meet_in_person: triState(form.hm_can_meet_in_person),
-        hm_communication_style: form.hm_communication_style.trim() || null,
-        hm_rejection_patterns: form.hm_rejection_patterns.trim() || null,
-        hm_priority_beyond_jd: form.hm_priority_beyond_jd.trim() || null,
-        other_agencies: triState(form.other_agencies),
-        other_agency_names: form.other_agency_names.trim() || null,
-        open_to_foreign_candidates: triState(form.open_to_foreign_candidates),
-        internal_candidate: triState(form.internal_candidate),
-        target_start_date: form.target_start_date || null,
-      }).select("id").single();
+        jd_url: jdUrl || null,
+      });
       if (error) throw error;
-
-      // Save extracted conditions
-      if (insertedReq && suggestedConditions.length > 0) {
-        const condRows = suggestedConditions
-          .filter((c) => c.condition_text.trim())
-          .map((c) => ({
-            requisition_id: insertedReq.id,
-            recruiter_id: recruiterId,
-            condition_text: c.condition_text.trim(),
-            condition_type: c.condition_type,
-            source: c.source,
-            priority_rank: c.priority_rank,
-          }));
-        if (condRows.length > 0) {
-          await supabase.from("requisition_conditions").insert(condRows);
-        }
-      }
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["client", clientId] });
-      toast.success("Job saved");
-      setForm(EMPTY_REQ);
-      onClose();
+      toast.success("Job saved.");
+      setForm(EMPTY_ADD_JOB);
+      setJdText("");
+      setJdUrl("");
+      setShowForm(false);
     },
-    onError: () => toast.error("Failed to save requisition"),
+    onError: () => toast.error("Failed to save job."),
   });
 
   return (
-    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent style={{ maxWidth: 680 }}>
-        <DialogHeader>
-          <DialogTitle>New job</DialogTitle>
-        </DialogHeader>
-
-        <div className="overflow-y-auto max-h-[72vh] pr-2 space-y-5 py-1">
-
-          {/* ── A — Role basics ── */}
-          <div>
-            <IntakeSectionHeader label="A — Role basics" />
-            <div className="space-y-3">
-              <F label="Job title *">
-                <Input
-                  autoFocus
-                  value={form.title}
-                  onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
-                  placeholder="e.g. VP of Engineering"
-                />
-              </F>
-
-              <div className="grid grid-cols-2 gap-3">
-                <F label="Urgency">
-                  <Select
-                    value={form.urgency}
-                    onValueChange={(v) => setForm((p) => ({ ...p, urgency: v }))}
-                  >
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="critical">Critical — fill immediately</SelectItem>
-                      <SelectItem value="high">High — within 4 weeks</SelectItem>
-                      <SelectItem value="normal">Normal</SelectItem>
-                      <SelectItem value="low">Low — nice to have</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </F>
-                <div className="flex items-end pb-2">
-                  <label className="flex items-center gap-2 text-[13px] cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={form.is_backfill}
-                      onChange={(e) => setForm((p) => ({ ...p, is_backfill: e.target.checked }))}
-                    />
-                    Backfill role
-                  </label>
-                </div>
-              </div>
-
-              <F
-                label={
-                  form.is_backfill
-                    ? "What happened to the previous person? (sensitive — internal only)"
-                    : "Why does this role exist?"
-                }
-              >
-                <Textarea
-                  value={form.why_role_opened}
-                  onChange={(e) => setForm((p) => ({ ...p, why_role_opened: e.target.value }))}
-                  placeholder={
-                    form.is_backfill
-                      ? "Resigned, performance managed out…"
-                      : "New team build-out, expansion into new product area…"
-                  }
-                  className="min-h-[60px]"
-                />
-              </F>
-
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <Label className="text-xs">Strategic context</Label>
-                  <button
-                    type="button"
-                    className="ab flex items-center gap-1"
-                    onClick={() => void generateStrategicContext()}
-                    disabled={generatingContext}
-                  >
-                    <IconSparkles size={10} />
-                    {generatingContext ? "Generating…" : "Generate draft ↗"}
-                  </button>
-                </div>
-                <Textarea
-                  value={form.strategic_context}
-                  onChange={(e) => setForm((p) => ({ ...p, strategic_context: e.target.value }))}
-                  placeholder="Why this role matters to the business right now — recruiter uses this to pitch the opportunity"
-                  className="min-h-[80px]"
-                />
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                <F label="Salary min (万円)">
-                  <Input
-                    type="number"
-                    value={form.salary_min}
-                    onChange={(e) => setForm((p) => ({ ...p, salary_min: e.target.value }))}
-                    placeholder="800"
-                  />
-                </F>
-                <F label="Salary max (万円)">
-                  <Input
-                    type="number"
-                    value={form.salary_max}
-                    onChange={(e) => setForm((p) => ({ ...p, salary_max: e.target.value }))}
-                    placeholder="1200"
-                  />
-                </F>
-                <F label="Stretch (万円)">
-                  <Input
-                    type="number"
-                    value={form.salary_stretch}
-                    onChange={(e) => setForm((p) => ({ ...p, salary_stretch: e.target.value }))}
-                    placeholder="1400"
-                  />
-                </F>
-              </div>
-            </div>
-          </div>
-
-          {/* ── JD Upload ── */}
-          <div>
-            <IntakeSectionHeader label="Job description (PDF or DOCX)" />
-            <div
-              className="rounded-xl px-4 py-3 flex items-center gap-3 cursor-pointer"
-              style={{ background: jdText ? "#f0fae8" : "#f5f5f3", border: `0.5px dashed ${jdText ? "rgba(39,80,10,0.3)" : "rgba(26,26,24,0.2)"}` }}
-              onClick={() => !jdUploading && jdInputRef.current?.click()}
-            >
-              <IconFileText size={16} style={{ color: "#888780", flexShrink: 0 }} />
-              <div className="flex-1 min-w-0">
-                <p className="text-[12px]" style={{ color: "#5f5e5a" }}>
-                  {jdUploading ? "Uploading…" : jdText ? "JD uploaded — conditions extracted below" : "Upload JD (PDF or DOCX) — conditions will be extracted automatically"}
-                </p>
-              </div>
-              {extractingConditions && <span className="text-[11px]" style={{ color: "#185fa5" }}>Extracting conditions…</span>}
-              {jdText && !extractingConditions && <span className="text-[11px]" style={{ color: "#27500a" }}>✓ Done</span>}
-              <input ref={jdInputRef} type="file" accept=".pdf,.docx" className="hidden"
-                onChange={(e) => { const f = e.target.files?.[0]; if (f) void handleJdFile(f); e.target.value = ""; }} />
-            </div>
-            {suggestedConditions.length > 0 && (
-              <div className="mt-3 rounded-[8px] p-3 space-y-2" style={{ background: "#f5f5f3" }}>
-                <p className="sl mb-2">Extracted conditions — edit before saving</p>
-                {suggestedConditions.map((cond, i) => (
-                  <div key={i} className="flex items-start gap-2">
-                    <span
-                      className="text-[10px] font-medium px-1.5 py-0.5 rounded shrink-0 mt-0.5"
-                      style={{ background: cond.condition_type === "must_have" ? "#fdf3e7" : "#f5f5f3", color: cond.condition_type === "must_have" ? "#633806" : "#888780" }}
-                    >
-                      {cond.condition_type === "must_have" ? "Must" : "Nice"}
-                    </span>
-                    <input
-                      className="flex-1 text-[12px] bg-transparent border-b outline-none"
-                      style={{ borderColor: "rgba(26,26,24,0.12)", color: "#1a1a18" }}
-                      value={cond.condition_text}
-                      onChange={(e) => setSuggestedConditions((prev) => prev.map((c, j) => j === i ? { ...c, condition_text: e.target.value } : c))}
-                    />
-                    <button onClick={() => setSuggestedConditions((prev) => prev.filter((_, j) => j !== i))}
-                      className="text-[11px] shrink-0" style={{ color: "#b8b7b2" }}>✕</button>
-                  </div>
-                ))}
-                <button
-                  className="ab mt-1"
-                  onClick={() => setSuggestedConditions((prev) => [...prev, { condition_text: "", condition_type: "must_have", source: "client", priority_rank: prev.length + 1 }])}
-                >
-                  + Add condition
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* ── B — Ideal candidate ── */}
-          <div>
-            <IntakeSectionHeader label="B — Ideal candidate profile" />
-            <div className="space-y-3">
-              <F label="What does the ideal candidate look like?">
-                <Textarea
-                  value={form.ideal_candidate_notes}
-                  onChange={(e) => setForm((p) => ({ ...p, ideal_candidate_notes: e.target.value }))}
-                  placeholder="Background, experience level, must-have skills and profile…"
-                  className="min-h-[70px]"
-                />
-              </F>
-
-              <div className="grid grid-cols-4 gap-3">
-                <F label="Age min">
-                  <Input
-                    type="number"
-                    value={form.age_min}
-                    onChange={(e) => setForm((p) => ({ ...p, age_min: e.target.value }))}
-                    placeholder="28"
-                  />
-                </F>
-                <F label="Age max">
-                  <Input
-                    type="number"
-                    value={form.age_max}
-                    onChange={(e) => setForm((p) => ({ ...p, age_max: e.target.value }))}
-                    placeholder="45"
-                  />
-                </F>
-                <F label="Japanese level">
-                  <Select
-                    value={form.japanese_level_required}
-                    onValueChange={(v) => setForm((p) => ({ ...p, japanese_level_required: v }))}
-                  >
-                    <SelectTrigger><SelectValue placeholder="Any" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">Any</SelectItem>
-                      <SelectItem value="Native">Native</SelectItem>
-                      <SelectItem value="Business">Business (N2)</SelectItem>
-                      <SelectItem value="Conversational">Conversational (N3+)</SelectItem>
-                      <SelectItem value="Basic">Basic (N4+)</SelectItem>
-                      <SelectItem value="Not required">Not required</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </F>
-                <F label="English level">
-                  <Select
-                    value={form.english_level_required}
-                    onValueChange={(v) => setForm((p) => ({ ...p, english_level_required: v }))}
-                  >
-                    <SelectTrigger><SelectValue placeholder="Any" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">Any</SelectItem>
-                      <SelectItem value="Native">Native</SelectItem>
-                      <SelectItem value="Business fluent">Business fluent</SelectItem>
-                      <SelectItem value="Conversational">Conversational</SelectItem>
-                      <SelectItem value="Basic">Basic</SelectItem>
-                      <SelectItem value="Not required">Not required</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </F>
-              </div>
-
-              <F label="Industry / background must-haves">
-                <Textarea
-                  value={form.industry_must_haves}
-                  onChange={(e) => setForm((p) => ({ ...p, industry_must_haves: e.target.value }))}
-                  placeholder="SaaS, financial services, enterprise software…"
-                  className="min-h-[50px]"
-                />
-              </F>
-
-              <F label="Where can they be flexible? (critical for expectation management)">
-                <Textarea
-                  value={form.flexibility_notes}
-                  onChange={(e) => setForm((p) => ({ ...p, flexibility_notes: e.target.value }))}
-                  placeholder="Industry cross-over OK, start-up experience not required…"
-                  className="min-h-[50px]"
-                />
-              </F>
-            </div>
-          </div>
-
-          {/* ── C — Interview process ── */}
-          <div>
-            <IntakeSectionHeader label="C — Interview process" />
-            <div className="space-y-3">
-              <div className="grid grid-cols-3 gap-3">
-                <F label="Number of rounds">
-                  <Input
-                    type="number"
-                    value={form.interview_rounds}
-                    onChange={(e) => handleRoundsChange(e.target.value)}
-                    placeholder="4"
-                    min={0}
-                    max={10}
-                  />
-                </F>
-                <F label="Recruiter can meet HM in person?">
-                  <TriSelect
-                    value={form.hm_can_meet_in_person}
-                    onChange={(v) => setForm((p) => ({ ...p, hm_can_meet_in_person: v }))}
-                  />
-                </F>
-                <div className="flex items-end pb-2">
-                  <label className="flex items-center gap-2 text-[13px] cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={form.has_skills_test}
-                      onChange={(e) =>
-                        setForm((p) => ({ ...p, has_skills_test: e.target.checked }))
-                      }
-                    />
-                    Skills / technical test
-                  </label>
-                </div>
-              </div>
-
-              {form.has_skills_test && (
-                <F label="Test description">
-                  <Textarea
-                    value={form.skills_test_notes}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, skills_test_notes: e.target.value }))
-                    }
-                    placeholder="Case study, coding test, presentation…"
-                    className="min-h-[50px]"
-                  />
-                </F>
-              )}
-
-              {form.interview_structure.length > 0 && (
-                <div className="space-y-2">
-                  <Label className="text-xs">Round-by-round structure</Label>
-                  {form.interview_structure.map((round, i) => (
-                    <div key={i} className="grid grid-cols-2 gap-2">
-                      <Input
-                        value={round.interviewer}
-                        onChange={(e) => updateRound(i, "interviewer", e.target.value)}
-                        placeholder={`Round ${i + 1} — who they meet`}
-                      />
-                      <Input
-                        value={round.focus}
-                        onChange={(e) => updateRound(i, "focus", e.target.value)}
-                        placeholder="What they're assessing"
-                      />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* ── D — HM intelligence ── */}
-          <div>
-            <IntakeSectionHeader label="D — Hiring manager intelligence" />
-            <div className="space-y-3">
-              <F label="HM communication style (recruiter observation)">
-                <Textarea
-                  value={form.hm_communication_style}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, hm_communication_style: e.target.value }))
-                  }
-                  placeholder="Direct and data-driven, prefers written updates, needs time to warm up to candidates…"
-                  className="min-h-[60px]"
-                />
-              </F>
-              <F label="Profiles this HM has historically rejected">
-                <Textarea
-                  value={form.hm_rejection_patterns}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, hm_rejection_patterns: e.target.value }))
-                  }
-                  placeholder="Over-qualified, purely technical with no leadership experience, candidates who job-hop…"
-                  className="min-h-[60px]"
-                />
-              </F>
-              <F label="What matters most to this HM beyond the JD?">
-                <Textarea
-                  value={form.hm_priority_beyond_jd}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, hm_priority_beyond_jd: e.target.value }))
-                  }
-                  placeholder="Culture add, startup mindset, someone who can build a team from scratch…"
-                  className="min-h-[60px]"
-                />
-              </F>
-            </div>
-          </div>
-
-          {/* ── E — Competition and signals ── */}
-          <div>
-            <IntakeSectionHeader label="E — Competition and urgency signals" />
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <F label="Other agencies working this role?">
-                  <TriSelect
-                    value={form.other_agencies}
-                    onChange={(v) => setForm((p) => ({ ...p, other_agencies: v }))}
-                  />
-                </F>
-                <F label="Open to foreign candidates?">
-                  <TriSelect
-                    value={form.open_to_foreign_candidates}
-                    onChange={(v) =>
-                      setForm((p) => ({ ...p, open_to_foreign_candidates: v }))
-                    }
-                  />
-                </F>
-              </div>
-
-              {form.other_agencies === "true" && (
-                <F label="Other agency names (if known)">
-                  <Input
-                    value={form.other_agency_names}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, other_agency_names: e.target.value }))
-                    }
-                    placeholder="Robert Walters, Michael Page…"
-                  />
-                </F>
-              )}
-
-              <div className="grid grid-cols-2 gap-3">
-                <F label="Internal candidate being considered?">
-                  <TriSelect
-                    value={form.internal_candidate}
-                    onChange={(v) => setForm((p) => ({ ...p, internal_candidate: v }))}
-                  />
-                </F>
-                <F label="Target start date">
-                  <Input
-                    type="date"
-                    value={form.target_start_date}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, target_start_date: e.target.value }))
-                    }
-                  />
-                </F>
-              </div>
-            </div>
-          </div>
-
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <IconBriefcase size={16} style={{ color: "#5f5e5a" }} />
+          <span className="text-[13px] font-medium">
+            {openReqs.length} open job{openReqs.length !== 1 ? "s" : ""}
+            {closedReqs.length > 0 && <span className="ml-1 font-normal" style={{ color: "#888780" }}>· {closedReqs.length} closed</span>}
+          </span>
         </div>
+        <button className="ab" onClick={() => setShowForm((v) => !v)}>
+          {showForm ? <><IconX size={11} /> Cancel</> : <><IconPlus size={11} /> Add job</>}
+        </button>
+      </div>
 
-        <DialogFooter>
-          <Button variant="outline" size="sm" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button
-            size="sm"
-            onClick={() => mutation.mutate()}
-            disabled={!form.title.trim() || mutation.isPending}
+      {/* Add job inline form */}
+      {showForm && (
+        <div className="rounded-xl p-4 space-y-4" style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.12)" }}>
+          {/* JD upload */}
+          <div
+            className="rounded-xl px-4 py-3 flex items-center gap-3 cursor-pointer"
+            style={{
+              background: jdText ? "#eaf3de" : "#f5f5f3",
+              border: `0.5px dashed ${jdText ? "rgba(39,80,10,0.3)" : "rgba(26,26,24,0.2)"}`,
+            }}
+            onClick={() => !jdUploading && jdInputRef.current?.click()}
           >
-            {mutation.isPending ? "Saving…" : "Save job"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+            <IconUpload size={14} style={{ color: jdText ? "#3b6d11" : "#888780", flexShrink: 0 }} />
+            <div className="flex-1 min-w-0">
+              <p className="text-[12px]" style={{ color: "#5f5e5a" }}>
+                {jdUploading ? "Uploading…" : extracting ? "Extracting fields…" : jdText ? "JD uploaded — fields extracted below" : "Upload job description (PDF or DOCX) — AI will fill what it can"}
+              </p>
+            </div>
+            {jdText && <span className="text-[11px]" style={{ color: "#27500a" }}>✓</span>}
+            <input ref={jdInputRef} type="file" accept=".pdf,.docx" className="hidden"
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) void handleJdFile(f); e.target.value = ""; }} />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <F label="Job title *">
+              <Input autoFocus value={form.title} onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))} placeholder="e.g. VP of Engineering" />
+            </F>
+            <F label="Location">
+              <Input value={form.location} onChange={(e) => setForm((p) => ({ ...p, location: e.target.value }))} placeholder="e.g. Tokyo, hybrid" />
+            </F>
+          </div>
+
+          <F label="Salary range">
+            <Input value={form.salary_range_text} onChange={(e) => setForm((p) => ({ ...p, salary_range_text: e.target.value }))} placeholder="e.g. ¥8M–¥12M base + 15% bonus" />
+          </F>
+
+          <div className="grid grid-cols-2 gap-3">
+            <F label="Hiring manager">
+              <Select value={form.hiring_manager_id} onValueChange={(v) => setForm((p) => ({ ...p, hiring_manager_id: v }))}>
+                <SelectTrigger><SelectValue placeholder="Select contact…" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">No hiring manager</SelectItem>
+                  {contacts.map((ct) => (
+                    <SelectItem key={ct.id} value={ct.id}>{ct.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </F>
+            <F label="Target close date">
+              <Input type="date" value={form.urgency_date} onChange={(e) => setForm((p) => ({ ...p, urgency_date: e.target.value }))} />
+            </F>
+          </div>
+
+          <F label="Why does this role exist?">
+            <Textarea value={form.why_role_opened} onChange={(e) => setForm((p) => ({ ...p, why_role_opened: e.target.value }))} placeholder="New headcount, backfill, expansion…" className="min-h-[60px]" />
+          </F>
+
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <Label className="text-xs">Strategic context</Label>
+              <button className="ab flex items-center gap-1" onClick={() => void generateStrategicContext()} disabled={generatingContext}>
+                <IconSparkles size={10} />
+                {generatingContext ? "Generating…" : "Generate draft ↗"}
+              </button>
+            </div>
+            <Textarea value={form.strategic_context} onChange={(e) => setForm((p) => ({ ...p, strategic_context: e.target.value }))} placeholder="Why this role matters to the business right now" className="min-h-[70px]" />
+          </div>
+
+          <div className="flex items-center gap-2 pt-1">
+            <Button size="sm" onClick={() => mutation.mutate()} disabled={!form.title.trim() || mutation.isPending}>
+              {mutation.isPending ? "Saving…" : "Save job"}
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setShowForm(false)}>Cancel</Button>
+          </div>
+        </div>
+      )}
+
+      {/* Open jobs */}
+      {openReqs.length > 0 && (
+        <OpenRequisitionsCard reqs={openReqs} closedReqs={[]} contacts={contacts} showHeader={false} />
+      )}
+
+      {openReqs.length === 0 && !showForm && (
+        <div className="rounded-xl px-5 py-12 text-center" style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.12)" }}>
+          <p className="text-[13px] font-medium" style={{ color: "#1a1a18" }}>No open jobs.</p>
+          <p className="text-[12px] mt-1" style={{ color: "#888780" }}>Upload a job description or fill in the form to add one.</p>
+        </div>
+      )}
+
+      {/* Closed jobs */}
+      {closedReqs.length > 0 && (
+        <OpenRequisitionsCard reqs={[]} closedReqs={closedReqs} contacts={contacts} showHeader={false} />
+      )}
+    </div>
   );
 }
 
@@ -2706,43 +2343,54 @@ function RequisitionIntakeModal({
 function LogInteractionDialog({
   clientId,
   recruiterId,
+  contacts,
   open,
   onClose,
   initialType = "call",
+  initialContactId = null,
 }: {
   clientId: string;
   recruiterId: string;
+  contacts: Contact[];
   open: boolean;
   onClose: () => void;
   initialType?: string;
+  initialContactId?: string | null;
 }) {
   const qc = useQueryClient();
   const [type, setType] = useState(initialType);
   const [summary, setSummary] = useState("");
   const [notes, setNotes] = useState("");
+  const [contactId, setContactId] = useState<string | null>(initialContactId);
+  const [primaryParty, setPrimaryParty] = useState<"client" | "candidate">("client");
 
   useEffect(() => {
-    if (open) setType(initialType);
-  }, [open, initialType]);
+    if (open) {
+      setType(initialType);
+      setContactId(initialContactId);
+      setPrimaryParty("client");
+      setSummary("");
+      setNotes("");
+    }
+  }, [open, initialType, initialContactId]);
 
   const mutation = useMutation({
     mutationFn: async () => {
       const { error } = await supabase.from("interactions").insert({
         client_id: clientId,
         recruiter_id: recruiterId,
-        interaction_type: type as "call" | "email" | "meeting" | "note",
+        interaction_type: type,
         summary: summary.trim() || null,
         full_notes: notes.trim() || null,
         interacted_at: new Date().toISOString(),
+        contact_id: contactId || null,
+        primary_party: primaryParty,
       });
       if (error) throw error;
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["client", clientId] });
       toast.success("Interaction logged");
-      setType("call");
-      setSummary("");
-      setNotes("");
       onClose();
     },
     onError: () => toast.error("Failed to log interaction"),
@@ -2755,17 +2403,43 @@ function LogInteractionDialog({
           <DialogTitle>Log event</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-1">
-          <F label="Type">
-            <Select value={type} onValueChange={setType}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="call">Call</SelectItem>
-                <SelectItem value="meeting">Meeting</SelectItem>
-                <SelectItem value="email">Email</SelectItem>
-                <SelectItem value="note">Note</SelectItem>
-              </SelectContent>
-            </Select>
-          </F>
+          <div className="grid grid-cols-2 gap-3">
+            <F label="Type">
+              <Select value={type} onValueChange={setType}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="call">Call</SelectItem>
+                  <SelectItem value="meeting">Meeting</SelectItem>
+                  <SelectItem value="email">Email</SelectItem>
+                  <SelectItem value="note">Note</SelectItem>
+                </SelectContent>
+              </Select>
+            </F>
+            <F label="Who you spoke with">
+              <Select value={primaryParty} onValueChange={(v) => setPrimaryParty(v as "client" | "candidate")}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="client">Client contact</SelectItem>
+                  <SelectItem value="candidate">Candidate</SelectItem>
+                </SelectContent>
+              </Select>
+            </F>
+          </div>
+
+          {primaryParty === "client" && contacts.length > 0 && (
+            <F label="Contact (optional)">
+              <Select value={contactId ?? "__none__"} onValueChange={(v) => setContactId(v === "__none__" ? null : v)}>
+                <SelectTrigger><SelectValue placeholder="Select contact…" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">No specific contact</SelectItem>
+                  {contacts.map((ct) => (
+                    <SelectItem key={ct.id} value={ct.id}>{ct.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </F>
+          )}
+
           <F label="Summary (1 line — shown in activity feed)">
             <Input value={summary} onChange={(e) => setSummary(e.target.value)} placeholder="e.g. Call with Yamada — discussed VP Eng req, 4 rounds confirmed" autoFocus />
           </F>
@@ -3094,7 +2768,7 @@ function ClientTimelineTab({ interactions }: { interactions: Interaction[] }) {
 
               {/* Content */}
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
                   <span
                     className="text-[11px] font-medium capitalize px-[6px] py-[2px] rounded"
                     style={{ background: colors.bg, color: colors.color }}
@@ -3104,6 +2778,21 @@ function ClientTimelineTab({ interactions }: { interactions: Interaction[] }) {
                   <span className="text-[11px]" style={{ color: "#b8b7b2" }}>
                     {formatInteractionDate(item.interacted_at)}
                   </span>
+                  {item.client_contacts && (
+                    <span className="text-[11px] px-[6px] py-[2px] rounded" style={{ background: "#f5f5f3", color: "#5f5e5a" }}>
+                      with {item.client_contacts.name}
+                    </span>
+                  )}
+                  {item.candidates && (
+                    <span className="text-[11px] px-[6px] py-[2px] rounded" style={{ background: "#e6f1fb", color: "#185fa5" }}>
+                      re: {item.candidates.full_name}
+                    </span>
+                  )}
+                  {item.primary_party === "candidate" && (
+                    <span className="text-[11px] px-[6px] py-[2px] rounded" style={{ background: "#eaf3de", color: "#27500a" }}>
+                      spoke with candidate
+                    </span>
+                  )}
                 </div>
 
                 {item.summary && (
@@ -3126,32 +2815,192 @@ function ClientTimelineTab({ interactions }: { interactions: Interaction[] }) {
   );
 }
 
-// ─── client contract tab ──────────────────────────────────────────────────────
+// ─── editable contract tab ────────────────────────────────────────────────────
 
-function ClientContractTab({ client: c }: { client: ClientRecord }) {
-  const fields: Array<{ label: string; value: string | null }> = [
-    { label: "Fee %",          value: c.fee_pct != null ? `${c.fee_pct}%` : null },
-    { label: "Client since",   value: c.started_at ? new Date(c.started_at).toLocaleDateString("en-GB", { month: "long", year: "numeric" }) : null },
-    { label: "KK entity",      value: c.kk_entity ?? null },
-    { label: "Account status", value: c.is_active ? "Active" : "Inactive" },
-  ];
+function EditableContractTab({ client: c, clientId }: { client: ClientRecord; clientId: string }) {
+  const qc = useQueryClient();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [extracting, setExtracting] = useState(false);
+
+  async function handleContractFile(file: File) {
+    setUploading(true);
+    try {
+      const path = `contracts/${clientId}/${Date.now()}_${file.name.replace(/\s+/g, "_")}`;
+      const { error } = await supabase.storage.from("resumes").upload(path, file);
+      if (error) throw error;
+      await supabase.from("clients").update({ contract_signed: true, contract_url: path }).eq("id", clientId);
+      void qc.invalidateQueries({ queryKey: ["client", clientId] });
+      toast.success("Contract uploaded.");
+
+      // Try to extract fields from text (PDF/DOCX)
+      let text = "";
+      if (file.name.endsWith(".docx")) {
+        const mammoth = await import("mammoth");
+        const buf = await file.arrayBuffer();
+        const result = await mammoth.extractRawText({ arrayBuffer: buf });
+        text = result.value;
+      }
+      if (text.length > 50) {
+        setExtracting(true);
+        try {
+          const resp = await fetch("/api/ai/extract-contract", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ contract_text: text }),
+          });
+          const json = (await resp.json()) as { data?: { fee_pct?: number; started_at?: string } };
+          if (json.data && Object.keys(json.data).length > 0) {
+            await supabase.from("clients").update(json.data).eq("id", clientId);
+            void qc.invalidateQueries({ queryKey: ["client", clientId] });
+            toast.success("Contract fields extracted and saved.");
+          }
+        } finally {
+          setExtracting(false);
+        }
+      }
+    } catch {
+      toast.error("Contract upload failed.");
+    } finally {
+      setUploading(false);
+    }
+  }
 
   return (
-    <div
-      className="rounded-xl p-[18px_20px]"
-      style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.12)" }}
-    >
-      <p className="sl mb-4">Contract details</p>
-      <div className="space-y-3">
-        {fields.map(({ label, value }) => (
-          <div key={label} className="flex items-baseline justify-between gap-4">
-            <span className="text-[12px]" style={{ color: "#888780" }}>{label}</span>
-            <span className="text-[13px] font-medium" style={{ color: value ? "#1a1a18" : "#b8b7b2" }}>
-              {value ?? "—"}
-            </span>
-          </div>
-        ))}
+    <div className="space-y-4">
+      {/* Upload area */}
+      <div
+        className="rounded-xl px-4 py-4 flex items-center gap-3 cursor-pointer"
+        style={{
+          background: c.contract_signed ? "#eaf3de" : "#f5f5f3",
+          border: `0.5px dashed ${c.contract_signed ? "rgba(39,80,10,0.3)" : "rgba(26,26,24,0.2)"}`,
+        }}
+        onClick={() => !uploading && fileRef.current?.click()}
+      >
+        <IconUpload size={16} style={{ color: c.contract_signed ? "#3b6d11" : "#888780", flexShrink: 0 }} />
+        <div className="flex-1 min-w-0">
+          <p className="text-[13px] font-medium" style={{ color: c.contract_signed ? "#27500a" : "#1a1a18" }}>
+            {uploading ? "Uploading…" : extracting ? "Extracting fields…" : c.contract_signed ? "Contract on file" : "Upload contract"}
+          </p>
+          <p className="text-[11px]" style={{ color: "#888780" }}>
+            {c.contract_signed ? "PDF or DOCX — re-upload to update" : "PDF or DOCX — AI will extract fee % and start date"}
+          </p>
+        </div>
+        {c.contract_signed && (
+          <span className="text-[11px] px-[7px] py-[2px] rounded" style={{ background: "#eaf3de", color: "#27500a", border: "0.5px solid #c0dd97" }}>
+            Signed
+          </span>
+        )}
+        <input ref={fileRef} type="file" accept=".pdf,.docx" className="hidden"
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) void handleContractFile(f); e.target.value = ""; }} />
       </div>
+
+      {/* Editable fields */}
+      <div className="rounded-xl p-[18px_20px]" style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.12)" }}>
+        <p className="sl mb-4">Contract details</p>
+        <ContractFieldRow
+          label="Placement fee %"
+          value={c.fee_pct != null ? String(c.fee_pct) : ""}
+          placeholder="e.g. 30"
+          type="number"
+          onSave={async (v) => {
+            const n = parseFloat(v);
+            await supabase.from("clients").update({ fee_pct: isNaN(n) ? null : n }).eq("id", clientId);
+            void qc.invalidateQueries({ queryKey: ["client", clientId] });
+          }}
+          display={c.fee_pct != null ? `${c.fee_pct}%` : null}
+        />
+        <ContractFieldRow
+          label="Client since"
+          value={c.started_at ? c.started_at.split("T")[0] : ""}
+          placeholder="YYYY-MM-DD"
+          type="date"
+          onSave={async (v) => {
+            await supabase.from("clients").update({ started_at: v || null }).eq("id", clientId);
+            void qc.invalidateQueries({ queryKey: ["client", clientId] });
+          }}
+          display={c.started_at ? new Date(c.started_at).toLocaleDateString("en-GB", { month: "long", year: "numeric" }) : null}
+        />
+        <ContractFieldRow
+          label="Contract signed"
+          value={c.contract_signed ? "Yes" : "No"}
+          placeholder=""
+          type="select"
+          selectOptions={["Yes", "No"]}
+          onSave={async (v) => {
+            await supabase.from("clients").update({ contract_signed: v === "Yes" }).eq("id", clientId);
+            void qc.invalidateQueries({ queryKey: ["client", clientId] });
+          }}
+          display={c.contract_signed ? "Yes" : "No"}
+        />
+      </div>
+    </div>
+  );
+}
+
+function ContractFieldRow({
+  label,
+  value,
+  placeholder,
+  type,
+  selectOptions,
+  onSave,
+  display,
+}: {
+  label: string;
+  value: string;
+  placeholder: string;
+  type: "text" | "number" | "date" | "select";
+  selectOptions?: string[];
+  onSave: (v: string) => Promise<void>;
+  display: string | null;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+
+  async function save() {
+    setEditing(false);
+    await onSave(draft.trim());
+  }
+
+  return (
+    <div className="flex items-baseline justify-between gap-4 py-2.5" style={{ borderBottom: "0.5px solid rgba(26,26,24,0.08)" }}>
+      <span className="text-[12px]" style={{ color: "#888780", minWidth: 120 }}>{label}</span>
+      {editing ? (
+        type === "select" ? (
+          <select
+            autoFocus
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={() => void save()}
+            className="text-[13px] font-medium bg-transparent outline-none border-b"
+            style={{ borderColor: "rgba(26,26,24,0.20)", color: "#1a1a18" }}
+          >
+            {(selectOptions ?? []).map((o) => <option key={o} value={o}>{o}</option>)}
+          </select>
+        ) : (
+          <input
+            autoFocus
+            type={type}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={() => void save()}
+            onKeyDown={(e) => { if (e.key === "Enter") void save(); if (e.key === "Escape") setEditing(false); }}
+            placeholder={placeholder}
+            className="text-[13px] font-medium text-right bg-transparent outline-none border-b flex-1 ml-4"
+            style={{ borderColor: "rgba(26,26,24,0.20)", color: "#1a1a18" }}
+          />
+        )
+      ) : (
+        <button
+          className="text-[13px] font-medium"
+          style={{ color: display ? "#1a1a18" : "#b8b7b2" }}
+          onClick={() => { setDraft(value); setEditing(true); }}
+          title="Click to edit"
+        >
+          {display ?? "—"}
+        </button>
+      )}
     </div>
   );
 }

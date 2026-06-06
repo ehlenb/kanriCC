@@ -166,6 +166,21 @@ function parsePositioningPoints(raw: string | null): Array<{ label: string; body
   return null;
 }
 
+// ─── types ────────────────────────────────────────────────────────────────────
+
+type CandidateInteraction = {
+  id: string;
+  interaction_type: string;
+  summary: string | null;
+  full_notes: string | null;
+  interacted_at: string;
+  client_id: string | null;
+  contact_id: string | null;
+  primary_party: string | null;
+  clients: { id: string; company_name: string } | null;
+  client_contacts: { id: string; name: string } | null;
+};
+
 // ─── data hook ────────────────────────────────────────────────────────────────
 
 function useCandidateProfile(id: string) {
@@ -223,7 +238,7 @@ function useCandidateProfile(id: string) {
           .order("updated_at", { ascending: false }),
         supabase
           .from("interactions")
-          .select("id, interaction_type, summary, full_notes, interacted_at, client_id")
+          .select("id, interaction_type, summary, full_notes, interacted_at, client_id, contact_id, primary_party, clients(id, company_name), client_contacts(id, name)")
           .eq("candidate_id", id)
           .order("interacted_at", { ascending: false })
           .limit(50),
@@ -238,14 +253,7 @@ function useCandidateProfile(id: string) {
         roles: (roles ?? []) as Role[],
         competing: (competing ?? []) as CompetingInterview[],
         processes: (processes ?? []) as Process[],
-        interactions: (interactions ?? []) as Array<{
-          id: string;
-          interaction_type: string;
-          summary: string | null;
-          full_notes: string | null;
-          interacted_at: string;
-          client_id: string | null;
-        }>,
+        interactions: (interactions ?? []) as CandidateInteraction[],
       };
     },
   });
@@ -2832,15 +2840,6 @@ const CAND_INTERACTION_COLORS: Record<string, { bg: string; color: string }> = {
   other:             { bg: "#f5f5f3", color: "#888780" },
 };
 
-type CandidateInteraction = {
-  id: string;
-  interaction_type: string;
-  summary: string | null;
-  full_notes: string | null;
-  interacted_at: string;
-  client_id: string | null;
-};
-
 function CandidateTimelineTab({
   candidateId,
   recruiterId,
@@ -2951,7 +2950,7 @@ function CandidateTimelineTab({
                   <Icon size={14} style={{ color: colors.color }} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <span
                       className="text-[11px] font-medium capitalize px-[6px] py-[2px] rounded"
                       style={{ background: colors.bg, color: colors.color }}
@@ -2961,6 +2960,21 @@ function CandidateTimelineTab({
                     <span className="text-[11px]" style={{ color: "#b8b7b2" }}>
                       {formatDate(i.interacted_at)}
                     </span>
+                    {i.clients && (
+                      <span className="text-[11px] px-[6px] py-[2px] rounded" style={{ background: "#e6f1fb", color: "#185fa5" }}>
+                        {i.clients.company_name}
+                      </span>
+                    )}
+                    {i.client_contacts && (
+                      <span className="text-[11px] px-[6px] py-[2px] rounded" style={{ background: "#f5f5f3", color: "#5f5e5a" }}>
+                        with {i.client_contacts.name}
+                      </span>
+                    )}
+                    {i.primary_party === "client" && (
+                      <span className="text-[11px] px-[6px] py-[2px] rounded" style={{ background: "#fdf3e7", color: "#633806" }}>
+                        spoke with client
+                      </span>
+                    )}
                   </div>
                   {i.summary && (
                     <p className="text-[13px] font-medium mb-0.5">{i.summary}</p>
@@ -3630,6 +3644,7 @@ function LogActivityPanel({
   const [summary, setSummary] = useState("");
   const [notes, setNotes] = useState("");
   const [clientId, setClientId] = useState<string | null>(null);
+  const [primaryParty, setPrimaryParty] = useState<"candidate" | "client">("candidate");
   const [saving, setSaving] = useState(false);
 
   const { data: clients } = useQuery({
@@ -3657,6 +3672,7 @@ function LogActivityPanel({
       summary: summary.trim(),
       full_notes: notes.trim() || null,
       client_id: clientId || null,
+      primary_party: clientId ? primaryParty : "candidate",
     });
     setSaving(false);
     if (error) { toast.error("Failed to log activity."); return; }
@@ -3664,6 +3680,7 @@ function LogActivityPanel({
     setSummary("");
     setNotes("");
     setClientId(null);
+    setPrimaryParty("candidate");
     onSaved();
   }
 
@@ -3735,10 +3752,26 @@ function LogActivityPanel({
             </SelectContent>
           </Select>
           {clientId && (
-            <p className="text-[11px] flex items-center gap-1" style={{ color: "#5f5e5a" }}>
-              <IconInfoCircle size={11} />
-              This activity will also appear on the linked client's timeline
-            </p>
+            <div className="space-y-1.5 mt-1">
+              <Label className="text-[12px]">Who did you speak with?</Label>
+              <div className="flex gap-2">
+                {(["candidate", "client"] as const).map((party) => (
+                  <button
+                    key={party}
+                    onClick={() => setPrimaryParty(party)}
+                    className="text-[12px] px-3 py-1.5 rounded-[6px]"
+                    style={{
+                      background: primaryParty === party ? "#e6f1fb" : "#f5f5f3",
+                      color: primaryParty === party ? "#185fa5" : "#5f5e5a",
+                      border: `0.5px solid ${primaryParty === party ? "#b5d4f4" : "rgba(26,26,24,0.12)"}`,
+                    }}
+                  >
+                    {party === "candidate" ? "Candidate" : "Client contact"}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px]" style={{ color: "#888780" }}>This activity will appear on both timelines.</p>
+            </div>
           )}
         </div>
 

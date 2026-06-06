@@ -629,11 +629,13 @@ export type Database = {
         Row: {
           candidate_id: string | null
           client_id: string | null
+          contact_id: string | null
           direction: string | null
           full_notes: string | null
           id: string
           interacted_at: string
           interaction_type: string
+          primary_party: string | null
           process_id: string | null
           recruiter_id: string
           requisition_id: string | null
@@ -645,11 +647,13 @@ export type Database = {
         Insert: {
           candidate_id?: string | null
           client_id?: string | null
+          contact_id?: string | null
           direction?: string | null
           full_notes?: string | null
           id?: string
           interacted_at?: string
           interaction_type: string
+          primary_party?: string | null
           process_id?: string | null
           recruiter_id: string
           requisition_id?: string | null
@@ -661,11 +665,13 @@ export type Database = {
         Update: {
           candidate_id?: string | null
           client_id?: string | null
+          contact_id?: string | null
           direction?: string | null
           full_notes?: string | null
           id?: string
           interacted_at?: string
           interaction_type?: string
+          primary_party?: string | null
           process_id?: string | null
           recruiter_id?: string
           requisition_id?: string | null
@@ -715,6 +721,13 @@ export type Database = {
             columns: ["team_id"]
             isOneToOne: false
             referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interactions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "client_contacts"
             referencedColumns: ["id"]
           },
         ]
@@ -938,6 +951,8 @@ export type Database = {
           recruiter_id: string
           salary_max: number | null
           salary_min: number | null
+          location: string | null
+          salary_range_text: string | null
           salary_stretch: number | null
           skills_test_notes: string | null
           strategic_context: string | null
@@ -945,6 +960,7 @@ export type Database = {
           team_id: string
           title: string
           urgency: string | null
+          urgency_date: string | null
           why_role_opened: string | null
         }
         Insert: {
@@ -981,6 +997,8 @@ export type Database = {
           recruiter_id: string
           salary_max?: number | null
           salary_min?: number | null
+          location?: string | null
+          salary_range_text?: string | null
           salary_stretch?: number | null
           skills_test_notes?: string | null
           strategic_context?: string | null
@@ -988,6 +1006,7 @@ export type Database = {
           team_id?: string
           title: string
           urgency?: string | null
+          urgency_date?: string | null
           why_role_opened?: string | null
         }
         Update: {
@@ -1024,6 +1043,8 @@ export type Database = {
           recruiter_id?: string
           salary_max?: number | null
           salary_min?: number | null
+          location?: string | null
+          salary_range_text?: string | null
           salary_stretch?: number | null
           skills_test_notes?: string | null
           strategic_context?: string | null
@@ -1031,6 +1052,7 @@ export type Database = {
           team_id?: string
           title?: string
           urgency?: string | null
+          urgency_date?: string | null
           why_role_opened?: string | null
         }
         Relationships: [

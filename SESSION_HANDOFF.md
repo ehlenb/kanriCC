@@ -2,6 +2,7 @@
 
 > Generated: 5 June 2026
 > Build status: **passing** (TypeScript clean, all migrations applied)
+> Last session: 5th session — client page revision
 
 ---
 
@@ -13,11 +14,64 @@ Kanri is an AI-native recruiter intelligence platform and CRM for boutique agenc
 
 **Target users:** Boutique and mid-sized agency recruiting firms. Initial focus: Japan bilingual and gaishikei recruitment. Reference companies: Torch (Vincere ATS, 4 consultants), Robert Walters Japan, Hays.
 
-**Current status:** Candidate page fully revised (sessions 3 + 4). Next session is the client page revision.
+**Current status:** Candidate page fully revised (sessions 3 + 4). Client page revised (session 5).
 
 ---
 
-## What Was Completed This Session (4th session, 5 June 2026)
+## What Was Completed This Session (5th session, 5 June 2026)
+
+### Client Page — Major Revision
+
+**New tab structure:** Timeline | Client info | Contacts | Jobs | Contract (was 3 tabs, now 5)
+
+**Jobs tab (new):**
+- Inline `AddJobForm` replaces the old `RequisitionIntakeModal` dialog
+- JD upload (PDF/DOCX) as primary entry point — AI extracts title, salary range, location via `/api/ai/extract-req-fields`
+- Fields: title, salary range (free text), location, hiring manager (select from contacts), target close date, why role opened, strategic context (+ AI generate)
+- Job list shows salary_range_text, location, close date alongside pipeline badges
+
+**Contacts tab (new):**
+- `ContactsCard` moved here from Client info
+- Per-contact activity log button → opens `LogInteractionDialog` pre-seeded with contact
+- Per-contact interaction history (last 3 interactions with that contact shown inline)
+
+**Timeline cross-linking:**
+- Client timeline: shows "re: [candidate name]" chip when `candidate_id` is set; "with [contact name]" chip when `contact_id` is set; "spoke with candidate" badge when `primary_party = candidate`
+- Candidate timeline: shows "[client name]" chip when `clients` is set; "with [contact name]" chip when `client_contacts` is set; "spoke with client" badge when `primary_party = client`
+
+**Primary party designation:**
+- `LogActivityPanel` (candidate page): "Who did you speak with?" toggle (Candidate / Client contact) shown when a client is linked
+- `LogInteractionDialog` (client page): "Who you spoke with" select (Client contact / Candidate) + optional contact selector
+
+**Japan Market Context — now editable:**
+- Click any field to edit inline (years in Japan, employees, % Japanese nationals, Japan role in group, KK entity)
+- Was read-only display only before; data comes from `clients` table columns populated via enrich card or manually
+
+**Contract tab — now editable + upload:**
+- Upload contract PDF/DOCX → AI extracts fee % and start date via `/api/ai/extract-contract`
+- All fields (fee %, client since, contract signed) inline-editable with click-to-edit
+
+**Bug fix — Log new job was silently failing:**
+- Root cause: `is_backfill` and `hiring_manager_id` columns did not exist on `requisitions` table
+- Fixed by migration 017
+
+### Migration Applied
+- **017** — `requisitions`: ADD `is_backfill`, `hiring_manager_id`, `salary_range_text`, `location`, `urgency_date`; `interactions`: ADD `contact_id` (FK to client_contacts), `primary_party`
+
+### New AI Endpoints
+- `api/ai/extract-req-fields.ts` — extracts title, salary_range_text, location from JD text
+- `api/ai/extract-contract.ts` — extracts fee_pct, started_at from contract text
+
+### Types Updated
+- `src/integrations/supabase/types.ts` — added `contact_id`, `primary_party` to interactions Row/Insert/Update; added `salary_range_text`, `location`, `urgency_date` to requisitions; added `interactions_contact_id_fkey` relationship
+
+### Dead Code Removed
+- `RequisitionIntakeModal` (630-line legacy form) — deleted; replaced by inline `JobsTab`/`AddJobForm`
+- Removed `EMPTY_REQ`, `triState`, `TriSelect`, `IntakeSectionHeader` helpers that were only used by the modal
+
+---
+
+## What Was Completed In Prior Session (4th session, 5 June 2026)
 
 ### Candidate Page — Notes Tab Redesign
 
