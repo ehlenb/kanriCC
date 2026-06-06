@@ -641,10 +641,12 @@ export type Database = {
           id: string
           interacted_at: string
           interaction_type: string
+          is_future: boolean
           primary_party: string | null
           process_id: string | null
           recruiter_id: string
           requisition_id: string | null
+          scheduled_at: string | null
           summary: string | null
           team_id: string | null
           transcript_raw: string | null
@@ -659,10 +661,12 @@ export type Database = {
           id?: string
           interacted_at?: string
           interaction_type: string
+          is_future?: boolean
           primary_party?: string | null
           process_id?: string | null
           recruiter_id: string
           requisition_id?: string | null
+          scheduled_at?: string | null
           summary?: string | null
           team_id?: string | null
           transcript_raw?: string | null
@@ -677,10 +681,12 @@ export type Database = {
           id?: string
           interacted_at?: string
           interaction_type?: string
+          is_future?: boolean
           primary_party?: string | null
           process_id?: string | null
           recruiter_id?: string
           requisition_id?: string | null
+          scheduled_at?: string | null
           summary?: string | null
           team_id?: string | null
           transcript_raw?: string | null
@@ -756,10 +762,12 @@ export type Database = {
           offer_amount: number | null
           offer_date: string | null
           owner_recruiter_id: string
+          not_interested_at: string | null
           placed_date: string | null
           placed_fee_jpy: number | null
           requisition_id: string
           stage: string
+          start_date: string | null
           team_id: string
           updated_at: string
         }
@@ -777,6 +785,7 @@ export type Database = {
           cv_sent_at?: string | null
           id?: string
           last_activity_at?: string | null
+          not_interested_at?: string | null
           offer_amount?: number | null
           offer_date?: string | null
           owner_recruiter_id: string
@@ -784,6 +793,7 @@ export type Database = {
           placed_fee_jpy?: number | null
           requisition_id: string
           stage: string
+          start_date?: string | null
           team_id?: string
           updated_at?: string
         }
@@ -801,6 +811,7 @@ export type Database = {
           cv_sent_at?: string | null
           id?: string
           last_activity_at?: string | null
+          not_interested_at?: string | null
           offer_amount?: number | null
           offer_date?: string | null
           owner_recruiter_id?: string
@@ -808,6 +819,7 @@ export type Database = {
           placed_fee_jpy?: number | null
           requisition_id?: string
           stage?: string
+          start_date?: string | null
           team_id?: string
           updated_at?: string
         }
