@@ -10,7 +10,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
-import { initials, relativeTime, touchTone } from "@/lib/candidate-utils";
+import { relativeTime } from "@/lib/candidate-utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -347,6 +347,30 @@ function CandidatesLayout() {
                 && c.placed_at !== null
                 && Date.now() - new Date(c.placed_at).getTime() < 90 * 86400000;
 
+              const accentColor =
+                c.candidate_status === "active"  ? "var(--color-vermillion)" :
+                c.candidate_status === "placed"  ? "var(--color-indigo)" :
+                c.candidate_status === "passive" ? "var(--color-gold)" :
+                "var(--color-ink-15)";
+
+              const badgeStyle: React.CSSProperties =
+                c.candidate_status === "active"  ? { background: "var(--color-ink-10)", color: "var(--color-ink)" } :
+                c.candidate_status === "placed"  ? { background: "var(--color-indigo-light)", color: "var(--color-indigo)" } :
+                c.candidate_status === "passive" ? { background: "var(--color-gold-light)", color: "var(--color-gold)" } :
+                { background: "var(--color-ink-10)", color: "var(--color-ink-60)" };
+
+              const badgeLabel =
+                c.candidate_status === "active"  ? "Active" :
+                c.candidate_status === "placed"  ? "Placed" :
+                c.candidate_status === "passive" ? "Passive" :
+                null;
+
+              const metaParts = [
+                c.japanese_level,
+                c.english_level ? `EN ${c.english_level}` : null,
+                c.last_interaction_at ? `Last: ${relativeTime(c.last_interaction_at)}` : null,
+              ].filter(Boolean);
+
               return (
                 <Link
                   key={c.id}
@@ -357,27 +381,41 @@ function CandidatesLayout() {
                   style={{ borderBottom: "0.5px solid var(--color-border-subtle)" }}
                 >
                   <div
-                    className="flex items-start gap-3 px-4 py-3.5"
-                    style={{ background: activeId === c.id ? "rgba(26,26,24,0.05)" : "transparent" }}
+                    className="flex items-stretch"
+                    style={{ background: activeId === c.id ? "rgba(26,26,24,0.04)" : "transparent" }}
                   >
-                    <div
-                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-medium"
-                      style={{ background: "var(--color-ink-10)", color: "var(--color-ink)" }}
-                    >
-                      {initials(c.full_name)}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="truncate text-[13px] font-medium font-display">
-                          {c.full_name}
-                          {showCoin && <span className="ml-1">🪙</span>}
-                        </p>
-                        <TouchPill iso={c.updated_at} />
+                    {/* Left accent bar */}
+                    <div className="w-[3px] shrink-0" style={{ background: accentColor }} />
+
+                    {/* Card body */}
+                    <div className="min-w-0 flex-1 px-4 py-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="truncate text-[14px] font-medium font-display leading-snug">
+                            {c.full_name_japanese
+                              ? <>{c.full_name_japanese} / {c.full_name}</>
+                              : c.full_name}
+                            {showCoin && <span className="ml-1">🪙</span>}
+                          </p>
+                          <p className="mt-0.5 truncate text-[12px]" style={{ color: "var(--color-ink-60)" }}>
+                            {[c.current_title, c.current_company].filter(Boolean).join(" · ") || "—"}
+                          </p>
+                        </div>
+                        {badgeLabel && (
+                          <span
+                            className="shrink-0 font-mono text-[10px] font-normal tracking-[0.08em] uppercase px-2 py-0.5 border whitespace-nowrap"
+                            style={{ ...badgeStyle, borderColor: accentColor }}
+                          >
+                            {badgeLabel}
+                          </span>
+                        )}
                       </div>
-                      <p className="mt-0.5 truncate text-xs" style={{ color: "var(--color-ink-60)" }}>
-                        {c.current_title || "—"}
-                        {c.current_company ? ` · ${c.current_company}` : ""}
-                      </p>
+                      {metaParts.length > 0 && (
+                        <p className="mt-1.5 font-mono text-[10px] tracking-[0.06em] uppercase truncate"
+                           style={{ color: "var(--color-ink-30)" }}>
+                          {metaParts.join("  ·  ")}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </Link>
@@ -518,24 +556,6 @@ function LanguageFilter({
   );
 }
 
-function TouchPill({ iso }: { iso: string | null }) {
-  const tone = touchTone(iso);
-  const styles = {
-    fresh: { background: "var(--color-moss-light)", color: "var(--color-moss)" },
-    warm: { background: "var(--color-indigo-light)", color: "var(--color-indigo)" },
-    cool: { background: "#faeeda", color: "var(--color-gold)" },
-    cold: { background: "var(--color-danger-bg)", color: "var(--color-danger)" },
-  }[tone];
-
-  return (
-    <span
-      className="shrink-0  px-1.5 py-0.5 text-[10px] font-medium"
-      style={styles}
-    >
-      {relativeTime(iso)}
-    </span>
-  );
-}
 
 const LANGUAGE_LEVELS = [
   "Native",
