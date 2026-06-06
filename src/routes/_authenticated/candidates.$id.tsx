@@ -105,6 +105,8 @@ type Candidate = {
   notes_interview: string | null;
   urgency_notes: string | null;
   comp_notes: string | null;
+  industry_preferences: string | null;
+  location_preferences: string | null;
   ai_context: string | null;
   ai_context_updated_at: string | null;
   updated_at: string;
@@ -200,7 +202,7 @@ function useCandidateProfile(id: string) {
       ] = await Promise.all([
         supabase
           .from("candidates")
-          .select("*, notes_presentation, notes_personality, notes_pitch, notes_closing, notes_internal, address, date_of_birth, notes_template, notes_interview, urgency_notes, comp_notes")
+          .select("*, notes_presentation, notes_personality, notes_pitch, notes_closing, notes_internal, address, date_of_birth, notes_template, notes_interview, urgency_notes, comp_notes, industry_preferences, location_preferences")
           .eq("id", id)
           .single(),
         supabase
@@ -318,26 +320,17 @@ function CandidateProfile() {
               .filter(Boolean)
               .join(" · ")}
           </div>
-          {(c.current_total || c.expected_total_min || c.expected_total_max) && (
-            <div className="flex items-center gap-2 mt-1 text-[12px]">
-              {c.current_total && (
-                <span style={{ color: "var(--color-ink)" }}>
-                  Current <strong>{formatYen(c.current_total)}</strong>
-                </span>
-              )}
-              {c.current_total && (c.expected_total_min || c.expected_total_max) && (
-                <span style={{ color: "var(--color-ink-30)" }}>·</span>
-              )}
-              {(c.expected_total_min || c.expected_total_max) && (
-                <span style={{ color: "var(--color-ink)" }}>
-                  Expecting{" "}
-                  <strong>
-                    {c.expected_total_min && c.expected_total_max
-                      ? `${formatYen(c.expected_total_min)} – ${formatYen(c.expected_total_max)}`
-                      : formatYen(c.expected_total_min ?? c.expected_total_max)}
-                  </strong>
-                </span>
-              )}
+          {c.current_total && (
+            <div className="mt-1 text-[12px]">
+              <span style={{ color: "var(--color-ink)" }}>
+                Current <strong>{formatYen(c.current_total)}</strong>
+              </span>
+            </div>
+          )}
+          {c.location_preferences && (
+            <div className="mt-1 text-[12px]" style={{ color: "var(--color-ink-60)" }}>
+              <span className="font-mono text-[10px] uppercase tracking-wide mr-1.5" style={{ color: "var(--color-ink-30)" }}>Location</span>
+              {c.location_preferences}
             </div>
           )}
           <div className="mt-1.5 font-mono text-[10px] tracking-[0.08em] uppercase" style={{ color: "var(--color-ink-30)" }}>
@@ -1184,7 +1177,8 @@ function NotesTab({
     "current_company" | "current_title" | "notes_interview" | "notice_period_months" |
     "active_passive" | "urgency_notes" | "japanese_level" | "english_level" | "additional_languages" |
     "current_base" | "current_bonus" | "current_total" | "expected_total_min" |
-    "expected_total_max" | "notes_presentation" | "comp_notes"
+    "expected_total_max" | "notes_presentation" | "comp_notes" |
+    "industry_preferences" | "location_preferences"
   >>;
 
   async function saveField(field: string, value: string | number | null) {
@@ -1255,7 +1249,21 @@ function NotesTab({
       <InterviewNotesCard
         value={c.notes_interview}
         onSave={(v) => void saveField("notes_interview", v)}
+        locationPreferences={c.location_preferences}
+        onSaveLocation={(v) => void saveField("location_preferences", v)}
       />
+
+      {/* Industry Preferences */}
+      <Card>
+        <SectionLabel>Industry preferences</SectionLabel>
+        <NoteField
+          label=""
+          value={c.industry_preferences}
+          placeholder="e.g. Technology, Financial services, Consulting — open to foreign-affiliated companies in growth stage"
+          onSave={(v) => void saveField("industry_preferences", v)}
+          rows={3}
+        />
+      </Card>
 
       {/* Notice Period & Urgency */}
       <Card>
@@ -1308,15 +1316,21 @@ function NotesTab({
 function InterviewNotesCard({
   value,
   onSave,
+  locationPreferences,
+  onSaveLocation,
 }: {
   value: string | null | undefined;
   onSave: (v: string | null) => void;
+  locationPreferences?: string | null;
+  onSaveLocation?: (v: string | null) => void;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [aiResult, setAiResult] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value ?? "");
+  const [locationDraft, setLocationDraft] = useState(locationPreferences ?? "");
+  const [locationEditing, setLocationEditing] = useState(false);
 
   function handleBlur() {
     setEditing(false);
@@ -1371,8 +1385,49 @@ function InterviewNotesCard({
     toast.success("Notes saved.");
   }
 
+  function handleLocationBlur() {
+    setLocationEditing(false);
+    const trimmed = locationDraft.trim();
+    if (trimmed !== (locationPreferences ?? "").trim()) onSaveLocation?.(trimmed || null);
+  }
+
   return (
     <Card>
+      {/* Location preferences — free-text, shown first */}
+      <div className="mb-4">
+        <SectionLabel className="mb-1">Location preferences</SectionLabel>
+        {locationEditing ? (
+          <textarea
+            autoFocus
+            className="w-full text-[13px] leading-relaxed resize-none p-2"
+            style={{
+              background: "var(--color-ink-10)",
+              border: "0.5px solid var(--color-ink-15)",
+              color: "var(--color-ink)",
+              minHeight: 60,
+              outline: "none",
+            }}
+            rows={3}
+            value={locationDraft}
+            onChange={(e) => setLocationDraft(e.target.value)}
+            onBlur={handleLocationBlur}
+            placeholder="e.g. Tokyo preferred, ideally Shinjuku area or within 30min by train. Open to Yokohama. Not available for Osaka."
+          />
+        ) : (
+          <div
+            className="text-[13px] leading-relaxed cursor-text min-h-[36px] px-2 py-1.5"
+            style={{
+              color: locationPreferences ? "var(--color-ink)" : "var(--color-ink-30)",
+              background: "var(--color-ink-10)",
+              border: "0.5px solid transparent",
+            }}
+            onClick={() => { setLocationDraft(locationPreferences ?? ""); setLocationEditing(true); }}
+          >
+            {locationPreferences || "Click to add location preferences…"}
+          </div>
+        )}
+      </div>
+
       <div className="flex items-center justify-between mb-2">
         <SectionLabel>Interview notes</SectionLabel>
         <button

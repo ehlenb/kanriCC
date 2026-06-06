@@ -242,9 +242,11 @@ export type Database = {
           full_name: string
           full_name_japanese: string | null
           id: string
+          industry_preferences: string | null
           japanese_level: string | null
           last_interaction_at: string | null
           linkedin_url: string | null
+          location_preferences: string | null
           notes_closing: string | null
           notes_internal: string | null
           notes_interview: string | null
@@ -297,9 +299,11 @@ export type Database = {
           full_name: string
           full_name_japanese?: string | null
           id?: string
+          industry_preferences?: string | null
           japanese_level?: string | null
           last_interaction_at?: string | null
           linkedin_url?: string | null
+          location_preferences?: string | null
           notes_closing?: string | null
           notes_internal?: string | null
           notes_interview?: string | null
@@ -352,9 +356,11 @@ export type Database = {
           full_name?: string
           full_name_japanese?: string | null
           id?: string
+          industry_preferences?: string | null
           japanese_level?: string | null
           last_interaction_at?: string | null
           linkedin_url?: string | null
+          location_preferences?: string | null
           notes_closing?: string | null
           notes_internal?: string | null
           notes_interview?: string | null

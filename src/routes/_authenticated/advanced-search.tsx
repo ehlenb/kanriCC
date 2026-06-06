@@ -97,6 +97,8 @@ type CandidateRow = {
   base_minimum: number | null;
   notes_pitch: string | null;
   notes_personality: string | null;
+  location_preferences: string | null;
+  industry_preferences: string | null;
   last_interaction_at: string | null;
   updated_at: string;
   // from joins
@@ -146,7 +148,7 @@ function useAllCandidates() {
       const { data, error } = await supabase
         .from("candidates")
         .select(
-          "id, full_name, full_name_japanese, current_title, current_company, japanese_level, english_level, candidate_status, placed_at, coin_icon_dismissed, age, current_base, base_minimum, notes_pitch, notes_personality, last_interaction_at, updated_at, processes ( stage, requisition_id, requisitions ( client_id ) )",
+          "id, full_name, full_name_japanese, current_title, current_company, japanese_level, english_level, candidate_status, placed_at, coin_icon_dismissed, age, current_base, base_minimum, notes_pitch, notes_personality, location_preferences, industry_preferences, last_interaction_at, updated_at, processes ( stage, requisition_id, requisitions ( client_id ) )",
         )
         .order("updated_at", { ascending: false });
       if (error) throw error;
@@ -173,6 +175,8 @@ function useAllCandidates() {
           base_minimum: c.base_minimum,
           notes_pitch: c.notes_pitch,
           notes_personality: c.notes_personality,
+          location_preferences: c.location_preferences ?? null,
+          industry_preferences: c.industry_preferences ?? null,
           last_interaction_at: c.last_interaction_at,
           updated_at: c.updated_at,
           activeStage: activeProc?.stage ?? null,
@@ -252,7 +256,12 @@ function isPlacedWithin90Days(c: CandidateRow): boolean {
 
 function locationMatch(c: CandidateRow, location: string): boolean {
   if (!location) return true;
-  const searchIn = `${c.notes_pitch ?? ""} ${c.notes_personality ?? ""}`.toLowerCase();
+  // Search the dedicated location_preferences field first, fall back to notes
+  const searchIn = [
+    c.location_preferences,
+    c.notes_pitch,
+    c.notes_personality,
+  ].filter(Boolean).join(" ").toLowerCase();
   return searchIn.includes(location.toLowerCase());
 }
 
