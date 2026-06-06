@@ -3606,6 +3606,23 @@ function CvUploadZone({
     }
   }
 
+  const [fetchingUrl, setFetchingUrl] = useState(false);
+
+  async function handleView(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (!cvUrl) return;
+    setFetchingUrl(true);
+    try {
+      const { data, error } = await supabase.storage.from("resumes").createSignedUrl(cvUrl, 120);
+      if (error || !data?.signedUrl) { toast.error("Could not open CV. Try again."); return; }
+      window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+    } catch {
+      toast.error("Could not open CV. Try again.");
+    } finally {
+      setFetchingUrl(false);
+    }
+  }
+
   async function handleRemove(e: React.MouseEvent) {
     e.stopPropagation();
     if (!confirm("Remove this CV? The file will be deleted and the field cleared.")) return;
@@ -3662,14 +3679,24 @@ function CvUploadZone({
           )}
         </div>
         {cvUrl && state === "idle" && (
-          <button
-            onClick={handleRemove}
-            className="flex items-center gap-1 px-2 py-0.5 text-[11px] shrink-0"
-            style={{ background: "var(--color-white)", color: "var(--color-ink-60)", border: "0.5px solid var(--color-ink-15)" }}
-            title="Remove CV"
-          >
-            <IconX size={10} /> Remove
-          </button>
+          <>
+            <button
+              onClick={handleView}
+              disabled={fetchingUrl}
+              className="text-[11px] px-2 py-0.5 shrink-0"
+              style={{ background: "var(--color-indigo-light)", color: "var(--color-indigo)", border: "0.5px solid rgba(24,95,165,0.3)" }}
+            >
+              {fetchingUrl ? "Opening…" : "View"}
+            </button>
+            <button
+              onClick={handleRemove}
+              className="flex items-center gap-1 px-2 py-0.5 text-[11px] shrink-0"
+              style={{ background: "var(--color-white)", color: "var(--color-ink-60)", border: "0.5px solid var(--color-ink-15)" }}
+              title="Remove CV"
+            >
+              <IconX size={10} /> Remove
+            </button>
+          </>
         )}
         <input
           ref={inputRef}

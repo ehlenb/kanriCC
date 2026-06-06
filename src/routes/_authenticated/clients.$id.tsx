@@ -2884,6 +2884,33 @@ function EditableContractTab({ client: c, clientId }: { client: ClientRecord; cl
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [extracting, setExtracting] = useState(false);
+  const [fetchingUrl, setFetchingUrl] = useState(false);
+
+  async function handleViewContract(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (!c.contract_url) return;
+    setFetchingUrl(true);
+    try {
+      const { data, error } = await supabase.storage.from("resumes").createSignedUrl(c.contract_url, 120);
+      if (error || !data?.signedUrl) { toast.error("Could not open contract. Try again."); return; }
+      window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+    } catch {
+      toast.error("Could not open contract. Try again.");
+    } finally {
+      setFetchingUrl(false);
+    }
+  }
+
+  async function handleRemoveContract(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (!confirm("Remove this contract? The file will be deleted and contract status will be cleared.")) return;
+    if (c.contract_url) {
+      await supabase.storage.from("resumes").remove([c.contract_url]);
+    }
+    await supabase.from("clients").update({ contract_url: null, contract_signed: false }).eq("id", clientId);
+    void qc.invalidateQueries({ queryKey: ["client", clientId] });
+    toast.success("Contract removed.");
+  }
 
   async function handleContractFile(file: File) {
     setUploading(true);
@@ -2948,10 +2975,30 @@ function EditableContractTab({ client: c, clientId }: { client: ClientRecord; cl
             {c.contract_signed ? "PDF or DOCX — re-upload to update" : "PDF or DOCX — AI will extract fee % and start date"}
           </p>
         </div>
+        {c.contract_signed && c.contract_url && (
+          <button
+            onClick={handleViewContract}
+            disabled={fetchingUrl}
+            className="text-[11px] px-2 py-0.5 shrink-0"
+            style={{ background: "var(--color-indigo-light)", color: "var(--color-indigo)", border: "0.5px solid rgba(24,95,165,0.3)" }}
+          >
+            {fetchingUrl ? "Opening…" : "View"}
+          </button>
+        )}
         {c.contract_signed && (
-          <span className="text-[11px] px-[7px] py-[2px] " style={{ background: "var(--color-moss-light)", color: "var(--color-moss)", border: "0.5px solid #c0dd97" }}>
-            Signed
-          </span>
+          <>
+            <span className="text-[11px] px-[7px] py-[2px]" style={{ background: "var(--color-moss-light)", color: "var(--color-moss)", border: "0.5px solid #c0dd97" }}>
+              Signed
+            </span>
+            <button
+              onClick={handleRemoveContract}
+              className="flex items-center gap-1 px-2 py-0.5 text-[11px] shrink-0"
+              style={{ background: "var(--color-white)", color: "var(--color-ink-60)", border: "0.5px solid var(--color-ink-15)" }}
+              title="Remove contract"
+            >
+              <IconX size={10} /> Remove
+            </button>
+          </>
         )}
         <input ref={fileRef} type="file" accept=".pdf,.docx" className="hidden"
           onChange={(e) => { const f = e.target.files?.[0]; if (f) void handleContractFile(f); e.target.value = ""; }} />
