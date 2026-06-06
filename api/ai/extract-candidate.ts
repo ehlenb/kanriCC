@@ -58,7 +58,6 @@ Return a JSON object with exactly these fields (use null for any field not found
   "english_level": "Native" | "Fluent" | "High Business" | "Business" | "Low Business" | "High Conversational" | "Conversational" | "Low Conversational" | "Basic" | "None" | null,
   "additionalLanguages": string | null,
   "notice_period_months": number | null,
-  "noticePeriodMonths": number | null,
   "current_base": number | null,
   "current_total": number | null,
   "source": null,
