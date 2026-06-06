@@ -229,6 +229,7 @@ function CandidatesLayout() {
             <Input
               value={nameInput}
               onChange={(e) => handleTextInput("name", e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") updateSearch({ name: nameInput }); }}
               placeholder="Search by name…"
               className="h-9 pl-8 text-[13px]"
             />
@@ -239,6 +240,7 @@ function CandidatesLayout() {
             <Input
               value={companyInput}
               onChange={(e) => handleTextInput("company", e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") updateSearch({ company: companyInput }); }}
               placeholder="Company…"
               className="h-8 text-[12px]"
             />
@@ -259,11 +261,13 @@ function CandidatesLayout() {
             <LanguageFilter
               label="Japanese"
               value={search.japanese_level}
+              levels={JAPANESE_LEVELS}
               onChange={(v) => updateSearch({ japanese_level: v })}
             />
             <LanguageFilter
               label="English"
               value={search.english_level}
+              levels={JAPANESE_LEVELS}
               onChange={(v) => updateSearch({ english_level: v })}
             />
             <FilterSelect
@@ -440,10 +444,12 @@ function FilterSelect({
 function LanguageFilter({
   label,
   value,
+  levels,
   onChange,
 }: {
   label: string;
   value: string;
+  levels: readonly string[];
   onChange: (v: string) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -490,7 +496,7 @@ function LanguageFilter({
           className="absolute left-0 right-0 z-20 mt-0.5 overflow-hidden rounded-md shadow-md"
           style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.16)" }}
         >
-          {JAPANESE_LEVELS.map((level) => (
+          {levels.map((level) => (
             <button
               key={level}
               type="button"

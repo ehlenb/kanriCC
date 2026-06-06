@@ -215,6 +215,7 @@ export type Database = {
         Row: {
           active_passive: string | null
           additional_languages: string | null
+          address: string | null
           age: number | null
           ai_context: string | null
           ai_context_updated_at: string | null
@@ -224,15 +225,15 @@ export type Database = {
           bonus_preference: string | null
           candidate_status: string
           coin_icon_dismissed: boolean
+          comp_notes: string | null
           created_at: string
           current_base: number | null
           current_bonus: number | null
           current_company: string | null
           current_title: string | null
           current_total: number | null
-          address: string | null
-          date_of_birth: string | null
           cv_url: string | null
+          date_of_birth: string | null
           email: string | null
           english_level: string | null
           equity_open: boolean | null
@@ -263,11 +264,13 @@ export type Database = {
           status_source: string
           team_id: string
           updated_at: string
+          urgency_notes: string | null
           urgency_to_move: string | null
         }
         Insert: {
           active_passive?: string | null
           additional_languages?: string | null
+          address?: string | null
           age?: number | null
           ai_context?: string | null
           ai_context_updated_at?: string | null
@@ -277,15 +280,15 @@ export type Database = {
           bonus_preference?: string | null
           candidate_status?: string
           coin_icon_dismissed?: boolean
+          comp_notes?: string | null
           created_at?: string
           current_base?: number | null
           current_bonus?: number | null
           current_company?: string | null
           current_title?: string | null
           current_total?: number | null
-          address?: string | null
-          date_of_birth?: string | null
           cv_url?: string | null
+          date_of_birth?: string | null
           email?: string | null
           english_level?: string | null
           equity_open?: boolean | null
@@ -316,11 +319,13 @@ export type Database = {
           status_source?: string
           team_id?: string
           updated_at?: string
+          urgency_notes?: string | null
           urgency_to_move?: string | null
         }
         Update: {
           active_passive?: string | null
           additional_languages?: string | null
+          address?: string | null
           age?: number | null
           ai_context?: string | null
           ai_context_updated_at?: string | null
@@ -330,15 +335,15 @@ export type Database = {
           bonus_preference?: string | null
           candidate_status?: string
           coin_icon_dismissed?: boolean
+          comp_notes?: string | null
           created_at?: string
           current_base?: number | null
           current_bonus?: number | null
           current_company?: string | null
           current_title?: string | null
           current_total?: number | null
-          address?: string | null
-          date_of_birth?: string | null
           cv_url?: string | null
+          date_of_birth?: string | null
           email?: string | null
           english_level?: string | null
           equity_open?: boolean | null
@@ -369,6 +374,7 @@ export type Database = {
           status_source?: string
           team_id?: string
           updated_at?: string
+          urgency_notes?: string | null
           urgency_to_move?: string | null
         }
         Relationships: [
@@ -696,6 +702,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "interactions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "client_contacts"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "interactions_process_id_fkey"
             columns: ["process_id"]
             isOneToOne: false
@@ -721,13 +734,6 @@ export type Database = {
             columns: ["team_id"]
             isOneToOne: false
             referencedRelation: "teams"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "interactions_contact_id_fkey"
-            columns: ["contact_id"]
-            isOneToOne: false
-            referencedRelation: "client_contacts"
             referencedColumns: ["id"]
           },
         ]
@@ -945,13 +951,13 @@ export type Database = {
           japanese_level_required: string | null
           jd_text: string | null
           jd_url: string | null
+          location: string | null
           open_to_foreign_candidates: boolean | null
           other_agencies: boolean | null
           other_agency_names: string | null
           recruiter_id: string
           salary_max: number | null
           salary_min: number | null
-          location: string | null
           salary_range_text: string | null
           salary_stretch: number | null
           skills_test_notes: string | null
@@ -991,13 +997,13 @@ export type Database = {
           japanese_level_required?: string | null
           jd_text?: string | null
           jd_url?: string | null
+          location?: string | null
           open_to_foreign_candidates?: boolean | null
           other_agencies?: boolean | null
           other_agency_names?: string | null
           recruiter_id: string
           salary_max?: number | null
           salary_min?: number | null
-          location?: string | null
           salary_range_text?: string | null
           salary_stretch?: number | null
           skills_test_notes?: string | null
@@ -1037,13 +1043,13 @@ export type Database = {
           japanese_level_required?: string | null
           jd_text?: string | null
           jd_url?: string | null
+          location?: string | null
           open_to_foreign_candidates?: boolean | null
           other_agencies?: boolean | null
           other_agency_names?: string | null
           recruiter_id?: string
           salary_max?: number | null
           salary_min?: number | null
-          location?: string | null
           salary_range_text?: string | null
           salary_stretch?: number | null
           skills_test_notes?: string | null
@@ -1242,7 +1248,6 @@ export const Constants = {
     Enums: {},
   },
 } as const
-
 // ─── custom app types (preserved across regenerations) ───────────────────────
 
 export type ContactRole =

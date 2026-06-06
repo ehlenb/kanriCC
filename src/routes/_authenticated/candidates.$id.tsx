@@ -50,6 +50,8 @@ import {
   IconCheck,
   IconClipboard,
   IconChevronDown,
+  IconUpload,
+  IconX,
 } from "@tabler/icons-react";
 import { TranscriptPanel } from "@/components/candidate/TranscriptPanel";
 import { SubmissionPackagePanel } from "@/components/candidate/SubmissionPackagePanel";
@@ -103,6 +105,8 @@ type Candidate = {
   date_of_birth: string | null;
   notes_template: string | null;
   notes_interview: string | null;
+  urgency_notes: string | null;
+  comp_notes: string | null;
   ai_context: string | null;
   ai_context_updated_at: string | null;
   updated_at: string;
@@ -198,7 +202,7 @@ function useCandidateProfile(id: string) {
       ] = await Promise.all([
         supabase
           .from("candidates")
-          .select("*, notes_presentation, notes_personality, notes_pitch, notes_closing, notes_internal, address, date_of_birth, notes_template, notes_interview")
+          .select("*, notes_presentation, notes_personality, notes_pitch, notes_closing, notes_internal, address, date_of_birth, notes_template, notes_interview, urgency_notes, comp_notes")
           .eq("id", id)
           .single(),
         supabase
@@ -1162,9 +1166,9 @@ function NotesTab({
 
   type CandNotesPatch = Partial<Pick<Candidate,
     "current_company" | "current_title" | "notes_interview" | "notice_period_months" |
-    "urgency_to_move" | "japanese_level" | "english_level" | "additional_languages" |
+    "active_passive" | "urgency_notes" | "japanese_level" | "english_level" | "additional_languages" |
     "current_base" | "current_bonus" | "current_total" | "expected_total_min" |
-    "expected_total_max" | "notes_presentation"
+    "expected_total_max" | "notes_presentation" | "comp_notes"
   >>;
 
   async function saveField(field: string, value: string | number | null) {
@@ -1172,8 +1176,48 @@ function NotesTab({
     void qc.invalidateQueries({ queryKey: ["candidate-profile", candidateId] });
   }
 
+  // source is `string | undefined` in generated types (Supabase quirk for nullable TEXT columns)
+  // cast to unknown first so we can pass null to clear it
+  async function saveSource(value: string | null) {
+    await supabase.from("candidates").update({ source: value } as unknown as { source?: string }).eq("id", candidateId);
+    void qc.invalidateQueries({ queryKey: ["candidate-profile", candidateId] });
+  }
+
+  const SOURCE_OPTIONS = [
+    { value: "linkedin", label: "LinkedIn" },
+    { value: "bizreach", label: "BizReach" },
+    { value: "doda", label: "Doda" },
+    { value: "referral", label: "Referral" },
+    { value: "inbound", label: "Inbound" },
+    { value: "other", label: "Other" },
+  ];
+
   return (
     <div className="space-y-3 pb-8">
+      {/* Source selector */}
+      <Card>
+        <SectionLabel>Candidate source</SectionLabel>
+        <div className="flex flex-wrap gap-1.5">
+          {SOURCE_OPTIONS.map((opt) => {
+            const active = c.source === opt.value;
+            return (
+              <button
+                key={opt.value}
+                onClick={() => void saveSource(active ? null : opt.value)}
+                className="px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors"
+                style={{
+                  background: active ? "#1a1a18" : "#f5f5f3",
+                  color: active ? "#fff" : "#5f5e5a",
+                  border: `0.5px solid ${active ? "#1a1a18" : "rgba(26,26,24,0.12)"}`,
+                }}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+      </Card>
+
       {/* Current Employment */}
       <Card>
         <SectionLabel>Current employment</SectionLabel>
@@ -1191,23 +1235,19 @@ function NotesTab({
         />
       </Card>
 
-      {/* Interview Notes — largest section */}
-      <Card>
-        <SectionLabel>Interview notes</SectionLabel>
-        <NoteField
-          value={c.notes_interview}
-          placeholder="Career history, transitions, achievements, background context from registration call…"
-          onSave={(v) => void saveField("notes_interview", v)}
-          rows={10}
-        />
-      </Card>
+      {/* Interview Notes */}
+      <InterviewNotesCard
+        value={c.notes_interview}
+        onSave={(v) => void saveField("notes_interview", v)}
+      />
 
       {/* Notice Period & Urgency */}
       <Card>
         <SectionLabel>Notice period &amp; urgency</SectionLabel>
         <NoticeUrgencyFields
           noticePeriod={c.notice_period_months}
-          urgency={c.urgency_to_move}
+          activePassive={c.active_passive}
+          urgencyNotes={c.urgency_notes}
           onSave={(field, value) => void saveField(field, value)}
         />
       </Card>
@@ -1247,6 +1287,161 @@ function NotesTab({
   );
 }
 
+// ─── interview notes card with upload ────────────────────────────────────────
+
+function InterviewNotesCard({
+  value,
+  onSave,
+}: {
+  value: string | null | undefined;
+  onSave: (v: string | null) => void;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [aiResult, setAiResult] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value ?? "");
+
+  function handleBlur() {
+    setEditing(false);
+    const trimmed = draft.trim();
+    if (trimmed !== (value ?? "").trim()) onSave(trimmed || null);
+  }
+
+  async function handleFile(file: File) {
+    setUploading(true);
+    try {
+      let text = "";
+      if (file.name.endsWith(".docx")) {
+        const mammoth = await import("mammoth");
+        const buf = await file.arrayBuffer();
+        const result = await mammoth.extractRawText({ arrayBuffer: buf });
+        text = result.value;
+      } else if (file.type === "application/pdf" || file.name.endsWith(".pdf")) {
+        const buf = await file.arrayBuffer();
+        const base64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
+        const resp = await fetch("/api/extract-text", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pdf_base64: base64 }),
+        });
+        const data = (await resp.json()) as { text?: string };
+        text = data.text?.trim() ?? "";
+      }
+      if (!text || text.length < 20) { toast.error("Could not extract text from file."); return; }
+
+      const resp = await fetch("/api/ai/format-interview-notes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ raw_text: text }),
+      });
+      const json = (await resp.json()) as { data?: string; error?: string };
+      if (json.error) { toast.error("Could not format notes. Try again."); return; }
+      if (json.data) {
+        setAiResult(json.data);
+        toast.success("Notes formatted — review and accept below.");
+      }
+    } catch {
+      toast.error("Upload failed.");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function acceptAi() {
+    const combined = value ? `${value.trim()}\n\n${aiResult}` : aiResult!;
+    onSave(combined);
+    setAiResult(null);
+    toast.success("Notes saved.");
+  }
+
+  return (
+    <Card>
+      <div className="flex items-center justify-between mb-2">
+        <SectionLabel>Interview notes</SectionLabel>
+        <button
+          className="ab flex items-center gap-1"
+          onClick={() => fileRef.current?.click()}
+          disabled={uploading}
+        >
+          <IconUpload size={10} />
+          {uploading ? "Processing…" : "Upload doc"}
+        </button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".pdf,.docx"
+          className="hidden"
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) void handleFile(f); e.target.value = ""; }}
+        />
+      </div>
+
+      {/* AI result preview — shown before accepting */}
+      {aiResult && (
+        <div className="mb-3 rounded-[6px] p-3" style={{ background: "#e6f1fb", border: "0.5px solid #b5d4f4" }}>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px] font-medium" style={{ color: "#185fa5" }}>AI formatted — review before saving</span>
+            <div className="flex items-center gap-2">
+              <button
+                className="text-[11px] font-medium px-2 py-0.5 rounded"
+                style={{ background: "#185fa5", color: "#fff" }}
+                onClick={acceptAi}
+              >
+                Accept
+              </button>
+              <button onClick={() => setAiResult(null)}>
+                <IconX size={12} style={{ color: "#185fa5" }} />
+              </button>
+            </div>
+          </div>
+          <textarea
+            value={aiResult}
+            onChange={(e) => setAiResult(e.target.value)}
+            rows={8}
+            className="w-full text-[12px] leading-relaxed resize-none bg-transparent outline-none"
+            style={{ color: "#1a1a18" }}
+          />
+        </div>
+      )}
+
+      {/* Main notes field */}
+      {editing ? (
+        <div className="relative">
+          <textarea
+            autoFocus
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={handleBlur}
+            rows={10}
+            placeholder="Career history, transitions, achievements, background context from registration call…"
+            className="w-full text-[13px] leading-relaxed rounded-[6px] px-3 py-2 resize-none"
+            style={{ border: "0.5px solid rgba(26,26,24,0.20)", background: "#fafaf9", color: "#1a1a18", outline: "none" }}
+          />
+          <button
+            className="absolute bottom-2 right-2 flex items-center gap-1 rounded px-2 py-1 text-[11px] font-medium"
+            style={{ background: "#1a1a18", color: "#fff" }}
+            onMouseDown={(e) => { e.preventDefault(); handleBlur(); }}
+          >
+            <IconCheck size={10} /> Save
+          </button>
+        </div>
+      ) : (
+        <div
+          className="rounded-[6px] px-3 py-2 cursor-text"
+          style={{ border: "0.5px solid rgba(26,26,24,0.12)", background: "#f5f5f3", minHeight: "130px" }}
+          onClick={() => { setDraft(value ?? ""); setEditing(true); }}
+        >
+          {value ? (
+            <p className="text-[13px] leading-relaxed whitespace-pre-wrap" style={{ color: "#1a1a18" }}>{value}</p>
+          ) : (
+            <p className="text-[13px]" style={{ color: "#b8b7b2" }}>Career history, transitions, achievements, background context from registration call…</p>
+          )}
+        </div>
+      )}
+    </Card>
+  );
+}
+
 // ─── inline note field (click-to-edit) ───────────────────────────────────────
 
 function NoteField({
@@ -1279,21 +1474,31 @@ function NoteField({
         <p className="text-[11px] font-medium mb-1.5" style={{ color: "#5f5e5a" }}>{label}</p>
       )}
       {editing ? (
-        <textarea
-          autoFocus
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={handleBlur}
-          rows={rows}
-          placeholder={placeholder}
-          className="w-full text-[13px] leading-relaxed rounded-[6px] px-3 py-2 resize-none"
-          style={{
-            border: "0.5px solid rgba(26,26,24,0.20)",
-            background: "#fafaf9",
-            color: "#1a1a18",
-            outline: "none",
-          }}
-        />
+        <div className="relative">
+          <textarea
+            autoFocus
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={handleBlur}
+            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && rows === 1) { e.preventDefault(); handleBlur(); } }}
+            rows={rows}
+            placeholder={placeholder}
+            className="w-full text-[13px] leading-relaxed rounded-[6px] px-3 py-2 resize-none"
+            style={{
+              border: "0.5px solid rgba(26,26,24,0.20)",
+              background: "#fafaf9",
+              color: "#1a1a18",
+              outline: "none",
+            }}
+          />
+          <button
+            className="absolute bottom-2 right-2 flex items-center gap-1 rounded px-2 py-1 text-[11px] font-medium"
+            style={{ background: "#1a1a18", color: "#fff" }}
+            onMouseDown={(e) => { e.preventDefault(); handleBlur(); }}
+          >
+            <IconCheck size={10} /> Save
+          </button>
+        </div>
       ) : (
         <div
           className="rounded-[6px] px-3 py-2 cursor-text"
@@ -1319,15 +1524,19 @@ function NoteField({
 
 function NoticeUrgencyFields({
   noticePeriod,
-  urgency,
+  activePassive,
+  urgencyNotes,
   onSave,
 }: {
   noticePeriod: number | null;
-  urgency: string | null;
+  activePassive: string | null;
+  urgencyNotes: string | null;
   onSave: (field: string, value: string | number | null) => void;
 }) {
   const [editingNotice, setEditingNotice] = useState(false);
   const [noticeDraft, setNoticeDraft] = useState(noticePeriod != null ? String(noticePeriod) : "");
+  const [editingNotes, setEditingNotes] = useState(false);
+  const [notesDraft, setNotesDraft] = useState(urgencyNotes ?? "");
 
   function saveNotice() {
     setEditingNotice(false);
@@ -1335,55 +1544,116 @@ function NoticeUrgencyFields({
     if (v !== noticePeriod) onSave("notice_period_months", v);
   }
 
+  function saveNotes() {
+    setEditingNotes(false);
+    const trimmed = notesDraft.trim();
+    if (trimmed !== (urgencyNotes ?? "").trim()) onSave("urgency_notes", trimmed || null);
+  }
+
   return (
-    <div className="grid grid-cols-2 gap-3">
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3">
+        {/* Notice period */}
+        <div>
+          <p className="text-[11px] font-medium mb-1.5" style={{ color: "#5f5e5a" }}>Notice period</p>
+          {editingNotice ? (
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                autoFocus
+                value={noticeDraft}
+                onChange={(e) => setNoticeDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") saveNotice();
+                  if (e.key === "Escape") { setNoticeDraft(noticePeriod != null ? String(noticePeriod) : ""); setEditingNotice(false); }
+                }}
+                className="h-[36px] w-16 rounded-[6px] px-3 text-[13px] outline-none"
+                style={{ border: "0.5px solid rgba(26,26,24,0.20)", background: "#fafaf9", color: "#1a1a18" }}
+                placeholder="3"
+              />
+              <span className="text-[12px]" style={{ color: "#5f5e5a" }}>months</span>
+              <button
+                className="flex items-center gap-1 rounded px-2 py-1 text-[11px] font-medium"
+                style={{ background: "#1a1a18", color: "#fff" }}
+                onMouseDown={(e) => { e.preventDefault(); saveNotice(); }}
+              >
+                <IconCheck size={10} />
+              </button>
+            </div>
+          ) : (
+            <div
+              className="rounded-[6px] px-3 py-2 cursor-text"
+              style={{ border: "0.5px solid rgba(26,26,24,0.12)", background: "#f5f5f3", minHeight: "36px" }}
+              onClick={() => { setNoticeDraft(noticePeriod != null ? String(noticePeriod) : ""); setEditingNotice(true); }}
+            >
+              <span className="text-[13px]" style={{ color: noticePeriod != null ? "#1a1a18" : "#b8b7b2" }}>
+                {noticePeriod != null ? `${noticePeriod} month${noticePeriod !== 1 ? "s" : ""}` : "e.g. 3 months"}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Active / Passive */}
+        <div>
+          <p className="text-[11px] font-medium mb-1.5" style={{ color: "#5f5e5a" }}>Urgency to move</p>
+          <div className="flex gap-2">
+            {(["Active", "Passive"] as const).map((opt) => {
+              const selected = activePassive === opt;
+              return (
+                <button
+                  key={opt}
+                  onClick={() => onSave("active_passive", selected ? null : opt)}
+                  className="flex-1 h-[36px] rounded-[6px] text-[13px] font-medium transition-colors"
+                  style={{
+                    background: selected ? "#1a1a18" : "#f5f5f3",
+                    color: selected ? "#fff" : "#5f5e5a",
+                    border: `0.5px solid ${selected ? "#1a1a18" : "rgba(26,26,24,0.12)"}`,
+                  }}
+                >
+                  {opt}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Urgency notes */}
       <div>
-        <p className="text-[11px] font-medium mb-1.5" style={{ color: "#5f5e5a" }}>Notice period</p>
-        {editingNotice ? (
-          <div className="flex items-center gap-2">
-            <Input
-              type="number"
+        <p className="text-[11px] font-medium mb-1.5" style={{ color: "#5f5e5a" }}>Urgency notes</p>
+        {editingNotes ? (
+          <div className="relative">
+            <textarea
               autoFocus
-              value={noticeDraft}
-              onChange={(e) => setNoticeDraft(e.target.value)}
-              onBlur={saveNotice}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") saveNotice();
-                if (e.key === "Escape") { setNoticeDraft(noticePeriod != null ? String(noticePeriod) : ""); setEditingNotice(false); }
-              }}
-              className="h-8 text-[13px] w-20"
-              placeholder="3"
+              value={notesDraft}
+              onChange={(e) => setNotesDraft(e.target.value)}
+              onBlur={saveNotes}
+              rows={3}
+              placeholder="Why they are active, when a passive candidate might start looking, timeline context…"
+              className="w-full text-[13px] leading-relaxed rounded-[6px] px-3 py-2 resize-none"
+              style={{ border: "0.5px solid rgba(26,26,24,0.20)", background: "#fafaf9", color: "#1a1a18", outline: "none" }}
             />
-            <span className="text-[12px]" style={{ color: "#5f5e5a" }}>months</span>
+            <button
+              className="absolute bottom-2 right-2 flex items-center gap-1 rounded px-2 py-1 text-[11px] font-medium"
+              style={{ background: "#1a1a18", color: "#fff" }}
+              onMouseDown={(e) => { e.preventDefault(); saveNotes(); }}
+            >
+              <IconCheck size={10} /> Save
+            </button>
           </div>
         ) : (
           <div
             className="rounded-[6px] px-3 py-2 cursor-text"
             style={{ border: "0.5px solid rgba(26,26,24,0.12)", background: "#f5f5f3", minHeight: "36px" }}
-            onClick={() => { setNoticeDraft(noticePeriod != null ? String(noticePeriod) : ""); setEditingNotice(true); }}
+            onClick={() => { setNotesDraft(urgencyNotes ?? ""); setEditingNotes(true); }}
           >
-            <span className="text-[13px]" style={{ color: noticePeriod != null ? "#1a1a18" : "#b8b7b2" }}>
-              {noticePeriod != null ? `${noticePeriod} month${noticePeriod !== 1 ? "s" : ""}` : "e.g. 3 months"}
-            </span>
+            {urgencyNotes ? (
+              <p className="text-[13px] leading-relaxed whitespace-pre-wrap" style={{ color: "#1a1a18" }}>{urgencyNotes}</p>
+            ) : (
+              <p className="text-[13px]" style={{ color: "#b8b7b2" }}>Why they are active, or when they might start looking…</p>
+            )}
           </div>
         )}
-      </div>
-      <div>
-        <p className="text-[11px] font-medium mb-1.5" style={{ color: "#5f5e5a" }}>Urgency to move</p>
-        <Select
-          value={urgency ?? "__none__"}
-          onValueChange={(v) => onSave("urgency_to_move", v === "__none__" ? null : v)}
-        >
-          <SelectTrigger className="h-[36px] text-[13px]" style={{ background: "#f5f5f3", border: "0.5px solid rgba(26,26,24,0.12)" }}>
-            <SelectValue placeholder="Not specified" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__none__">Not specified</SelectItem>
-            <SelectItem value="Low">Low</SelectItem>
-            <SelectItem value="Medium">Medium</SelectItem>
-            <SelectItem value="High">High</SelectItem>
-          </SelectContent>
-        </Select>
       </div>
     </div>
   );
@@ -1393,6 +1663,8 @@ function NoticeUrgencyFields({
 
 const JAPANESE_LEVELS = ["Native", "Fluent", "High Business", "Business", "Low Business", "High Conversational", "Conversational", "Low Conversational", "Basic", "None"] as const;
 const ENGLISH_LEVELS = ["Native", "Fluent", "High Business", "Business", "Low Business", "High Conversational", "Conversational", "Low Conversational", "Basic", "None"] as const;
+
+const PROFICIENCY_LEVELS = ["Native", "Fluent", "High Business", "Business", "Low Business", "High Conversational", "Conversational", "Low Conversational", "Basic"] as const;
 
 function LanguageFields({
   japanese,
@@ -1405,13 +1677,37 @@ function LanguageFields({
   other: string | null | undefined;
   onSave: (field: string, value: string | null) => void;
 }) {
-  const [editingOther, setEditingOther] = useState(false);
-  const [otherDraft, setOtherDraft] = useState(other ?? "");
+  // Parse saved "Korean — Business" format into parts
+  const parsedOtherLang = other?.split(" — ")[0]?.trim() ?? "";
+  const parsedOtherLevel = other?.split(" — ")[1]?.trim() ?? "";
 
-  function saveOther() {
-    setEditingOther(false);
-    const trimmed = otherDraft.trim();
-    if (trimmed !== (other ?? "").trim()) onSave("additional_languages", trimmed || null);
+  const [langName, setLangName] = useState(parsedOtherLang);
+  const [showLevelPicker, setShowLevelPicker] = useState(false);
+  const [editingName, setEditingName] = useState(false);
+
+  // Sync if prop changes (e.g. after save)
+  useEffect(() => {
+    setLangName(other?.split(" — ")[0]?.trim() ?? "");
+  }, [other]);
+
+  function handleLangKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter" && langName.trim()) {
+      setEditingName(false);
+      setShowLevelPicker(true);
+    }
+    if (e.key === "Escape") { setLangName(parsedOtherLang); setEditingName(false); }
+  }
+
+  function selectLevel(level: string) {
+    setShowLevelPicker(false);
+    const saved = langName.trim() ? `${langName.trim()} — ${level}` : null;
+    onSave("additional_languages", saved);
+  }
+
+  function clearOther() {
+    setLangName("");
+    setShowLevelPicker(false);
+    onSave("additional_languages", null);
   }
 
   return (
@@ -1442,30 +1738,85 @@ function LanguageFields({
           </Select>
         </div>
       </div>
+
+      {/* Other language — type name then pick proficiency */}
       <div>
         <p className="text-[11px] font-medium mb-1.5" style={{ color: "#5f5e5a" }}>Other languages</p>
-        {editingOther ? (
-          <Input
-            autoFocus
-            value={otherDraft}
-            onChange={(e) => setOtherDraft(e.target.value)}
-            onBlur={saveOther}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") saveOther();
-              if (e.key === "Escape") { setOtherDraft(other ?? ""); setEditingOther(false); }
-            }}
-            className="h-8 text-[13px]"
-            placeholder="e.g. Mandarin (conversational)"
-          />
-        ) : (
+
+        {/* Display saved value */}
+        {other && !editingName && !showLevelPicker ? (
           <div
-            className="rounded-[6px] px-3 py-2 cursor-text"
+            className="flex items-center justify-between rounded-[6px] px-3 py-2"
             style={{ border: "0.5px solid rgba(26,26,24,0.12)", background: "#f5f5f3", minHeight: "36px" }}
-            onClick={() => { setOtherDraft(other ?? ""); setEditingOther(true); }}
           >
-            <span className="text-[13px]" style={{ color: other ? "#1a1a18" : "#b8b7b2" }}>
-              {other || "e.g. Mandarin (conversational)"}
-            </span>
+            <span className="text-[13px]" style={{ color: "#1a1a18" }}>{other}</span>
+            <div className="flex items-center gap-2">
+              <button
+                className="text-[11px]"
+                style={{ color: "#888780" }}
+                onClick={() => { setLangName(parsedOtherLang); setShowLevelPicker(true); }}
+              >
+                Change level
+              </button>
+              <button onClick={clearOther}>
+                <IconX size={12} style={{ color: "#b8b7b2" }} />
+              </button>
+            </div>
+          </div>
+        ) : showLevelPicker ? (
+          /* Step 2: pick proficiency */
+          <div className="rounded-[6px] overflow-hidden" style={{ border: "0.5px solid rgba(26,26,24,0.16)", background: "#fff" }}>
+            <div className="px-3 py-2 text-[12px] font-medium" style={{ background: "#f5f5f3", color: "#5f5e5a" }}>
+              {langName} — select proficiency
+            </div>
+            <div className="grid grid-cols-3 gap-0">
+              {PROFICIENCY_LEVELS.map((level) => (
+                <button
+                  key={level}
+                  onClick={() => selectLevel(level)}
+                  className="px-2 py-2 text-[12px] text-left transition-colors"
+                  style={{
+                    color: parsedOtherLevel === level ? "#185fa5" : "#1a1a18",
+                    background: parsedOtherLevel === level ? "#e6f1fb" : "transparent",
+                    borderBottom: "0.5px solid rgba(26,26,24,0.06)",
+                  }}
+                  onMouseEnter={(e) => { if (parsedOtherLevel !== level) e.currentTarget.style.background = "#f5f5f3"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = parsedOtherLevel === level ? "#e6f1fb" : "transparent"; }}
+                >
+                  {level}
+                </button>
+              ))}
+            </div>
+            <button
+              className="w-full text-left px-3 py-2 text-[11px]"
+              style={{ color: "#888780", borderTop: "0.5px solid rgba(26,26,24,0.08)" }}
+              onClick={() => { setShowLevelPicker(false); setEditingName(false); }}
+            >
+              Cancel
+            </button>
+          </div>
+        ) : (
+          /* Step 1: type language name */
+          <div className="flex items-center gap-2">
+            <input
+              autoFocus={editingName}
+              value={langName}
+              onChange={(e) => setLangName(e.target.value)}
+              onFocus={() => setEditingName(true)}
+              onKeyDown={handleLangKeyDown}
+              placeholder="e.g. Korean, Mandarin…"
+              className="flex-1 h-[36px] rounded-[6px] px-3 text-[13px] outline-none"
+              style={{ border: "0.5px solid rgba(26,26,24,0.12)", background: "#f5f5f3", color: "#1a1a18" }}
+            />
+            {langName.trim() && (
+              <button
+                className="flex items-center gap-1 rounded-[6px] px-3 h-[36px] text-[12px] font-medium shrink-0"
+                style={{ background: "#1a1a18", color: "#fff" }}
+                onClick={() => { setEditingName(false); setShowLevelPicker(true); }}
+              >
+                <IconCheck size={11} /> Set level
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -1480,38 +1831,94 @@ function NoteCompensationFields({
   onSave,
 }: {
   candidate: Candidate;
-  onSave: (field: string, value: number | null) => void;
+  onSave: (field: string, value: number | string | null) => void;
 }) {
-  function YenField({ label, fieldKey, value }: { label: string; fieldKey: string; value: number | null }) {
+  const [editingNotes, setEditingNotes] = useState(false);
+  const [notesDraft, setNotesDraft] = useState(c.comp_notes ?? "");
+
+  function saveNotes() {
+    setEditingNotes(false);
+    const trimmed = notesDraft.trim();
+    if (trimmed !== (c.comp_notes ?? "").trim()) onSave("comp_notes", trimmed || null);
+  }
+
+  function YenField({
+    label,
+    fieldKey,
+    value,
+    readOnly,
+  }: {
+    label: string;
+    fieldKey: string;
+    value: number | null;
+    readOnly?: boolean;
+  }) {
     const [editing, setEditing] = useState(false);
     const [draft, setDraft] = useState(value != null ? String(value / 1_000_000) : "");
+
+    // Keep draft in sync if value changes (e.g. auto-calc update)
+    useEffect(() => {
+      if (!editing) setDraft(value != null ? String(value / 1_000_000) : "");
+    }, [value, editing]);
 
     function save() {
       setEditing(false);
       const parsed = draft.trim() ? Math.round(Number(draft) * 1_000_000) : null;
-      if (parsed !== value) onSave(fieldKey, parsed);
+      if (parsed === value) return;
+      onSave(fieldKey, parsed);
+
+      // Auto-calc current_total when base or bonus changes
+      if (fieldKey === "current_base" || fieldKey === "current_bonus") {
+        const base = fieldKey === "current_base" ? parsed : c.current_base;
+        const bonus = fieldKey === "current_bonus" ? parsed : c.current_bonus;
+        if (base != null && bonus != null) onSave("current_total", base + bonus);
+      }
+    }
+
+    if (readOnly) {
+      return (
+        <div>
+          <p className="text-[11px] font-medium mb-1.5" style={{ color: "#5f5e5a" }}>{label}</p>
+          <div
+            className="rounded-[6px] px-3 py-2"
+            style={{ border: "0.5px solid rgba(26,26,24,0.08)", background: "#f5f5f3", minHeight: "36px" }}
+          >
+            <span className="text-[13px]" style={{ color: value != null ? "#1a1a18" : "#b8b7b2" }}>
+              {value != null ? formatYen(value) : "—"}
+            </span>
+          </div>
+          <p className="text-[10px] mt-0.5" style={{ color: "#b8b7b2" }}>Auto-calculated</p>
+        </div>
+      );
     }
 
     return (
       <div>
         <p className="text-[11px] font-medium mb-1.5" style={{ color: "#5f5e5a" }}>{label}</p>
         {editing ? (
-          <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[12px]" style={{ color: "#888780" }}>¥</span>
-            <Input
+          <div className="flex items-center gap-1.5">
+            <span className="text-[13px] font-medium shrink-0" style={{ color: "#5f5e5a" }}>¥</span>
+            <input
               autoFocus
               type="number"
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
-              onBlur={save}
               onKeyDown={(e) => {
                 if (e.key === "Enter") save();
                 if (e.key === "Escape") { setDraft(value != null ? String(value / 1_000_000) : ""); setEditing(false); }
               }}
-              className="h-[36px] text-[13px] pl-6"
-              placeholder="e.g. 12"
+              className="flex-1 h-[36px] rounded-[6px] px-2 text-[13px] outline-none min-w-0"
+              style={{ border: "0.5px solid rgba(26,26,24,0.20)", background: "#fafaf9", color: "#1a1a18" }}
+              placeholder="12"
             />
-            <p className="text-[11px] mt-0.5" style={{ color: "#b8b7b2" }}>¥M — type 12 for ¥12M</p>
+            <span className="text-[12px] shrink-0" style={{ color: "#888780" }}>M</span>
+            <button
+              className="flex items-center gap-0.5 rounded px-2 h-[36px] text-[11px] font-medium shrink-0"
+              style={{ background: "#1a1a18", color: "#fff" }}
+              onMouseDown={(e) => { e.preventDefault(); save(); }}
+            >
+              <IconCheck size={10} />
+            </button>
           </div>
         ) : (
           <div
@@ -1533,7 +1940,7 @@ function NoteCompensationFields({
       <div className="grid grid-cols-3 gap-3">
         <YenField label="Current base" fieldKey="current_base" value={c.current_base} />
         <YenField label="Current bonus" fieldKey="current_bonus" value={c.current_bonus} />
-        <YenField label="Current total" fieldKey="current_total" value={c.current_total} />
+        <YenField label="Current total" fieldKey="current_total" value={c.current_total} readOnly />
       </div>
       <div>
         <p className="text-[11px] font-medium mb-1.5" style={{ color: "#5f5e5a" }}>Expected range</p>
@@ -1541,6 +1948,44 @@ function NoteCompensationFields({
           <YenField label="Min" fieldKey="expected_total_min" value={c.expected_total_min} />
           <YenField label="Max" fieldKey="expected_total_max" value={c.expected_total_max} />
         </div>
+      </div>
+
+      {/* Free-text compensation notes */}
+      <div>
+        <p className="text-[11px] font-medium mb-1.5" style={{ color: "#5f5e5a" }}>Compensation notes</p>
+        {editingNotes ? (
+          <div className="relative">
+            <textarea
+              autoFocus
+              value={notesDraft}
+              onChange={(e) => setNotesDraft(e.target.value)}
+              onBlur={saveNotes}
+              rows={3}
+              placeholder="Current/expected comp context, bonus structure details, equity, strong base preference…"
+              className="w-full text-[13px] leading-relaxed rounded-[6px] px-3 py-2 resize-none"
+              style={{ border: "0.5px solid rgba(26,26,24,0.20)", background: "#fafaf9", color: "#1a1a18", outline: "none" }}
+            />
+            <button
+              className="absolute bottom-2 right-2 flex items-center gap-1 rounded px-2 py-1 text-[11px] font-medium"
+              style={{ background: "#1a1a18", color: "#fff" }}
+              onMouseDown={(e) => { e.preventDefault(); saveNotes(); }}
+            >
+              <IconCheck size={10} /> Save
+            </button>
+          </div>
+        ) : (
+          <div
+            className="rounded-[6px] px-3 py-2 cursor-text"
+            style={{ border: "0.5px solid rgba(26,26,24,0.12)", background: "#f5f5f3", minHeight: "36px" }}
+            onClick={() => { setNotesDraft(c.comp_notes ?? ""); setEditingNotes(true); }}
+          >
+            {c.comp_notes ? (
+              <p className="text-[13px] leading-relaxed whitespace-pre-wrap" style={{ color: "#1a1a18" }}>{c.comp_notes}</p>
+            ) : (
+              <p className="text-[13px]" style={{ color: "#b8b7b2" }}>Bonus structure, equity, strong base preference, flex details…</p>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -3834,11 +4279,20 @@ function CandidateProfileSection({
                   coinIconDismissed={c.coin_icon_dismissed}
                 />
               </FieldRow>
-              <FieldRow label="Source">{c.source ?? "—"}</FieldRow>
+              <FieldRow label="Source">
+                {c.source
+                  ? ({ linkedin: "LinkedIn", bizreach: "BizReach", doda: "Doda", referral: "Referral", inbound: "Inbound", other: "Other" }[c.source] ?? c.source)
+                  : "—"}
+              </FieldRow>
               <FieldRow label="Urgency to move">
-                <span style={{ color: c.urgency_to_move === "High" ? "#27500a" : c.urgency_to_move === "Low" ? "#888780" : "#1a1a18", fontWeight: c.urgency_to_move === "High" ? 500 : 400 }}>
-                  {c.urgency_to_move ?? "—"}
-                </span>
+                {c.active_passive ? (
+                  <span style={{
+                    color: c.active_passive === "Active" ? "#27500a" : "#888780",
+                    fontWeight: c.active_passive === "Active" ? 500 : 400,
+                  }}>
+                    {c.active_passive}
+                  </span>
+                ) : "—"}
               </FieldRow>
               <FieldRow label="Notice period">
                 {c.notice_period_months ? `${c.notice_period_months} month${c.notice_period_months !== 1 ? "s" : ""}` : "—"}

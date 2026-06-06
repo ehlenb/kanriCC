@@ -487,6 +487,7 @@ function ClientDetail() {
   const [addContactOpen, setAddContactOpen] = useState(false);
   const [logInteractionOpen, setLogInteractionOpen] = useState(false);
   const [logForContactId, setLogForContactId] = useState<string | null>(null);
+  const [logForContactName, setLogForContactName] = useState<string | null>(null);
   const [logEventType, setLogEventType] = useState<"call" | "email" | "meeting">("call");
   const [snapshotData, setSnapshotData] = useState<{
     whereThingsStand: string;
@@ -868,8 +869,9 @@ function ClientDetail() {
             clientId={id}
             interactions={interactions}
             onAdd={() => setAddContactOpen(true)}
-            onLogActivity={(contactId) => {
+            onLogActivity={(contactId, contactName) => {
               setLogForContactId(contactId);
+              setLogForContactName(contactName);
               setLogInteractionOpen(true);
             }}
           />
@@ -908,9 +910,10 @@ function ClientDetail() {
         recruiterId={user!.id}
         contacts={contacts}
         open={logInteractionOpen}
-        onClose={() => { setLogInteractionOpen(false); setLogForContactId(null); }}
+        onClose={() => { setLogInteractionOpen(false); setLogForContactId(null); setLogForContactName(null); }}
         initialType={logEventType}
         initialContactId={logForContactId}
+        initialContactName={logForContactName}
       />
       <DraftModal
         draft={draftModal}
@@ -1238,7 +1241,7 @@ function ContactsCard({
   clientId: string;
   interactions?: Interaction[];
   onAdd: () => void;
-  onLogActivity?: (contactId: string) => void;
+  onLogActivity?: (contactId: string, contactName: string) => void;
 }) {
   const qc = useQueryClient();
   const [editingNote, setEditingNote] = useState<{ contactId: string; value: string } | null>(null);
@@ -1394,7 +1397,7 @@ function ContactsCard({
                         </span>
                         <button
                           className="ab"
-                          onClick={() => onLogActivity(contact.id)}
+                          onClick={() => onLogActivity(contact.id, contact.name)}
                         >
                           <IconPlus size={10} /> Log activity
                         </button>
@@ -1873,72 +1876,111 @@ function JapanMarketContextCard({ client: c, clientId }: { client: ClientRecord;
 
   async function saveField(field: EditableField) {
     setEditing(null);
-    let numValue: number | null = null;
-    let strValue: string | null = draft.trim() || null;
     const isNumericField = field === "years_in_japan" || field === "japan_team_size" || field === "japan_team_japanese_pct";
     if (isNumericField) {
       const n = parseInt(draft.trim());
-      numValue = isNaN(n) ? null : n;
-    }
-    if (field === "years_in_japan") {
-      await supabase.from("clients").update({ years_in_japan: numValue }).eq("id", clientId);
-    } else if (field === "japan_team_size") {
-      await supabase.from("clients").update({ japan_team_size: numValue }).eq("id", clientId);
-    } else if (field === "japan_team_japanese_pct") {
-      await supabase.from("clients").update({ japan_team_japanese_pct: numValue }).eq("id", clientId);
-    } else if (field === "japan_role_in_group") {
-      await supabase.from("clients").update({ japan_role_in_group: strValue }).eq("id", clientId);
-    } else if (field === "kk_entity") {
-      await supabase.from("clients").update({ kk_entity: strValue }).eq("id", clientId);
+      const numValue = isNaN(n) ? null : n;
+      if (field === "years_in_japan") await supabase.from("clients").update({ years_in_japan: numValue }).eq("id", clientId);
+      else if (field === "japan_team_size") await supabase.from("clients").update({ japan_team_size: numValue }).eq("id", clientId);
+      else if (field === "japan_team_japanese_pct") await supabase.from("clients").update({ japan_team_japanese_pct: numValue }).eq("id", clientId);
+    } else {
+      const strValue = draft.trim() || null;
+      if (field === "japan_role_in_group") await supabase.from("clients").update({ japan_role_in_group: strValue }).eq("id", clientId);
+      else if (field === "kk_entity") await supabase.from("clients").update({ kk_entity: strValue }).eq("id", clientId);
     }
     void qc.invalidateQueries({ queryKey: ["client", clientId] });
   }
 
-  const fields: Array<{ field: EditableField; label: string; displayValue: string; placeholder: string }> = [
-    { field: "years_in_japan", label: "Years in Japan", displayValue: c.years_in_japan ? `${c.years_in_japan} years` : "—", placeholder: "e.g. 15" },
-    { field: "japan_team_size", label: "Employees in Japan", displayValue: c.japan_team_size ? `~${c.japan_team_size.toLocaleString()}` : "—", placeholder: "e.g. 200" },
-    { field: "japan_team_japanese_pct", label: "% Japanese nationals", displayValue: c.japan_team_japanese_pct ? `~${c.japan_team_japanese_pct}%` : "—", placeholder: "e.g. 70" },
-    { field: "japan_role_in_group", label: "Japan role in group", displayValue: c.japan_role_in_group ?? "—", placeholder: "e.g. Regional HQ" },
-    { field: "kk_entity", label: "KK entity", displayValue: c.kk_entity ?? "—", placeholder: "Yes / No / Entity name" },
+  type FieldDef = { field: EditableField; label: string; rawValue: string | number | null; displayValue: string; placeholder: string };
+  const fields: FieldDef[] = [
+    { field: "years_in_japan", label: "Years in Japan", rawValue: c.years_in_japan, displayValue: c.years_in_japan ? `${c.years_in_japan} years` : "", placeholder: "e.g. 15" },
+    { field: "japan_team_size", label: "Employees in Japan", rawValue: c.japan_team_size, displayValue: c.japan_team_size ? `~${c.japan_team_size.toLocaleString()}` : "", placeholder: "e.g. 200" },
+    { field: "japan_team_japanese_pct", label: "% Japanese nationals", rawValue: c.japan_team_japanese_pct, displayValue: c.japan_team_japanese_pct ? `~${c.japan_team_japanese_pct}%` : "", placeholder: "e.g. 70" },
+    { field: "japan_role_in_group", label: "Japan role in group", rawValue: c.japan_role_in_group, displayValue: c.japan_role_in_group ?? "", placeholder: "e.g. Regional HQ" },
+    { field: "kk_entity", label: "KK entity", rawValue: c.kk_entity, displayValue: c.kk_entity ?? "", placeholder: "Yes / No / Entity name" },
   ];
 
   return (
     <Card>
       <SL>Japan market context</SL>
-      <div className="space-y-1 mb-3">
-        {fields.map(({ field, label, displayValue, placeholder }) => (
-          <div
-            key={field}
-            className="flex items-center justify-between text-[12px] py-1.5"
-            style={{ borderBottom: "0.5px solid rgba(26,26,24,0.08)" }}
-          >
-            <span style={{ color: "#5f5e5a", minWidth: 140 }}>{label}</span>
-            {editing === field ? (
-              <input
-                autoFocus
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                onBlur={() => void saveField(field)}
-                onKeyDown={(e) => { if (e.key === "Enter") void saveField(field); if (e.key === "Escape") setEditing(null); }}
-                placeholder={placeholder}
-                className="text-[12px] text-right bg-transparent outline-none border-b flex-1 ml-4"
-                style={{ borderColor: "rgba(26,26,24,0.20)", color: "#1a1a18" }}
-              />
-            ) : (
-              <button
-                className="text-right font-medium flex-1 ml-4 truncate"
-                style={{ color: displayValue === "—" ? "#b8b7b2" : "#1a1a18" }}
-                onClick={() => startEdit(field, field === "years_in_japan" ? c.years_in_japan : field === "japan_team_size" ? c.japan_team_size : field === "japan_team_japanese_pct" ? c.japan_team_japanese_pct : field === "japan_role_in_group" ? c.japan_role_in_group : c.kk_entity)}
-                title="Click to edit"
-              >
-                {displayValue}
-              </button>
-            )}
-          </div>
-        ))}
+      <div className="space-y-[2px] mb-3">
+        {fields.map(({ field, label, rawValue, displayValue, placeholder }) => {
+          const isEditing = editing === field;
+          return (
+            <div
+              key={field}
+              className="rounded-[6px] px-2.5 py-2"
+              style={{
+                background: isEditing ? "#f5f5f3" : "transparent",
+                border: isEditing ? "0.5px solid rgba(26,26,24,0.15)" : "0.5px solid transparent",
+              }}
+            >
+              <div className="flex items-center justify-between gap-2 mb-0.5">
+                <span className="text-[11px]" style={{ color: "#888780" }}>{label}</span>
+                {!isEditing && (
+                  <button
+                    className="text-[10px] px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                    style={{ color: "#888780" }}
+                    onClick={() => startEdit(field, rawValue)}
+                  >
+                    <IconPencil size={10} />
+                  </button>
+                )}
+              </div>
+              {isEditing ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    autoFocus
+                    value={draft}
+                    onChange={(e) => setDraft(e.target.value)}
+                    onBlur={() => void saveField(field)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") void saveField(field);
+                      if (e.key === "Escape") setEditing(null);
+                    }}
+                    placeholder={placeholder}
+                    className="flex-1 text-[13px] bg-transparent outline-none"
+                    style={{ color: "#1a1a18" }}
+                  />
+                  <button
+                    className="text-[11px] px-2 py-0.5 rounded shrink-0"
+                    style={{ background: "#1a1a18", color: "#fff" }}
+                    onMouseDown={(e) => { e.preventDefault(); void saveField(field); }}
+                  >
+                    Save
+                  </button>
+                  <button
+                    className="text-[11px] shrink-0"
+                    style={{ color: "#888780" }}
+                    onMouseDown={(e) => { e.preventDefault(); setEditing(null); }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between gap-2 group">
+                  <span
+                    className="text-[13px] font-medium"
+                    style={{ color: displayValue ? "#1a1a18" : "#b8b7b2" }}
+                  >
+                    {displayValue || "Not set"}
+                  </span>
+                  <button
+                    className="text-[10px] px-1.5 py-0.5 rounded shrink-0"
+                    style={{ color: "#888780", opacity: 0.6 }}
+                    onClick={() => startEdit(field, rawValue)}
+                    title="Edit"
+                  >
+                    <IconPencil size={10} />
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
       <p className="text-[12px] leading-snug" style={{ color: "#888780" }}>
-        Click any field to edit. Use these facts when pitching {c.company_name} to candidates from domestic firms.
+        Use these facts when pitching {c.company_name} to candidates from domestic firms.
       </p>
     </Card>
   );
@@ -2330,10 +2372,29 @@ function JobsTab({
         </div>
       )}
 
-      {/* Closed jobs */}
-      {closedReqs.length > 0 && (
-        <OpenRequisitionsCard reqs={[]} closedReqs={closedReqs} contacts={contacts} showHeader={false} />
-      )}
+      {/* Closed jobs — always render section */}
+      <div>
+        <p className="text-[11px] font-medium uppercase tracking-[0.04em] mb-2" style={{ color: "#5f5e5a" }}>Closed jobs</p>
+        {closedReqs.length === 0 ? (
+          <p className="text-[13px]" style={{ color: "#888780" }}>No closed jobs.</p>
+        ) : (
+          <div className="rounded-xl overflow-hidden" style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.12)" }}>
+            {closedReqs.map((r) => (
+              <div
+                key={r.id}
+                className="flex items-center gap-2 px-4 py-2.5 text-[12px]"
+                style={{ borderBottom: "0.5px solid rgba(26,26,24,0.06)", color: "#888780" }}
+              >
+                <div className="w-1 h-4 rounded-sm shrink-0" style={{ background: "rgba(26,26,24,0.12)" }} />
+                {r.title}
+                {r.salary_range_text && (
+                  <span className="ml-auto shrink-0" style={{ color: "#b8b7b2" }}>{r.salary_range_text}</span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -2348,6 +2409,7 @@ function LogInteractionDialog({
   onClose,
   initialType = "call",
   initialContactId = null,
+  initialContactName = null,
 }: {
   clientId: string;
   recruiterId: string;
@@ -2356,6 +2418,7 @@ function LogInteractionDialog({
   onClose: () => void;
   initialType?: string;
   initialContactId?: string | null;
+  initialContactName?: string | null;
 }) {
   const qc = useQueryClient();
   const [type, setType] = useState(initialType);
@@ -2441,7 +2504,12 @@ function LogInteractionDialog({
           )}
 
           <F label="Summary (1 line — shown in activity feed)">
-            <Input value={summary} onChange={(e) => setSummary(e.target.value)} placeholder="e.g. Call with Yamada — discussed VP Eng req, 4 rounds confirmed" autoFocus />
+            <Input
+              value={summary}
+              onChange={(e) => setSummary(e.target.value)}
+              placeholder={initialContactName ? `e.g. Call with ${initialContactName} — topic discussed` : "e.g. Call with Yamada — discussed VP Eng req, 4 rounds confirmed"}
+              autoFocus
+            />
           </F>
           <F label="Full notes">
             <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Key points discussed, agreements made, follow-ups outstanding…" className="min-h-[80px]" />
@@ -2957,6 +3025,10 @@ function ContractFieldRow({
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
+
+  useEffect(() => {
+    if (!editing) setDraft(value);
+  }, [value, editing]);
 
   async function save() {
     setEditing(false);
