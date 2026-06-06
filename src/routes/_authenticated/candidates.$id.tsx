@@ -420,6 +420,16 @@ function RegistrationPage({
   recruiterId: string;
   candidate: Candidate;
 }) {
+  const [cvExtracted, setCvExtracted] = useState<ExtractedCandidate | null>(null);
+  const [regExtracted, setRegExtracted] = useState<ExtractedCandidate | null>(null);
+  const [reviewOpen, setReviewOpen] = useState(false);
+
+  function handleExtracted(source: "cv" | "reg", data: ExtractedCandidate) {
+    if (source === "cv") setCvExtracted(data);
+    else setRegExtracted(data);
+    setReviewOpen(true);
+  }
+
   return (
     <div className="space-y-3">
       {/* Registration form upload — primary document */}
@@ -427,10 +437,16 @@ function RegistrationPage({
         candidateId={candidateId}
         recruiterId={recruiterId}
         registrationFormUrl={c.registration_form_url}
+        onExtracted={(data) => handleExtracted("reg", data)}
       />
 
       {/* CV Upload */}
-      <CvUploadZone candidateId={candidateId} recruiterId={recruiterId} cvUrl={c.cv_url ?? null} />
+      <CvUploadZone
+        candidateId={candidateId}
+        recruiterId={recruiterId}
+        cvUrl={c.cv_url ?? null}
+        onExtracted={(data) => handleExtracted("cv", data)}
+      />
 
       {/* Auto-populated contact details */}
       <Card>
@@ -454,6 +470,16 @@ function RegistrationPage({
           Click any field to edit. Age is calculated automatically from date of birth.
         </p>
       </Card>
+
+      {(cvExtracted || regExtracted) && (
+        <ExtractionReviewModal
+          open={reviewOpen}
+          onClose={() => setReviewOpen(false)}
+          cvExtracted={cvExtracted}
+          regExtracted={regExtracted}
+          candidateId={candidateId}
+        />
+      )}
     </div>
   );
 }
@@ -3508,16 +3534,15 @@ function CvUploadZone({
   candidateId,
   recruiterId,
   cvUrl,
+  onExtracted,
 }: {
   candidateId: string;
   recruiterId: string;
   cvUrl: string | null;
+  onExtracted: (data: ExtractedCandidate) => void;
 }) {
   const qc = useQueryClient();
-  const [state, setState] = useState<"idle" | "uploading" | "uploaded" | "extracting" | "done" | "error">("idle");
-  const [uploadedPath, setUploadedPath] = useState<string | null>(null);
-  const [extracted, setExtracted] = useState<ExtractedCandidate | null>(null);
-  const [reviewOpen, setReviewOpen] = useState(false);
+  const [state, setState] = useState<"idle" | "uploading" | "extracting" | "done" | "error">("idle");
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -3544,8 +3569,8 @@ function CvUploadZone({
       // Store cv_url on candidate
       await supabase.from("candidates").update({ cv_url: path }).eq("id", candidateId);
       void qc.invalidateQueries({ queryKey: ["candidate-profile", candidateId] });
-      setUploadedPath(path);
-      setState("uploaded");
+      // Auto-extract immediately — no second click needed
+      void runExtraction(path);
     } catch (err) {
       console.error(err);
       toast.error("Upload failed. Check the browser console for details.");
@@ -3568,17 +3593,16 @@ function CvUploadZone({
         } else {
           toast.error(`Extraction failed (${resp.status}): ${errText.slice(0, 120)}`);
         }
-        setState("uploaded");
+        setState("error");
         return;
       }
       const data = (await resp.json()) as ExtractedCandidate;
-      setExtracted(data);
       setState("done");
-      setReviewOpen(true);
+      onExtracted(data);
     } catch (err) {
       console.error(err);
       toast.error("Extraction failed. Check the browser console for details.");
-      setState("uploaded");
+      setState("error");
     }
   }
 
@@ -3615,11 +3639,8 @@ function CvUploadZone({
           {state === "uploading" && (
             <p className="text-[12px]" style={{ color: "var(--color-indigo)" }}>Uploading…</p>
           )}
-          {state === "uploaded" && (
-            <p className="text-[12px]" style={{ color: "var(--color-moss)" }}>Uploaded — ready to extract</p>
-          )}
           {state === "extracting" && (
-            <p className="text-[12px]" style={{ color: "var(--color-indigo)" }}>Extracting with AI…</p>
+            <p className="text-[12px]" style={{ color: "var(--color-indigo)" }}>Uploading and extracting with AI…</p>
           )}
           {state === "done" && (
             <p className="text-[12px]" style={{ color: "var(--color-moss)" }}>Extraction complete</p>
@@ -3628,22 +3649,6 @@ function CvUploadZone({
             <p className="text-[12px]" style={{ color: "var(--color-danger)" }}>Failed — click to retry</p>
           )}
         </div>
-        {state === "uploaded" && uploadedPath && (
-          <button
-            className="ab"
-            onClick={(e) => { e.stopPropagation(); void runExtraction(uploadedPath); }}
-          >
-            <IconSparkles size={11} /> Extract
-          </button>
-        )}
-        {state === "done" && extracted && (
-          <button
-            className="ab"
-            onClick={(e) => { e.stopPropagation(); setReviewOpen(true); }}
-          >
-            Review
-          </button>
-        )}
         <input
           ref={inputRef}
           type="file"
@@ -3657,62 +3662,93 @@ function CvUploadZone({
         />
       </div>
 
-      {extracted && (
-        <ExtractionReviewModal
-          open={reviewOpen}
-          onClose={() => setReviewOpen(false)}
-          extracted={extracted}
-          candidateId={candidateId}
-        />
-      )}
     </>
   );
 }
 
 // ─── extraction review modal ──────────────────────────────────────────────────
 
+type ExtractionSource = "cv" | "reg";
+
+type FieldSpec = {
+  label: string;
+  get: (e: ExtractedCandidate) => string | number | null | undefined;
+  format?: (v: string | number) => string;
+};
+
+const FIELD_SPECS: Array<FieldSpec & { dbKey: string }> = [
+  { label: "Full name (English)", dbKey: "full_name",            get: (e) => e.full_name },
+  { label: "Full name (Japanese)", dbKey: "full_name_japanese",  get: (e) => e.full_name_japanese },
+  { label: "Current title",        dbKey: "current_title",       get: (e) => e.current_title },
+  { label: "Current company",      dbKey: "current_company",     get: (e) => e.current_company },
+  { label: "Age",                  dbKey: "age",                 get: (e) => e.age },
+  { label: "Email",                dbKey: "email",               get: (e) => e.email },
+  { label: "Phone",                dbKey: "phone",               get: (e) => e.phone },
+  { label: "LinkedIn",             dbKey: "linkedin_url",        get: (e) => e.linkedinUrl },
+  { label: "Japanese level",       dbKey: "japanese_level",      get: (e) => e.japanese_level },
+  { label: "English level",        dbKey: "english_level",       get: (e) => e.english_level },
+  { label: "Additional languages", dbKey: "additional_languages",get: (e) => e.additionalLanguages },
+  { label: "Notice period",        dbKey: "notice_period_months",get: (e) => (e.notice_period_months ?? e.noticePeriodMonths) != null ? (e.notice_period_months ?? e.noticePeriodMonths) : null, format: (v) => `${v} months` },
+  { label: "Current base",         dbKey: "current_base",        get: (e) => e.current_base,  format: (v) => `¥${(Number(v) / 1_000_000).toFixed(1)}M` },
+  { label: "Current total",        dbKey: "current_total",       get: (e) => e.current_total, format: (v) => `¥${(Number(v) / 1_000_000).toFixed(1)}M` },
+];
+
 function ExtractionReviewModal({
   open,
   onClose,
-  extracted: x,
+  cvExtracted,
+  regExtracted,
   candidateId,
 }: {
   open: boolean;
   onClose: () => void;
-  extracted: ExtractedCandidate;
+  cvExtracted: ExtractedCandidate | null;
+  regExtracted: ExtractedCandidate | null;
   candidateId: string;
 }) {
   const qc = useQueryClient();
   const [applying, setApplying] = useState(false);
+  // Per-field conflict resolution: "cv" or "reg"
+  const [resolution, setResolution] = useState<Record<string, ExtractionSource>>({});
+
+  const hasConflicts = FIELD_SPECS.some((f) => {
+    const cv = cvExtracted ? f.get(cvExtracted) : null;
+    const reg = regExtracted ? f.get(regExtracted) : null;
+    return cv != null && reg != null && String(cv) !== String(reg);
+  });
+
+  function resolvedValue(f: typeof FIELD_SPECS[number]): string | number | null | undefined {
+    const cv = cvExtracted ? f.get(cvExtracted) : null;
+    const reg = regExtracted ? f.get(regExtracted) : null;
+    if (cv != null && reg != null && String(cv) !== String(reg)) {
+      // Conflict: use recruiter's choice, default to "reg" (signed document is authoritative)
+      const chosen = resolution[f.dbKey] ?? "reg";
+      return chosen === "cv" ? cv : reg;
+    }
+    return cv ?? reg ?? null;
+  }
 
   async function applyFields() {
     setApplying(true);
     try {
-      // Build patch with only the fields that have extracted values
-      const noticePeriod = x.notice_period_months ?? x.noticePeriodMonths;
-      const patch = {
-        ...(x.full_name           ? { full_name: x.full_name }                        : {}),
-        ...(x.full_name_japanese  ? { full_name_japanese: x.full_name_japanese }      : {}),
-        ...(x.current_title       ? { current_title: x.current_title }                : {}),
-        ...(x.current_company     ? { current_company: x.current_company }            : {}),
-        ...(x.age != null         ? { age: x.age }                                    : {}),
-        ...(x.email               ? { email: x.email }                                : {}),
-        ...(x.phone               ? { phone: x.phone }                                : {}),
-        ...(x.linkedinUrl         ? { linkedin_url: x.linkedinUrl }                   : {}),
-        ...(x.japanese_level      ? { japanese_level: x.japanese_level }              : {}),
-        ...(x.english_level       ? { english_level: x.english_level }                : {}),
-        ...(x.additionalLanguages ? { additional_languages: x.additionalLanguages }   : {}),
-        ...(noticePeriod != null  ? { notice_period_months: noticePeriod }            : {}),
-        ...(x.current_base != null  ? { current_base: x.current_base }               : {}),
-        ...(x.current_total != null ? { current_total: x.current_total }              : {}),
+      type CandidatePatch = {
+        full_name?: string; full_name_japanese?: string; current_title?: string;
+        current_company?: string; age?: number; email?: string; phone?: string;
+        linkedin_url?: string; japanese_level?: string; english_level?: string;
+        additional_languages?: string; notice_period_months?: number;
+        current_base?: number; current_total?: number;
       };
-
+      const patch: CandidatePatch = {};
+      for (const f of FIELD_SPECS) {
+        const v = resolvedValue(f);
+        if (v != null) (patch as Record<string, string | number>)[f.dbKey] = v as string | number;
+      }
       if (Object.keys(patch).length > 0) {
         const { error } = await supabase.from("candidates").update(patch).eq("id", candidateId);
         if (error) throw error;
       }
       void qc.invalidateQueries({ queryKey: ["candidate-profile", candidateId] });
-      toast.success("Fields applied from CV extraction.");
+      toast.success("Fields applied.");
       onClose();
     } catch {
       toast.error("Failed to apply fields.");
@@ -3721,62 +3757,95 @@ function ExtractionReviewModal({
     }
   }
 
-  function row(label: string, value: string | number | null | undefined) {
-    if (value == null) return null;
-    return (
-      <div key={label} className="flex items-baseline justify-between gap-4 py-1.5"
-        style={{ borderBottom: "0.5px solid rgba(26,26,24,0.08)" }}>
-        <span className="text-[12px]" style={{ color: "var(--color-ink-30)" }}>{label}</span>
-        <span className="text-[13px] font-medium">{String(value)}</span>
-      </div>
-    );
-  }
-
-  const formatSalary = (n: number | null) => n ? `¥${(n / 1_000_000).toFixed(1)}M` : null;
+  const bothSources = cvExtracted != null && regExtracted != null;
+  const roles = cvExtracted?.roles ?? regExtracted?.roles ?? [];
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent style={{ maxWidth: 520 }}>
+      <DialogContent style={{ maxWidth: 540 }}>
         <DialogHeader>
-          <DialogTitle>CV extraction review</DialogTitle>
+          <DialogTitle>Extraction review</DialogTitle>
         </DialogHeader>
 
-        <p className="text-[12px] mb-3" style={{ color: "var(--color-ink-30)" }}>
-          Review the extracted data below. Click "Apply fields" to merge into the candidate record.
-          Work history must be added manually.
+        <p className="text-[12px] mb-3" style={{ color: "var(--color-ink-60)" }}>
+          {hasConflicts
+            ? "Some fields differ between the CV and registration form. Choose which value to use for each conflict."
+            : "Review the extracted data below and click Apply to populate the candidate record."}
         </p>
 
-        <div className="mb-4">
-          {row("Full name", x.full_name)}
-          {row("Japanese name", x.full_name_japanese)}
-          {row("Current title", x.current_title)}
-          {row("Current company", x.current_company)}
-          {row("Age", x.age)}
-          {row("Email", x.email)}
-          {row("Phone", x.phone)}
-          {row("LinkedIn", x.linkedinUrl)}
-          {row("Japanese level", x.japanese_level)}
-          {row("English level", x.english_level)}
-          {row("Additional languages", x.additionalLanguages)}
-          {row("Notice period", (x.notice_period_months ?? x.noticePeriodMonths) != null ? `${x.notice_period_months ?? x.noticePeriodMonths} months` : null)}
-          {row("Current base", formatSalary(x.current_base))}
-          {row("Current total", formatSalary(x.current_total))}
+        <div className="mb-4 space-y-0">
+          {FIELD_SPECS.map((f) => {
+            const cv = cvExtracted ? f.get(cvExtracted) : null;
+            const reg = regExtracted ? f.get(regExtracted) : null;
+            const isConflict = cv != null && reg != null && String(cv) !== String(reg);
+            const displayVal = resolvedValue(f);
+            if (displayVal == null && !isConflict) return null;
+
+            const fmt = (v: string | number | null | undefined) =>
+              v == null ? null : f.format ? f.format(v as string | number) : String(v);
+
+            if (isConflict) {
+              const chosen = resolution[f.dbKey] ?? "reg";
+              return (
+                <div key={f.dbKey} className="py-2" style={{ borderBottom: "0.5px solid rgba(26,26,24,0.08)" }}>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <span className="text-[11px] font-mono uppercase tracking-wide" style={{ color: "var(--color-ink-30)" }}>{f.label}</span>
+                    <span className="text-[10px] px-1.5 py-0.5" style={{ background: "var(--color-gold-light)", color: "var(--color-gold)" }}>CONFLICT</span>
+                  </div>
+                  <div className="flex gap-2">
+                    {(["cv", "reg"] as ExtractionSource[]).map((src) => {
+                      const val = src === "cv" ? cv : reg;
+                      const active = chosen === src;
+                      return (
+                        <button
+                          key={src}
+                          onClick={() => setResolution((r) => ({ ...r, [f.dbKey]: src }))}
+                          className="flex-1 text-left px-3 py-2 text-[12px] transition-colors"
+                          style={{
+                            background: active ? "var(--color-ink)" : "var(--color-ink-10)",
+                            color: active ? "var(--color-white)" : "var(--color-ink)",
+                            border: `0.5px solid ${active ? "var(--color-ink)" : "var(--color-ink-15)"}`,
+                          }}
+                        >
+                          <span className="block text-[10px] font-mono uppercase tracking-wide mb-0.5" style={{ color: active ? "rgba(253,252,250,0.5)" : "var(--color-ink-30)" }}>
+                            {src === "cv" ? "CV" : "Registration form"}
+                          </span>
+                          {fmt(val)}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            }
+
+            return (
+              <div key={f.dbKey} className="flex items-baseline justify-between gap-4 py-1.5" style={{ borderBottom: "0.5px solid rgba(26,26,24,0.08)" }}>
+                <span className="text-[12px]" style={{ color: "var(--color-ink-30)" }}>{f.label}</span>
+                <div className="flex items-center gap-2">
+                  {bothSources && (
+                    <span className="text-[10px] font-mono" style={{ color: "var(--color-ink-30)" }}>
+                      {cv != null ? "CV" : "Reg"}
+                    </span>
+                  )}
+                  <span className="text-[13px] font-medium">{fmt(displayVal)}</span>
+                </div>
+              </div>
+            );
+          })}
         </div>
 
-        {x.roles && x.roles.length > 0 && (
+        {roles.length > 0 && (
           <div className="mb-4">
-            <p className="sl mb-2">Work history (add manually)</p>
+            <p className="sl mb-2">Work history (add manually to timeline)</p>
             <div className="space-y-1.5">
-              {x.roles.map((r, i) => (
-                <div key={i} className=" px-3 py-2"
-                  style={{ background: "var(--color-ink-10)", border: "0.5px solid var(--color-border-subtle)" }}>
+              {roles.map((r, i) => (
+                <div key={i} className="px-3 py-2"
+                  style={{ background: "var(--color-ink-10)", border: "0.5px solid var(--color-ink-15)" }}>
                   <p className="text-[12px] font-medium">{r.company_name} — {r.title}</p>
                   <p className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>
                     {r.start_date ?? "?"} – {r.is_current ? "Present" : (r.end_date ?? "?")}
                   </p>
-                  {r.description && (
-                    <p className="text-[11px] mt-0.5" style={{ color: "var(--color-ink-60)" }}>{r.description}</p>
-                  )}
                   {r.reasonForLeaving && (
                     <p className="text-[11px] mt-0.5" style={{ color: "var(--color-ink-30)" }}>Left: {r.reasonForLeaving}</p>
                   )}
@@ -3936,28 +4005,52 @@ function RegistrationFormUploadZone({
   candidateId,
   recruiterId,
   registrationFormUrl,
+  onExtracted,
 }: {
   candidateId: string;
   recruiterId: string;
   registrationFormUrl: string | null;
+  onExtracted: (data: ExtractedCandidate) => void;
 }) {
   const qc = useQueryClient();
-  const [uploading, setUploading] = useState(false);
+  const [state, setState] = useState<"idle" | "uploading" | "extracting" | "done" | "error">("idle");
   const [fetchingUrl, setFetchingUrl] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   async function handleFile(file: File) {
     if (file.type !== "application/pdf") { toast.error("PDF files only."); return; }
-    setUploading(true);
+    setState("uploading");
     try {
       const path = `${recruiterId}/${candidateId}/regform_${Date.now()}_${file.name.replace(/\s+/g, "_")}`;
       const { error: uploadErr } = await supabase.storage.from("resumes").upload(path, file);
-      if (uploadErr) { toast.error(`Upload failed: ${uploadErr.message}`); return; }
+      if (uploadErr) { toast.error(`Upload failed: ${uploadErr.message}`); setState("error"); return; }
       await supabase.from("candidates").update({ registration_form_url: path }).eq("id", candidateId);
       void qc.invalidateQueries({ queryKey: ["candidate-profile", candidateId] });
-      toast.success("Registration form uploaded.");
-    } catch { toast.error("Upload failed."); }
-    finally { setUploading(false); }
+      // Auto-extract immediately
+      void runExtraction(path);
+    } catch { toast.error("Upload failed."); setState("error"); }
+  }
+
+  async function runExtraction(path: string) {
+    setState("extracting");
+    try {
+      const resp = await fetch("/api/ai/extract-candidate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ candidateId, storageKey: path }),
+      });
+      if (!resp.ok) {
+        toast.error(`Extraction failed (${resp.status})`);
+        setState("error");
+        return;
+      }
+      const data = (await resp.json()) as ExtractedCandidate;
+      setState("done");
+      onExtracted(data);
+    } catch {
+      toast.error("Extraction failed. Try again.");
+      setState("error");
+    }
   }
 
   async function handleView(e: React.MouseEvent) {
@@ -3977,21 +4070,37 @@ function RegistrationFormUploadZone({
 
   return (
     <div
-      className=" px-4 py-3 flex items-center gap-3 cursor-pointer transition-colors"
-      style={{ background: "var(--color-ink-10)", border: "0.5px dashed rgba(26,26,24,0.2)" }}
-      onClick={() => !uploading && inputRef.current?.click()}
+      className=" px-4 py-3 flex items-center gap-3 transition-colors"
+      style={{
+        background: "var(--color-ink-10)",
+        border: "0.5px dashed rgba(26,26,24,0.2)",
+        cursor: state === "idle" || state === "error" ? "pointer" : "default",
+      }}
+      onClick={() => (state === "idle" || state === "error") && inputRef.current?.click()}
     >
       <IconFileText size={16} style={{ color: "var(--color-ink-30)", flexShrink: 0 }} />
       <div className="flex-1 min-w-0">
-        <p className="text-[12px]" style={{ color: "var(--color-ink-60)" }}>
-          {uploading
-            ? "Uploading…"
-            : registrationFormUrl
-            ? "Registration form on file — click to replace"
-            : "Registration Form (signed) — drop PDF or click to upload"}
-        </p>
+        {state === "idle" && (
+          <p className="text-[12px]" style={{ color: "var(--color-ink-60)" }}>
+            {registrationFormUrl
+              ? "Registration form on file — click to replace"
+              : "Registration Form (signed) — drop PDF or click to upload"}
+          </p>
+        )}
+        {state === "uploading" && (
+          <p className="text-[12px]" style={{ color: "var(--color-indigo)" }}>Uploading…</p>
+        )}
+        {state === "extracting" && (
+          <p className="text-[12px]" style={{ color: "var(--color-indigo)" }}>Uploading and extracting with AI…</p>
+        )}
+        {state === "done" && (
+          <p className="text-[12px]" style={{ color: "var(--color-moss)" }}>Extraction complete</p>
+        )}
+        {state === "error" && (
+          <p className="text-[12px]" style={{ color: "var(--color-danger)" }}>Failed — click to retry</p>
+        )}
       </div>
-      {registrationFormUrl && !uploading && (
+      {registrationFormUrl && state === "idle" && (
         <>
           <button
             onClick={handleView}
