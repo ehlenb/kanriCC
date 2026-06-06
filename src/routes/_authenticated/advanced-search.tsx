@@ -387,11 +387,11 @@ function AdvancedSearch() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: "#eeede8" }}>
+    <div className="flex h-screen overflow-hidden" style={{ background: "var(--color-ink-10)" }}>
       {/* Left filter panel */}
       <div
         className="flex-shrink-0 overflow-y-auto"
-        style={{ width: 220, borderRight: "0.5px solid rgba(26,26,24,0.12)", background: "#f5f5f3", padding: "16px 12px" }}
+        style={{ width: 220, borderRight: "0.5px solid var(--color-ink-15)", background: "var(--color-ink-10)", padding: "16px 12px" }}
       >
         <LeftFilterPanel filters={filters} onChange={setFilters} />
       </div>
@@ -421,7 +421,7 @@ function AdvancedSearch() {
       {/* Right AI panel */}
       <div
         className="flex-shrink-0 overflow-y-auto"
-        style={{ width: 200, borderLeft: "0.5px solid rgba(26,26,24,0.12)", background: "#f5f5f3", padding: "16px 12px" }}
+        style={{ width: 200, borderLeft: "0.5px solid var(--color-ink-15)", background: "var(--color-ink-10)", padding: "16px 12px" }}
       >
         <RightPanel
           clients={clients.data ?? []}
@@ -505,7 +505,7 @@ function LanguageDropdown({
     <div className="mb-2">
       <button
         className="flex w-full items-center justify-between  px-2 py-1.5 text-[12px] transition-colors"
-        style={{ background: "rgba(26,26,24,0.06)", color: "#1a1a18" }}
+        style={{ background: "rgba(26,26,24,0.06)", color: "var(--color-ink)" }}
         onClick={() => setOpen((v) => !v)}
       >
         <span>{value ? `${label} — ${value}` : label}</span>
@@ -522,12 +522,12 @@ function LanguageDropdown({
         </div>
       </button>
       {open && (
-        <div className="mt-1  border overflow-hidden" style={{ borderColor: "rgba(26,26,24,0.12)", background: "#fff" }}>
+        <div className="mt-1  border overflow-hidden" style={{ borderColor: "var(--color-ink-15)", background: "var(--color-white)" }}>
           {LANGUAGE_LEVELS.map((lvl) => (
             <button
               key={lvl}
               className="block w-full px-2 py-1 text-left text-[12px] transition-colors hover:bg-surface"
-              style={{ color: value === lvl ? "#185fa5" : "#1a1a18", fontWeight: value === lvl ? 500 : 400 }}
+              style={{ color: value === lvl ? "var(--color-indigo)" : "var(--color-ink)", fontWeight: value === lvl ? 500 : 400 }}
               onClick={() => { onChange(lvl); setOpen(false); }}
             >
               {lvl}
@@ -541,7 +541,7 @@ function LanguageDropdown({
 
 function FilterLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-[11px] font-medium uppercase tracking-[0.04em] mb-1 mt-3" style={{ color: "#5f5e5a" }}>
+    <p className="text-[11px] font-medium uppercase tracking-[0.04em] mb-1 mt-3" style={{ color: "var(--color-ink-60)" }}>
       {children}
     </p>
   );
@@ -559,7 +559,7 @@ function FilterInput({
   return (
     <input
       className="w-full  px-2 py-1.5 text-[12px] outline-none"
-      style={{ background: "rgba(26,26,24,0.06)", color: "#1a1a18", border: "none" }}
+      style={{ background: "rgba(26,26,24,0.06)", color: "var(--color-ink)", border: "none" }}
       placeholder={placeholder}
       value={value}
       onChange={(e) => onChange(e.target.value)}
@@ -587,10 +587,10 @@ function LeftFilterPanel({
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
-        <p className="text-[13px] font-semibold" style={{ color: "#1a1a18" }}>Filters</p>
+        <p className="text-[13px] font-semibold" style={{ color: "var(--color-ink)" }}>Filters</p>
         <button
           className="text-[11px] transition-colors"
-          style={{ color: "#5f5e5a" }}
+          style={{ color: "var(--color-ink-60)" }}
           onClick={() => onChange(BLANK_FILTERS)}
         >
           Clear all
@@ -607,7 +607,7 @@ function LeftFilterPanel({
       <FilterLabel>Status</FilterLabel>
       <select
         className="w-full  px-2 py-1.5 text-[12px]"
-        style={{ background: "rgba(26,26,24,0.06)", color: "#1a1a18", border: "none" }}
+        style={{ background: "rgba(26,26,24,0.06)", color: "var(--color-ink)", border: "none" }}
         value={filters.status}
         onChange={(e) => set({ status: e.target.value })}
       >
@@ -618,7 +618,7 @@ function LeftFilterPanel({
       <FilterLabel>Last touch</FilterLabel>
       <select
         className="w-full  px-2 py-1.5 text-[12px]"
-        style={{ background: "rgba(26,26,24,0.06)", color: "#1a1a18", border: "none" }}
+        style={{ background: "rgba(26,26,24,0.06)", color: "var(--color-ink)", border: "none" }}
         value={filters.last_touch}
         onChange={(e) => set({ last_touch: e.target.value })}
       >
@@ -643,7 +643,7 @@ function LeftFilterPanel({
         <input
           type="number"
           className="w-full  px-2 py-1.5 text-[12px]"
-          style={{ background: "rgba(26,26,24,0.06)", color: "#1a1a18", border: "none" }}
+          style={{ background: "rgba(26,26,24,0.06)", color: "var(--color-ink)", border: "none" }}
           placeholder="Min"
           min={18}
           max={70}
@@ -653,7 +653,7 @@ function LeftFilterPanel({
         <input
           type="number"
           className="w-full  px-2 py-1.5 text-[12px]"
-          style={{ background: "rgba(26,26,24,0.06)", color: "#1a1a18", border: "none" }}
+          style={{ background: "rgba(26,26,24,0.06)", color: "var(--color-ink)", border: "none" }}
           placeholder="Max"
           min={18}
           max={70}
@@ -668,7 +668,7 @@ function LeftFilterPanel({
         <input
           type="number"
           className="w-full  px-2 py-1.5 text-[12px]"
-          style={{ background: "rgba(26,26,24,0.06)", color: "#1a1a18", border: "none" }}
+          style={{ background: "rgba(26,26,24,0.06)", color: "var(--color-ink)", border: "none" }}
           placeholder="Min ¥M"
           min={0}
           value={filters.salary_min}
@@ -677,7 +677,7 @@ function LeftFilterPanel({
         <input
           type="number"
           className="w-full  px-2 py-1.5 text-[12px]"
-          style={{ background: "rgba(26,26,24,0.06)", color: "#1a1a18", border: "none" }}
+          style={{ background: "rgba(26,26,24,0.06)", color: "var(--color-ink)", border: "none" }}
           placeholder="Max ¥M"
           min={0}
           value={filters.salary_max}
@@ -689,7 +689,7 @@ function LeftFilterPanel({
       <FilterLabel>Preferred location</FilterLabel>
       <select
         className="w-full  px-2 py-1.5 text-[12px]"
-        style={{ background: "rgba(26,26,24,0.06)", color: "#1a1a18", border: "none" }}
+        style={{ background: "rgba(26,26,24,0.06)", color: "var(--color-ink)", border: "none" }}
         value={filters.location}
         onChange={(e) => set({ location: e.target.value })}
       >
@@ -700,14 +700,14 @@ function LeftFilterPanel({
       {/* Keywords */}
       <FilterLabel>Keywords</FilterLabel>
       <div className="flex items-center gap-1 mb-1.5">
-        <span className="text-[11px]" style={{ color: "#5f5e5a" }}>Match:</span>
+        <span className="text-[11px]" style={{ color: "var(--color-ink-60)" }}>Match:</span>
         {(["AND", "OR"] as const).map((mode) => (
           <button
             key={mode}
             className="rounded px-1.5 py-0.5 text-[11px] transition-colors"
             style={{
-              background: filters.keyword_mode === mode ? "#1a1a18" : "rgba(26,26,24,0.08)",
-              color: filters.keyword_mode === mode ? "#fff" : "#5f5e5a",
+              background: filters.keyword_mode === mode ? "var(--color-ink)" : "var(--color-border-subtle)",
+              color: filters.keyword_mode === mode ? "var(--color-white)" : "var(--color-ink-60)",
             }}
             onClick={() => set({ keyword_mode: mode })}
           >
@@ -718,7 +718,7 @@ function LeftFilterPanel({
       <div className="flex gap-1">
         <input
           className="flex-1 min-w-0  px-2 py-1.5 text-[12px]"
-          style={{ background: "rgba(26,26,24,0.06)", color: "#1a1a18", border: "none" }}
+          style={{ background: "rgba(26,26,24,0.06)", color: "var(--color-ink)", border: "none" }}
           placeholder="Add keyword…"
           value={keywordInput}
           onChange={(e) => setKeywordInput(e.target.value)}
@@ -726,7 +726,7 @@ function LeftFilterPanel({
         />
         <button
           className="rounded px-2 py-1.5 text-[12px] transition-colors"
-          style={{ background: "rgba(26,26,24,0.08)", color: "#1a1a18" }}
+          style={{ background: "var(--color-border-subtle)", color: "var(--color-ink)" }}
           onClick={addKeyword}
         >
           <IconPlus size={12} />
@@ -738,7 +738,7 @@ function LeftFilterPanel({
             <span
               key={kw}
               className="flex items-center gap-1 px-2 py-0.5 text-[11px]"
-              style={{ background: "#e6f1fb", color: "#185fa5" }}
+              style={{ background: "var(--color-indigo-light)", color: "var(--color-indigo)" }}
             >
               {kw}
               <button onClick={() => set({ keywords: filters.keywords.filter((k) => k !== kw) })}>
@@ -755,7 +755,7 @@ function LeftFilterPanel({
 // ─── centre panel ─────────────────────────────────────────────────────────────
 
 function MatchBar({ score }: { score: number }) {
-  const color = score >= 80 ? "#27500a" : score >= 60 ? "#185fa5" : "#633806";
+  const color = score >= 80 ? "var(--color-moss)" : score >= 60 ? "var(--color-indigo)" : "var(--color-gold)";
   return (
     <div className="flex items-center gap-1.5">
       <div className="w-16 h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(26,26,24,0.1)" }}>
@@ -827,7 +827,7 @@ function CandidateResultRow({
       {/* Avatar */}
       <div
         className="flex-shrink-0 h-7 w-7 rounded-full flex items-center justify-center text-[11px] font-medium"
-        style={{ background: "#eeede8", color: "#1a1a18" }}
+        style={{ background: "var(--color-ink-10)", color: "var(--color-ink)" }}
       >
         {initials(candidate.full_name)}
       </div>
@@ -838,7 +838,7 @@ function CandidateResultRow({
         onClick={onRowClick}
       >
         <div className="flex items-center gap-1.5">
-          <span className="text-[13px] font-medium truncate" style={{ color: "#1a1a18" }}>
+          <span className="text-[13px] font-medium truncate" style={{ color: "var(--color-ink)" }}>
             {candidate.full_name}
           </span>
           {dimmed && (
@@ -846,19 +846,19 @@ function CandidateResultRow({
           )}
           {locationUnknown && (
             <span title="Location preference unknown — defaulted to Tokyo">
-              <IconFlag size={12} style={{ color: "#633806" }} />
+              <IconFlag size={12} style={{ color: "var(--color-gold)" }} />
             </span>
           )}
           {conflictWithClient && (
             <span
               className="rounded px-1 py-0.5 text-[10px]"
-              style={{ background: "#fcebeb", color: "#a32d2d" }}
+              style={{ background: "var(--color-danger-bg)", color: "var(--color-danger)" }}
             >
               Active process
             </span>
           )}
         </div>
-        <p className="text-[12px] truncate" style={{ color: "#5f5e5a" }}>
+        <p className="text-[12px] truncate" style={{ color: "var(--color-ink-60)" }}>
           {[candidate.current_title, candidate.current_company].filter(Boolean).join(" · ")}
           {candidate.japanese_level ? ` · JA: ${candidate.japanese_level}` : ""}
           {candidate.english_level ? ` · EN: ${candidate.english_level}` : ""}
@@ -869,11 +869,11 @@ function CandidateResultRow({
       {showKeyCriteria && showAiScore && candidate.aiScore !== undefined && (
         <div className="flex-shrink-0">
           {candidate.meetsMustHaves ? (
-            <span className="rounded px-1.5 py-0.5 text-[10px]" style={{ background: "#eaf3de", color: "#27500a" }}>
+            <span className="rounded px-1.5 py-0.5 text-[10px]" style={{ background: "var(--color-moss-light)", color: "var(--color-moss)" }}>
               All criteria met
             </span>
           ) : candidate.closeOnMustHaves ? (
-            <span className="rounded px-1.5 py-0.5 text-[10px]" style={{ background: "#fdf3e7", color: "#633806" }}>
+            <span className="rounded px-1.5 py-0.5 text-[10px]" style={{ background: "var(--color-gold-light)", color: "var(--color-gold)" }}>
               Close match
             </span>
           ) : null}
@@ -901,14 +901,14 @@ function CandidateResultRow({
           onMouseLeave={() => setShowTooltip(false)}
           onClick={() => setShowTooltip((v) => !v)}
           className="transition-colors"
-          style={{ color: "#888780" }}
+          style={{ color: "var(--color-ink-30)" }}
         >
           <IconInfoCircle size={14} />
         </button>
         {showTooltip && (
           <div
             className="absolute right-0 bottom-6 z-20 w-52  p-2.5  text-[12px]"
-            style={{ background: "#1a1a18", color: "#fff" }}
+            style={{ background: "var(--color-ink)", color: "var(--color-white)" }}
           >
             {candidate.aiReason
               ? candidate.aiReason
@@ -950,14 +950,14 @@ function CenterPanel({
       {/* Header row */}
       <div className="flex items-center gap-2 mb-3">
         <input type="checkbox" checked={allSelected} onChange={onToggleSelectAll} />
-        <span className="text-[12px] flex-1" style={{ color: "#5f5e5a" }}>
+        <span className="text-[12px] flex-1" style={{ color: "var(--color-ink-60)" }}>
           {candidates.length} candidate{candidates.length !== 1 ? "s" : ""}
           {selectedIds.size > 0 ? ` · ${selectedIds.size} selected` : ""}
         </span>
         {selectedIds.size > 0 && (
           <button
             className="flex items-center gap-1.5  px-3 py-1.5 text-[12px] transition-colors"
-            style={{ background: "#1a1a18", color: "#fff" }}
+            style={{ background: "var(--color-ink)", color: "var(--color-white)" }}
             onClick={onSaveList}
           >
             <IconDeviceFloppy size={13} />
@@ -968,15 +968,15 @@ function CenterPanel({
 
       {/* Key criteria legend */}
       {showKeyCriteriaLegend && (
-        <div className="flex items-center gap-3 mb-3 px-3 py-2  text-[12px]" style={{ background: "#f5f5f3" }}>
-          <span style={{ color: "#5f5e5a" }}>Row tinting:</span>
+        <div className="flex items-center gap-3 mb-3 px-3 py-2  text-[12px]" style={{ background: "var(--color-ink-10)" }}>
+          <span style={{ color: "var(--color-ink-60)" }}>Row tinting:</span>
           <span className="flex items-center gap-1">
             <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: "rgba(39,80,10,0.15)" }} />
-            <span style={{ color: "#27500a" }}>All criteria met</span>
+            <span style={{ color: "var(--color-moss)" }}>All criteria met</span>
           </span>
           <span className="flex items-center gap-1">
             <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: "rgba(99,56,6,0.15)" }} />
-            <span style={{ color: "#633806" }}>Close match</span>
+            <span style={{ color: "var(--color-gold)" }}>Close match</span>
           </span>
         </div>
       )}
@@ -990,9 +990,9 @@ function CenterPanel({
         </div>
       ) : candidates.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
-          <IconUsers size={32} style={{ color: "#888780", marginBottom: 8 }} />
-          <p className="text-[13px]" style={{ color: "#5f5e5a" }}>No candidates match your filters.</p>
-          <p className="text-[12px] mt-1" style={{ color: "#888780" }}>Try adjusting the filters or run an AI search.</p>
+          <IconUsers size={32} style={{ color: "var(--color-ink-30)", marginBottom: 8 }} />
+          <p className="text-[13px]" style={{ color: "var(--color-ink-60)" }}>No candidates match your filters.</p>
+          <p className="text-[12px] mt-1" style={{ color: "var(--color-ink-30)" }}>Try adjusting the filters or run an AI search.</p>
         </div>
       ) : (
         <div className="space-y-0.5">
@@ -1051,10 +1051,10 @@ function CandidateDrawer({
       {/* Drawer */}
       <div
         className="fixed top-0 right-0 z-30 h-full overflow-y-auto "
-        style={{ width: 320, background: "#fff", borderLeft: "0.5px solid rgba(26,26,24,0.12)" }}
+        style={{ width: 320, background: "var(--color-white)", borderLeft: "0.5px solid var(--color-ink-15)" }}
       >
-        <div className="flex items-center justify-between p-4 border-b" style={{ borderColor: "rgba(26,26,24,0.12)" }}>
-          <p className="text-[13px] font-semibold" style={{ color: "#1a1a18" }}>Quick view</p>
+        <div className="flex items-center justify-between p-4 border-b" style={{ borderColor: "var(--color-ink-15)" }}>
+          <p className="text-[13px] font-semibold" style={{ color: "var(--color-ink)" }}>Quick view</p>
           <button onClick={onClose} className="rounded p-1 transition-colors hover:bg-surface">
             <IconX size={16} />
           </button>
@@ -1066,14 +1066,14 @@ function CandidateDrawer({
             <div className="flex items-center gap-2 mb-1">
               <div
                 className="h-9 w-9 rounded-full flex items-center justify-center text-[13px] font-medium"
-                style={{ background: "#eeede8", color: "#1a1a18" }}
+                style={{ background: "var(--color-ink-10)", color: "var(--color-ink)" }}
               >
                 {initials(candidate.full_name)}
               </div>
               <div>
-                <p className="text-[14px] font-semibold" style={{ color: "#1a1a18" }}>{candidate.full_name}</p>
+                <p className="text-[14px] font-semibold" style={{ color: "var(--color-ink)" }}>{candidate.full_name}</p>
                 {candidate.full_name_japanese && (
-                  <p className="text-[12px]" style={{ color: "#5f5e5a" }}>{candidate.full_name_japanese}</p>
+                  <p className="text-[12px]" style={{ color: "var(--color-ink-60)" }}>{candidate.full_name_japanese}</p>
                 )}
               </div>
             </div>
@@ -1082,8 +1082,8 @@ function CandidateDrawer({
           {/* Current role */}
           {(candidate.current_title || candidate.current_company) && (
             <div>
-              <p className="text-[11px] font-medium uppercase tracking-[0.04em] mb-1" style={{ color: "#5f5e5a" }}>Current role</p>
-              <p className="text-[13px]" style={{ color: "#1a1a18" }}>
+              <p className="text-[11px] font-medium uppercase tracking-[0.04em] mb-1" style={{ color: "var(--color-ink-60)" }}>Current role</p>
+              <p className="text-[13px]" style={{ color: "var(--color-ink)" }}>
                 {[candidate.current_title, candidate.current_company].filter(Boolean).join(" · ")}
               </p>
             </div>
@@ -1091,15 +1091,15 @@ function CandidateDrawer({
 
           {/* Languages */}
           <div>
-            <p className="text-[11px] font-medium uppercase tracking-[0.04em] mb-1" style={{ color: "#5f5e5a" }}>Languages</p>
+            <p className="text-[11px] font-medium uppercase tracking-[0.04em] mb-1" style={{ color: "var(--color-ink-60)" }}>Languages</p>
             <div className="flex gap-2 flex-wrap">
               {candidate.japanese_level && (
-                <span className="text-[12px]  px-2 py-0.5" style={{ background: "#f5f5f3" }}>
+                <span className="text-[12px]  px-2 py-0.5" style={{ background: "var(--color-ink-10)" }}>
                   JA: {candidate.japanese_level}
                 </span>
               )}
               {candidate.english_level && (
-                <span className="text-[12px]  px-2 py-0.5" style={{ background: "#f5f5f3" }}>
+                <span className="text-[12px]  px-2 py-0.5" style={{ background: "var(--color-ink-10)" }}>
                   EN: {candidate.english_level}
                 </span>
               )}
@@ -1109,10 +1109,10 @@ function CandidateDrawer({
           {/* Motivations */}
           {(motivations.data ?? []).length > 0 && (
             <div>
-              <p className="text-[11px] font-medium uppercase tracking-[0.04em] mb-1" style={{ color: "#5f5e5a" }}>Top motivations</p>
+              <p className="text-[11px] font-medium uppercase tracking-[0.04em] mb-1" style={{ color: "var(--color-ink-60)" }}>Top motivations</p>
               <div className="space-y-1">
                 {(motivations.data ?? []).map((m: { motivation_type: string | null; rank: number }) => (
-                  <p key={m.rank} className="text-[12px]" style={{ color: "#1a1a18" }}>
+                  <p key={m.rank} className="text-[12px]" style={{ color: "var(--color-ink)" }}>
                     {m.rank}. {(m.motivation_type ?? "").replace(/_/g, " ")}
                   </p>
                 ))}
@@ -1124,13 +1124,13 @@ function CandidateDrawer({
           <div className="flex gap-4">
             {candidate.activeStage && (
               <div>
-                <p className="text-[11px] font-medium uppercase tracking-[0.04em] mb-1" style={{ color: "#5f5e5a" }}>Stage</p>
+                <p className="text-[11px] font-medium uppercase tracking-[0.04em] mb-1" style={{ color: "var(--color-ink-60)" }}>Stage</p>
                 <StageBadge stage={candidate.activeStage} />
               </div>
             )}
             <div>
-              <p className="text-[11px] font-medium uppercase tracking-[0.04em] mb-1" style={{ color: "#5f5e5a" }}>Last touch</p>
-              <p className="text-[12px]" style={{ color: "#1a1a18" }}>
+              <p className="text-[11px] font-medium uppercase tracking-[0.04em] mb-1" style={{ color: "var(--color-ink-60)" }}>Last touch</p>
+              <p className="text-[12px]" style={{ color: "var(--color-ink)" }}>
                 {relativeTime(candidate.last_interaction_at ?? candidate.updated_at)}
               </p>
             </div>
@@ -1139,7 +1139,7 @@ function CandidateDrawer({
           {/* Open full profile */}
           <button
             className="w-full  py-2 text-[13px] font-medium transition-colors"
-            style={{ background: "#1a1a18", color: "#fff" }}
+            style={{ background: "var(--color-ink)", color: "var(--color-white)" }}
             onClick={() =>
               navigate({
                 to: "/candidates/$id",
@@ -1199,12 +1199,12 @@ function RightPanel({
     <div className="space-y-4">
       {/* AI Search section */}
       <div>
-        <p className="text-[13px] font-semibold mb-3" style={{ color: "#1a1a18" }}>AI Search</p>
+        <p className="text-[13px] font-semibold mb-3" style={{ color: "var(--color-ink)" }}>AI Search</p>
 
         <div className="space-y-2">
           <select
             className="w-full  px-2 py-1.5 text-[12px]"
-            style={{ background: "rgba(26,26,24,0.06)", color: "#1a1a18", border: "none" }}
+            style={{ background: "rgba(26,26,24,0.06)", color: "var(--color-ink)", border: "none" }}
             value={selectedClientId}
             onChange={(e) => onClientChange(e.target.value)}
           >
@@ -1214,7 +1214,7 @@ function RightPanel({
 
           <select
             className="w-full  px-2 py-1.5 text-[12px]"
-            style={{ background: "rgba(26,26,24,0.06)", color: selectedReqId ? "#1a1a18" : "#888780", border: "none" }}
+            style={{ background: "rgba(26,26,24,0.06)", color: selectedReqId ? "var(--color-ink)" : "var(--color-ink-30)", border: "none" }}
             value={selectedReqId}
             onChange={(e) => onReqChange(e.target.value)}
             disabled={!selectedClientId}
@@ -1225,8 +1225,8 @@ function RightPanel({
 
           <div>
             <div className="flex items-center justify-between mb-1">
-              <span className="text-[11px]" style={{ color: "#5f5e5a" }}>Match threshold</span>
-              <span className="text-[11px] font-medium" style={{ color: "#1a1a18" }}>{threshold}%</span>
+              <span className="text-[11px]" style={{ color: "var(--color-ink-60)" }}>Match threshold</span>
+              <span className="text-[11px] font-medium" style={{ color: "var(--color-ink)" }}>{threshold}%</span>
             </div>
             <input
               type="range"
@@ -1244,14 +1244,14 @@ function RightPanel({
               checked={useKeyCriteria}
               onChange={(e) => onKeyCriteriaChange(e.target.checked)}
             />
-            <span className="text-[12px]" style={{ color: "#1a1a18" }}>Narrow by Key Criteria</span>
+            <span className="text-[12px]" style={{ color: "var(--color-ink)" }}>Narrow by Key Criteria</span>
           </label>
 
           <button
             className="flex w-full items-center justify-center gap-1.5  py-2 text-[12px] font-medium transition-colors"
             style={{
-              background: selectedReqId ? "#1a1a18" : "rgba(26,26,24,0.12)",
-              color: selectedReqId ? "#fff" : "#888780",
+              background: selectedReqId ? "var(--color-ink)" : "var(--color-ink-15)",
+              color: selectedReqId ? "var(--color-white)" : "var(--color-ink-30)",
             }}
             onClick={onRunSearch}
             disabled={aiRunning || !selectedReqId}
@@ -1266,11 +1266,11 @@ function RightPanel({
       </div>
 
       {/* Saved lists section */}
-      <div style={{ borderTop: "0.5px solid rgba(26,26,24,0.12)", paddingTop: 12 }}>
-        <p className="text-[13px] font-semibold mb-2" style={{ color: "#1a1a18" }}>Saved lists</p>
+      <div style={{ borderTop: "0.5px solid var(--color-ink-15)", paddingTop: 12 }}>
+        <p className="text-[13px] font-semibold mb-2" style={{ color: "var(--color-ink)" }}>Saved lists</p>
 
         {savedLists.length === 0 ? (
-          <p className="text-[12px]" style={{ color: "#888780" }}>No saved lists yet.</p>
+          <p className="text-[12px]" style={{ color: "var(--color-ink-30)" }}>No saved lists yet.</p>
         ) : (
           <div className="space-y-1.5">
             {savedLists.map((list) => (
@@ -1278,23 +1278,23 @@ function RightPanel({
                 key={list.id}
                 className=" px-2 py-2"
                 style={{
-                  background: mergeStep.includes(list.id) ? "#e6f1fb" : "rgba(26,26,24,0.04)",
+                  background: mergeStep.includes(list.id) ? "var(--color-indigo-light)" : "rgba(26,26,24,0.04)",
                   border: mergeStep.includes(list.id) ? "1px solid #185fa5" : "1px solid transparent",
                 }}
               >
                 <div className="flex items-start justify-between gap-1">
                   <div className="min-w-0 flex-1">
-                    <p className="text-[12px] font-medium truncate" style={{ color: "#1a1a18" }}>{list.name}</p>
-                    <p className="text-[11px]" style={{ color: "#5f5e5a" }}>
+                    <p className="text-[12px] font-medium truncate" style={{ color: "var(--color-ink)" }}>{list.name}</p>
+                    <p className="text-[11px]" style={{ color: "var(--color-ink-60)" }}>
                       {list.candidate_ids.length} candidates
                     </p>
                     <div className="flex items-center gap-1 mt-0.5">
                       {list.visibility === "private" ? (
-                        <IconLock size={10} style={{ color: "#888780" }} />
+                        <IconLock size={10} style={{ color: "var(--color-ink-30)" }} />
                       ) : (
-                        <IconWorld size={10} style={{ color: "#888780" }} />
+                        <IconWorld size={10} style={{ color: "var(--color-ink-30)" }} />
                       )}
-                      <span className="text-[10px]" style={{ color: "#888780" }}>
+                      <span className="text-[10px]" style={{ color: "var(--color-ink-30)" }}>
                         {list.creator_name ?? ""}
                       </span>
                     </div>
@@ -1302,7 +1302,7 @@ function RightPanel({
                   <div className="flex flex-col gap-1">
                     <button
                       className="rounded px-1.5 py-0.5 text-[10px] transition-colors"
-                      style={{ background: "rgba(26,26,24,0.08)", color: "#1a1a18" }}
+                      style={{ background: "var(--color-border-subtle)", color: "var(--color-ink)" }}
                       onClick={() => onLoadList(list)}
                     >
                       Load
@@ -1310,8 +1310,8 @@ function RightPanel({
                     <button
                       className="rounded px-1.5 py-0.5 text-[10px] transition-colors"
                       style={{
-                        background: mergeStep.includes(list.id) ? "#185fa5" : "rgba(26,26,24,0.06)",
-                        color: mergeStep.includes(list.id) ? "#fff" : "#5f5e5a",
+                        background: mergeStep.includes(list.id) ? "var(--color-indigo)" : "rgba(26,26,24,0.06)",
+                        color: mergeStep.includes(list.id) ? "var(--color-white)" : "var(--color-ink-60)",
                       }}
                       onClick={() => onMergeSelect(list.id)}
                     >
@@ -1327,14 +1327,14 @@ function RightPanel({
         {mergeStep.length === 2 && (
           <button
             className="mt-2 w-full  py-1.5 text-[12px] font-medium"
-            style={{ background: "#185fa5", color: "#fff" }}
+            style={{ background: "var(--color-indigo)", color: "var(--color-white)" }}
             onClick={onMergeLists}
           >
             Merge & dedupe
           </button>
         )}
         {mergeStep.length === 1 && (
-          <p className="mt-1.5 text-[11px] text-center" style={{ color: "#888780" }}>
+          <p className="mt-1.5 text-[11px] text-center" style={{ color: "var(--color-ink-30)" }}>
             Select one more list to merge.
           </p>
         )}
@@ -1383,19 +1383,19 @@ function SaveListModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="w-80  p-5 " style={{ background: "#fff" }}>
+      <div className="w-80  p-5 " style={{ background: "var(--color-white)" }}>
         <div className="flex items-center justify-between mb-4">
-          <p className="text-[14px] font-semibold" style={{ color: "#1a1a18" }}>Save list</p>
+          <p className="text-[14px] font-semibold" style={{ color: "var(--color-ink)" }}>Save list</p>
           <button onClick={onClose}><IconX size={16} /></button>
         </div>
 
         <div className="space-y-3">
           <div>
-            <label className="text-[12px] font-medium block mb-1" style={{ color: "#5f5e5a" }}>List name</label>
+            <label className="text-[12px] font-medium block mb-1" style={{ color: "var(--color-ink-60)" }}>List name</label>
             <input
               autoFocus
               className="w-full  px-3 py-2 text-[13px] outline-none"
-              style={{ background: "#f5f5f3", border: "0.5px solid rgba(26,26,24,0.2)", color: "#1a1a18" }}
+              style={{ background: "var(--color-ink-10)", border: "0.5px solid rgba(26,26,24,0.2)", color: "var(--color-ink)" }}
               placeholder="e.g. Senior Java — Tokyo Q3"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -1404,15 +1404,15 @@ function SaveListModal({
           </div>
 
           <div>
-            <label className="text-[12px] font-medium block mb-1.5" style={{ color: "#5f5e5a" }}>Visibility</label>
+            <label className="text-[12px] font-medium block mb-1.5" style={{ color: "var(--color-ink-60)" }}>Visibility</label>
             <div className="flex gap-2">
               {(["team", "private"] as const).map((v) => (
                 <button
                   key={v}
                   className="flex-1 flex items-center justify-center gap-1.5  py-1.5 text-[12px] transition-colors"
                   style={{
-                    background: visibility === v ? "#1a1a18" : "rgba(26,26,24,0.06)",
-                    color: visibility === v ? "#fff" : "#5f5e5a",
+                    background: visibility === v ? "var(--color-ink)" : "rgba(26,26,24,0.06)",
+                    color: visibility === v ? "var(--color-white)" : "var(--color-ink-60)",
                   }}
                   onClick={() => setVisibility(v)}
                 >
@@ -1422,17 +1422,17 @@ function SaveListModal({
               ))}
             </div>
             {visibility === "team" && (
-              <p className="mt-1.5 text-[11px]" style={{ color: "#888780" }}>
+              <p className="mt-1.5 text-[11px]" style={{ color: "var(--color-ink-30)" }}>
                 Team lists are read-only for others. Teammates can load and build on this list, but any changes save as a new list — your original stays intact.
               </p>
             )}
           </div>
 
-          <p className="text-[12px]" style={{ color: "#5f5e5a" }}>{selectedIds.size} candidates selected</p>
+          <p className="text-[12px]" style={{ color: "var(--color-ink-60)" }}>{selectedIds.size} candidates selected</p>
 
           <button
             className="w-full  py-2 text-[13px] font-medium"
-            style={{ background: "#1a1a18", color: "#fff" }}
+            style={{ background: "var(--color-ink)", color: "var(--color-white)" }}
             onClick={() => void handleSave()}
             disabled={saving}
           >

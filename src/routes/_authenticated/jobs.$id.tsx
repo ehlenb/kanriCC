@@ -168,7 +168,7 @@ function JobDetail() {
   if (!req.data) {
     return (
       <div className="px-8 py-7">
-        <p className="text-[13px]" style={{ color: "#888780" }}>Requisition not found.</p>
+        <p className="text-[13px]" style={{ color: "var(--color-ink-30)" }}>Requisition not found.</p>
       </div>
     );
   }
@@ -179,10 +179,10 @@ function JobDetail() {
   );
 
   const urgencyStyles: Record<string, { bg: string; color: string }> = {
-    critical: { bg: "#fcebeb", color: "#a32d2d" },
-    high:     { bg: "#fdf3e7", color: "#633806" },
-    normal:   { bg: "#f5f5f3", color: "#888780" },
-    low:      { bg: "#f5f5f3", color: "#888780" },
+    critical: { bg: "var(--color-danger-bg)", color: "var(--color-danger)" },
+    high:     { bg: "var(--color-gold-light)", color: "var(--color-gold)" },
+    normal:   { bg: "var(--color-ink-10)", color: "var(--color-ink-30)" },
+    low:      { bg: "var(--color-ink-10)", color: "var(--color-ink-30)" },
   };
   const urgency = urgencyStyles[r.urgency ?? "normal"] ?? urgencyStyles.normal;
 
@@ -191,7 +191,7 @@ function JobDetail() {
       {/* Back nav */}
       <button
         className="flex items-center gap-1 text-[12px] mb-4 hover:opacity-70 transition-opacity"
-        style={{ color: "#5f5e5a" }}
+        style={{ color: "var(--color-ink-60)" }}
         onClick={() => void navigate({ to: "/jobs" })}
       >
         <IconChevronLeft size={13} />
@@ -214,13 +214,13 @@ function JobDetail() {
             {!r.is_open && (
               <span
                 className="text-[11px] font-medium px-2 py-0.5 "
-                style={{ background: "#f5f5f3", color: "#888780" }}
+                style={{ background: "var(--color-ink-10)", color: "var(--color-ink-30)" }}
               >
                 Closed
               </span>
             )}
           </div>
-          <p className="text-[13px]" style={{ color: "#5f5e5a" }}>
+          <p className="text-[13px]" style={{ color: "var(--color-ink-60)" }}>
             {r.clients?.company_name ?? "—"}&nbsp;
             {(r.salary_min || r.salary_max) && (
               <span>
@@ -263,7 +263,7 @@ function JobDetail() {
                   {formatYen(r.salary_min)} – {formatYen(r.salary_max)}
                 </p>
                 {r.salary_stretch && (
-                  <p className="text-[12px] mt-0.5" style={{ color: "#5f5e5a" }}>
+                  <p className="text-[12px] mt-0.5" style={{ color: "var(--color-ink-60)" }}>
                     Stretch: {formatYen(r.salary_stretch)}
                   </p>
                 )}
@@ -274,7 +274,7 @@ function JobDetail() {
                   {r.interview_steps ? `${r.interview_steps} round${r.interview_steps !== 1 ? "s" : ""}` : "—"}
                 </p>
                 {r.interview_notes && (
-                  <p className="text-[12px] mt-0.5 leading-snug" style={{ color: "#5f5e5a" }}>
+                  <p className="text-[12px] mt-0.5 leading-snug" style={{ color: "var(--color-ink-60)" }}>
                     {r.interview_notes}
                   </p>
                 )}
@@ -336,17 +336,17 @@ function JdViewer({
           src={signedUrl.data}
           title="Job description"
           className="w-full "
-          style={{ height: 480, border: "0.5px solid rgba(26,26,24,0.12)" }}
+          style={{ height: 480, border: "0.5px solid var(--color-ink-15)" }}
         />
       ) : jdText && !jdText.startsWith("[PDF") ? (
         <pre
           className="text-[12px] leading-relaxed whitespace-pre-wrap font-sans overflow-auto"
-          style={{ color: "#1a1a18", maxHeight: 420 }}
+          style={{ color: "var(--color-ink)", maxHeight: 420 }}
         >
           {jdText}
         </pre>
       ) : (
-        <p className="text-[12px]" style={{ color: "#888780" }}>
+        <p className="text-[12px]" style={{ color: "var(--color-ink-30)" }}>
           {signedUrl.isLoading ? "Loading JD…" : "JD not available."}
         </p>
       )}
@@ -398,7 +398,7 @@ function StrategicContextCard({
         placeholder="Why is this role open? What's the hiring manager's real priority? Add context that helps pitch the role…"
         rows={4}
         className="w-full text-[13px] leading-relaxed resize-none outline-none bg-transparent"
-        style={{ color: "#1a1a18" }}
+        style={{ color: "var(--color-ink)" }}
       />
     </Card>
   );
@@ -477,12 +477,12 @@ function ConditionsCard({
         <div className="grid grid-cols-2 gap-4">
           {/* Must-haves column */}
           <div>
-            <p className="text-[11px] font-semibold mb-2 uppercase tracking-[0.04em]" style={{ color: "#27500a" }}>
+            <p className="text-[11px] font-semibold mb-2 uppercase tracking-[0.04em]" style={{ color: "var(--color-moss)" }}>
               Must-haves
             </p>
 
             {mustHave.length === 0 && (
-              <p className="text-[12px] mb-2" style={{ color: "#888780" }}>None added.</p>
+              <p className="text-[12px] mb-2" style={{ color: "var(--color-ink-30)" }}>None added.</p>
             )}
 
             <div className="flex flex-wrap gap-1.5 mb-2">
@@ -492,8 +492,8 @@ function ConditionsCard({
                   className="flex items-center gap-1  px-2 py-1 text-[12px]"
                   style={{
                     borderLeft: "3px solid #27500a",
-                    background: "#eaf3de",
-                    color: "#27500a",
+                    background: "var(--color-moss-light)",
+                    color: "var(--color-moss)",
                   }}
                 >
                   {c.condition_text}
@@ -511,7 +511,7 @@ function ConditionsCard({
             <div className="flex gap-1">
               <input
                 className="flex-1 min-w-0  px-2 py-1 text-[12px] outline-none"
-                style={{ background: "#f5f5f3", border: "0.5px solid rgba(26,26,24,0.12)", color: "#1a1a18" }}
+                style={{ background: "var(--color-ink-10)", border: "0.5px solid var(--color-ink-15)", color: "var(--color-ink)" }}
                 placeholder="Add criterion…"
                 value={mustInput}
                 onChange={(e) => setMustInput(e.target.value)}
@@ -519,7 +519,7 @@ function ConditionsCard({
               />
               <button
                 className="rounded px-2 py-1 text-[12px] transition-colors"
-                style={{ background: "#eaf3de", color: "#27500a" }}
+                style={{ background: "var(--color-moss-light)", color: "var(--color-moss)" }}
                 onClick={() => addCriterion("must_have")}
               >
                 <IconPlus size={12} />
@@ -529,12 +529,12 @@ function ConditionsCard({
 
           {/* Flexible on column */}
           <div>
-            <p className="text-[11px] font-semibold mb-2 uppercase tracking-[0.04em]" style={{ color: "#633806" }}>
+            <p className="text-[11px] font-semibold mb-2 uppercase tracking-[0.04em]" style={{ color: "var(--color-gold)" }}>
               Flexible on
             </p>
 
             {flexible.length === 0 && (
-              <p className="text-[12px] mb-2" style={{ color: "#888780" }}>None added.</p>
+              <p className="text-[12px] mb-2" style={{ color: "var(--color-ink-30)" }}>None added.</p>
             )}
 
             <div className="flex flex-wrap gap-1.5 mb-2">
@@ -544,8 +544,8 @@ function ConditionsCard({
                   className="flex items-center gap-1  px-2 py-1 text-[12px]"
                   style={{
                     borderLeft: "3px solid #ef9f27",
-                    background: "#fdf3e7",
-                    color: "#633806",
+                    background: "var(--color-gold-light)",
+                    color: "var(--color-gold)",
                   }}
                 >
                   {c.condition_text}
@@ -563,7 +563,7 @@ function ConditionsCard({
             <div className="flex gap-1">
               <input
                 className="flex-1 min-w-0  px-2 py-1 text-[12px] outline-none"
-                style={{ background: "#f5f5f3", border: "0.5px solid rgba(26,26,24,0.12)", color: "#1a1a18" }}
+                style={{ background: "var(--color-ink-10)", border: "0.5px solid var(--color-ink-15)", color: "var(--color-ink)" }}
                 placeholder="Add criterion…"
                 value={flexInput}
                 onChange={(e) => setFlexInput(e.target.value)}
@@ -571,14 +571,14 @@ function ConditionsCard({
               />
               <button
                 className="rounded px-2 py-1 text-[12px] transition-colors"
-                style={{ background: "#fdf3e7", color: "#633806" }}
+                style={{ background: "var(--color-gold-light)", color: "var(--color-gold)" }}
                 onClick={() => addCriterion("nice_to_have")}
               >
                 <IconPlus size={12} />
               </button>
             </div>
 
-            <p className="mt-2 text-[11px]" style={{ color: "#888780" }}>
+            <p className="mt-2 text-[11px]" style={{ color: "var(--color-ink-30)" }}>
               Flex criteria factor into match scoring but a gap here will not drop a candidate from results.
             </p>
           </div>
@@ -628,14 +628,14 @@ function PipelinePanel({
       )}
 
       {!isLoading && processes.length === 0 && (
-        <p className="text-[12px]" style={{ color: "#888780" }}>
+        <p className="text-[12px]" style={{ color: "var(--color-ink-30)" }}>
           No candidates in pipeline for this role yet.
         </p>
       )}
 
       {Object.entries(grouped).map(([stage, group]) => (
         <div key={stage} className="mb-3">
-          <p className="text-[11px] font-medium mb-1.5 uppercase tracking-[0.04em]" style={{ color: "#5f5e5a" }}>
+          <p className="text-[11px] font-medium mb-1.5 uppercase tracking-[0.04em]" style={{ color: "var(--color-ink-60)" }}>
             {stage} · {group.length}
           </p>
           <div className="space-y-1.5">
@@ -643,21 +643,21 @@ function PipelinePanel({
               <button
                 key={p.id}
                 className="w-full text-left flex items-center gap-2.5  px-3 py-2.5 transition-colors"
-                style={{ background: "#f5f5f3", border: "0.5px solid rgba(26,26,24,0.08)" }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = "#eeede8"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = "#f5f5f3"; }}
+                style={{ background: "var(--color-ink-10)", border: "0.5px solid var(--color-border-subtle)" }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "var(--color-ink-10)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "var(--color-ink-10)"; }}
                 onClick={() => void navigate({ to: "/candidates/$id", params: { id: p.candidate_id }, search: BLANK_CANDIDATE_SEARCH })}
               >
                 <div
                   className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-medium"
-                  style={{ background: "#fff", color: "#5f5e5a", border: "0.5px solid rgba(26,26,24,0.12)" }}
+                  style={{ background: "var(--color-white)", color: "var(--color-ink-60)", border: "0.5px solid var(--color-ink-15)" }}
                 >
                   {initials(p.candidate_name)}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-[12px] font-medium truncate">{p.candidate_name}</p>
                   {p.last_activity_at && (
-                    <p className="text-[11px]" style={{ color: "#888780" }}>
+                    <p className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>
                       {relativeTime(p.last_activity_at)}
                     </p>
                   )}
@@ -670,8 +670,8 @@ function PipelinePanel({
       ))}
 
       {closed.length > 0 && (
-        <div className="mt-3 pt-3" style={{ borderTop: "0.5px solid rgba(26,26,24,0.08)" }}>
-          <p className="text-[11px] font-medium mb-1.5 uppercase tracking-[0.04em]" style={{ color: "#888780" }}>
+        <div className="mt-3 pt-3" style={{ borderTop: "0.5px solid var(--color-border-subtle)" }}>
+          <p className="text-[11px] font-medium mb-1.5 uppercase tracking-[0.04em]" style={{ color: "var(--color-ink-30)" }}>
             Closed · {closed.length}
           </p>
           <div className="space-y-1">
@@ -679,7 +679,7 @@ function PipelinePanel({
               <div
                 key={p.id}
                 className="flex items-center gap-2 px-3 py-2  opacity-50"
-                style={{ background: "#f5f5f3" }}
+                style={{ background: "var(--color-ink-10)" }}
               >
                 <span className="text-[12px] flex-1">{p.candidate_name}</span>
                 <StageBadge stage={p.stage} />
@@ -748,39 +748,39 @@ function MatchCandidatesPanel({
   return (
     <div
       className=" p-5 mb-5"
-      style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.12)" }}
+      style={{ background: "var(--color-white)", border: "0.5px solid var(--color-ink-15)" }}
     >
       <div className="flex items-center justify-between mb-4">
         <div>
           <p className="sl mb-0">AI candidate matches</p>
           {matchQuery.data && (
-            <p className="text-[12px] mt-0.5" style={{ color: "#5f5e5a" }}>
+            <p className="text-[12px] mt-0.5" style={{ color: "var(--color-ink-60)" }}>
               {visible.length} candidate{visible.length !== 1 ? "s" : ""} ranked by fit
             </p>
           )}
         </div>
         <button onClick={onClose}>
-          <IconX size={16} style={{ color: "#888780" }} />
+          <IconX size={16} style={{ color: "var(--color-ink-30)" }} />
         </button>
       </div>
 
       {matchQuery.isLoading && (
         <div className="space-y-3">
           {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-20 w-full" />)}
-          <p className="text-[12px] text-center" style={{ color: "#888780" }}>
+          <p className="text-[12px] text-center" style={{ color: "var(--color-ink-30)" }}>
             Ranking candidates — this takes a moment…
           </p>
         </div>
       )}
 
       {matchQuery.isError && (
-        <p className="text-[13px]" style={{ color: "#a32d2d" }}>
+        <p className="text-[13px]" style={{ color: "var(--color-danger)" }}>
           Could not rank candidates. Try again.
         </p>
       )}
 
       {!matchQuery.isLoading && !matchQuery.isError && visible.length === 0 && (
-        <p className="text-[13px]" style={{ color: "#888780" }}>
+        <p className="text-[13px]" style={{ color: "var(--color-ink-30)" }}>
           No eligible candidates found. All active and passive candidates may already be in this pipeline.
         </p>
       )}
@@ -790,15 +790,15 @@ function MatchCandidatesPanel({
           <div
             key={m.candidate_id}
             className=" p-4"
-            style={{ background: "#f5f5f3", border: "0.5px solid rgba(26,26,24,0.08)" }}
+            style={{ background: "var(--color-ink-10)", border: "0.5px solid var(--color-border-subtle)" }}
           >
             <div className="flex items-start gap-3">
               {/* Score */}
               <div
                 className="flex h-9 w-9 shrink-0 items-center justify-center  text-[13px] font-semibold"
                 style={{
-                  background: m.score >= 7 ? "#eaf3de" : m.score >= 5 ? "#fdf3e7" : "#f5f5f3",
-                  color: m.score >= 7 ? "#27500a" : m.score >= 5 ? "#633806" : "#888780",
+                  background: m.score >= 7 ? "var(--color-moss-light)" : m.score >= 5 ? "var(--color-gold-light)" : "var(--color-ink-10)",
+                  color: m.score >= 7 ? "var(--color-moss)" : m.score >= 5 ? "var(--color-gold)" : "var(--color-ink-30)",
                 }}
               >
                 {m.score}
@@ -811,21 +811,21 @@ function MatchCandidatesPanel({
                   {m.is_salary_stretch && (
                     <span
                       className="flex items-center gap-1 text-[11px] px-1.5 py-0.5 "
-                      style={{ background: "#fdf3e7", color: "#633806" }}
+                      style={{ background: "var(--color-gold-light)", color: "var(--color-gold)" }}
                     >
                       <IconAlertTriangle size={10} />
                       Salary stretch
                     </span>
                   )}
                 </div>
-                <p className="text-[12px] mb-1" style={{ color: "#5f5e5a" }}>
+                <p className="text-[12px] mb-1" style={{ color: "var(--color-ink-60)" }}>
                   {[m.current_title, m.current_company].filter(Boolean).join(" at ")}
                   {m.japanese_level && <span className="ml-2">&middot; JA: {m.japanese_level}</span>}
                   {m.expected_total_min && (
                     <span className="ml-2">&middot; exp. {formatYen(m.expected_total_min)}+</span>
                   )}
                 </p>
-                <p className="text-[12px] leading-snug" style={{ color: "#1a1a18" }}>
+                <p className="text-[12px] leading-snug" style={{ color: "var(--color-ink)" }}>
                   {m.match_reason}
                 </p>
               </div>
@@ -841,7 +841,7 @@ function MatchCandidatesPanel({
                 </button>
                 <button
                   className="text-[12px] px-2 py-1 "
-                  style={{ color: "#888780" }}
+                  style={{ color: "var(--color-ink-30)" }}
                   onClick={() => setSkipped((s) => new Set([...s, m.candidate_id]))}
                 >
                   Skip

@@ -294,13 +294,13 @@ function Dashboard() {
       {/* Header */}
       <div>
         <h1 className="text-xl font-medium mb-0.5 font-display">{greetingByHour()}</h1>
-        <p className="text-[13px]" style={{ color: "#5f5e5a" }}>
+        <p className="text-[13px]" style={{ color: "var(--color-ink-60)" }}>
           {todayFormatted()}&nbsp;&middot;&nbsp;Here is what needs your attention today
         </p>
       </div>
 
       {/* Pipeline — clickable KPI chips + inline detail */}
-      <div className=" p-4" style={{ background: "#f5f5f3", border: "0.5px solid rgba(26,26,24,0.08)" }}>
+      <div className=" p-4" style={{ background: "var(--color-ink-10)", border: "0.5px solid var(--color-border-subtle)" }}>
         <p className="sl mb-3">Pipeline</p>
 
         {pipelineQ.isLoading ? (
@@ -339,7 +339,7 @@ function Dashboard() {
       </div>
 
       {/* Daily agenda */}
-      <div className="bg-card  p-5" style={{ border: "0.5px solid rgba(26,26,24,0.12)" }}>
+      <div className="bg-card  p-5" style={{ border: "0.5px solid var(--color-ink-15)" }}>
         <p className="sl mb-3">Priority actions — ranked by urgency</p>
 
         {agenda.isLoading && (
@@ -349,7 +349,7 @@ function Dashboard() {
         )}
 
         {agenda.isError && (
-          <p className="text-[13px]" style={{ color: "#a32d2d" }}>
+          <p className="text-[13px]" style={{ color: "var(--color-danger)" }}>
             Could not load agenda. Try refreshing the page.
           </p>
         )}
@@ -373,7 +373,7 @@ function Dashboard() {
       {/* Two-column lower row: Recent activity + Saved lists */}
       <div className="grid grid-cols-2 gap-4">
         {/* Recent activity */}
-        <div className="bg-card  p-5" style={{ border: "0.5px solid rgba(26,26,24,0.12)" }}>
+        <div className="bg-card  p-5" style={{ border: "0.5px solid var(--color-ink-15)" }}>
           <p className="sl mb-3">Your recent activity</p>
 
           {activity.isLoading && (
@@ -383,7 +383,7 @@ function Dashboard() {
           )}
 
           {!activity.isLoading && (activity.data?.length ?? 0) === 0 && (
-            <p className="text-[13px]" style={{ color: "#888780" }}>No recent interactions logged.</p>
+            <p className="text-[13px]" style={{ color: "var(--color-ink-30)" }}>No recent interactions logged.</p>
           )}
 
           {activity.data?.map((a) => (
@@ -416,24 +416,24 @@ function KpiChip({
   onClick: () => void;
 }) {
   const numColor =
-    tone === "info"    ? "#185fa5"
+    tone === "info"    ? "var(--color-indigo)"
     : tone === "gold"    ? "#a16207"
-    : tone === "success" ? "#27500a"
-    : "#1a1a18";
+    : tone === "success" ? "var(--color-moss)"
+    : "var(--color-ink)";
 
   const activeBg =
-    tone === "info"    ? "#e6f1fb"
-    : tone === "gold"    ? "#fdf3e7"
-    : tone === "success" ? "#eaf3de"
-    : "#eeede8";
+    tone === "info"    ? "var(--color-indigo-light)"
+    : tone === "gold"    ? "var(--color-gold-light)"
+    : tone === "success" ? "var(--color-moss-light)"
+    : "var(--color-ink-10)";
 
   return (
     <button
       onClick={onClick}
       className="flex flex-col items-start  p-3 text-left transition-all"
       style={{
-        background: active ? activeBg : "#ffffff",
-        border: active ? `1px solid ${numColor}30` : "0.5px solid rgba(26,26,24,0.12)",
+        background: active ? activeBg : "var(--color-white)",
+        border: active ? `1px solid ${numColor}30` : "0.5px solid var(--color-ink-15)",
         outline: "none",
       }}
     >
@@ -444,16 +444,16 @@ function KpiChip({
         <IconChevronDown
           size={13}
           style={{
-            color: "#888780",
+            color: "var(--color-ink-30)",
             transform: active ? "rotate(180deg)" : "rotate(0deg)",
             transition: "transform 150ms",
           }}
         />
       </div>
-      <span className="text-[12px] font-medium leading-tight" style={{ color: "#1a1a18" }}>
+      <span className="text-[12px] font-medium leading-tight" style={{ color: "var(--color-ink)" }}>
         {label}
       </span>
-      <span className="text-[11px] mt-0.5" style={{ color: "#888780" }}>
+      <span className="text-[11px] mt-0.5" style={{ color: "var(--color-ink-30)" }}>
         {period === "week" ? "this week" : "this quarter"}
       </span>
     </button>
@@ -515,35 +515,35 @@ function PipelineDetailPanel({
   return (
     <div
       className="mt-4  overflow-hidden"
-      style={{ border: "0.5px solid rgba(26,26,24,0.12)", background: "#ffffff" }}
+      style={{ border: "0.5px solid var(--color-ink-15)", background: "var(--color-white)" }}
     >
       {/* Panel header */}
       <div
         className="flex items-center justify-between px-4 py-2.5"
-        style={{ borderBottom: "0.5px solid rgba(26,26,24,0.08)", background: "#f5f5f3" }}
+        style={{ borderBottom: "0.5px solid var(--color-border-subtle)", background: "var(--color-ink-10)" }}
       >
-        <span className="text-[12px] font-medium" style={{ color: "#1a1a18" }}>
+        <span className="text-[12px] font-medium" style={{ color: "var(--color-ink)" }}>
           {cfg.label}
         </span>
-        <span className="text-[11px]" style={{ color: "#888780" }}>
+        <span className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>
           {cfg.period === "week" ? "resets each Saturday" : "resets each quarter"}
         </span>
       </div>
 
       {items.length === 0 ? (
-        <p className="px-4 py-6 text-[12px] text-center" style={{ color: "#888780" }}>
+        <p className="px-4 py-6 text-[12px] text-center" style={{ color: "var(--color-ink-30)" }}>
           Nothing to show for this period.
         </p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-[12px]" style={{ borderCollapse: "collapse" }}>
             <thead>
-              <tr style={{ borderBottom: "0.5px solid rgba(26,26,24,0.08)" }}>
+              <tr style={{ borderBottom: "0.5px solid var(--color-border-subtle)" }}>
                 {cols.map((col) => (
                   <th
                     key={col.header}
                     className="px-4 py-2 text-left font-medium"
-                    style={{ color: "#888780", whiteSpace: "nowrap" }}
+                    style={{ color: "var(--color-ink-30)", whiteSpace: "nowrap" }}
                   >
                     {col.header}
                   </th>
@@ -557,7 +557,7 @@ function PipelineDetailPanel({
                   className="cursor-pointer"
                   style={{ borderBottom: "0.5px solid rgba(26,26,24,0.06)" }}
                   onClick={() => onNavigate(p.candidate_id)}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = "#f5f5f3")}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "var(--color-ink-10)")}
                   onMouseLeave={(e) => (e.currentTarget.style.background = "")}
                 >
                   {cols.map((col, ci) => {
@@ -567,7 +567,7 @@ function PipelineDetailPanel({
                         key={ci}
                         className="px-4 py-2.5"
                         style={{
-                          color: ci === 0 ? "#1a1a18" : "#5f5e5a",
+                          color: ci === 0 ? "var(--color-ink)" : "var(--color-ink-60)",
                           fontWeight: ci === 0 ? 500 : 400,
                           whiteSpace: "nowrap",
                         }}
@@ -624,10 +624,10 @@ function AgendaRow({
   }, [showSnooze]);
 
   const avatarBg =
-    item.stage === "Offer" ? { bg: "#fcebeb", color: "#a32d2d" }
-    : item.stage === "Buy-In" ? { bg: "#fdf3e7", color: "#633806" }
-    : /^CCM\d+$/.test(item.stage ?? "") ? { bg: "#e6f1fb", color: "#185fa5" }
-    : { bg: "#f5f5f3", color: "#5f5e5a" };
+    item.stage === "Offer" ? { bg: "var(--color-danger-bg)", color: "var(--color-danger)" }
+    : item.stage === "Buy-In" ? { bg: "var(--color-gold-light)", color: "var(--color-gold)" }
+    : /^CCM\d+$/.test(item.stage ?? "") ? { bg: "var(--color-indigo-light)", color: "var(--color-indigo)" }
+    : { bg: "var(--color-ink-10)", color: "var(--color-ink-60)" };
 
   function handleAction() {
     if (item.entity_type === "client") {
@@ -676,7 +676,7 @@ function AgendaRow({
         gridTemplateColumns: "20px 36px 1fr auto",
         gap: 10,
         alignItems: "flex-start",
-        borderBottom: "0.5px solid rgba(26,26,24,0.12)",
+        borderBottom: "0.5px solid var(--color-ink-15)",
         opacity: isDragOver ? 0.5 : 1,
         cursor: "grab",
       }}
@@ -701,11 +701,11 @@ function AgendaRow({
           {item.stage && <StageBadge stage={item.stage} />}
         </div>
 
-        <p className="text-[12px] mb-1.5 leading-snug" style={{ color: "#633806" }}>
+        <p className="text-[12px] mb-1.5 leading-snug" style={{ color: "var(--color-gold)" }}>
           {item.reason}
         </p>
 
-        <p className="text-[12px] mb-2 leading-snug" style={{ color: "#5f5e5a" }}>
+        <p className="text-[12px] mb-2 leading-snug" style={{ color: "var(--color-ink-60)" }}>
           {item.suggested_action}
         </p>
 
@@ -737,9 +737,9 @@ function AgendaRow({
             {showSnooze && (
               <div
                 className="absolute z-10 mt-1  p-3 "
-                style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.16)", left: 0, top: "100%", minWidth: 200 }}
+                style={{ background: "var(--color-white)", border: "0.5px solid rgba(26,26,24,0.16)", left: 0, top: "100%", minWidth: 200 }}
               >
-                <p className="text-[11px] mb-2" style={{ color: "#5f5e5a" }}>
+                <p className="text-[11px] mb-2" style={{ color: "var(--color-ink-60)" }}>
                   Snooze until:
                 </p>
                 <input
@@ -748,7 +748,7 @@ function AgendaRow({
                   min={minSnooze}
                   onChange={(e) => setSnoozeDate(e.target.value)}
                   className="w-full text-[12px]  px-2 py-1 outline-none mb-2"
-                  style={{ border: "0.5px solid rgba(26,26,24,0.2)", color: "#1a1a18" }}
+                  style={{ border: "0.5px solid rgba(26,26,24,0.2)", color: "var(--color-ink)" }}
                 />
                 <button
                   className="ab w-full justify-center"
@@ -769,7 +769,7 @@ function AgendaRow({
       </div>
 
       {/* Priority rank */}
-      <div className="text-[11px] pt-0.5 whitespace-nowrap" style={{ color: "#888780" }}>
+      <div className="text-[11px] pt-0.5 whitespace-nowrap" style={{ color: "var(--color-ink-30)" }}>
         #{item.priority_rank}
       </div>
     </div>
@@ -789,23 +789,23 @@ function ActivityRow({ item }: { item: RecentInteraction }) {
   return (
     <div
       className="flex items-start gap-3 py-2.5"
-      style={{ borderBottom: "0.5px solid rgba(26,26,24,0.08)" }}
+      style={{ borderBottom: "0.5px solid var(--color-border-subtle)" }}
     >
       <span
         className="text-[11px] font-medium px-2 py-0.5  mt-0.5 shrink-0"
-        style={{ background: "#f5f5f3", color: "#5f5e5a" }}
+        style={{ background: "var(--color-ink-10)", color: "var(--color-ink-60)" }}
       >
         {typeLabel}
       </span>
       <div className="min-w-0 flex-1">
         <span className="text-[12px] font-medium">{entity}</span>
         {item.summary && (
-          <span className="text-[12px] ml-1.5" style={{ color: "#5f5e5a" }}>
+          <span className="text-[12px] ml-1.5" style={{ color: "var(--color-ink-60)" }}>
             — {item.summary}
           </span>
         )}
       </div>
-      <span className="text-[11px] shrink-0 pt-0.5" style={{ color: "#888780" }}>
+      <span className="text-[11px] shrink-0 pt-0.5" style={{ color: "var(--color-ink-30)" }}>
         {relativeTime(item.interacted_at)}
       </span>
     </div>
@@ -816,10 +816,10 @@ function EmptyAgenda() {
   const navigate = useNavigate();
   return (
     <div className="py-10 text-center">
-      <p className="text-sm font-medium" style={{ color: "#1a1a18" }}>
+      <p className="text-sm font-medium" style={{ color: "var(--color-ink)" }}>
         No priority actions today.
       </p>
-      <p className="mt-1 text-xs" style={{ color: "#5f5e5a" }}>
+      <p className="mt-1 text-xs" style={{ color: "var(--color-ink-60)" }}>
         All your processes are on track.
       </p>
       <button
@@ -879,12 +879,12 @@ function SavedListsWidget({ recruiterId }: { recruiterId: string }) {
   );
 
   return (
-    <div className="bg-card  p-5" style={{ border: "0.5px solid rgba(26,26,24,0.12)" }}>
+    <div className="bg-card  p-5" style={{ border: "0.5px solid var(--color-ink-15)" }}>
       <div className="flex items-center justify-between mb-3">
         <p className="sl">Saved candidate lists</p>
         <button
           className="text-[11px] transition-colors flex items-center gap-1"
-          style={{ color: "#185fa5" }}
+          style={{ color: "var(--color-indigo)" }}
           onClick={() => void navigate({ to: "/advanced-search" as never })}
         >
           View all <IconArrowRight size={11} />
@@ -899,10 +899,10 @@ function SavedListsWidget({ recruiterId }: { recruiterId: string }) {
 
       {!lists.isLoading && visible.length === 0 && (
         <div>
-          <p className="text-[13px]" style={{ color: "#888780" }}>No saved lists yet.</p>
+          <p className="text-[13px]" style={{ color: "var(--color-ink-30)" }}>No saved lists yet.</p>
           <button
             className="mt-2 text-[12px] flex items-center gap-1 transition-colors"
-            style={{ color: "#185fa5" }}
+            style={{ color: "var(--color-indigo)" }}
             onClick={() => void navigate({ to: "/advanced-search" as never })}
           >
             <IconArrowRight size={12} />
@@ -920,20 +920,20 @@ function SavedListsWidget({ recruiterId }: { recruiterId: string }) {
               style={{ borderBottom: "0.5px solid rgba(26,26,24,0.07)" }}
             >
               {list.visibility === "private" ? (
-                <IconLock size={12} style={{ color: "#888780", flexShrink: 0 }} />
+                <IconLock size={12} style={{ color: "var(--color-ink-30)", flexShrink: 0 }} />
               ) : (
-                <IconWorld size={12} style={{ color: "#888780", flexShrink: 0 }} />
+                <IconWorld size={12} style={{ color: "var(--color-ink-30)", flexShrink: 0 }} />
               )}
               <div className="flex-1 min-w-0">
-                <p className="text-[13px] font-medium truncate" style={{ color: "#1a1a18" }}>
+                <p className="text-[13px] font-medium truncate" style={{ color: "var(--color-ink)" }}>
                   {list.name}
                 </p>
-                <p className="text-[11px]" style={{ color: "#888780" }}>
+                <p className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>
                   {list.candidate_ids.length} candidates
                   {list.creator_name ? ` · ${list.creator_name}` : ""}
                 </p>
               </div>
-              <span className="text-[11px] shrink-0" style={{ color: "#888780" }}>
+              <span className="text-[11px] shrink-0" style={{ color: "var(--color-ink-30)" }}>
                 {relativeTime(list.updated_at)}
               </span>
             </div>

@@ -200,13 +200,13 @@ function CandidatesLayout() {
       <div
         className="flex w-[340px] shrink-0 flex-col"
         style={{
-          background: "#f5f5f3",
-          borderRight: "0.5px solid rgba(26,26,24,0.12)",
+          background: "var(--color-ink-10)",
+          borderRight: "0.5px solid var(--color-ink-15)",
         }}
       >
         <div
           className="px-4 pt-5 pb-3"
-          style={{ borderBottom: "0.5px solid rgba(26,26,24,0.12)" }}
+          style={{ borderBottom: "0.5px solid var(--color-ink-15)" }}
         >
           <div className="flex items-center justify-between mb-3">
             <h1 className="text-base font-semibold font-display">Candidates</h1>
@@ -224,7 +224,7 @@ function CandidatesLayout() {
             <IconSearch
               size={14}
               className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2"
-              style={{ color: "#888780" }}
+              style={{ color: "var(--color-ink-30)" }}
             />
             <Input
               value={nameInput}
@@ -279,7 +279,7 @@ function CandidatesLayout() {
             {hasFilters && (
               <button
                 className="text-[11px] underline underline-offset-2"
-                style={{ color: "#888780" }}
+                style={{ color: "var(--color-ink-30)" }}
                 onClick={() => {
                   setNameInput("");
                   setCompanyInput("");
@@ -294,7 +294,7 @@ function CandidatesLayout() {
           {/* Advanced Search */}
           <button
             className="mt-2 flex w-full items-center justify-center gap-1.5  py-1.5 text-[12px] font-medium transition-colors"
-            style={{ border: "0.5px solid rgba(26,26,24,0.2)", color: "#185fa5", background: "#e6f1fb" }}
+            style={{ border: "0.5px solid rgba(26,26,24,0.2)", color: "var(--color-indigo)", background: "var(--color-indigo-light)" }}
             onClick={() => void navigate({ to: "/advanced-search" as never })}
           >
             <IconAdjustmentsHorizontal size={13} />
@@ -303,7 +303,7 @@ function CandidatesLayout() {
 
           <p
             className="mt-2 text-[11px] uppercase tracking-wider"
-            style={{ color: "#888780" }}
+            style={{ color: "var(--color-ink-30)" }}
           >
             {candidates.length} {candidates.length === 1 ? "person" : "people"}
           </p>
@@ -311,12 +311,12 @@ function CandidatesLayout() {
 
         <div className="flex-1 overflow-y-auto">
           {isLoading ? (
-            <div className="p-5 text-sm" style={{ color: "#888780" }}>
+            <div className="p-5 text-sm" style={{ color: "var(--color-ink-30)" }}>
               Loading…
             </div>
           ) : candidates.length === 0 ? (
             <div className="px-5 py-10 text-center">
-              <p className="text-[13px] font-medium" style={{ color: "#1a1a18" }}>
+              <p className="text-[13px] font-medium" style={{ color: "var(--color-ink)" }}>
                 {hasFilters
                   ? "No candidates match your filters."
                   : "No candidates yet — add your first candidate to get started."}
@@ -324,7 +324,7 @@ function CandidatesLayout() {
               {hasFilters ? (
                 <button
                   className="mt-3 text-[12px] underline underline-offset-2"
-                  style={{ color: "#185fa5" }}
+                  style={{ color: "var(--color-indigo)" }}
                   onClick={() => {
                     setNameInput("");
                     setCompanyInput("");
@@ -354,7 +354,7 @@ function CandidatesLayout() {
                   params={{ id: c.id }}
                   search={withCandidateDefaults(search)}
                   className="block transition-colors"
-                  style={{ borderBottom: "0.5px solid rgba(26,26,24,0.08)" }}
+                  style={{ borderBottom: "0.5px solid var(--color-border-subtle)" }}
                 >
                   <div
                     className="flex items-start gap-3 px-4 py-3.5"
@@ -362,7 +362,7 @@ function CandidatesLayout() {
                   >
                     <div
                       className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-medium"
-                      style={{ background: "#eeede8", color: "#1a1a18" }}
+                      style={{ background: "var(--color-ink-10)", color: "var(--color-ink)" }}
                     >
                       {initials(c.full_name)}
                     </div>
@@ -374,7 +374,7 @@ function CandidatesLayout() {
                         </p>
                         <TouchPill iso={c.updated_at} />
                       </div>
-                      <p className="mt-0.5 truncate text-xs" style={{ color: "#5f5e5a" }}>
+                      <p className="mt-0.5 truncate text-xs" style={{ color: "var(--color-ink-60)" }}>
                         {c.current_title || "—"}
                         {c.current_company ? ` · ${c.current_company}` : ""}
                       </p>
@@ -426,8 +426,8 @@ function FilterSelect({
       className="w-full  text-[12px] px-2 py-1.5 outline-none"
       style={{
         border: "0.5px solid rgba(26,26,24,0.16)",
-        background: value ? "#e6f1fb" : "#fff",
-        color: value ? "#185fa5" : "#5f5e5a",
+        background: value ? "var(--color-indigo-light)" : "var(--color-white)",
+        color: value ? "var(--color-indigo)" : "var(--color-ink-60)",
         height: 32,
       }}
     >
@@ -471,8 +471,8 @@ function LanguageFilter({
         className="flex w-full items-center justify-between  px-2 py-1.5 text-[12px] outline-none"
         style={{
           border: "0.5px solid rgba(26,26,24,0.16)",
-          background: value ? "#e6f1fb" : "#fff",
-          color: value ? "#185fa5" : "#5f5e5a",
+          background: value ? "var(--color-indigo-light)" : "var(--color-white)",
+          color: value ? "var(--color-indigo)" : "var(--color-ink-60)",
           height: 32,
         }}
       >
@@ -480,21 +480,21 @@ function LanguageFilter({
         {value ? (
           <span
             className="ml-1 text-[13px] leading-none"
-            style={{ color: "#185fa5" }}
+            style={{ color: "var(--color-indigo)" }}
             onClick={(e) => { e.stopPropagation(); onChange(""); }}
             title="Clear"
           >
             ×
           </span>
         ) : (
-          <IconChevronDown size={11} style={{ color: "#888780" }} />
+          <IconChevronDown size={11} style={{ color: "var(--color-ink-30)" }} />
         )}
       </button>
 
       {open && (
         <div
           className="absolute left-0 right-0 z-20 mt-0.5 overflow-hidden  "
-          style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.16)" }}
+          style={{ background: "var(--color-white)", border: "0.5px solid rgba(26,26,24,0.16)" }}
         >
           {levels.map((level) => (
             <button
@@ -502,11 +502,11 @@ function LanguageFilter({
               type="button"
               className="w-full px-3 py-1.5 text-left text-[12px] transition-colors"
               style={{
-                color: value === level ? "#185fa5" : "#1a1a18",
-                background: value === level ? "#e6f1fb" : "transparent",
+                color: value === level ? "var(--color-indigo)" : "var(--color-ink)",
+                background: value === level ? "var(--color-indigo-light)" : "transparent",
               }}
-              onMouseEnter={(e) => { if (value !== level) e.currentTarget.style.background = "#f5f5f3"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = value === level ? "#e6f1fb" : "transparent"; }}
+              onMouseEnter={(e) => { if (value !== level) e.currentTarget.style.background = "var(--color-ink-10)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = value === level ? "var(--color-indigo-light)" : "transparent"; }}
               onClick={() => { onChange(level); setOpen(false); }}
             >
               {level}
@@ -521,10 +521,10 @@ function LanguageFilter({
 function TouchPill({ iso }: { iso: string | null }) {
   const tone = touchTone(iso);
   const styles = {
-    fresh: { background: "#eaf3de", color: "#27500a" },
-    warm: { background: "#e6f1fb", color: "#185fa5" },
-    cool: { background: "#faeeda", color: "#633806" },
-    cold: { background: "#fcebeb", color: "#a32d2d" },
+    fresh: { background: "var(--color-moss-light)", color: "var(--color-moss)" },
+    warm: { background: "var(--color-indigo-light)", color: "var(--color-indigo)" },
+    cool: { background: "#faeeda", color: "var(--color-gold)" },
+    cold: { background: "var(--color-danger-bg)", color: "var(--color-danger)" },
   }[tone];
 
   return (
@@ -700,7 +700,7 @@ function Field({
     <div className="space-y-1.5">
       <Label className="text-xs">
         {label}
-        {required && <span style={{ color: "#a32d2d" }}> *</span>}
+        {required && <span style={{ color: "var(--color-danger)" }}> *</span>}
       </Label>
       {children}
     </div>
