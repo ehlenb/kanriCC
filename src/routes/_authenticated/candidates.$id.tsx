@@ -50,22 +50,7 @@ import {
   IconCheck,
   IconClipboard,
   IconChevronDown,
-  IconTemplate,
-  IconDownload,
-  IconX,
-  IconBold,
-  IconItalic,
-  IconUnderline,
-  IconH2,
-  IconH3,
-  IconList,
-  IconListNumbers,
-  IconUpload,
-  IconSparkles as IconSparklesOutline,
 } from "@tabler/icons-react";
-import { useEditor, EditorContent } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
-import Underline from "@tiptap/extension-underline";
 import { TranscriptPanel } from "@/components/candidate/TranscriptPanel";
 import { SubmissionPackagePanel } from "@/components/candidate/SubmissionPackagePanel";
 
@@ -117,6 +102,7 @@ type Candidate = {
   address: string | null;
   date_of_birth: string | null;
   notes_template: string | null;
+  notes_interview: string | null;
   ai_context: string | null;
   ai_context_updated_at: string | null;
   updated_at: string;
@@ -197,7 +183,7 @@ function useCandidateProfile(id: string) {
       ] = await Promise.all([
         supabase
           .from("candidates")
-          .select("*, notes_presentation, notes_personality, notes_pitch, notes_closing, notes_internal, address, date_of_birth, notes_template")
+          .select("*, notes_presentation, notes_personality, notes_pitch, notes_closing, notes_internal, address, date_of_birth, notes_template, notes_interview")
           .eq("id", id)
           .single(),
         supabase
@@ -397,10 +383,6 @@ function CandidateProfile() {
         <NotesTab
           candidateId={id}
           candidate={c}
-          motivations={motivations}
-          blockers={blockers}
-          roles={roles}
-          competing={competing}
         />
       )}
       {page === "processes" && (
@@ -460,6 +442,10 @@ function RegistrationPage({
           <RegistrationField label="Full name (English)" fieldKey="full_name" value={c.full_name} candidateId={candidateId} />
           <RegistrationField label="Full name (Japanese)" fieldKey="full_name_japanese" value={c.full_name_japanese} candidateId={candidateId} />
           <DobField candidateId={candidateId} dateOfBirth={c.date_of_birth} age={c.age} />
+          <RegistrationField label="Email" fieldKey="email" value={c.email} candidateId={candidateId} inputType="email" placeholder="name@example.com" />
+          <RegistrationField label="Phone" fieldKey="phone" value={c.phone} candidateId={candidateId} placeholder="+81 3 0000 0000" />
+          <RegistrationField label="Address" fieldKey="address" value={c.address} candidateId={candidateId} placeholder="Tokyo, Minato-ku" />
+          <RegistrationField label="LinkedIn" fieldKey="linkedin_url" value={c.linkedin_url} candidateId={candidateId} placeholder="https://linkedin.com/in/…" />
         </div>
         <p className="mt-3 text-[11px] flex items-center gap-1" style={{ color: "#888780" }}>
           <IconInfoCircle size={12} />
@@ -1160,132 +1146,394 @@ function RoleBlock({ role, isLast }: { role: Role; isLast: boolean }) {
 function NotesTab({
   candidateId,
   candidate: c,
-  motivations,
-  blockers,
-  roles,
-  competing,
 }: {
   candidateId: string;
   candidate: Candidate;
-  motivations: Motivation[];
-  blockers: Blocker[];
-  roles: Role[];
-  competing: CompetingInterview[];
 }) {
   const qc = useQueryClient();
-  const [templateOpen, setTemplateOpen] = useState(false);
-  const [uploadOpen, setUploadOpen] = useState(false);
+
+  type CandNotesPatch = Partial<Pick<Candidate,
+    "current_company" | "current_title" | "notes_interview" | "notice_period_months" |
+    "urgency_to_move" | "japanese_level" | "english_level" | "additional_languages" |
+    "current_base" | "current_bonus" | "current_total" | "expected_total_min" |
+    "expected_total_max" | "notes_presentation"
+  >>;
+
+  async function saveField(field: string, value: string | number | null) {
+    await supabase.from("candidates").update({ [field]: value } as CandNotesPatch).eq("id", candidateId);
+    void qc.invalidateQueries({ queryKey: ["candidate-profile", candidateId] });
+  }
 
   return (
     <div className="space-y-3 pb-8">
-      {/* Header row */}
-      <div className="flex items-center justify-between">
-        <p className="text-[13px] font-medium" style={{ color: "#1a1a18" }}>Candidate notes</p>
-        <div className="flex items-center gap-2">
-          <button
-            className="ab flex items-center gap-1.5"
-            onClick={() => setUploadOpen(true)}
-          >
-            <IconUpload size={12} />
-            Upload notes
-          </button>
-          <button
-            className="ab flex items-center gap-1.5"
-            onClick={() => setTemplateOpen(true)}
-          >
-            <IconTemplate size={12} />
-            Note template
-          </button>
-        </div>
-      </div>
+      {/* Current Employment */}
+      <Card>
+        <SectionLabel>Current employment</SectionLabel>
+        <NoteField
+          label="Company"
+          value={c.current_company}
+          placeholder="e.g. Sony Corporation"
+          onSave={(v) => void saveField("current_company", v)}
+        />
+        <NoteField
+          label="Title"
+          value={c.current_title}
+          placeholder="e.g. Senior Software Engineer"
+          onSave={(v) => void saveField("current_title", v)}
+        />
+      </Card>
 
-      {/* Rendered notes or empty state */}
-      {c.notes_template ? (
-        <div
-          className="rounded-xl cursor-pointer group"
-          style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.12)" }}
-          onClick={() => setTemplateOpen(true)}
-        >
-          <div className="px-8 py-6">
-            <style>{`
-              .kanri-notes-view h1 { font-size: 18px; font-weight: 700; margin-bottom: 10px; color: #1a1a18; }
-              .kanri-notes-view h2 { font-size: 13px; font-weight: 600; margin-top: 18px; margin-bottom: 4px; color: #1a1a18; border-bottom: 0.5px solid rgba(26,26,24,0.1); padding-bottom: 3px; text-transform: uppercase; letter-spacing: 0.03em; }
-              .kanri-notes-view h3 { font-size: 12px; font-weight: 600; margin-top: 10px; margin-bottom: 3px; color: #5f5e5a; }
-              .kanri-notes-view p { font-size: 13px; line-height: 1.65; color: #1a1a18; margin-bottom: 3px; }
-              .kanri-notes-view p:empty::before { content: "—"; color: #b8b7b2; }
-              .kanri-notes-view ul, .kanri-notes-view ol { padding-left: 18px; margin-bottom: 4px; }
-              .kanri-notes-view li { font-size: 13px; line-height: 1.65; color: #1a1a18; margin-bottom: 1px; }
-              .kanri-notes-view strong { font-weight: 600; }
-            `}</style>
-            <div
-              className="kanri-notes-view"
-              dangerouslySetInnerHTML={{ __html: c.notes_template }}
-            />
-          </div>
-          <div
-            className="flex items-center gap-1.5 px-8 py-3 text-[11px] opacity-0 group-hover:opacity-100 transition-opacity"
-            style={{ borderTop: "0.5px solid rgba(26,26,24,0.08)", color: "#888780" }}
-          >
-            <IconPencil size={11} />
-            Click to edit in template
-          </div>
-        </div>
+      {/* Interview Notes — largest section */}
+      <Card>
+        <SectionLabel>Interview notes</SectionLabel>
+        <NoteField
+          value={c.notes_interview}
+          placeholder="Career history, transitions, achievements, background context from registration call…"
+          onSave={(v) => void saveField("notes_interview", v)}
+          rows={10}
+        />
+      </Card>
+
+      {/* Notice Period & Urgency */}
+      <Card>
+        <SectionLabel>Notice period &amp; urgency</SectionLabel>
+        <NoticeUrgencyFields
+          noticePeriod={c.notice_period_months}
+          urgency={c.urgency_to_move}
+          onSave={(field, value) => void saveField(field, value)}
+        />
+      </Card>
+
+      {/* Language Assessment */}
+      <Card>
+        <SectionLabel>Language assessment</SectionLabel>
+        <LanguageFields
+          japanese={c.japanese_level}
+          english={c.english_level}
+          other={c.additional_languages ?? c.other_languages}
+          onSave={(field, value) => void saveField(field, value)}
+        />
+      </Card>
+
+      {/* Compensation */}
+      <Card>
+        <SectionLabel>Compensation</SectionLabel>
+        <NoteCompensationFields
+          candidate={c}
+          onSave={(field, value) => void saveField(field, value)}
+        />
+      </Card>
+
+      {/* Recruiter Assessment */}
+      <Card>
+        <SectionLabel>Recruiter assessment</SectionLabel>
+        <NoteField
+          label="Presentation &amp; communication"
+          value={c.notes_presentation}
+          placeholder="How they present in person, communication style, energy level, professionalism…"
+          onSave={(v) => void saveField("notes_presentation", v)}
+          rows={4}
+        />
+      </Card>
+    </div>
+  );
+}
+
+// ─── inline note field (click-to-edit) ───────────────────────────────────────
+
+function NoteField({
+  label,
+  value,
+  placeholder,
+  onSave,
+  rows = 3,
+}: {
+  label?: string;
+  value: string | null | undefined;
+  placeholder?: string;
+  onSave: (v: string | null) => void;
+  rows?: number;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value ?? "");
+
+  function handleBlur() {
+    setEditing(false);
+    const trimmed = draft.trim();
+    if (trimmed !== (value ?? "").trim()) {
+      onSave(trimmed || null);
+    }
+  }
+
+  return (
+    <div className="mb-3 last:mb-0">
+      {label && (
+        <p className="text-[11px] font-medium mb-1.5" style={{ color: "#5f5e5a" }}>{label}</p>
+      )}
+      {editing ? (
+        <textarea
+          autoFocus
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={handleBlur}
+          rows={rows}
+          placeholder={placeholder}
+          className="w-full text-[13px] leading-relaxed rounded-[6px] px-3 py-2 resize-none"
+          style={{
+            border: "0.5px solid rgba(26,26,24,0.20)",
+            background: "#fafaf9",
+            color: "#1a1a18",
+            outline: "none",
+          }}
+        />
       ) : (
         <div
-          className="rounded-xl px-5 py-14 text-center"
-          style={{ background: "#fff", border: "0.5px dashed rgba(26,26,24,0.18)" }}
+          className="rounded-[6px] px-3 py-2 cursor-text"
+          style={{
+            border: "0.5px solid rgba(26,26,24,0.12)",
+            background: "#f5f5f3",
+            minHeight: rows > 3 ? `${rows * 1.65 * 13}px` : "36px",
+          }}
+          onClick={() => { setDraft(value ?? ""); setEditing(true); }}
         >
-          <p className="text-[13px] font-medium mb-1" style={{ color: "#1a1a18" }}>
-            No notes yet
-          </p>
-          <p className="text-[12px] mb-5" style={{ color: "#888780" }}>
-            Open the note template to start writing, or upload existing notes<br />
-            and AI will organise them into the right sections.
-          </p>
-          <div className="flex items-center justify-center gap-2">
-            <button className="ab flex items-center gap-1.5" onClick={() => setUploadOpen(true)}>
-              <IconUpload size={12} /> Upload notes
-            </button>
-            <button className="ab flex items-center gap-1.5" onClick={() => setTemplateOpen(true)}>
-              <IconTemplate size={12} /> Open template
-            </button>
-          </div>
+          {value ? (
+            <p className="text-[13px] leading-relaxed whitespace-pre-wrap" style={{ color: "#1a1a18" }}>{value}</p>
+          ) : (
+            <p className="text-[13px]" style={{ color: "#b8b7b2" }}>{placeholder}</p>
+          )}
         </div>
       )}
+    </div>
+  );
+}
 
-      {templateOpen && (
-        <NoteTemplateModal
-          open={templateOpen}
-          onClose={() => {
-            setTemplateOpen(false);
-            void qc.invalidateQueries({ queryKey: ["candidate-profile", candidateId] });
-          }}
-          candidateId={candidateId}
-          candidate={c}
-          motivations={motivations}
-          blockers={blockers}
-          roles={roles}
-          competing={competing}
-        />
-      )}
+// ─── notice period & urgency inline fields ────────────────────────────────────
 
-      {uploadOpen && (
-        <UploadNotesDialog
-          open={uploadOpen}
-          onClose={() => setUploadOpen(false)}
-          candidateId={candidateId}
-          candidate={c}
-          motivations={motivations}
-          blockers={blockers}
-          roles={roles}
-          competing={competing}
-          onApplied={() => {
-            setUploadOpen(false);
-            void qc.invalidateQueries({ queryKey: ["candidate-profile", candidateId] });
-            setTemplateOpen(true);
-          }}
-        />
-      )}
+function NoticeUrgencyFields({
+  noticePeriod,
+  urgency,
+  onSave,
+}: {
+  noticePeriod: number | null;
+  urgency: string | null;
+  onSave: (field: string, value: string | number | null) => void;
+}) {
+  const [editingNotice, setEditingNotice] = useState(false);
+  const [noticeDraft, setNoticeDraft] = useState(noticePeriod != null ? String(noticePeriod) : "");
+
+  function saveNotice() {
+    setEditingNotice(false);
+    const v = noticeDraft.trim() ? Number(noticeDraft) : null;
+    if (v !== noticePeriod) onSave("notice_period_months", v);
+  }
+
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      <div>
+        <p className="text-[11px] font-medium mb-1.5" style={{ color: "#5f5e5a" }}>Notice period</p>
+        {editingNotice ? (
+          <div className="flex items-center gap-2">
+            <Input
+              type="number"
+              autoFocus
+              value={noticeDraft}
+              onChange={(e) => setNoticeDraft(e.target.value)}
+              onBlur={saveNotice}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") saveNotice();
+                if (e.key === "Escape") { setNoticeDraft(noticePeriod != null ? String(noticePeriod) : ""); setEditingNotice(false); }
+              }}
+              className="h-8 text-[13px] w-20"
+              placeholder="3"
+            />
+            <span className="text-[12px]" style={{ color: "#5f5e5a" }}>months</span>
+          </div>
+        ) : (
+          <div
+            className="rounded-[6px] px-3 py-2 cursor-text"
+            style={{ border: "0.5px solid rgba(26,26,24,0.12)", background: "#f5f5f3", minHeight: "36px" }}
+            onClick={() => { setNoticeDraft(noticePeriod != null ? String(noticePeriod) : ""); setEditingNotice(true); }}
+          >
+            <span className="text-[13px]" style={{ color: noticePeriod != null ? "#1a1a18" : "#b8b7b2" }}>
+              {noticePeriod != null ? `${noticePeriod} month${noticePeriod !== 1 ? "s" : ""}` : "e.g. 3 months"}
+            </span>
+          </div>
+        )}
+      </div>
+      <div>
+        <p className="text-[11px] font-medium mb-1.5" style={{ color: "#5f5e5a" }}>Urgency to move</p>
+        <Select
+          value={urgency ?? "__none__"}
+          onValueChange={(v) => onSave("urgency_to_move", v === "__none__" ? null : v)}
+        >
+          <SelectTrigger className="h-[36px] text-[13px]" style={{ background: "#f5f5f3", border: "0.5px solid rgba(26,26,24,0.12)" }}>
+            <SelectValue placeholder="Not specified" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__none__">Not specified</SelectItem>
+            <SelectItem value="Low">Low</SelectItem>
+            <SelectItem value="Medium">Medium</SelectItem>
+            <SelectItem value="High">High</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+  );
+}
+
+// ─── language fields ─────────────────────────────────────────────────────────
+
+const JAPANESE_LEVELS = ["Native", "Fluent", "High Business", "Business", "Low Business", "High Conversational", "Conversational", "Low Conversational", "Basic", "None"] as const;
+const ENGLISH_LEVELS = ["Native", "Fluent", "High Business", "Business", "Low Business", "High Conversational", "Conversational", "Low Conversational", "Basic", "None"] as const;
+
+function LanguageFields({
+  japanese,
+  english,
+  other,
+  onSave,
+}: {
+  japanese: string | null;
+  english: string | null;
+  other: string | null | undefined;
+  onSave: (field: string, value: string | null) => void;
+}) {
+  const [editingOther, setEditingOther] = useState(false);
+  const [otherDraft, setOtherDraft] = useState(other ?? "");
+
+  function saveOther() {
+    setEditingOther(false);
+    const trimmed = otherDraft.trim();
+    if (trimmed !== (other ?? "").trim()) onSave("additional_languages", trimmed || null);
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <p className="text-[11px] font-medium mb-1.5" style={{ color: "#5f5e5a" }}>Japanese</p>
+          <Select value={japanese ?? "__none__"} onValueChange={(v) => onSave("japanese_level", v === "__none__" ? null : v)}>
+            <SelectTrigger className="h-[36px] text-[13px]" style={{ background: "#f5f5f3", border: "0.5px solid rgba(26,26,24,0.12)" }}>
+              <SelectValue placeholder="Select level…" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__">Not specified</SelectItem>
+              {JAPANESE_LEVELS.map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <p className="text-[11px] font-medium mb-1.5" style={{ color: "#5f5e5a" }}>English</p>
+          <Select value={english ?? "__none__"} onValueChange={(v) => onSave("english_level", v === "__none__" ? null : v)}>
+            <SelectTrigger className="h-[36px] text-[13px]" style={{ background: "#f5f5f3", border: "0.5px solid rgba(26,26,24,0.12)" }}>
+              <SelectValue placeholder="Select level…" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__">Not specified</SelectItem>
+              {ENGLISH_LEVELS.map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <div>
+        <p className="text-[11px] font-medium mb-1.5" style={{ color: "#5f5e5a" }}>Other languages</p>
+        {editingOther ? (
+          <Input
+            autoFocus
+            value={otherDraft}
+            onChange={(e) => setOtherDraft(e.target.value)}
+            onBlur={saveOther}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") saveOther();
+              if (e.key === "Escape") { setOtherDraft(other ?? ""); setEditingOther(false); }
+            }}
+            className="h-8 text-[13px]"
+            placeholder="e.g. Mandarin (conversational)"
+          />
+        ) : (
+          <div
+            className="rounded-[6px] px-3 py-2 cursor-text"
+            style={{ border: "0.5px solid rgba(26,26,24,0.12)", background: "#f5f5f3", minHeight: "36px" }}
+            onClick={() => { setOtherDraft(other ?? ""); setEditingOther(true); }}
+          >
+            <span className="text-[13px]" style={{ color: other ? "#1a1a18" : "#b8b7b2" }}>
+              {other || "e.g. Mandarin (conversational)"}
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── compensation inline fields (notes tab) ───────────────────────────────────
+
+function NoteCompensationFields({
+  candidate: c,
+  onSave,
+}: {
+  candidate: Candidate;
+  onSave: (field: string, value: number | null) => void;
+}) {
+  function YenField({ label, fieldKey, value }: { label: string; fieldKey: string; value: number | null }) {
+    const [editing, setEditing] = useState(false);
+    const [draft, setDraft] = useState(value != null ? String(value / 1_000_000) : "");
+
+    function save() {
+      setEditing(false);
+      const parsed = draft.trim() ? Math.round(Number(draft) * 1_000_000) : null;
+      if (parsed !== value) onSave(fieldKey, parsed);
+    }
+
+    return (
+      <div>
+        <p className="text-[11px] font-medium mb-1.5" style={{ color: "#5f5e5a" }}>{label}</p>
+        {editing ? (
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[12px]" style={{ color: "#888780" }}>¥</span>
+            <Input
+              autoFocus
+              type="number"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onBlur={save}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") save();
+                if (e.key === "Escape") { setDraft(value != null ? String(value / 1_000_000) : ""); setEditing(false); }
+              }}
+              className="h-[36px] text-[13px] pl-6"
+              placeholder="e.g. 12"
+            />
+            <p className="text-[11px] mt-0.5" style={{ color: "#b8b7b2" }}>¥M — type 12 for ¥12M</p>
+          </div>
+        ) : (
+          <div
+            className="rounded-[6px] px-3 py-2 cursor-text"
+            style={{ border: "0.5px solid rgba(26,26,24,0.12)", background: "#f5f5f3", minHeight: "36px" }}
+            onClick={() => { setDraft(value != null ? String(value / 1_000_000) : ""); setEditing(true); }}
+          >
+            <span className="text-[13px]" style={{ color: value != null ? "#1a1a18" : "#b8b7b2" }}>
+              {value != null ? formatYen(value) : "¥ —M"}
+            </span>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-3 gap-3">
+        <YenField label="Current base" fieldKey="current_base" value={c.current_base} />
+        <YenField label="Current bonus" fieldKey="current_bonus" value={c.current_bonus} />
+        <YenField label="Current total" fieldKey="current_total" value={c.current_total} />
+      </div>
+      <div>
+        <p className="text-[11px] font-medium mb-1.5" style={{ color: "#5f5e5a" }}>Expected range</p>
+        <div className="grid grid-cols-2 gap-3">
+          <YenField label="Min" fieldKey="expected_total_min" value={c.expected_total_min} />
+          <YenField label="Max" fieldKey="expected_total_max" value={c.expected_total_max} />
+        </div>
+      </div>
     </div>
   );
 }
@@ -3778,15 +4026,6 @@ function CompensationCard({
           ? `${formatYen(c.expected_total_min)} – ${formatYen(c.expected_total_max)} total`
           : "—"}
       </FieldRow>
-      {c.base_is_priority && (
-        <FieldRow label="⚠ Base priority" highlight="warning">
-          <span style={{ color: "#633806" }}>
-            {c.base_minimum
-              ? `${formatYen(c.base_minimum)} base minimum — total comp is secondary`
-              : "Base stability matters more than total"}
-          </span>
-        </FieldRow>
-      )}
     </Card>
   );
 }
@@ -3806,16 +4045,11 @@ function EditCompensationDialog({
   // Inputs use ¥M notation; DB stores raw yen (×1,000,000)
   const toM = (v: number | null) => (v != null ? String(v / 1_000_000) : "");
   const [form, setForm] = useState({
-    current_base:         toM(c.current_base),
-    current_bonus:        toM(c.current_bonus),
-    current_total:        toM(c.current_total),
-    expected_total_min:   toM(c.expected_total_min),
-    expected_total_max:   toM(c.expected_total_max),
-    base_minimum:         toM(c.base_minimum),
-    base_is_priority:     c.base_is_priority,
-    bonus_preference:     c.bonus_preference ?? "",
-    equity_open:          c.equity_open === true ? "yes" : c.equity_open === false ? "no" : "",
-    notice_period_months: c.notice_period_months != null ? String(c.notice_period_months) : "",
+    current_base:       toM(c.current_base),
+    current_bonus:      toM(c.current_bonus),
+    current_total:      toM(c.current_total),
+    expected_total_min: toM(c.expected_total_min),
+    expected_total_max: toM(c.expected_total_max),
   });
 
   function setF<K extends keyof typeof form>(k: K, v: (typeof form)[K]) {
@@ -3823,21 +4057,15 @@ function EditCompensationDialog({
   }
 
   const nYen = (s: string) => (s.trim() ? Math.round(Number(s) * 1_000_000) : null);
-  const nInt = (s: string) => (s.trim() ? Number(s) : null);
 
   const mutation = useMutation({
     mutationFn: async () => {
       const { error } = await supabase.from("candidates").update({
-        current_base:         nYen(form.current_base),
-        current_bonus:        nYen(form.current_bonus),
-        current_total:        nYen(form.current_total),
-        expected_total_min:   nYen(form.expected_total_min),
-        expected_total_max:   nYen(form.expected_total_max),
-        base_minimum:         nYen(form.base_minimum),
-        base_is_priority:     form.base_is_priority,
-        bonus_preference:     form.bonus_preference.trim() || null,
-        equity_open:          form.equity_open === "yes" ? true : form.equity_open === "no" ? false : null,
-        notice_period_months: nInt(form.notice_period_months),
+        current_base:       nYen(form.current_base),
+        current_bonus:      nYen(form.current_bonus),
+        current_total:      nYen(form.current_total),
+        expected_total_min: nYen(form.expected_total_min),
+        expected_total_max: nYen(form.expected_total_max),
       }).eq("id", candidateId);
       if (error) throw error;
     },
@@ -3849,7 +4077,7 @@ function EditCompensationDialog({
     onError: () => toast.error("Failed to save compensation"),
   });
 
-  function YenInput({ label, k }: { label: string; k: "current_base" | "current_bonus" | "current_total" | "expected_total_min" | "expected_total_max" | "base_minimum" }) {
+  function YenInput({ label, k }: { label: string; k: "current_base" | "current_bonus" | "current_total" | "expected_total_min" | "expected_total_max" }) {
     return (
       <div className="space-y-1.5">
         <Label className="text-[12px]">{label}</Label>
@@ -3874,68 +4102,16 @@ function EditCompensationDialog({
         <DialogHeader>
           <DialogTitle>Edit compensation</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4 py-1 max-h-[65vh] overflow-y-auto pr-1">
+        <div className="space-y-4 py-1">
           <div className="grid grid-cols-2 gap-3">
             <YenInput label="Current base" k="current_base" />
             <YenInput label="Current bonus" k="current_bonus" />
             <YenInput label="Current total" k="current_total" />
-            <div className="space-y-1.5">
-              <Label className="text-[12px]">Notice period (months)</Label>
-              <Input
-                type="number"
-                value={form.notice_period_months}
-                onChange={(e) => setF("notice_period_months", e.target.value)}
-                className="text-[13px]"
-                placeholder="e.g. 3"
-              />
-            </div>
           </div>
-
           <div className="h-px" style={{ background: "rgba(26,26,24,0.1)" }} />
-
           <div className="grid grid-cols-2 gap-3">
             <YenInput label="Expected total (min)" k="expected_total_min" />
             <YenInput label="Expected total (max)" k="expected_total_max" />
-          </div>
-
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="base_priority"
-              checked={form.base_is_priority}
-              onChange={(e) => setF("base_is_priority", e.target.checked)}
-              className="rounded"
-            />
-            <label htmlFor="base_priority" className="text-[13px]">
-              Base is a priority (candidate weights base over total comp)
-            </label>
-          </div>
-
-          {form.base_is_priority && (
-            <YenInput label="Base minimum floor" k="base_minimum" />
-          )}
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-[12px]">Bonus preference</Label>
-              <Input
-                value={form.bonus_preference}
-                onChange={(e) => setF("bonus_preference", e.target.value)}
-                className="text-[13px]"
-                placeholder="e.g. Performance-linked preferred"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-[12px]">Open to equity / RSU</Label>
-              <Select value={form.equity_open} onValueChange={(v) => setF("equity_open", v)}>
-                <SelectTrigger className="text-[13px]"><SelectValue placeholder="Not specified" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">Not specified</SelectItem>
-                  <SelectItem value="yes">Yes — if base floor met</SelectItem>
-                  <SelectItem value="no">No</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
           </div>
         </div>
         <DialogFooter>
@@ -3944,542 +4120,6 @@ function EditCompensationDialog({
             {mutation.isPending ? "Saving…" : "Save"}
           </Button>
         </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function buildTemplateHtml(
-  c: Candidate,
-  motivations: Motivation[],
-  blockers: Blocker[],
-  roles: Role[],
-  competing: CompetingInterview[],
-): string {
-  const roleLines = roles.map((r) => {
-    const start = r.start_date ? new Date(r.start_date).getFullYear() : "";
-    const end = r.is_current ? "present" : r.end_date ? new Date(r.end_date).getFullYear() : "";
-    return `<p><strong>${r.company_name}</strong>${r.title ? ` — ${r.title}` : ""}${start ? ` (${start}–${end})` : ""}</p>`;
-  });
-
-  const motivationLines = [1, 2, 3].map((i) => {
-    const m = motivations.find((x) => x.rank === i);
-    return `<p>${i}. ${m ? m.motivation_text : ""}</p>`;
-  });
-
-  const blockerLines = blockers.length
-    ? blockers.map((b) => `<p>• <strong>${b.theme}</strong>${b.detail ? `: ${b.detail}` : ""}</p>`)
-    : ["<p>• None recorded</p>"];
-
-  const competingLines = competing.length
-    ? competing.map((ci) => `<p>• ${ci.company_name}${ci.stage ? ` — ${ci.stage}` : ""}${!ci.is_active ? " (closed)" : ""}</p>`)
-    : ["<p>• None declared at registration</p>"];
-
-  const yen = (v: number | null) => (v ? formatYen(v) : "");
-
-  return [
-    `<h1>Candidate Registration Notes — ${c.full_name}</h1>`,
-    "<h2>Candidate Background</h2>",
-    `<p><strong>Full name (English):</strong> ${c.full_name}</p>`,
-    `<p><strong>Full name (Japanese):</strong> ${c.full_name_japanese ?? ""}</p>`,
-    `<p><strong>Age:</strong> ${c.age ?? ""}</p>`,
-    `<p><strong>Address:</strong> ${c.address ?? ""}</p>`,
-    `<p><strong>Email:</strong> ${c.email ?? ""}</p>`,
-    `<p><strong>Phone:</strong> ${c.phone ?? ""}</p>`,
-    `<p><strong>LinkedIn:</strong> ${c.linkedin_url ?? ""}</p>`,
-    "<h2>Current Employment</h2>",
-    `<p><strong>Company:</strong> ${c.current_company ?? ""}</p>`,
-    `<p><strong>Title:</strong> ${c.current_title ?? ""}</p>`,
-    `<p><strong>Notice period:</strong> ${c.notice_period_months ? `${c.notice_period_months} months` : ""}</p>`,
-    `<p><strong>Urgency to move:</strong> ${c.urgency_to_move ?? ""}</p>`,
-    "<h2>Work History</h2>",
-    ...(roleLines.length ? roleLines : ["<p></p>"]),
-    "<h2>Language Assessment</h2>",
-    `<p><strong>Japanese:</strong> ${c.japanese_level ?? ""}</p>`,
-    `<p><strong>English:</strong> ${c.english_level ?? ""}</p>`,
-    `<p><strong>Other languages:</strong> ${c.additional_languages ?? c.other_languages ?? ""}</p>`,
-    "<h2>Compensation</h2>",
-    `<p><strong>Current base:</strong> ${yen(c.current_base)}</p>`,
-    `<p><strong>Current bonus:</strong> ${yen(c.current_bonus)}</p>`,
-    `<p><strong>Current total:</strong> ${yen(c.current_total)}</p>`,
-    `<p><strong>Expected range:</strong> ${c.expected_total_min || c.expected_total_max ? `${yen(c.expected_total_min)} – ${yen(c.expected_total_max)}` : ""}</p>`,
-    `<p><strong>Base minimum priority:</strong> ${c.base_is_priority ? `Yes — ${yen(c.base_minimum)}` : "No"}</p>`,
-    `<p><strong>Bonus preference:</strong> ${c.bonus_preference ?? ""}</p>`,
-    `<p><strong>Open to equity / RSU:</strong> ${c.equity_open === true ? "Yes" : c.equity_open === false ? "No" : ""}</p>`,
-    "<h2>Motivations (candidate-ranked)</h2>",
-    ...motivationLines,
-    "<h2>Personal Constraints &amp; Blockers</h2>",
-    ...blockerLines,
-    "<h2>Competing Interviews at Registration</h2>",
-    ...competingLines,
-    "<h2>Recruiter Assessment</h2>",
-    "<h3>Presentation &amp; Communication</h3>",
-    `<p>${c.notes_presentation ?? ""}</p>`,
-    "<h3>Personality &amp; Working Style</h3>",
-    `<p>${c.notes_personality ?? ""}</p>`,
-    "<h3>Pitch to Clients</h3>",
-    `<p>${c.notes_pitch ?? ""}</p>`,
-    "<h3>Closing Intelligence</h3>",
-    `<p>${c.notes_closing ?? ""}</p>`,
-  ].join("\n");
-}
-
-// ─── upload notes dialog ──────────────────────────────────────────────────────
-
-function UploadNotesDialog({
-  open,
-  onClose,
-  candidateId,
-  candidate: c,
-  motivations,
-  blockers,
-  roles,
-  competing,
-  onApplied,
-}: {
-  open: boolean;
-  onClose: () => void;
-  candidateId: string;
-  candidate: Candidate;
-  motivations: Motivation[];
-  blockers: Blocker[];
-  roles: Role[];
-  competing: CompetingInterview[];
-  onApplied: () => void;
-}) {
-  const [rawNotes, setRawNotes] = useState("");
-  const [fileInfo, setFileInfo] = useState<{ name: string; base64: string; type: "pdf" | "docx" | "text" } | null>(null);
-  const [applying, setApplying] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
-
-  const hasInput = rawNotes.trim().length > 0 || fileInfo !== null;
-
-  async function handleFile(file: File) {
-    const isPdf = file.type === "application/pdf" || file.name.endsWith(".pdf");
-    const isDocx =
-      file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
-      file.name.endsWith(".docx") ||
-      file.name.endsWith(".doc");
-    const isText = file.type === "text/plain" || file.name.endsWith(".txt") || file.name.endsWith(".md");
-
-    if (isText) {
-      const text = await file.text();
-      setRawNotes(text);
-      setFileInfo(null);
-      return;
-    }
-
-    if (isPdf || isDocx) {
-      const arrayBuffer = await file.arrayBuffer();
-      const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
-      setFileInfo({ name: file.name, base64, type: isPdf ? "pdf" : "docx" });
-      setRawNotes("");
-      return;
-    }
-
-    toast.error("Supported formats: PDF, Word (.docx), or plain text (.txt / .md).");
-  }
-
-  async function apply() {
-    if (!hasInput) { toast.error("Please paste notes or upload a file first."); return; }
-    setApplying(true);
-    try {
-      const existingTemplate =
-        c.notes_template ||
-        buildTemplateHtml(c, motivations, blockers, roles, competing);
-
-      const body = fileInfo
-        ? { candidateId, existingTemplate, fileBase64: fileInfo.base64, fileType: fileInfo.type }
-        : { candidateId, existingTemplate, rawNotes: rawNotes.trim(), fileType: "text" };
-
-      const res = await fetch("/api/ai/apply-candidate-notes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-
-      if (!res.ok) {
-        const err = (await res.json().catch(() => ({}))) as { error?: string };
-        toast.error(err.error ?? "Failed to apply notes. Try again.");
-        return;
-      }
-
-      toast.success("Notes applied to template — review and edit as needed.");
-      onApplied();
-    } catch {
-      toast.error("Failed to apply notes. Check your connection.");
-    } finally {
-      setApplying(false);
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-xl">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <IconSparklesOutline size={16} style={{ color: "#888780" }} />
-            Apply notes with AI
-          </DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-4 py-1">
-          <p className="text-[13px] leading-relaxed" style={{ color: "#5f5e5a" }}>
-            Paste notes below, or upload a file — PDF, Word, or plain text. AI will read
-            them and place each piece of information into the right section of the candidate
-            note template.
-          </p>
-
-          {/* File upload drop zone */}
-          <div
-            className="flex items-center justify-between rounded-lg px-4 py-3 cursor-pointer transition-colors"
-            style={{ background: fileInfo ? "#eaf3de" : "#f5f5f3", border: `0.5px dashed ${fileInfo ? "rgba(39,80,10,0.3)" : "rgba(26,26,24,0.2)"}` }}
-            onClick={() => fileRef.current?.click()}
-          >
-            <div className="flex items-center gap-2 text-[13px]" style={{ color: fileInfo ? "#27500a" : "#5f5e5a" }}>
-              <IconUpload size={14} />
-              {fileInfo ? `${fileInfo.name}` : "Upload PDF, Word (.docx), or text file"}
-            </div>
-            {fileInfo && (
-              <button
-                className="text-[11px] px-2 py-0.5 rounded"
-                style={{ background: "#eaf3de", color: "#27500a" }}
-                onClick={(e) => { e.stopPropagation(); setFileInfo(null); }}
-              >
-                Remove
-              </button>
-            )}
-            <input
-              ref={fileRef}
-              type="file"
-              accept=".pdf,.docx,.doc,.txt,.md,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
-              className="hidden"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) void handleFile(f);
-                e.target.value = "";
-              }}
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label className="text-[12px]">Or paste notes directly</Label>
-            <Textarea
-              value={rawNotes}
-              onChange={(e) => { setRawNotes(e.target.value); if (e.target.value) setFileInfo(null); }}
-              placeholder={`Paste anything — unstructured call notes, bullet points, email summaries. For example:\n\nSpoke to Tanaka-san for 45 mins. Currently at Rakuten, wants to move to fintech. N1 Japanese, fluent English. Base ¥9.5M. Wife is supportive of a move but wants stability. Has offer from Monex due next Friday.`}
-              className="min-h-[160px] text-[13px] font-mono leading-relaxed"
-              disabled={!!fileInfo}
-            />
-          </div>
-
-          <div
-            className="rounded-lg px-3 py-2.5 text-[11px] flex items-start gap-2"
-            style={{ background: "#f5f5f3", color: "#5f5e5a" }}
-          >
-            <IconInfoCircle size={13} className="shrink-0 mt-[1px]" />
-            <span>
-              AI will not delete existing template content — it will add to and enrich what's
-              already there. You can review everything in the template editor after applying.
-            </span>
-          </div>
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" size="sm" onClick={onClose} disabled={applying}>
-            Cancel
-          </Button>
-          <Button
-            size="sm"
-            onClick={() => void apply()}
-            disabled={applying || !hasInput}
-            className="flex items-center gap-1.5"
-          >
-            <IconSparklesOutline size={13} />
-            {applying ? "Applying…" : "Apply to template"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-async function exportTemplateToDocx(html: string, candidateName: string) {
-  const { Document, Paragraph, HeadingLevel, TextRun, Packer } = await import("docx");
-
-  const parser = new DOMParser();
-  const dom = parser.parseFromString(`<div>${html}</div>`, "text/html");
-  const paragraphs: InstanceType<typeof Paragraph>[] = [];
-
-  dom.body.firstElementChild?.childNodes.forEach((node) => {
-    if (node.nodeType !== Node.ELEMENT_NODE) return;
-    const el = node as HTMLElement;
-    const tag = el.tagName;
-    const text = el.textContent ?? "";
-
-    if (tag === "H1") {
-      paragraphs.push(new Paragraph({ text, heading: HeadingLevel.HEADING_1 }));
-    } else if (tag === "H2") {
-      paragraphs.push(new Paragraph({ text, heading: HeadingLevel.HEADING_2 }));
-    } else if (tag === "H3") {
-      paragraphs.push(new Paragraph({ text, heading: HeadingLevel.HEADING_3 }));
-    } else if (tag === "UL" || tag === "OL") {
-      el.querySelectorAll("li").forEach((li, idx) => {
-        paragraphs.push(
-          new Paragraph({ text: `${tag === "OL" ? `${idx + 1}.` : "•"} ${li.textContent ?? ""}` }),
-        );
-      });
-    } else {
-      const runs: InstanceType<typeof TextRun>[] = [];
-      el.childNodes.forEach((child) => {
-        if (child.nodeType === Node.TEXT_NODE) {
-          runs.push(new TextRun({ text: child.textContent ?? "" }));
-        } else if (child.nodeType === Node.ELEMENT_NODE) {
-          const ce = child as HTMLElement;
-          runs.push(
-            new TextRun({
-              text: ce.textContent ?? "",
-              bold: ["STRONG", "B"].includes(ce.tagName),
-              italics: ["EM", "I"].includes(ce.tagName),
-            }),
-          );
-        }
-      });
-      paragraphs.push(
-        new Paragraph({ children: runs.length ? runs : [new TextRun({ text: "" })] }),
-      );
-    }
-  });
-
-  const doc = new Document({ sections: [{ properties: {}, children: paragraphs }] });
-  const blob = await Packer.toBlob(doc);
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `${candidateName.replace(/\s+/g, "_")}_notes.docx`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-function NoteTemplateModal({
-  open,
-  onClose,
-  candidateId,
-  candidate: c,
-  motivations,
-  blockers,
-  roles,
-  competing,
-}: {
-  open: boolean;
-  onClose: () => void;
-  candidateId: string;
-  candidate: Candidate;
-  motivations: Motivation[];
-  blockers: Blocker[];
-  roles: Role[];
-  competing: CompetingInterview[];
-}) {
-  const qc = useQueryClient();
-  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [exporting, setExporting] = useState(false);
-
-  const initialContent = c.notes_template || buildTemplateHtml(c, motivations, blockers, roles, competing);
-
-  const editor = useEditor({
-    extensions: [StarterKit, Underline],
-    content: initialContent,
-    onUpdate: ({ editor }) => {
-      if (saveTimer.current) clearTimeout(saveTimer.current);
-      setSaveStatus("saving");
-      saveTimer.current = setTimeout(() => {
-        const html = editor.getHTML();
-        void supabase
-          .from("candidates")
-          .update({ notes_template: html })
-          .eq("id", candidateId)
-          .then(({ error }) => {
-            if (error) {
-              setSaveStatus("error");
-            } else {
-              setSaveStatus("saved");
-              void qc.invalidateQueries({ queryKey: ["candidate-profile", candidateId] });
-              setTimeout(() => setSaveStatus("idle"), 2500);
-            }
-          });
-      }, 2000);
-    },
-    editorProps: {
-      attributes: {
-        class: "outline-none min-h-full",
-        style: "font-family: inherit; font-size: 14px; line-height: 1.7; color: #1a1a18;",
-      },
-    },
-  });
-
-  useEffect(() => {
-    return () => {
-      if (saveTimer.current) clearTimeout(saveTimer.current);
-    };
-  }, []);
-
-  async function handleExport() {
-    if (!editor) return;
-    setExporting(true);
-    try {
-      await exportTemplateToDocx(editor.getHTML(), c.full_name);
-    } catch {
-      toast.error("Export failed. Try again.");
-    } finally {
-      setExporting(false);
-    }
-  }
-
-  function ToolbarBtn({
-    onClick,
-    active,
-    title,
-    children,
-  }: {
-    onClick: () => void;
-    active?: boolean;
-    title: string;
-    children: React.ReactNode;
-  }) {
-    return (
-      <button
-        type="button"
-        onMouseDown={(e) => { e.preventDefault(); onClick(); }}
-        title={title}
-        className="flex items-center justify-center w-7 h-7 rounded transition-colors"
-        style={{
-          background: active ? "#e6f1fb" : "transparent",
-          color: active ? "#185fa5" : "#5f5e5a",
-        }}
-      >
-        {children}
-      </button>
-    );
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent
-        className="flex flex-col p-0 gap-0"
-        style={{ maxWidth: "780px", width: "95vw", height: "88vh", maxHeight: "88vh" }}
-      >
-        {/* Toolbar */}
-        <div
-          className="flex items-center gap-0.5 px-3 py-2 shrink-0"
-          style={{ borderBottom: "0.5px solid rgba(26,26,24,0.12)" }}
-        >
-          <ToolbarBtn
-            onClick={() => editor?.chain().focus().toggleBold().run()}
-            active={editor?.isActive("bold")}
-            title="Bold"
-          >
-            <IconBold size={14} />
-          </ToolbarBtn>
-          <ToolbarBtn
-            onClick={() => editor?.chain().focus().toggleItalic().run()}
-            active={editor?.isActive("italic")}
-            title="Italic"
-          >
-            <IconItalic size={14} />
-          </ToolbarBtn>
-          <ToolbarBtn
-            onClick={() => editor?.chain().focus().toggleUnderline().run()}
-            active={editor?.isActive("underline")}
-            title="Underline"
-          >
-            <IconUnderline size={14} />
-          </ToolbarBtn>
-
-          <div className="w-px h-5 mx-1" style={{ background: "rgba(26,26,24,0.12)" }} />
-
-          <ToolbarBtn
-            onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}
-            active={editor?.isActive("heading", { level: 2 })}
-            title="Heading 2"
-          >
-            <IconH2 size={14} />
-          </ToolbarBtn>
-          <ToolbarBtn
-            onClick={() => editor?.chain().focus().toggleHeading({ level: 3 }).run()}
-            active={editor?.isActive("heading", { level: 3 })}
-            title="Heading 3"
-          >
-            <IconH3 size={14} />
-          </ToolbarBtn>
-
-          <div className="w-px h-5 mx-1" style={{ background: "rgba(26,26,24,0.12)" }} />
-
-          <ToolbarBtn
-            onClick={() => editor?.chain().focus().toggleBulletList().run()}
-            active={editor?.isActive("bulletList")}
-            title="Bullet list"
-          >
-            <IconList size={14} />
-          </ToolbarBtn>
-          <ToolbarBtn
-            onClick={() => editor?.chain().focus().toggleOrderedList().run()}
-            active={editor?.isActive("orderedList")}
-            title="Numbered list"
-          >
-            <IconListNumbers size={14} />
-          </ToolbarBtn>
-
-          {/* Save status */}
-          <div className="ml-3 flex items-center gap-1 text-[11px]">
-            {saveStatus === "saving" && <span style={{ color: "#888780" }}>Saving…</span>}
-            {saveStatus === "saved" && (
-              <span className="flex items-center gap-1" style={{ color: "#27500a" }}>
-                <IconCheck size={11} /> Saved to Kanri
-              </span>
-            )}
-            {saveStatus === "error" && (
-              <span style={{ color: "#a32d2d" }}>Save failed — check connection</span>
-            )}
-          </div>
-
-          <div className="ml-auto flex items-center gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => void handleExport()}
-              disabled={exporting}
-              className="h-7 text-[12px] px-2.5"
-            >
-              <IconDownload size={13} className="mr-1" />
-              {exporting ? "Exporting…" : "Export to Word"}
-            </Button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex items-center justify-center w-7 h-7 rounded transition-colors"
-              style={{ color: "#888780" }}
-            >
-              <IconX size={16} />
-            </button>
-          </div>
-        </div>
-
-        {/* Editor area */}
-        <div className="flex-1 overflow-y-auto px-10 py-8">
-          <style>{`
-            .kanri-editor h1 { font-size: 20px; font-weight: 700; margin-bottom: 12px; color: #1a1a18; }
-            .kanri-editor h2 { font-size: 15px; font-weight: 600; margin-top: 20px; margin-bottom: 6px; color: #1a1a18; border-bottom: 0.5px solid rgba(26,26,24,0.12); padding-bottom: 4px; }
-            .kanri-editor h3 { font-size: 13px; font-weight: 600; margin-top: 12px; margin-bottom: 4px; color: #1a1a18; }
-            .kanri-editor p { margin-bottom: 4px; }
-            .kanri-editor ul, .kanri-editor ol { padding-left: 20px; margin-bottom: 6px; }
-            .kanri-editor li { margin-bottom: 2px; }
-            .kanri-editor strong { font-weight: 600; }
-          `}</style>
-          <div className="kanri-editor">
-            <EditorContent editor={editor} />
-          </div>
-        </div>
       </DialogContent>
     </Dialog>
   );

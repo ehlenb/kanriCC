@@ -246,6 +246,7 @@ export type Database = {
           linkedin_url: string | null
           notes_closing: string | null
           notes_internal: string | null
+          notes_interview: string | null
           notes_personality: string | null
           notes_pitch: string | null
           notes_presentation: string | null
@@ -298,6 +299,7 @@ export type Database = {
           linkedin_url?: string | null
           notes_closing?: string | null
           notes_internal?: string | null
+          notes_interview?: string | null
           notes_personality?: string | null
           notes_pitch?: string | null
           notes_presentation?: string | null
@@ -350,6 +352,7 @@ export type Database = {
           linkedin_url?: string | null
           notes_closing?: string | null
           notes_internal?: string | null
+          notes_interview?: string | null
           notes_personality?: string | null
           notes_pitch?: string | null
           notes_presentation?: string | null
