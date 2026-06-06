@@ -4205,6 +4205,13 @@ function RegistrationFormUploadZone({
             {fetchingUrl ? "Opening…" : "View"}
           </button>
           <button
+            onClick={(e) => { e.stopPropagation(); void runExtraction(registrationFormUrl); }}
+            className="flex items-center gap-1 px-2 py-0.5 text-[11px] shrink-0"
+            style={{ background: "var(--color-white)", color: "var(--color-ink-60)", border: "0.5px solid var(--color-ink-15)" }}
+          >
+            <IconSparkles size={10} /> Re-extract
+          </button>
+          <button
             onClick={handleRemoveReg}
             className="flex items-center gap-1 px-2 py-0.5 text-[11px] shrink-0"
             style={{ background: "var(--color-white)", color: "var(--color-ink-60)", border: "0.5px solid var(--color-ink-15)" }}
