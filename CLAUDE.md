@@ -756,3 +756,230 @@ Kanri is the long-term vision. Active development is paused as of May 2026.
 The MVP pivot is a standalone product called CVFlow (separate repository).
 CVFlow's submission report capability will be integrated into Kanri in a future phase.
 Do not add new features to Kanri until CVFlow has validated core AI output quality.
+
+---
+
+# Kanri — Design System Contract
+
+This section governs all UI work in this codebase. It takes precedence over
+any Tailwind defaults, component library defaults, or prior patterns in the
+codebase. When generating or modifying any component, layout, or style, follow
+these rules exactly.
+
+---
+
+## Identity
+
+Kanri is a recruiter OS built for boutique agency recruiters in the Japan
+market. The aesthetic is editorial-Japanese: structured, typographic, precise.
+It must never read as generic SaaS, and must never resemble Claude's default
+output style.
+
+---
+
+## Fonts — REQUIRED
+
+Three fonts. No others.
+
+| Role        | Font                | Usage                                      |
+|-------------|---------------------|--------------------------------------------|
+| Display     | Shippori Mincho     | All h1–h4, wordmark, stat numbers, names   |
+| Body        | Plus Jakarta Sans   | All body copy, labels, buttons, inputs     |
+| Mono        | DM Mono             | IDs, metadata, badges, code, timestamps    |
+
+**Never use**: Inter, Roboto, Space Grotesk, system-ui, Arial, or any font
+not in this table.
+
+Tailwind class mapping:
+- `font-display` → Shippori Mincho
+- `font-sans` → Plus Jakarta Sans
+- `font-mono` → DM Mono
+
+---
+
+## Color — REQUIRED
+
+All colors come from CSS custom properties defined in `src/styles.css`.
+
+### Palette
+
+| Token                      | Hex       | Usage                                      |
+|----------------------------|-----------|--------------------------------------------|
+| `--color-ink`              | #1a1814   | Primary text, primary buttons, borders     |
+| `--color-ink-60`           | #6b6760   | Secondary text, placeholders               |
+| `--color-ink-30`           | #b8b5b0   | Muted text, mono labels                    |
+| `--color-ink-15`           | #d9d7d3   | Default borders                            |
+| `--color-ink-10`           | #f2f0ec   | Sunken backgrounds, table stripes          |
+| `--color-ink-05`           | #f8f7f5   | Page background                            |
+| `--color-white`            | #fdfcfa   | Card/surface background                    |
+| `--color-vermillion`       | #c94f2a   | Primary CTA, accent stripes, focus borders |
+| `--color-vermillion-light` | #f0e0d8   | Badge backgrounds (warm/interview)         |
+| `--color-indigo`           | #2c3e6b   | Links, info states                         |
+| `--color-indigo-light`     | #d8dde8   | Info badge backgrounds                     |
+| `--color-moss`             | #4a5e3a   | Success, placed, completed states          |
+| `--color-moss-light`       | #dce4d5   | Success badge backgrounds                  |
+| `--color-gold`             | #b8922a   | Offers, warm/pending pipeline stages       |
+| `--color-gold-light`       | #f0e8d0   | Pending badge backgrounds                  |
+
+### FORBIDDEN colors
+- **Purple / violet** — never. No `#7c3aed`, no Tailwind `purple-*` or `violet-*`.
+- **Blue as primary** — blue (`--color-indigo`) is for links and info only.
+- **Arbitrary hex values** — use only the tokens above.
+- **Gradients** — no gradient backgrounds on any UI element, ever.
+
+---
+
+## Shape & Radius — CRITICAL
+
+**Border radius is 0 everywhere except avatar/initials circles.**
+
+- All buttons: `border-radius: 0`
+- All cards: `border-radius: 0`
+- All inputs: `border-radius: 0`
+- All badges/chips: `border-radius: 0`
+- All modals/drawers: `border-radius: 0`
+- Avatar circles only: `border-radius: 9999px`
+
+**Never use**: `rounded-md`, `rounded-lg`, `rounded-xl`, `rounded-2xl`,
+`rounded-3xl`. These are forbidden Tailwind classes in this codebase.
+
+---
+
+## Shadows — NONE
+
+No box shadows anywhere. No `shadow-sm`, `shadow-md`, `shadow-lg`, or any
+Tailwind shadow class. No `drop-shadow`. Card elevation is communicated through
+borders, not shadows.
+
+---
+
+## Component Patterns
+
+### Buttons
+Use the `.btn` base class plus a variant class. Always square corners.
+
+```tsx
+// Primary (dark fill)
+<button className="btn btn-primary">Add Candidate</button>
+
+// Accent (vermillion — main CTA)
+<button className="btn btn-accent">Submit to Client</button>
+
+// Outline
+<button className="btn btn-outline">Export</button>
+
+// Ghost (low emphasis)
+<button className="btn btn-ghost">Archive</button>
+
+// Small variant
+<button className="btn btn-primary btn-sm">Save</button>
+```
+
+### Cards
+```tsx
+// Default card
+<div className="card">...</div>
+
+// With accent stripe (vermillion — active/primary)
+<div className="card card-accent">...</div>
+
+// With gold stripe (offer/pending)
+<div className="card card-accent-gold">...</div>
+
+// With moss stripe (placed/complete)
+<div className="card card-accent-moss">...</div>
+```
+
+### Badges
+```tsx
+<span className="badge badge-active">Active</span>      // moss
+<span className="badge badge-warm">Interview</span>     // vermillion
+<span className="badge badge-pending">Offer Out</span>  // gold
+<span className="badge badge-cold">On Hold</span>       // gray
+<span className="badge badge-info">New</span>           // indigo
+```
+
+### Mono labels (section headers, metadata)
+```tsx
+<p className="label">Last contacted · 3 days ago</p>
+// Renders as: DM Mono, 10px, uppercase, tracked, ink-30
+```
+
+### Stat cells
+```tsx
+<div className="stat-grid grid-cols-4">
+  <div className="stat-cell">
+    <div className="stat-value">42</div>
+    <div className="stat-label">Active</div>
+  </div>
+</div>
+```
+
+### Inputs
+Inputs are flat with underline-only active state. The base styles in
+`src/styles.css` handle this — do not override with rounded or shadowed styles.
+
+```tsx
+<div>
+  <label className="label block mb-1">Candidate Name</label>
+  <input type="text" placeholder="Full name / 氏名" />
+</div>
+```
+
+### Candidate name display
+When showing Japanese names, always format as:
+`田中 雅彦 / Masahiko Tanaka` — Japanese first, Latin second, separated by ` / `.
+
+---
+
+## Typography Rules
+
+- **h1–h4**: always `font-display` (Shippori Mincho)
+- **Body text**: always `font-sans` (Plus Jakarta Sans)
+- **Metadata, IDs, timestamps, badges, section labels**: always `font-mono` (DM Mono)
+- Section labels: mono, 10px, uppercase, letter-spacing 0.12em, `--color-ink-30`
+- Stat numbers: `font-display`, 26px+, weight 700
+- **Never bold body copy** — use weight 500 maximum for emphasis in body text
+
+---
+
+## Layout Principles
+
+- Page background: `--color-ink-05` (warm off-white)
+- Card/surface background: `--color-white`
+- Cards sit on page bg — the contrast is subtle and intentional
+- No centered hero layouts — content is left-aligned and structured
+- Sidebar navigation when needed: left, 240px, `--color-white` bg, `--color-ink-15` right border
+- Dividers: `1px solid --color-ink-15` (light) or `2px solid --color-ink` (heavy/section break)
+- Metric strips: grid with `1px` gaps and `--color-ink-15` background (creates grid line effect)
+
+---
+
+## What "Claude default" looks like — AVOID ALL OF THIS
+
+| Pattern                         | Why it's wrong              | Use instead                    |
+|---------------------------------|-----------------------------|--------------------------------|
+| Purple/violet primary color     | Generic AI SaaS             | Vermillion (#c94f2a)           |
+| `rounded-lg` or `rounded-xl`   | Soft/generic feel           | `rounded-none` / no radius     |
+| `shadow-md` on cards            | Floaty, not editorial       | `border border-ink-15`         |
+| Inter or Space Grotesk          | Overused in AI products     | Plus Jakarta Sans + Shippori   |
+| Blue as primary CTA             | Default SaaS palette        | Vermillion for CTA             |
+| Gray background (`bg-gray-*`)   | Tailwind default             | `bg-[--color-ink-05]`          |
+| Gradient buttons                | Web 2.0 / AI-generated      | Flat fill only                 |
+| `text-purple-*` anything        | Forbidden                   | (no equivalent — don't use)    |
+
+---
+
+## Migration Checklist
+
+When migrating an existing component to this design system, check each item:
+
+- [ ] Font replaced: heading → `font-display`, body → `font-sans`, meta → `font-mono`
+- [ ] All `rounded-*` classes removed (except avatar circles)
+- [ ] All `shadow-*` classes removed
+- [ ] All purple/violet colors replaced
+- [ ] All `bg-gray-*` replaced with ink token equivalents
+- [ ] Buttons use `.btn` component classes
+- [ ] Badges use `.badge` component classes
+- [ ] No inline hex colors — all colors via CSS custom properties
+- [ ] Japanese names formatted correctly where applicable
