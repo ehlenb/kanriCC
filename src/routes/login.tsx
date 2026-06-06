@@ -64,7 +64,7 @@ function LoginPage() {
       </header>
 
       <main className="mx-auto max-w-sm px-6 pt-16">
-        <h1 className="text-2xl font-semibold tracking-tight">
+        <h1 className="text-2xl font-semibold tracking-tight font-display">
           {mode === "signin" ? "Sign in to Kanri" : "Create your account"}
         </h1>
         <p className="mt-1 text-sm" style={{ color: "#5f5e5a" }}>

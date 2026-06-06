@@ -306,11 +306,11 @@ function CandidateProfile() {
           {initials(c.full_name)}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-[17px] font-medium">
+          <div className="text-[17px] font-medium font-display">
             {c.full_name}{" "}
             {c.full_name_japanese && (
               <span className="text-[14px] font-normal" style={{ color: "#5f5e5a" }}>
-                {c.full_name_japanese}
+                / {c.full_name_japanese}
               </span>
             )}
           </div>

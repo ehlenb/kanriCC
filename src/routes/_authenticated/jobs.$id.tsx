@@ -202,7 +202,7 @@ function JobDetail() {
       <div className="flex items-start justify-between mb-5">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <h1 className="text-xl font-medium">{r.title}</h1>
+            <h1 className="text-xl font-medium font-display">{r.title}</h1>
             {r.urgency && r.urgency !== "normal" && (
               <span
                 className="text-[11px] font-medium px-2 py-0.5 rounded"

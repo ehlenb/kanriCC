@@ -86,10 +86,10 @@ function Sidebar({
       {/* Logo */}
       <div className="flex items-center gap-2 px-4 py-5">
         <div
-          className="h-5 w-5 rounded-sm"
+          className="h-5 w-5"
           style={{ background: "#1a1a18" }}
         />
-        <span className="text-base font-semibold tracking-tight">Kanri</span>
+        <span className="text-base font-semibold tracking-tight font-display">Kanri</span>
       </div>
 
       {/* Nav */}

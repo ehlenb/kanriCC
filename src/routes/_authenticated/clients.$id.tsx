@@ -975,13 +975,13 @@ function CompanyHeaderCard({
       {/* Header row */}
       <div className="flex items-start gap-3 mb-4">
         <div
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[8px] text-[13px] font-medium"
+          className="flex h-11 w-11 shrink-0 items-center justify-center  text-[13px] font-medium"
           style={{ background: "#e6f1fb", color: "#185fa5" }}
         >
           {initials(c.company_name)}
         </div>
         <div className="flex-1 min-w-0">
-          <h2 className="text-[18px] font-medium leading-tight">{c.company_name}</h2>
+          <h2 className="text-[18px] font-medium leading-tight font-display">{c.company_name}</h2>
           {/* Meta pills */}
           <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
             <ClientStatusSelect
@@ -1045,11 +1045,11 @@ function CompanyHeaderCard({
         ].map(({ label, value, color }) => (
           <div
             key={label}
-            className="rounded-[8px] p-[10px_12px]"
+            className=" p-[10px_12px]"
             style={{ background: "#f5f5f3" }}
           >
             <p
-              className="text-[18px] font-medium leading-none mb-1"
+              className="text-[18px] font-medium leading-none mb-1 font-display"
               style={{ color: color ?? "#1a1a18" }}
             >
               {value}
@@ -1743,7 +1743,7 @@ function RecommendedActionsPanel({
             return (
               <div
                 key={item.id}
-                className="rounded-[8px] p-[10px_12px]"
+                className=" p-[10px_12px]"
                 style={{
                   background: s.bg,
                   borderLeft: `3px solid ${s.border}`,
@@ -1830,7 +1830,7 @@ function QuickActionsCard({
           </button>
           {showEventMenu && (
             <div
-              className="absolute left-0 right-0 top-full mt-1 rounded-[8px] overflow-hidden z-10"
+              className="absolute left-0 right-0 top-full mt-1  overflow-hidden z-10"
               style={{
                 border: "0.5px solid rgba(26,26,24,0.12)",
                 background: "#fff",
@@ -2597,7 +2597,7 @@ function DraftModal({
             <textarea
               value={edited}
               onChange={(e) => setEdited(e.target.value)}
-              className="w-full rounded-[8px] p-3 text-[13px] leading-relaxed resize-none"
+              className="w-full  p-3 text-[13px] leading-relaxed resize-none"
               style={{
                 border: "0.5px solid rgba(26,26,24,0.20)",
                 background: "#fafaf9",
@@ -2608,7 +2608,7 @@ function DraftModal({
             />
           ) : (
             <div
-              className="text-[13px] leading-relaxed rounded-[8px] p-3"
+              className="text-[13px] leading-relaxed  p-3"
               style={{
                 background: "#f5f5f3",
                 whiteSpace: "pre-wrap",
@@ -2749,7 +2749,7 @@ function ClientEnrichCard({ clientId, companyName }: { clientId: string; company
             {loading ? "Searching…" : "Search and enrich"}
           </button>
           {result && (
-            <div className="mt-3 rounded-[8px] p-3" style={{ background: "#f5f5f3" }}>
+            <div className="mt-3  p-3" style={{ background: "#f5f5f3" }}>
               <p className="sl mb-2">Enrichment results — review before applying</p>
               <div className="space-y-1.5 mb-3">
                 {previewRows.filter((r) => r.value != null).map(({ label, value }) => (

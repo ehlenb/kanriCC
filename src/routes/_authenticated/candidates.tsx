@@ -209,7 +209,7 @@ function CandidatesLayout() {
           style={{ borderBottom: "0.5px solid rgba(26,26,24,0.12)" }}
         >
           <div className="flex items-center justify-between mb-3">
-            <h1 className="text-base font-semibold">Candidates</h1>
+            <h1 className="text-base font-semibold font-display">Candidates</h1>
             <Button
               size="sm"
               variant="ghost"
@@ -368,7 +368,7 @@ function CandidatesLayout() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
-                        <p className="truncate text-[13px] font-medium">
+                        <p className="truncate text-[13px] font-medium font-display">
                           {c.full_name}
                           {showCoin && <span className="ml-1">🪙</span>}
                         </p>

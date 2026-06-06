@@ -293,7 +293,7 @@ function Dashboard() {
     <div className="px-8 py-7 max-w-6xl space-y-4">
       {/* Header */}
       <div>
-        <h1 className="text-xl font-medium mb-0.5">{greetingByHour()}</h1>
+        <h1 className="text-xl font-medium mb-0.5 font-display">{greetingByHour()}</h1>
         <p className="text-[13px]" style={{ color: "#5f5e5a" }}>
           {todayFormatted()}&nbsp;&middot;&nbsp;Here is what needs your attention today
         </p>
@@ -438,7 +438,7 @@ function KpiChip({
       }}
     >
       <div className="flex w-full items-center justify-between mb-1">
-        <span className="text-2xl font-semibold leading-none" style={{ color: numColor }}>
+        <span className="text-2xl font-semibold leading-none font-display" style={{ color: numColor }}>
           {count}
         </span>
         <IconChevronDown
