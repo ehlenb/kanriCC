@@ -1,19 +1,57 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { BLANK_CANDIDATE_SEARCH } from "@/routes/_authenticated/candidates";
 import { greetingByHour, todayFormatted, relativeTime } from "@/lib/candidate-utils";
 import { Skeleton } from "@/components/ui/skeleton";
-import { IconChevronRight, IconAlertTriangle, IconSparkles } from "@tabler/icons-react";
+import { IconChevronRight, IconAlertTriangle, IconSparkles, IconCheck, IconBellOff, IconBriefcase } from "@tabler/icons-react";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
 });
 
+// ─── agenda localStorage ─────────────────────────────────────────────────────
+
+const TODAY = new Date().toISOString().slice(0, 10);
+
+function getDoneToday(): Record<string, string> {
+  try { return JSON.parse(localStorage.getItem("kanri_done_today") ?? "{}") as Record<string, string>; }
+  catch { return {}; }
+}
+function getSnoozed(): Record<string, string> {
+  try { return JSON.parse(localStorage.getItem("kanri_snoozed") ?? "{}") as Record<string, string>; }
+  catch { return {}; }
+}
+function markDoneToday(entityId: string) {
+  const d = getDoneToday(); d[entityId] = TODAY;
+  localStorage.setItem("kanri_done_today", JSON.stringify(d));
+}
+function snoozeUntil(entityId: string, date: string) {
+  const d = getSnoozed(); d[entityId] = date;
+  localStorage.setItem("kanri_snoozed", JSON.stringify(d));
+}
+function isVisible(entityId: string): boolean {
+  if (getDoneToday()[entityId] === TODAY) return false;
+  const snoozeDate = getSnoozed()[entityId];
+  return !(snoozeDate && snoozeDate > TODAY);
+}
+
 // ─── types ───────────────────────────────────────────────────────────────────
+
+type AgendaItem = {
+  entity_type: "candidate" | "client" | "requisition";
+  entity_id: string;
+  entity_name: string;
+  process_id?: string;
+  stage?: string;
+  reason: string;
+  suggested_action: string;
+  action_type: string;
+  priority_rank: number;
+};
 
 type MetricKey = "specs" | "cvs" | "interviewing" | "offers" | "placed";
 type Period = "week" | "30d" | "month" | "quarter" | "all";
@@ -135,6 +173,25 @@ function normaliseProcessRow(row: any): ProcessRow {
 
 const PROCESS_SELECT =
   "id, stage, cv_sent_at, offer_date, placed_date, placed_fee_jpy, candidate_id, candidates(id, full_name), requisitions(title, clients(company_name))";
+
+// ─── agenda hook ─────────────────────────────────────────────────────────────
+
+function useDailyAgenda(recruiterId: string) {
+  return useQuery({
+    queryKey: ["dashboard", recruiterId],
+    staleTime: 30_000,
+    retry: 1,
+    queryFn: async (): Promise<AgendaItem[]> => {
+      const resp = await fetch("/api/ai/daily-agenda", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recruiter_id: recruiterId }),
+      });
+      const data = (await resp.json()) as { agenda?: AgendaItem[] };
+      return data.agenda ?? [];
+    },
+  });
+}
 
 // ─── data hooks ──────────────────────────────────────────────────────────────
 
@@ -381,8 +438,28 @@ function Dashboard() {
 
   const [activeMetric, setActiveMetric] = useState<MetricKey | null>(null);
   const [period, setPeriod] = useState<Period>("week");
+  const [agendaItems, setAgendaItems] = useState<AgendaItem[]>([]);
+  const [showAllAgenda, setShowAllAgenda] = useState(false);
 
   const metrics = useWeeklyMetrics(recruiterId);
+  const agenda = useDailyAgenda(recruiterId);
+
+  useEffect(() => {
+    if (agenda.data) {
+      setAgendaItems(agenda.data.filter((item) => isVisible(item.entity_id)));
+    }
+  }, [agenda.data]);
+
+  function handleDone(entityId: string) {
+    markDoneToday(entityId);
+    setAgendaItems((prev) => prev.filter((i) => i.entity_id !== entityId));
+  }
+  function handleSnooze(entityId: string) {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    snoozeUntil(entityId, tomorrow.toISOString().slice(0, 10));
+    setAgendaItems((prev) => prev.filter((i) => i.entity_id !== entityId));
+  }
   const m = metrics.data;
 
   const METRIC_CONFIG: {
@@ -418,6 +495,23 @@ function Dashboard() {
           {todayFormatted()}&nbsp;&middot;&nbsp;Week resets every Sunday
         </p>
       </div>
+
+      {/* Priority actions */}
+      <PrioritySection
+        items={agendaItems}
+        isLoading={agenda.isLoading}
+        showAll={showAllAgenda}
+        onToggleShowAll={() => setShowAllAgenda((v) => !v)}
+        onDone={handleDone}
+        onSnooze={handleSnooze}
+        onNavigate={(item) => {
+          if (item.entity_type === "candidate" || item.entity_type === "requisition") {
+            void navigate({ to: "/candidates/$id", params: { id: item.entity_id }, search: BLANK_CANDIDATE_SEARCH });
+          } else {
+            void navigate({ to: "/clients/$id", params: { id: item.entity_id } });
+          }
+        }}
+      />
 
       {/* Metric strip */}
       <div style={{ border: "0.5px solid var(--color-ink-15)" }}>
@@ -750,6 +844,177 @@ function PlacedTable({ items, onNavigate }: { items: ProcessRow[]; onNavigate: (
             {formatFee(totalFee)}
           </span>
         </div>
+      )}
+    </div>
+  );
+}
+
+// ─── priority section ─────────────────────────────────────────────────────────
+
+const STAGE_COLOR: Record<string, string> = {
+  Offer:   "var(--color-gold)",
+  CCM1:    "var(--color-indigo)",
+  CCM2:    "var(--color-indigo)",
+  CCM3:    "var(--color-indigo)",
+  "Buy-In": "var(--color-ink-30)",
+};
+
+function stageBadgeColor(stage: string | undefined): string {
+  if (!stage) return "var(--color-ink-30)";
+  if (/^CCM\d+$/.test(stage)) return "var(--color-indigo)";
+  return STAGE_COLOR[stage] ?? "var(--color-ink-30)";
+}
+
+function PrioritySection({
+  items,
+  isLoading,
+  showAll,
+  onToggleShowAll,
+  onDone,
+  onSnooze,
+  onNavigate,
+}: {
+  items: AgendaItem[];
+  isLoading: boolean;
+  showAll: boolean;
+  onToggleShowAll: () => void;
+  onDone: (entityId: string) => void;
+  onSnooze: (entityId: string) => void;
+  onNavigate: (item: AgendaItem) => void;
+}) {
+  const VISIBLE_COUNT = 5;
+  const visible = showAll ? items : items.slice(0, VISIBLE_COUNT);
+
+  return (
+    <div style={{ border: "0.5px solid var(--color-ink-15)" }}>
+      {/* Header */}
+      <div
+        className="flex items-center justify-between px-5 py-3"
+        style={{ background: "var(--color-ink-10)", borderBottom: "0.5px solid var(--color-ink-15)" }}
+      >
+        <div className="flex items-center gap-2">
+          <span className="font-mono text-[10px] tracking-[0.1em] uppercase" style={{ color: "var(--color-ink-30)" }}>
+            Priority actions
+          </span>
+          {!isLoading && items.length > 0 && (
+            <span
+              className="font-mono text-[9px] tracking-[0.08em] px-1.5 py-0.5"
+              style={{ background: "var(--color-vermillion)", color: "var(--color-white)" }}
+            >
+              {items.length}
+            </span>
+          )}
+        </div>
+        {!isLoading && items.length === 0 && (
+          <span className="text-[12px]" style={{ color: "var(--color-ink-30)" }}>
+            All clear — nothing urgent right now.
+          </span>
+        )}
+      </div>
+
+      {/* Loading state */}
+      {isLoading && (
+        <div className="px-5 py-4 space-y-3">
+          {[0, 1, 2].map((i) => <Skeleton key={i} className="h-16 w-full" />)}
+        </div>
+      )}
+
+      {/* Items */}
+      {!isLoading && visible.map((item, i) => {
+        const isReq = item.entity_type === "requisition";
+        const accentColor =
+          item.priority_rank <= 3 ? "var(--color-vermillion)" :
+          item.priority_rank <= 10 ? "var(--color-gold)" :
+          "var(--color-ink-15)";
+
+        return (
+          <div
+            key={`${item.entity_id}-${i}`}
+            className="flex items-stretch"
+            style={{ borderBottom: "0.5px solid var(--color-border-subtle)" }}
+          >
+            {/* Priority accent bar + number */}
+            <div
+              className="flex w-10 shrink-0 flex-col items-center justify-start pt-4 gap-1"
+              style={{ background: "var(--color-ink-10)", borderRight: "0.5px solid var(--color-ink-15)" }}
+            >
+              <span className="font-mono text-[11px] font-medium" style={{ color: accentColor }}>
+                {i + 1}
+              </span>
+            </div>
+
+            {/* Content */}
+            <button
+              onClick={() => onNavigate(item)}
+              className="flex flex-1 flex-col items-start px-4 py-3 text-left transition-colors hover:bg-[--color-ink-10]"
+              style={{ outline: "none" }}
+            >
+              <div className="flex w-full items-center justify-between gap-3 mb-1">
+                <div className="flex items-center gap-2 min-w-0">
+                  {isReq && (
+                    <IconBriefcase size={13} style={{ color: "var(--color-gold)", flexShrink: 0 }} />
+                  )}
+                  <span className="text-[13px] font-medium font-display truncate">{item.entity_name}</span>
+                  {item.stage && (
+                    <span
+                      className="shrink-0 font-mono text-[9px] tracking-[0.08em] uppercase px-1.5 py-0.5"
+                      style={{ background: stageBadgeColor(item.stage) + "22", color: stageBadgeColor(item.stage) }}
+                    >
+                      {item.stage}
+                    </span>
+                  )}
+                </div>
+                <IconChevronRight size={13} style={{ color: "var(--color-ink-30)", flexShrink: 0 }} />
+              </div>
+              <p className="text-[12px] leading-snug" style={{ color: "var(--color-ink-60)" }}>
+                {item.reason}
+              </p>
+              {item.suggested_action && (
+                <p className="mt-1 text-[12px] font-medium" style={{ color: "var(--color-ink)" }}>
+                  → {item.suggested_action}
+                </p>
+              )}
+            </button>
+
+            {/* Actions */}
+            <div
+              className="flex shrink-0 flex-col border-l"
+              style={{ borderColor: "var(--color-ink-15)" }}
+            >
+              <button
+                onClick={(e) => { e.stopPropagation(); onDone(item.entity_id); }}
+                title="Mark done for today"
+                className="flex flex-1 items-center justify-center w-10 transition-colors hover:bg-[--color-moss-light]"
+                style={{ outline: "none", borderBottom: "0.5px solid var(--color-ink-15)" }}
+              >
+                <IconCheck size={13} style={{ color: "var(--color-ink-30)" }} />
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); onSnooze(item.entity_id); }}
+                title="Snooze until tomorrow"
+                className="flex flex-1 items-center justify-center w-10 transition-colors hover:bg-[--color-gold-light]"
+                style={{ outline: "none" }}
+              >
+                <IconBellOff size={13} style={{ color: "var(--color-ink-30)" }} />
+              </button>
+            </div>
+          </div>
+        );
+      })}
+
+      {/* Show more / less */}
+      {!isLoading && items.length > VISIBLE_COUNT && (
+        <button
+          onClick={onToggleShowAll}
+          className="w-full py-2.5 text-center text-[12px] font-medium transition-colors hover:bg-[--color-ink-10]"
+          style={{
+            color: "var(--color-ink-60)",
+            borderTop: "0.5px solid var(--color-ink-15)",
+            outline: "none",
+          }}
+        >
+          {showAll ? "Show less" : `Show ${items.length - VISIBLE_COUNT} more`}
+        </button>
       )}
     </div>
   );
