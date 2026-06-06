@@ -18,6 +18,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   };
   if (!candidate_id || !recruiter_id) return res.status(400).json({ error: "Missing fields" });
 
+  const { data: recruiterRow } = await supabase
+    .from("recruiters")
+    .select("team_id")
+    .eq("id", recruiter_id)
+    .single();
+  if (!recruiterRow) return res.status(404).json({ error: "Recruiter not found" });
+  const team_id = recruiterRow.team_id;
+
   // Fetch candidate context (never notes_internal or notes_presentation)
   const [
     { data: candidate },
@@ -32,7 +40,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         "full_name, full_name_japanese, current_title, current_company, japanese_level, english_level, active_passive, urgency_notes, comp_notes, notes_personality, notes_pitch, notes_closing, current_total, expected_total_min, expected_total_max",
       )
       .eq("id", candidate_id)
-      .eq("recruiter_id", recruiter_id)
+      .eq("team_id", team_id)
       .single(),
     supabase
       .from("competing_interviews")
