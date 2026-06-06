@@ -423,7 +423,7 @@ Company accounts. `company_name`, `industry`, `hq_country`, `kk_entity` (KK = Ja
 People at client companies. `name`, `role` (ContactRole), `title`, `notes` (recruiter only — AI never writes here), `relationship_score` (1–5), `bypass_hr_warning` (bool), `is_primary` (bool).
 
 ### `requisitions`
-Open roles. `title`, `client_id`, `salary_min`, `salary_max`, `salary_stretch`, `fee_pct`, `is_open`, `coverage_type` (own/retained/contingency), `strategic_context`, `owner_recruiter_id`, `team_id`.
+Open roles. `title`, `client_id`, `salary_min`, `salary_max`, `salary_stretch`, `salary_range_text` (free-text comp description), `location`, `urgency_date` (target close date), `is_open`, `is_backfill`, `hiring_manager_id` (FK to client_contacts), `strategic_context`, `owner_recruiter_id`, `team_id`.
 
 ### `processes`
 Candidate × requisition pairing. The core object driving the pipeline.
@@ -444,9 +444,10 @@ Tab color by `coverage_type`:
 - `uncovered` → red (`tab-uncovered`) — competitor agency or no agency coverage
 
 ### `interactions`
-Activity log — calls, emails, meetings. `candidate_id` (nullable), `client_id` (nullable), `interaction_type` (call/email/meeting), `summary`, `full_notes`, `interacted_at`, `recruiter_id` (who logged it), `team_id`.
+Activity log — calls, emails, meetings. `candidate_id` (nullable), `client_id` (nullable), `contact_id` (nullable FK to client_contacts — which specific contact was involved), `primary_party` ('candidate' | 'client' — who you were speaking with), `interaction_type` (call/email/meeting/note/job spec sent/linkedin message/other), `summary`, `full_notes`, `interacted_at`, `recruiter_id` (who logged it), `team_id`.
 
 Always display "logged by [recruiter name]" on teammate interactions in timelines.
+Cross-linking: an interaction can link to both a `candidate_id` and a `client_id` — it will appear on both timelines. Use `contact_id` to link to a specific client contact, and `primary_party` to designate who you spoke with.
 
 ### Custom TypeScript Types (append after every `gen types` run)
 
@@ -524,11 +525,13 @@ Tab order (left to right): **Timeline → Candidate notes → Candidate intellig
 
 Shows: name · Japanese name | title · company · age | current salary · expected salary range. All pulled from DB fields. Salary only renders if at least one value is non-null.
 
-### Client Detail — 3 Tabs
+### Client Detail — 5 Tabs
 
-1. **Timeline** — interaction log + quick-log action. Teammate interactions attributed by name.
-2. **Client info** — contacts, enrichment card, company details
-3. **Contract** — fee structure, retainer status
+1. **Timeline** — interaction log. Each entry shows: type badge, date, "with [contact]" chip if contact_id set, "re: [candidate]" chip if candidate_id set, "spoke with candidate/client" badge from primary_party. Log event button opens LogInteractionDialog (includes who-you-spoke-with + contact selector).
+2. **Client info** — company header, completeness bar, strategy notes, AI enrich, account intelligence, recommended actions, quick actions, Japan Market Context (all fields inline-editable).
+3. **Contacts** — ContactsCard with per-contact activity log button and inline interaction history per contact.
+4. **Jobs** — inline AddJobForm: JD upload (AI extracts title/salary/location via `/api/ai/extract-req-fields`), free-text salary range, location, hiring manager select, target close date, strategic context. Job list with pipeline badges.
+5. **Contract** — all fields inline-editable (fee %, client since, contract signed). Contract file upload → AI extracts fee % and start date via `/api/ai/extract-contract`.
 
 ---
 
@@ -632,6 +635,8 @@ Process tab colors: `tab-own` (green), `tab-colleague` (grey), `tab-uncovered` (
 | `client-meeting-prep.ts` | `client_id` + `requisition_id?` | Pre-meeting brief |
 | `client-draft.ts` | `client_id` + context | Draft client-facing email |
 | `req-strategic-context.ts` | `requisition_id` | Strategic framing paragraph |
+| `extract-req-fields.ts` | `jd_text` | Extract title, salary_range_text, location from JD — only returns fields it can identify |
+| `extract-contract.ts` | `contract_text` | Extract fee_pct, started_at from contract text — only returns fields it can identify |
 | `daily-agenda.ts` | `recruiter_id` | Ranked priority action list for dashboard |
 | `advanced-search.ts` | `requisition_id`, `client_id`, `threshold`, `use_key_criteria` | Scored candidate list for advanced search |
 | `apply-candidate-notes.ts` | `candidateId`, `existingTemplate`, `rawNotes?`, `fileBase64?`, `fileType?` | Distributes raw notes into the correct template sections; accepts text/PDF/Word |
@@ -677,6 +682,8 @@ After regeneration, re-append the custom types block from Section 11.
 | `013_candidate_lists.sql` | `candidate_lists` table — saved search lists with RLS and triggers |
 | `014_candidate_registration_fields.sql` | `address`, `notes_template` columns on candidates |
 | `015_candidate_dob.sql` | `date_of_birth` (date) column on candidates |
+| `016_candidate_notes_interview.sql` | `notes_interview` column + expanded interactions type constraint |
+| `017_jobs_interactions_update.sql` | `requisitions`: ADD `is_backfill`, `hiring_manager_id`, `salary_range_text`, `location`, `urgency_date`; `interactions`: ADD `contact_id`, `primary_party` |
 
 New migrations increment sequentially. Never edit existing migration files.
 

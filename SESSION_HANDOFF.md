@@ -222,18 +222,26 @@ withCandidateDefaults()  // Required for all navigate() to /candidates/*
 ```
 **IMPORTANT:** All navigation to `/candidates` or `/candidates/$id` must use `BLANK_CANDIDATE_SEARCH` or `withCandidateDefaults()`.
 
----
+### clients.$id.tsx — Current Structure (after session 5)
+```
+5 tabs: Timeline | Client info | Contacts | Jobs | Contract
 
-## Next Session — Client Page Revision
+ClientDetail              — page shell, tab router
+ClientTimelineTab         — shows cross-linked candidate/contact chips
+LogInteractionDialog      — includes contact_id, primary_party, who-you-spoke-with
+ClientIntelligenceCard    — collapsible AI account summary
+ClientEnrichCard          — web search enrichment
+CompanyHeaderCard         — inline strategy notes + completeness bar
+JapanMarketContextCard    — all fields inline-editable
+ContactsCard              — contacts list, per-contact activity log, inline history
+JobsTab                   — inline AddJobForm + OpenRequisitionsCard
+  AddJobForm              — JD upload + key fields
+EditableContractTab       — inline-editable fields + contract file upload
+```
 
-Read `CLAUDE.md` and this file completely before writing any code.
-Read `src/routes/_authenticated/clients.$id.tsx` in full before touching anything (~3,225 lines).
-
-### What to know about the current client page
-- Three tabs: Timeline, Client Info, Contract
-- Client contacts: `name`, `role` (ContactRole), `title`, `notes` (recruiter only — AI never writes), `relationship_score` (1–5), `bypass_hr_warning`, `is_primary`
-- `ContactRole` type: `"hiring_manager" | "hr_gatekeeper" | "ta_coordinator" | "executive" | "other"`
-- AI endpoints: `client-snapshot.ts`, `client-meeting-prep.ts`, `client-draft.ts`, `enrich-client.ts`
+### Key DB Columns Added (session 5)
+- `requisitions`: `is_backfill` bool, `hiring_manager_id` uuid FK, `salary_range_text` text, `location` text, `urgency_date` date
+- `interactions`: `contact_id` uuid FK to client_contacts, `primary_party` text ('candidate'|'client')
 
 ### Architecture Constraints
 - Icons: `@tabler/icons-react` outline variants only
@@ -252,3 +260,4 @@ Read `src/routes/_authenticated/clients.$id.tsx` in full before touching anythin
 3. `/jobs/$id` — no "Add condition" shortcut from within JD text
 4. Single-team bootstrap — second recruiter joining requires a manual SQL update
 5. Advanced Search location filter uses text search of notes; no dedicated `preferred_location` DB column
+6. `clients` table still has a `select("*")` — fix when next touching the client data hook (columns are known: id, company_name, logo_url, is_active, status, fee_pct, started_at, years_in_japan, japan_team_size, japan_team_japanese_pct, employee_japanese_pct, japan_role_in_group, kk_entity, strategy_notes, contract_signed, contract_url, ai_context, ai_context_updated_at)
