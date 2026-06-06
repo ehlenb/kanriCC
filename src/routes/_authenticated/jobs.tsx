@@ -124,7 +124,7 @@ function JobsDashboard() {
         {/* Forecast chip */}
         {forecastTotal > 0 && (
           <div
-            className="rounded-xl px-4 py-3 text-right"
+            className=" px-4 py-3 text-right"
             style={{ background: "#eaf3de", border: "0.5px solid #c0dd97" }}
           >
             <p className="text-[11px] font-medium uppercase tracking-[0.04em] mb-0.5" style={{ color: "#3b6d11" }}>
@@ -142,7 +142,7 @@ function JobsDashboard() {
 
       {/* Search */}
       <div
-        className="flex items-center gap-2 rounded-lg px-3 py-2 mb-5"
+        className="flex items-center gap-2  px-3 py-2 mb-5"
         style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.12)", maxWidth: 360 }}
       >
         <IconSearch size={14} style={{ color: "#888780", flexShrink: 0 }} />
@@ -160,7 +160,7 @@ function JobsDashboard() {
       <Section label={`Open jobs${openJobs.length ? ` · ${openJobs.length}` : ""}`}>
         {isLoading ? (
           <div className="space-y-2">
-            {[0, 1, 2].map((i) => <Skeleton key={i} className="h-20 w-full rounded-xl" />)}
+            {[0, 1, 2].map((i) => <Skeleton key={i} className="h-20 w-full " />)}
           </div>
         ) : openJobs.length === 0 ? (
           <EmptyState
@@ -180,7 +180,7 @@ function JobsDashboard() {
       {(closedJobs.length > 0 || (!isLoading && !search)) && (
         <Section label="Closed this quarter" className="mt-6">
           {isLoading ? (
-            <Skeleton className="h-14 w-full rounded-xl" />
+            <Skeleton className="h-14 w-full " />
           ) : closedJobs.length === 0 ? (
             <EmptyState message="No jobs closed this quarter." />
           ) : (
@@ -239,7 +239,7 @@ function JobRow({ job: j }: { job: Job }) {
 
   return (
     <button
-      className="w-full text-left rounded-xl p-4 transition-colors"
+      className="w-full text-left  p-4 transition-colors"
       style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.12)" }}
       onMouseEnter={(e) => { e.currentTarget.style.background = "#fafaf9"; }}
       onMouseLeave={(e) => { e.currentTarget.style.background = "#fff"; }}
@@ -248,7 +248,7 @@ function JobRow({ job: j }: { job: Job }) {
       <div className="flex items-start gap-3">
         {/* Icon */}
         <div
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg mt-0.5"
+          className="flex h-9 w-9 shrink-0 items-center justify-center  mt-0.5"
           style={{ background: "#e6f1fb" }}
         >
           <IconBriefcase size={16} style={{ color: "#185fa5" }} />
@@ -333,7 +333,7 @@ function ClosedJobRow({ job: j }: { job: Job }) {
   const placed = j.processes.filter((p) => p.stage === "Placed").length;
   return (
     <div
-      className="flex items-center gap-3 rounded-lg px-4 py-2.5"
+      className="flex items-center gap-3  px-4 py-2.5"
       style={{ background: "#f5f5f3", border: "0.5px solid rgba(26,26,24,0.08)" }}
     >
       <div className="flex-1 min-w-0">
@@ -380,7 +380,7 @@ function PipelinePill({
 function EmptyState({ message, sub }: { message: string; sub?: string }) {
   return (
     <div
-      className="rounded-xl px-5 py-8 text-center"
+      className=" px-5 py-8 text-center"
       style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.12)" }}
     >
       <p className="text-[13px] font-medium" style={{ color: "#1a1a18" }}>{message}</p>

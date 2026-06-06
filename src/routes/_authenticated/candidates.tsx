@@ -293,7 +293,7 @@ function CandidatesLayout() {
 
           {/* Advanced Search */}
           <button
-            className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-md py-1.5 text-[12px] font-medium transition-colors"
+            className="mt-2 flex w-full items-center justify-center gap-1.5  py-1.5 text-[12px] font-medium transition-colors"
             style={{ border: "0.5px solid rgba(26,26,24,0.2)", color: "#185fa5", background: "#e6f1fb" }}
             onClick={() => void navigate({ to: "/advanced-search" as never })}
           >
@@ -423,7 +423,7 @@ function FilterSelect({
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full rounded-md text-[12px] px-2 py-1.5 outline-none"
+      className="w-full  text-[12px] px-2 py-1.5 outline-none"
       style={{
         border: "0.5px solid rgba(26,26,24,0.16)",
         background: value ? "#e6f1fb" : "#fff",
@@ -468,7 +468,7 @@ function LanguageFilter({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-[12px] outline-none"
+        className="flex w-full items-center justify-between  px-2 py-1.5 text-[12px] outline-none"
         style={{
           border: "0.5px solid rgba(26,26,24,0.16)",
           background: value ? "#e6f1fb" : "#fff",
@@ -493,7 +493,7 @@ function LanguageFilter({
 
       {open && (
         <div
-          className="absolute left-0 right-0 z-20 mt-0.5 overflow-hidden rounded-md shadow-md"
+          className="absolute left-0 right-0 z-20 mt-0.5 overflow-hidden  "
           style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.16)" }}
         >
           {levels.map((level) => (

@@ -134,7 +134,7 @@ export function TranscriptPanel({
   }
 
   return (
-    <div className="rounded-xl p-5" style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.12)" }}>
+    <div className=" p-5" style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.12)" }}>
       <div className="flex items-center justify-between mb-3">
         <p className="text-[13px] font-medium">Process transcript</p>
         <button className="text-[11px]" style={{ color: "#888780" }} onClick={onClose}>Dismiss</button>

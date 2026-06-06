@@ -57,7 +57,7 @@ function Landing() {
         <div className="mt-8 flex items-center gap-3">
           <Link
             to="/login"
-            className="inline-flex items-center rounded-lg px-5 py-2.5 text-sm font-medium"
+            className="inline-flex items-center  px-5 py-2.5 text-sm font-medium"
             style={{ background: "#1a1a18", color: "#ffffff" }}
           >
             Open Kanri
@@ -68,7 +68,7 @@ function Landing() {
         </div>
 
         <div
-          className="mt-20 grid gap-px rounded-xl overflow-hidden md:grid-cols-3"
+          className="mt-20 grid gap-px  overflow-hidden md:grid-cols-3"
           style={{ background: "rgba(26,26,24,0.12)" }}
         >
           <Feature

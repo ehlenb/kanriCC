@@ -300,12 +300,12 @@ function Dashboard() {
       </div>
 
       {/* Pipeline — clickable KPI chips + inline detail */}
-      <div className="rounded-xl p-4" style={{ background: "#f5f5f3", border: "0.5px solid rgba(26,26,24,0.08)" }}>
+      <div className=" p-4" style={{ background: "#f5f5f3", border: "0.5px solid rgba(26,26,24,0.08)" }}>
         <p className="sl mb-3">Pipeline</p>
 
         {pipelineQ.isLoading ? (
           <div className="grid grid-cols-5 gap-2">
-            {[0, 1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-16 w-full rounded-lg" />)}
+            {[0, 1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-16 w-full " />)}
           </div>
         ) : (
           <div className="grid grid-cols-5 gap-2">
@@ -339,7 +339,7 @@ function Dashboard() {
       </div>
 
       {/* Daily agenda */}
-      <div className="bg-card rounded-xl p-5" style={{ border: "0.5px solid rgba(26,26,24,0.12)" }}>
+      <div className="bg-card  p-5" style={{ border: "0.5px solid rgba(26,26,24,0.12)" }}>
         <p className="sl mb-3">Priority actions — ranked by urgency</p>
 
         {agenda.isLoading && (
@@ -373,7 +373,7 @@ function Dashboard() {
       {/* Two-column lower row: Recent activity + Saved lists */}
       <div className="grid grid-cols-2 gap-4">
         {/* Recent activity */}
-        <div className="bg-card rounded-xl p-5" style={{ border: "0.5px solid rgba(26,26,24,0.12)" }}>
+        <div className="bg-card  p-5" style={{ border: "0.5px solid rgba(26,26,24,0.12)" }}>
           <p className="sl mb-3">Your recent activity</p>
 
           {activity.isLoading && (
@@ -430,7 +430,7 @@ function KpiChip({
   return (
     <button
       onClick={onClick}
-      className="flex flex-col items-start rounded-lg p-3 text-left transition-all"
+      className="flex flex-col items-start  p-3 text-left transition-all"
       style={{
         background: active ? activeBg : "#ffffff",
         border: active ? `1px solid ${numColor}30` : "0.5px solid rgba(26,26,24,0.12)",
@@ -514,7 +514,7 @@ function PipelineDetailPanel({
 
   return (
     <div
-      className="mt-4 rounded-lg overflow-hidden"
+      className="mt-4  overflow-hidden"
       style={{ border: "0.5px solid rgba(26,26,24,0.12)", background: "#ffffff" }}
     >
       {/* Panel header */}
@@ -736,7 +736,7 @@ function AgendaRow({
 
             {showSnooze && (
               <div
-                className="absolute z-10 mt-1 rounded-lg p-3 shadow-md"
+                className="absolute z-10 mt-1  p-3 "
                 style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.16)", left: 0, top: "100%", minWidth: 200 }}
               >
                 <p className="text-[11px] mb-2" style={{ color: "#5f5e5a" }}>
@@ -879,7 +879,7 @@ function SavedListsWidget({ recruiterId }: { recruiterId: string }) {
   );
 
   return (
-    <div className="bg-card rounded-xl p-5" style={{ border: "0.5px solid rgba(26,26,24,0.12)" }}>
+    <div className="bg-card  p-5" style={{ border: "0.5px solid rgba(26,26,24,0.12)" }}>
       <div className="flex items-center justify-between mb-3">
         <p className="sl">Saved candidate lists</p>
         <button

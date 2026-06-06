@@ -737,7 +737,7 @@ function LeftFilterPanel({
           {filters.keywords.map((kw) => (
             <span
               key={kw}
-              className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px]"
+              className="flex items-center gap-1 px-2 py-0.5 text-[11px]"
               style={{ background: "#e6f1fb", color: "#185fa5" }}
             >
               {kw}
@@ -806,7 +806,7 @@ function CandidateResultRow({
 
   return (
     <div
-      className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg transition-colors"
+      className="flex items-center gap-2.5 px-3 py-2.5  transition-colors"
       style={{
         background: rowBg,
         opacity: dimmed ? 0.5 : 1,
@@ -900,14 +900,14 @@ function CandidateResultRow({
           onMouseEnter={() => setShowTooltip(true)}
           onMouseLeave={() => setShowTooltip(false)}
           onClick={() => setShowTooltip((v) => !v)}
-          className="rounded-full transition-colors"
+          className="transition-colors"
           style={{ color: "#888780" }}
         >
           <IconInfoCircle size={14} />
         </button>
         {showTooltip && (
           <div
-            className="absolute right-0 bottom-6 z-20 w-52 rounded-lg p-2.5 shadow-lg text-[12px]"
+            className="absolute right-0 bottom-6 z-20 w-52  p-2.5  text-[12px]"
             style={{ background: "#1a1a18", color: "#fff" }}
           >
             {candidate.aiReason
@@ -956,7 +956,7 @@ function CenterPanel({
         </span>
         {selectedIds.size > 0 && (
           <button
-            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] transition-colors"
+            className="flex items-center gap-1.5  px-3 py-1.5 text-[12px] transition-colors"
             style={{ background: "#1a1a18", color: "#fff" }}
             onClick={onSaveList}
           >
@@ -968,7 +968,7 @@ function CenterPanel({
 
       {/* Key criteria legend */}
       {showKeyCriteriaLegend && (
-        <div className="flex items-center gap-3 mb-3 px-3 py-2 rounded-lg text-[12px]" style={{ background: "#f5f5f3" }}>
+        <div className="flex items-center gap-3 mb-3 px-3 py-2  text-[12px]" style={{ background: "#f5f5f3" }}>
           <span style={{ color: "#5f5e5a" }}>Row tinting:</span>
           <span className="flex items-center gap-1">
             <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: "rgba(39,80,10,0.15)" }} />
@@ -985,7 +985,7 @@ function CenterPanel({
       {isLoading ? (
         <div className="space-y-2">
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="h-12 rounded-lg animate-pulse" style={{ background: "rgba(26,26,24,0.06)" }} />
+            <div key={i} className="h-12  animate-pulse" style={{ background: "rgba(26,26,24,0.06)" }} />
           ))}
         </div>
       ) : candidates.length === 0 ? (
@@ -1050,7 +1050,7 @@ function CandidateDrawer({
       />
       {/* Drawer */}
       <div
-        className="fixed top-0 right-0 z-30 h-full overflow-y-auto shadow-2xl"
+        className="fixed top-0 right-0 z-30 h-full overflow-y-auto "
         style={{ width: 320, background: "#fff", borderLeft: "0.5px solid rgba(26,26,24,0.12)" }}
       >
         <div className="flex items-center justify-between p-4 border-b" style={{ borderColor: "rgba(26,26,24,0.12)" }}>
@@ -1138,7 +1138,7 @@ function CandidateDrawer({
 
           {/* Open full profile */}
           <button
-            className="w-full rounded-lg py-2 text-[13px] font-medium transition-colors"
+            className="w-full  py-2 text-[13px] font-medium transition-colors"
             style={{ background: "#1a1a18", color: "#fff" }}
             onClick={() =>
               navigate({
@@ -1248,7 +1248,7 @@ function RightPanel({
           </label>
 
           <button
-            className="flex w-full items-center justify-center gap-1.5 rounded-lg py-2 text-[12px] font-medium transition-colors"
+            className="flex w-full items-center justify-center gap-1.5  py-2 text-[12px] font-medium transition-colors"
             style={{
               background: selectedReqId ? "#1a1a18" : "rgba(26,26,24,0.12)",
               color: selectedReqId ? "#fff" : "#888780",
@@ -1276,7 +1276,7 @@ function RightPanel({
             {savedLists.map((list) => (
               <div
                 key={list.id}
-                className="rounded-lg px-2 py-2"
+                className=" px-2 py-2"
                 style={{
                   background: mergeStep.includes(list.id) ? "#e6f1fb" : "rgba(26,26,24,0.04)",
                   border: mergeStep.includes(list.id) ? "1px solid #185fa5" : "1px solid transparent",
@@ -1326,7 +1326,7 @@ function RightPanel({
 
         {mergeStep.length === 2 && (
           <button
-            className="mt-2 w-full rounded-lg py-1.5 text-[12px] font-medium"
+            className="mt-2 w-full  py-1.5 text-[12px] font-medium"
             style={{ background: "#185fa5", color: "#fff" }}
             onClick={onMergeLists}
           >
@@ -1383,7 +1383,7 @@ function SaveListModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="w-80 rounded-xl p-5 shadow-xl" style={{ background: "#fff" }}>
+      <div className="w-80  p-5 " style={{ background: "#fff" }}>
         <div className="flex items-center justify-between mb-4">
           <p className="text-[14px] font-semibold" style={{ color: "#1a1a18" }}>Save list</p>
           <button onClick={onClose}><IconX size={16} /></button>
@@ -1409,7 +1409,7 @@ function SaveListModal({
               {(["team", "private"] as const).map((v) => (
                 <button
                   key={v}
-                  className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-[12px] transition-colors"
+                  className="flex-1 flex items-center justify-center gap-1.5  py-1.5 text-[12px] transition-colors"
                   style={{
                     background: visibility === v ? "#1a1a18" : "rgba(26,26,24,0.06)",
                     color: visibility === v ? "#fff" : "#5f5e5a",
@@ -1431,7 +1431,7 @@ function SaveListModal({
           <p className="text-[12px]" style={{ color: "#5f5e5a" }}>{selectedIds.size} candidates selected</p>
 
           <button
-            className="w-full rounded-lg py-2 text-[13px] font-medium"
+            className="w-full  py-2 text-[13px] font-medium"
             style={{ background: "#1a1a18", color: "#fff" }}
             onClick={() => void handleSave()}
             disabled={saving}

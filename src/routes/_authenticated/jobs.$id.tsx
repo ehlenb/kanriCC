@@ -642,7 +642,7 @@ function PipelinePanel({
             {group.map((p) => (
               <button
                 key={p.id}
-                className="w-full text-left flex items-center gap-2.5 rounded-lg px-3 py-2.5 transition-colors"
+                className="w-full text-left flex items-center gap-2.5  px-3 py-2.5 transition-colors"
                 style={{ background: "#f5f5f3", border: "0.5px solid rgba(26,26,24,0.08)" }}
                 onMouseEnter={(e) => { e.currentTarget.style.background = "#eeede8"; }}
                 onMouseLeave={(e) => { e.currentTarget.style.background = "#f5f5f3"; }}
@@ -678,7 +678,7 @@ function PipelinePanel({
             {closed.map((p) => (
               <div
                 key={p.id}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg opacity-50"
+                className="flex items-center gap-2 px-3 py-2  opacity-50"
                 style={{ background: "#f5f5f3" }}
               >
                 <span className="text-[12px] flex-1">{p.candidate_name}</span>
@@ -747,7 +747,7 @@ function MatchCandidatesPanel({
 
   return (
     <div
-      className="rounded-xl p-5 mb-5"
+      className=" p-5 mb-5"
       style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.12)" }}
     >
       <div className="flex items-center justify-between mb-4">
@@ -789,13 +789,13 @@ function MatchCandidatesPanel({
         {visible.map((m) => (
           <div
             key={m.candidate_id}
-            className="rounded-lg p-4"
+            className=" p-4"
             style={{ background: "#f5f5f3", border: "0.5px solid rgba(26,26,24,0.08)" }}
           >
             <div className="flex items-start gap-3">
               {/* Score */}
               <div
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[13px] font-semibold"
+                className="flex h-9 w-9 shrink-0 items-center justify-center  text-[13px] font-semibold"
                 style={{
                   background: m.score >= 7 ? "#eaf3de" : m.score >= 5 ? "#fdf3e7" : "#f5f5f3",
                   color: m.score >= 7 ? "#27500a" : m.score >= 5 ? "#633806" : "#888780",

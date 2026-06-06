@@ -99,7 +99,7 @@ function Sidebar({
           return (
             <Link key={to} to={to}>
               <div
-                className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors"
+                className="flex items-center gap-2.5  px-3 py-2 text-sm transition-colors"
                 style={{
                   background: active
                     ? "rgba(26,26,24,0.07)"
@@ -118,7 +118,7 @@ function Sidebar({
         {/* Temporary Advanced Search entry — only shown when on that route */}
         {isAdvancedSearch && (
           <div
-            className="flex items-center justify-between rounded-lg px-3 py-2 text-sm"
+            className="flex items-center justify-between  px-3 py-2 text-sm"
             style={{
               background: "rgba(26,26,24,0.07)",
               color: "#1a1a18",
@@ -143,7 +143,7 @@ function Sidebar({
         className="p-3"
         style={{ borderTop: "0.5px solid rgba(26,26,24,0.12)" }}
       >
-        <div className="flex items-center gap-2 rounded-lg px-2 py-2 mb-1">
+        <div className="flex items-center gap-2  px-2 py-2 mb-1">
           <div
             className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-medium"
             style={{ background: "#eeede8", color: "#1a1a18" }}
@@ -156,7 +156,7 @@ function Sidebar({
         </div>
         <button
           onClick={onSignOut}
-          className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs transition-colors hover:bg-surface-2"
+          className="flex w-full items-center gap-2  px-3 py-2 text-xs transition-colors hover:bg-surface-2"
           style={{ color: "#5f5e5a" }}
         >
           <IconLogout size={14} />

@@ -159,7 +159,7 @@ function ClientsLayout() {
                   }}
                 >
                   <div
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-medium"
+                    className="flex h-8 w-8 shrink-0 items-center justify-center  text-xs font-medium"
                     style={{ background: "#eeede8", color: "#1a1a18" }}
                   >
                     {initials(c.company_name)}

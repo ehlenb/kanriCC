@@ -33,7 +33,7 @@ export function SubmissionPackagePanel({
 
   function ProfileSection({ label, content }: { label: string; content: ProfileContent }) {
     return (
-      <div className="rounded-lg p-4" style={{ background: "#f5f5f3", border: "0.5px solid rgba(26,26,24,0.08)" }}>
+      <div className=" p-4" style={{ background: "#f5f5f3", border: "0.5px solid rgba(26,26,24,0.08)" }}>
         <p className="sl mb-3">{label}</p>
         <div className="space-y-3 text-[13px]">
           <div>
@@ -70,7 +70,7 @@ export function SubmissionPackagePanel({
 
   return (
     <div
-      className="mt-4 rounded-xl p-5 space-y-5"
+      className="mt-4  p-5 space-y-5"
       style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.12)" }}
     >
       <div className="flex items-center justify-between">

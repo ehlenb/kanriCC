@@ -74,7 +74,6 @@ type Candidate = {
   other_languages: string | null;
   additional_languages: string | null;
   active_passive: string | null;
-  urgency_to_move: string | null;
   candidate_status: string | null;
   status_source: string | null;
   placed_at: string | null;
@@ -1124,7 +1123,7 @@ function RoleBlock({ role, isLast }: { role: Role; isLast: boolean }) {
 
       {role.achievement_notes && (
         <div
-          className="rounded-lg p-2.5 text-[13px] leading-relaxed mb-2"
+          className=" p-2.5 text-[13px] leading-relaxed mb-2"
           style={{ background: "#f5f5f3" }}
         >
           {role.achievement_notes}
@@ -1140,7 +1139,7 @@ function RoleBlock({ role, isLast }: { role: Role; isLast: boolean }) {
             </p>
           )}
           <div
-            className="rounded-lg p-2.5 text-[13px] leading-relaxed"
+            className=" p-2.5 text-[13px] leading-relaxed"
             style={{
               background: role.is_current ? "#fcebeb" : "#f5f5f3",
             }}
@@ -1204,7 +1203,7 @@ function NotesTab({
               <button
                 key={opt.value}
                 onClick={() => void saveSource(active ? null : opt.value)}
-                className="px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors"
+                className="px-3 py-1.5 text-[12px] font-medium transition-colors"
                 style={{
                   background: active ? "#1a1a18" : "#f5f5f3",
                   color: active ? "#fff" : "#5f5e5a",
@@ -1835,6 +1834,7 @@ function NoteCompensationFields({
 }) {
   const [editingNotes, setEditingNotes] = useState(false);
   const [notesDraft, setNotesDraft] = useState(c.comp_notes ?? "");
+  const [overrideTotal, setOverrideTotal] = useState(false);
 
   function saveNotes() {
     setEditingNotes(false);
@@ -1842,16 +1842,19 @@ function NoteCompensationFields({
     if (trimmed !== (c.comp_notes ?? "").trim()) onSave("comp_notes", trimmed || null);
   }
 
+  function restoreAutoTotal() {
+    setOverrideTotal(false);
+    onSave("current_total", (c.current_base ?? 0) + (c.current_bonus ?? 0));
+  }
+
   function YenField({
     label,
     fieldKey,
     value,
-    readOnly,
   }: {
     label: string;
     fieldKey: string;
     value: number | null;
-    readOnly?: boolean;
   }) {
     const [editing, setEditing] = useState(false);
     const [draft, setDraft] = useState(value != null ? String(value / 1_000_000) : "");
@@ -1867,29 +1870,12 @@ function NoteCompensationFields({
       if (parsed === value) return;
       onSave(fieldKey, parsed);
 
-      // Auto-calc current_total when base or bonus changes
-      if (fieldKey === "current_base" || fieldKey === "current_bonus") {
+      // Auto-calc current_total when base or bonus changes, unless recruiter has overridden it
+      if (!overrideTotal && (fieldKey === "current_base" || fieldKey === "current_bonus")) {
         const base = fieldKey === "current_base" ? parsed : c.current_base;
         const bonus = fieldKey === "current_bonus" ? parsed : c.current_bonus;
-        if (base != null && bonus != null) onSave("current_total", base + bonus);
+        onSave("current_total", (base ?? 0) + (bonus ?? 0));
       }
-    }
-
-    if (readOnly) {
-      return (
-        <div>
-          <p className="text-[11px] font-medium mb-1.5" style={{ color: "#5f5e5a" }}>{label}</p>
-          <div
-            className="rounded-[6px] px-3 py-2"
-            style={{ border: "0.5px solid rgba(26,26,24,0.08)", background: "#f5f5f3", minHeight: "36px" }}
-          >
-            <span className="text-[13px]" style={{ color: value != null ? "#1a1a18" : "#b8b7b2" }}>
-              {value != null ? formatYen(value) : "—"}
-            </span>
-          </div>
-          <p className="text-[10px] mt-0.5" style={{ color: "#b8b7b2" }}>Auto-calculated</p>
-        </div>
-      );
     }
 
     return (
@@ -1940,7 +1926,43 @@ function NoteCompensationFields({
       <div className="grid grid-cols-3 gap-3">
         <YenField label="Current base" fieldKey="current_base" value={c.current_base} />
         <YenField label="Current bonus" fieldKey="current_bonus" value={c.current_bonus} />
-        <YenField label="Current total" fieldKey="current_total" value={c.current_total} readOnly />
+        {overrideTotal ? (
+          <div>
+            <YenField label="Current total" fieldKey="current_total" value={c.current_total} />
+            <p className="text-[10px] mt-0.5" style={{ color: "#b8b7b2" }}>
+              Manual —{" "}
+              <button
+                onClick={restoreAutoTotal}
+                className="underline"
+                style={{ color: "#888780" }}
+              >
+                Auto
+              </button>
+            </p>
+          </div>
+        ) : (
+          <div>
+            <p className="text-[11px] font-medium mb-1.5" style={{ color: "#5f5e5a" }}>Current total</p>
+            <div
+              className="rounded-[6px] px-3 py-2"
+              style={{ border: "0.5px solid rgba(26,26,24,0.08)", background: "#f5f5f3", minHeight: "36px" }}
+            >
+              <span className="text-[13px]" style={{ color: c.current_total != null ? "#1a1a18" : "#b8b7b2" }}>
+                {c.current_total != null ? formatYen(c.current_total) : "—"}
+              </span>
+            </div>
+            <p className="text-[10px] mt-0.5" style={{ color: "#b8b7b2" }}>
+              Auto-calculated —{" "}
+              <button
+                onClick={() => setOverrideTotal(true)}
+                className="underline"
+                style={{ color: "#888780" }}
+              >
+                Override
+              </button>
+            </p>
+          </div>
+        )}
       </div>
       <div>
         <p className="text-[11px] font-medium mb-1.5" style={{ color: "#5f5e5a" }}>Expected range</p>
@@ -2511,14 +2533,14 @@ function InterviewPanel({
 
       {/* CCM feedback — only shown for CCM stages */}
       {ccmNumber !== null && (
-        <div className="mb-4 rounded-lg p-4" style={{ background: "#f5f5f3", border: "0.5px solid rgba(26,26,24,0.12)" }}>
+        <div className="mb-4  p-4" style={{ background: "#f5f5f3", border: "0.5px solid rgba(26,26,24,0.12)" }}>
           <SectionLabel>CCM{ccmNumber} client feedback</SectionLabel>
           <div className="flex gap-2 mb-3">
             {(["pass", "pending", "fail"] as const).map((opt) => (
               <button
                 key={opt}
                 onClick={() => setFeedbackOutcome(opt)}
-                className="text-[12px] px-3 py-1 rounded-md font-medium transition-colors"
+                className="text-[12px] px-3 py-1  font-medium transition-colors"
                 style={{
                   background: feedbackOutcome === opt
                     ? opt === "pass" ? "#eaf3de" : opt === "fail" ? "#fcebeb" : "#fdf3e7"
@@ -2540,7 +2562,7 @@ function InterviewPanel({
             onChange={(e) => setFeedbackNotes(e.target.value)}
             placeholder="Client feedback notes — what did they say? Any concerns raised?"
             rows={3}
-            className="w-full rounded-lg p-3 text-[12px] leading-relaxed resize-none outline-none mb-2"
+            className="w-full  p-3 text-[12px] leading-relaxed resize-none outline-none mb-2"
             style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.16)", color: "#1a1a18" }}
           />
           <button
@@ -2577,7 +2599,7 @@ function InterviewPanel({
         }
         return (
           <div
-            className="rounded-lg p-3 text-[13px] mb-3"
+            className=" p-3 text-[13px] mb-3"
             style={{ background: "#f5f5f3", border: "0.5px dashed rgba(26,26,24,0.22)" }}
           >
             <span style={{ color: "#888780" }}>No positioning points yet. </span>
@@ -2624,7 +2646,7 @@ function InterviewPanel({
       {/* Pre-call briefing output */}
       {briefing && (
         <div
-          className="mt-4 rounded-lg p-4 text-[13px] leading-relaxed whitespace-pre-wrap"
+          className="mt-4  p-4 text-[13px] leading-relaxed whitespace-pre-wrap"
           style={{
             background: "#e6f1fb",
             border: "0.5px solid rgba(24,95,165,0.3)",
@@ -2646,7 +2668,7 @@ function InterviewPanel({
             value={specEmail.email}
             onChange={(e) => setSpecEmail((prev) => prev ? { ...prev, email: e.target.value } : prev)}
             rows={8}
-            className="w-full rounded-lg p-3 text-[13px] leading-relaxed resize-y outline-none mb-2"
+            className="w-full  p-3 text-[13px] leading-relaxed resize-y outline-none mb-2"
             style={{ background: "#e6f1fb", border: "0.5px solid rgba(24,95,165,0.3)", color: "#1a1a18" }}
           />
           <p className="sl mb-1.5">Talking points (if calling)</p>
@@ -2673,7 +2695,7 @@ function InterviewPanel({
             value={interviewPrep.candidate_email}
             onChange={(e) => setInterviewPrep((prev) => prev ? { ...prev, candidate_email: e.target.value } : prev)}
             rows={12}
-            className="w-full rounded-lg p-3 text-[13px] leading-relaxed resize-y outline-none mb-3"
+            className="w-full  p-3 text-[13px] leading-relaxed resize-y outline-none mb-3"
             style={{ background: "#e6f1fb", border: "0.5px solid rgba(24,95,165,0.3)", color: "#1a1a18" }}
           />
           <p className="sl mb-1">Recruiter prep notes</p>
@@ -2681,7 +2703,7 @@ function InterviewPanel({
             value={interviewPrep.recruiter_prep_note}
             onChange={(e) => setInterviewPrep((prev) => prev ? { ...prev, recruiter_prep_note: e.target.value } : prev)}
             rows={5}
-            className="w-full rounded-lg p-3 text-[13px] leading-relaxed resize-y outline-none"
+            className="w-full  p-3 text-[13px] leading-relaxed resize-y outline-none"
             style={{ background: "#f5f5f3", border: "0.5px solid rgba(26,26,24,0.12)", color: "#1a1a18" }}
           />
         </div>
@@ -2840,7 +2862,7 @@ I am not asking you to commit. I am asking: would you be comfortable if I shared
 
       {showEmail && (
         <div
-          className="rounded-lg p-4 mb-3 text-[13px] font-mono whitespace-pre-wrap leading-relaxed"
+          className=" p-4 mb-3 text-[13px] font-mono whitespace-pre-wrap leading-relaxed"
           style={{
             background: "#f5f5f3",
             border: "0.5px solid rgba(26,26,24,0.22)",
@@ -2852,7 +2874,7 @@ I am not asking you to commit. I am asking: would you be comfortable if I shared
 
       {showCall && (
         <div
-          className="rounded-lg p-4 mb-3 text-[13px] whitespace-pre-wrap leading-relaxed"
+          className=" p-4 mb-3 text-[13px] whitespace-pre-wrap leading-relaxed"
           style={{
             background: "#f5f5f3",
             border: "0.5px solid rgba(26,26,24,0.22)",
@@ -2885,7 +2907,7 @@ I am not asking you to commit. I am asking: would you be comfortable if I shared
           }
           return (
             <div
-              className="rounded-lg p-3 text-[13px]"
+              className=" p-3 text-[13px]"
               style={{ background: "#f5f5f3", border: "0.5px dashed rgba(26,26,24,0.22)" }}
             >
               <span style={{ color: "#888780" }}>No positioning points yet. </span>
@@ -2941,7 +2963,7 @@ function OfferPanel({
       {/* Offer details card */}
       {req && (
         <div
-          className="rounded-lg p-3 px-4 mb-4"
+          className=" p-3 px-4 mb-4"
           style={{ background: "#f5f5f3" }}
         >
           <div className="flex justify-between text-[13px] py-1.5" style={{ borderBottom: "0.5px solid rgba(26,26,24,0.12)" }}>
@@ -3001,7 +3023,7 @@ function OfferPanel({
         <div>
           <SectionLabel>Counteroffer defense</SectionLabel>
           <div
-            className="rounded-lg p-3 text-[13px] leading-relaxed mb-2"
+            className=" p-3 text-[13px] leading-relaxed mb-2"
             style={{ background: "#f5f5f3", borderLeft: "2px solid rgba(24,95,165,0.3)" }}
           >
             Ask yourself — why did it take a resignation letter to get this? The reasons you decided to move are still there on Monday morning.
@@ -3015,7 +3037,7 @@ function OfferPanel({
       {/* Resignation prep */}
       <SectionLabel>Resignation prep talking points</SectionLabel>
       <div
-        className="rounded-lg p-3 text-[13px] leading-relaxed mb-3"
+        className=" p-3 text-[13px] leading-relaxed mb-3"
         style={{ background: "#f5f5f3", borderLeft: "2px solid rgba(24,95,165,0.3)" }}
       >
         <p className="mb-2">Keep it short and professional. You do not owe a full explanation.</p>
@@ -3064,7 +3086,7 @@ function OfferPanel({
             value={scriptContent}
             onChange={(e) => setScriptContent(e.target.value)}
             rows={18}
-            className="w-full rounded-lg p-3 text-[13px] leading-relaxed resize-y outline-none font-mono"
+            className="w-full  p-3 text-[13px] leading-relaxed resize-y outline-none font-mono"
             style={{
               background: "#e6f1fb",
               border: "0.5px solid rgba(24,95,165,0.3)",
@@ -3364,7 +3386,7 @@ function CandidateTimelineTab({
 
       {feed.length === 0 && !showTranscript && (
         <div
-          className="rounded-xl px-5 py-12 text-center"
+          className=" px-5 py-12 text-center"
           style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.12)" }}
         >
           <p className="text-[13px] font-medium" style={{ color: "#1a1a18" }}>No activity recorded yet.</p>
@@ -3384,12 +3406,12 @@ function CandidateTimelineTab({
           return (
             <div
               key={`i-${i.id}`}
-              className="rounded-xl p-[14px_18px]"
+              className=" p-[14px_18px]"
               style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.12)" }}
             >
               <div className="flex items-start gap-3">
                 <div
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg mt-0.5"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center  mt-0.5"
                   style={{ background: colors.bg }}
                 >
                   <Icon size={14} style={{ color: colors.color }} />
@@ -3443,7 +3465,7 @@ function CandidateTimelineTab({
         return (
           <div
             key={`p-${p.id}`}
-            className="flex items-center gap-3 rounded-xl px-4 py-3"
+            className="flex items-center gap-3  px-4 py-3"
             style={{ background: "#f5f5f3", border: "0.5px solid rgba(26,26,24,0.08)" }}
           >
             <StageBadge stage={p.stage} className="text-[11px]" />
@@ -3572,7 +3594,7 @@ function CvUploadZone({
   return (
     <>
       <div
-        className="rounded-xl px-4 py-3 flex items-center gap-3 transition-colors"
+        className=" px-4 py-3 flex items-center gap-3 transition-colors"
         style={{
           background: dragging ? "#e6f1fb" : "#f5f5f3",
           border: `0.5px dashed ${dragging ? "#185fa5" : "rgba(26,26,24,0.2)"}`,
@@ -3755,7 +3777,7 @@ function ExtractionReviewModal({
             <p className="sl mb-2">Work history (add manually)</p>
             <div className="space-y-1.5">
               {x.roles.map((r, i) => (
-                <div key={i} className="rounded-lg px-3 py-2"
+                <div key={i} className=" px-3 py-2"
                   style={{ background: "#f5f5f3", border: "0.5px solid rgba(26,26,24,0.08)" }}>
                   <p className="text-[12px] font-medium">{r.company_name} — {r.title}</p>
                   <p className="text-[11px]" style={{ color: "#888780" }}>
@@ -3870,7 +3892,7 @@ function StatusToggle({
 
         {open && (
           <div
-            className="absolute left-0 z-20 mt-0.5 w-32 overflow-hidden rounded-md shadow-md"
+            className="absolute left-0 z-20 mt-0.5 w-32 overflow-hidden  "
             style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.16)", top: "100%" }}
           >
             {STATUS_OPTIONS_LIST.map((opt) => {
@@ -3964,7 +3986,7 @@ function RegistrationFormUploadZone({
 
   return (
     <div
-      className="rounded-xl px-4 py-3 flex items-center gap-3 cursor-pointer transition-colors"
+      className=" px-4 py-3 flex items-center gap-3 cursor-pointer transition-colors"
       style={{ background: "#f5f5f3", border: "0.5px dashed rgba(26,26,24,0.2)" }}
       onClick={() => !uploading && inputRef.current?.click()}
     >
@@ -4034,7 +4056,7 @@ function CandidateIntelligenceCard({
   }
 
   return (
-    <div className="rounded-xl overflow-hidden" style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.12)" }}>
+    <div className=" overflow-hidden" style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.12)" }}>
       <button
         className="w-full flex items-center gap-2 px-4 py-3 text-left"
         onClick={() => setExpanded((v) => !v)}
@@ -4346,7 +4368,7 @@ function CandidateProfileSection({
               motivations.map((m) => (
                 <div
                   key={m.id}
-                  className="flex items-center gap-2 rounded-lg border px-3 py-2 text-[13px] mb-1.5"
+                  className="flex items-center gap-2  border px-3 py-2 text-[13px] mb-1.5"
                   style={{ background: "#f5f5f3", borderColor: "rgba(26,26,24,0.12)" }}
                 >
                   <span
