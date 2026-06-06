@@ -3606,6 +3606,18 @@ function CvUploadZone({
     }
   }
 
+  async function handleRemove(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (!confirm("Remove this CV? The file will be deleted and the field cleared.")) return;
+    if (cvUrl) {
+      await supabase.storage.from("resumes").remove([cvUrl]);
+    }
+    await supabase.from("candidates").update({ cv_url: null }).eq("id", candidateId);
+    void qc.invalidateQueries({ queryKey: ["candidate-profile", candidateId] });
+    setState("idle");
+    toast.success("CV removed.");
+  }
+
   return (
     <>
       <div
@@ -3632,7 +3644,7 @@ function CvUploadZone({
           {state === "idle" && (
             <p className="text-[12px]" style={{ color: "var(--color-ink-60)" }}>
               {cvUrl
-                ? "CV on file — drop a new PDF to re-extract"
+                ? "CV on file — drop a new PDF to re-upload"
                 : "Drop a PDF CV here or click to upload"}
             </p>
           )}
@@ -3649,6 +3661,16 @@ function CvUploadZone({
             <p className="text-[12px]" style={{ color: "var(--color-danger)" }}>Failed — click to retry</p>
           )}
         </div>
+        {cvUrl && state === "idle" && (
+          <button
+            onClick={handleRemove}
+            className="flex items-center gap-1 px-2 py-0.5 text-[11px] shrink-0"
+            style={{ background: "var(--color-white)", color: "var(--color-ink-60)", border: "0.5px solid var(--color-ink-15)" }}
+            title="Remove CV"
+          >
+            <IconX size={10} /> Remove
+          </button>
+        )}
         <input
           ref={inputRef}
           type="file"
@@ -4053,6 +4075,18 @@ function RegistrationFormUploadZone({
     }
   }
 
+  async function handleRemoveReg(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (!confirm("Remove this registration form? The file will be deleted.")) return;
+    if (registrationFormUrl) {
+      await supabase.storage.from("resumes").remove([registrationFormUrl]);
+    }
+    await supabase.from("candidates").update({ registration_form_url: null }).eq("id", candidateId);
+    void qc.invalidateQueries({ queryKey: ["candidate-profile", candidateId] });
+    setState("idle");
+    toast.success("Registration form removed.");
+  }
+
   async function handleView(e: React.MouseEvent) {
     e.stopPropagation();
     if (!registrationFormUrl) return;
@@ -4105,14 +4139,19 @@ function RegistrationFormUploadZone({
           <button
             onClick={handleView}
             disabled={fetchingUrl}
-            className="text-[11px] px-2 py-0.5  shrink-0"
+            className="text-[11px] px-2 py-0.5 shrink-0"
             style={{ background: "var(--color-indigo-light)", color: "var(--color-indigo)", border: "0.5px solid rgba(24,95,165,0.3)" }}
           >
-            {fetchingUrl ? "Opening…" : "View / Download"}
+            {fetchingUrl ? "Opening…" : "View"}
           </button>
-          <span className="text-[11px] px-2 py-0.5  shrink-0" style={{ background: "var(--color-moss-light)", color: "var(--color-moss)" }}>
-            On file
-          </span>
+          <button
+            onClick={handleRemoveReg}
+            className="flex items-center gap-1 px-2 py-0.5 text-[11px] shrink-0"
+            style={{ background: "var(--color-white)", color: "var(--color-ink-60)", border: "0.5px solid var(--color-ink-15)" }}
+            title="Remove registration form"
+          >
+            <IconX size={10} /> Remove
+          </button>
         </>
       )}
       <input
