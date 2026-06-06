@@ -369,6 +369,13 @@ One row per user. Linked to a team.
 ### `candidates`
 Core profile.
 
+Key field conventions:
+- `active_passive` — 'Active' or 'Passive'. This is the live urgency toggle shown in the Notes tab. `urgency_to_move` (High/Medium/Low) is a legacy column — do not write to it from the UI.
+- `urgency_notes` — free text explaining why a candidate is active or when a passive one might start looking.
+- `comp_notes` — free text compensation context (bonus structure, equity, base priority detail). Shown below the ¥ fields in Notes tab.
+- `source` — one of: linkedin / bizreach / doda / referral / inbound / other. Display as human label (BizReach not bizreach).
+- `additional_languages` — stored as "Korean — Business" format (language name + proficiency joined by " — ").
+
 | Field | Type | AI Access | Notes |
 |---|---|---|---|
 | `full_name` | text | Read | Latin characters |
@@ -641,6 +648,7 @@ Process tab colors: `tab-own` (green), `tab-colleague` (grey), `tab-uncovered` (
 | `advanced-search.ts` | `requisition_id`, `client_id`, `threshold`, `use_key_criteria` | Scored candidate list for advanced search |
 | `apply-candidate-notes.ts` | `candidateId`, `existingTemplate`, `rawNotes?`, `fileBase64?`, `fileType?` | Distributes raw notes into the correct template sections; accepts text/PDF/Word |
 | `extract-compensation.ts` | `candidateId` | Reads `notes_template`, extracts salary figures, saves raw yen to candidates table |
+| `format-interview-notes.ts` | `raw_text` | Formats raw document text into clean structured interview notes (BACKGROUND / CAREER HISTORY / MOTIVATIONS sections) |
 
 ---
 
@@ -684,6 +692,7 @@ After regeneration, re-append the custom types block from Section 11.
 | `015_candidate_dob.sql` | `date_of_birth` (date) column on candidates |
 | `016_candidate_notes_interview.sql` | `notes_interview` column + expanded interactions type constraint |
 | `017_jobs_interactions_update.sql` | `requisitions`: ADD `is_backfill`, `hiring_manager_id`, `salary_range_text`, `location`, `urgency_date`; `interactions`: ADD `contact_id`, `primary_party` |
+| `018_candidate_notes_extra.sql` | `candidates`: ADD `urgency_notes` text, `comp_notes` text |
 
 New migrations increment sequentially. Never edit existing migration files.
 

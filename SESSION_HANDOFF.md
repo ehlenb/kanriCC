@@ -1,8 +1,8 @@
 # Kanri — Session Handoff Document
 
-> Generated: 5 June 2026
-> Build status: **passing** (TypeScript clean, all migrations applied)
-> Last session: 5th session — client page revision
+> Generated: 6 June 2026
+> Build status: **passing** (TypeScript clean, all migrations applied, pushed to main)
+> Last session: 6th session — candidate notes tab overhaul + client page polish
 
 ---
 
@@ -14,99 +14,110 @@ Kanri is an AI-native recruiter intelligence platform and CRM for boutique agenc
 
 **Target users:** Boutique and mid-sized agency recruiting firms. Initial focus: Japan bilingual and gaishikei recruitment. Reference companies: Torch (Vincere ATS, 4 consultants), Robert Walters Japan, Hays.
 
-**Current status:** Candidate page fully revised (sessions 3 + 4). Client page revised (session 5).
+**Current status:** Candidate page fully revised (sessions 3, 4, 6). Client page revised (sessions 5, 6).
 
 ---
 
-## What Was Completed This Session (5th session, 5 June 2026)
+## What Was Completed This Session (6th session, 6 June 2026)
 
-### Client Page — Major Revision
+### Candidate Notes Tab — Full Overhaul
 
-**New tab structure:** Timeline | Client info | Contacts | Jobs | Contract (was 3 tabs, now 5)
+**Source selector (new):**
+- Six pill buttons at the top of the Notes tab: LinkedIn / BizReach / Doda / Referral / Inbound / Other
+- Saves to `candidates.source`. Click active pill to deselect (clears to null).
+- Intelligence tab profile panel now shows human label (BizReach, not bizreach).
 
-**Jobs tab (new):**
-- Inline `AddJobForm` replaces the old `RequisitionIntakeModal` dialog
-- JD upload (PDF/DOCX) as primary entry point — AI extracts title, salary range, location via `/api/ai/extract-req-fields`
-- Fields: title, salary range (free text), location, hiring manager (select from contacts), target close date, why role opened, strategic context (+ AI generate)
-- Job list shows salary_range_text, location, close date alongside pipeline badges
+**Interview notes — document upload + AI formatting:**
+- Upload button added to Interview Notes card header. Accepts PDF and DOCX.
+- Extracts text client-side (mammoth for DOCX, `/api/extract-text` for PDF).
+- Sends raw text to new `/api/ai/format-interview-notes` endpoint.
+- AI formats into BACKGROUND / CAREER HISTORY / MOTIVATIONS plain-text sections.
+- Result shown in an editable blue preview box — recruiter can edit, then Accept (appends to existing notes) or dismiss.
 
-**Contacts tab (new):**
-- `ContactsCard` moved here from Client info
-- Per-contact activity log button → opens `LogInteractionDialog` pre-seeded with contact
-- Per-contact interaction history (last 3 interactions with that contact shown inline)
+**Save UX — checkmark button on all editable fields:**
+- All `NoteField` components now show a dark "✓ Save" button (bottom-right of textarea) when in edit mode.
+- Enter key also saves for single-line fields. Shift+Enter still inserts newlines.
 
-**Timeline cross-linking:**
-- Client timeline: shows "re: [candidate name]" chip when `candidate_id` is set; "with [contact name]" chip when `contact_id` is set; "spoke with candidate" badge when `primary_party = candidate`
-- Candidate timeline: shows "[client name]" chip when `clients` is set; "with [contact name]" chip when `client_contacts` is set; "spoke with client" badge when `primary_party = client`
+**Urgency to move — redesigned:**
+- Replaced High/Medium/Low select with Active/Passive toggle buttons → writes to `active_passive` column.
+- `urgency_to_move` (High/Medium/Low) is a **legacy column** — do not write to it from the UI. Old data may still be there.
+- New `urgency_notes` free-text field below the toggle for context (why active, when passive might look, etc.).
+- Intelligence tab profile panel updated to display `active_passive` instead of `urgency_to_move`.
 
-**Primary party designation:**
-- `LogActivityPanel` (candidate page): "Who did you speak with?" toggle (Candidate / Client contact) shown when a client is linked
-- `LogInteractionDialog` (client page): "Who you spoke with" select (Client contact / Candidate) + optional contact selector
+**Other languages — redesigned:**
+- Step 1: type the language name into the input, press Enter or click "Set level".
+- Step 2: pick proficiency from a grid dropdown (same scale as Japanese/English).
+- Saves as "Korean — Business" format to `additional_languages`.
+- Saved value shows with "Change level" link and ✕ to clear.
 
-**Japan Market Context — now editable:**
-- Click any field to edit inline (years in Japan, employees, % Japanese nationals, Japan role in group, KK entity)
-- Was read-only display only before; data comes from `clients` table columns populated via enrich card or manually
+**Compensation — fixed:**
+- ¥ symbol now always shows inline left of input — no more jumping to bottom-left.
+- Removed "¥M — type 12 for ¥12M" helper text.
+- `current_total` is now auto-calculated from `current_base + current_bonus` (read-only, labelled "Auto-calculated").
+- `comp_notes` free-text field added at bottom for bonus structure, equity, base priority context.
 
-**Contract tab — now editable + upload:**
-- Upload contract PDF/DOCX → AI extracts fee % and start date via `/api/ai/extract-contract`
-- All fields (fee %, client since, contract signed) inline-editable with click-to-edit
+### Client Page — Polish Pass
 
-**Bug fix — Log new job was silently failing:**
-- Root cause: `is_backfill` and `hiring_manager_id` columns did not exist on `requisitions` table
-- Fixed by migration 017
+**Contacts tab — Log activity pre-fill:**
+- "Log activity" button now passes contact name to `LogInteractionDialog`.
+- Summary placeholder pre-fills as "e.g. Call with [Name] — topic discussed".
+- `contact_id` was already saving correctly (no DB change needed).
+
+**Jobs tab — closed jobs empty state:**
+- Closed jobs section always renders. Shows "No closed jobs." when empty instead of nothing.
+
+**Japan Market Context card — redesigned:**
+- Replaced inline click-to-edit rows (which caused layout jump) with stacked label/value layout.
+- Each field has a pencil icon button. Clicking it activates a full-width input with Save/Cancel.
+- No more horizontal squeeze or input jumping off-screen.
+
+**Contract tab — toggle fix:**
+- `ContractFieldRow` now resets `draft` state via `useEffect` when `value` prop changes.
+- "Contract signed" correctly updates to "Yes" after file upload without needing a page reload.
+
+### Search Panel Fixes
+
+- Enter key now triggers immediate search on the name and company text inputs.
+- `LanguageFilter` now accepts a `levels` prop — English filter was previously hardcoded to render Japanese level options.
 
 ### Migration Applied
-- **017** — `requisitions`: ADD `is_backfill`, `hiring_manager_id`, `salary_range_text`, `location`, `urgency_date`; `interactions`: ADD `contact_id` (FK to client_contacts), `primary_party`
 
-### New AI Endpoints
-- `api/ai/extract-req-fields.ts` — extracts title, salary_range_text, location from JD text
-- `api/ai/extract-contract.ts` — extracts fee_pct, started_at from contract text
+**018** — `candidates`: ADD `urgency_notes` text, ADD `comp_notes` text
 
-### Types Updated
-- `src/integrations/supabase/types.ts` — added `contact_id`, `primary_party` to interactions Row/Insert/Update; added `salary_range_text`, `location`, `urgency_date` to requisitions; added `interactions_contact_id_fkey` relationship
+### Types Regenerated
 
-### Dead Code Removed
-- `RequisitionIntakeModal` (630-line legacy form) — deleted; replaced by inline `JobsTab`/`AddJobForm`
-- Removed `EMPTY_REQ`, `triState`, `TriSelect`, `IntakeSectionHeader` helpers that were only used by the modal
+`src/integrations/supabase/types.ts` — regenerated with `urgency_notes` and `comp_notes` on candidates. Custom types block re-appended.
+
+### New AI Endpoint
+
+`api/ai/format-interview-notes.ts` — takes `raw_text` (string), returns `data` (formatted plain-text interview notes). Model: `claude-sonnet-4-5-20250929`. Max tokens: 1024.
 
 ---
 
-## What Was Completed In Prior Session (4th session, 5 June 2026)
+## What Was Completed In Prior Sessions (3–5)
 
-### Candidate Page — Notes Tab Redesign
+### Session 5 — Client Page Major Revision
 
-Replaced the TipTap HTML template editor with a structured inline form. Each section is a card with click-to-edit field boxes that save on blur.
+New 5-tab client page: Timeline | Client info | Contacts | Jobs | Contract.
 
-**Sections (in order):**
-- **Current employment** — Company (`current_company`), Title (`current_title`)
-- **Interview notes** — Large textarea (10 rows) → new `notes_interview` column
-- **Notice period & urgency** — Number input for months + urgency select (Low/Medium/High)
-- **Language assessment** — Japanese select, English select, other languages text
-- **Compensation** — Current base, current bonus, current total, expected min/max (all ¥M inline, saves raw yen)
-- **Recruiter assessment** — Presentation & communication only (`notes_presentation`)
+- **Jobs tab:** Inline `AddJobForm` replaces old `RequisitionIntakeModal`. JD upload → AI extracts fields.
+- **Contacts tab:** `ContactsCard` moved here. Per-contact activity log button + inline interaction history.
+- **Timeline cross-linking:** "re: [candidate]" and "with [contact]" chips on client timeline.
+- **Japan Market Context:** click-to-edit inline (now replaced with pencil-icon stacked layout in session 6).
+- **Contract tab:** upload + AI extract + inline editable fields.
+- Migration 017: `requisitions` ADD is_backfill, hiring_manager_id, salary_range_text, location, urgency_date; `interactions` ADD contact_id, primary_party.
 
-Removed from notes tab: Candidate Background section (name/age/address/email/phone/LinkedIn), Work History (renamed and converted to free-form Interview Notes), bonus preference, base priority flag, equity, pitch to clients, closing intelligence, personality & working style.
+### Session 4 — Candidate Notes Tab Redesign
 
-### Registration Tab — Contact Fields Added
+Replaced TipTap HTML editor with structured inline form (click-to-edit field boxes, save on blur).
 
-Added Email, Phone, Address, LinkedIn below Date of birth in the "Candidate details" card. All inline-editable via existing `RegistrationField` component. Labelled as auto-populated from registration form.
+Sections: Current employment, Interview notes, Notice period & urgency, Language assessment, Compensation, Recruiter assessment.
 
-### Compensation Card & Edit Dialog — Trimmed
+Migration 016: `notes_interview` column + expanded interactions type constraint.
 
-`CompensationCard` (Intelligence tab): removed base priority warning row.
-`EditCompensationDialog`: reduced to 5 fields only — current base, current bonus, current total, expected min, expected max. Removed: base minimum, base is priority checkbox, bonus preference, equity/RSU, notice period.
+### Sessions 3 — Candidate Page Revision
 
-### Bug Fix — Log Activity Failing
-
-`interactions` table CHECK constraint only allowed `'call','email','meeting','note'` but the UI offered `'job spec sent'`, `'linkedin message'`, `'other'`. Any of those three caused a silent DB error. Migration 016 expands the constraint.
-
-### Migration Applied
-- **016** — `candidates.notes_interview` column + expanded `interactions.interaction_type` CHECK constraint
-
-### Dead Code Removed
-- `NoteTemplateModal` (TipTap editor modal) — deleted
-- `UploadNotesDialog` (AI-distribute notes modal) — deleted
-- All associated TipTap/docx imports cleaned up
+Registration tab contact fields. Compensation card trim. Log activity bug fix.
 
 ---
 
@@ -116,104 +127,61 @@ Added Email, Phone, Address, LinkedIn below Date of birth in the "Candidate deta
 ```
 src/
   routes/
-    __root.tsx
-    index.tsx
-    login.tsx
-    _authenticated.tsx
     _authenticated/
       dashboard.tsx
-      candidates.tsx
-      candidates.$id.tsx        # Fully revised — see tab structure below
+      candidates.tsx          — list pane + filter panel (source/status/japanese/english/last_touch)
+      candidates.$id.tsx      — 4-tab candidate detail (Timeline / Notes / Intelligence / Registration)
       clients.tsx
-      clients.$id.tsx
+      clients.$id.tsx         — 5-tab client detail (Timeline / Client info / Contacts / Jobs / Contract)
       jobs.tsx
       jobs.$id.tsx
       advanced-search.tsx
   components/
-    ui/                         # shadcn/ui primitives — never modify
-    shared/                     # Card, SectionLabel, FieldRow, StageBadge
+    ui/                       — shadcn/ui primitives — never modify
+    shared/                   — Card, SectionLabel, FieldRow, StageBadge
     candidate/
       TranscriptPanel.tsx
       SubmissionPackagePanel.tsx
-  lib/
-    candidate-utils.ts
-    supabase.ts
-    supabase-server.ts
-    auth-context.tsx
-  integrations/
-    supabase/
-      types.ts
 ```
 
-### candidates.$id.tsx — Key Components
+### candidates.$id.tsx — Notes Tab Components
 ```
-CandidateProfile          — page shell, tab router
-CandidateTimelineTab      — feed + LogActivityPanel + TranscriptPanel
-NotesTab                  — inline form (no modal)
-  NoteField               — reusable click-to-edit textarea component
-  NoticeUrgencyFields     — notice period number + urgency select
-  LanguageFields          — Japanese/English selects + other text
-  NoteCompensationFields  — ¥M inline fields for all 5 salary columns
-ProcessesPage             — process binder tabs + CompensationCard + CandidateProfileSection
-  CompensationCard        — read-only (5 fields) + Edit + Sync from notes
-  EditCompensationDialog  — 5 salary fields, inputs in ¥M
-  CandidateProfileSection — collapsible profile data cards
-RegistrationPage          — form upload + CV upload + DobField + contact fields
-  DobField                — date picker, auto-calculates age on save
-  RegistrationField       — inline-editable text field
+NotesTab
+  source selector             — pill buttons → candidates.source
+  InterviewNotesCard          — textarea + Upload doc button → /api/ai/format-interview-notes
+  NoteField                   — reusable click-to-edit textarea with ✓ Save button
+  NoticeUrgencyFields         — notice period (number input + ✓) + Active/Passive toggle + urgency_notes textarea
+  LanguageFields              — Japanese select + English select + Other (type name → pick proficiency)
+  NoteCompensationFields      — 5 yen fields (total read-only, auto-calc) + comp_notes textarea
 ```
 
-### Backend Structure
+### clients.$id.tsx — Key Components
 ```
-api/
-  ai/
-    apply-candidate-notes.ts
-    extract-compensation.ts
-    advanced-search.ts
-    infer-status.ts
-    daily-agenda.ts
-    positioning.ts
-    pre-call-briefing.ts
-    submission-note.ts
-    client-snapshot.ts
-    client-meeting-prep.ts
-    client-draft.ts
-    req-strategic-context.ts
-    match-candidates.ts
-    extract-candidate.ts
-    enrich-client.ts
-    closing-script.ts
-    interview-prep.ts
-    process-transcript.ts
-    refresh-context.ts
-    spec-email.ts
-    extract-conditions.ts
+5 tabs: Timeline | Client info | Contacts | Jobs | Contract
+
+ClientDetail              — page shell, tab router
+ClientTimelineTab         — cross-linked candidate/contact chips
+LogInteractionDialog      — contact_id, primary_party, pre-fills contact name in summary placeholder
+JapanMarketContextCard    — stacked label/value rows with pencil edit buttons
+ContactsCard              — per-contact activity log (passes name to dialog), inline interaction history
+JobsTab                   — inline AddJobForm + open reqs list + closed reqs section (always renders)
+EditableContractTab       — upload + inline-editable fields, draft resets on value change
 ```
 
-### Database — Applied Migrations
+### Database — All Applied Migrations
 ```
-001_full_schema.sql
-002_client_contacts.sql
-003_candidate_notes.sql
-004_requisition_intake.sql
-005_stage_rename.sql
-006_cv_upload.sql
-007_client_contacts_extend.sql
-008_schema_extension.sql
-009_multi_user.sql
-010_ccm_feedback.sql
-011_team_id_defaults.sql
-012_candidate_status.sql
-013_candidate_lists.sql
-014_candidate_registration_fields.sql   # address, notes_template
-015_candidate_dob.sql                   # date_of_birth
-016_candidate_notes_interview.sql       # notes_interview + expanded interactions constraint
+001–017  (see prior sessions)
+018_candidate_notes_extra.sql   — candidates: ADD urgency_notes text, comp_notes text
 ```
 
-### Key Salary Convention
-Salaries stored as **raw yen** in DB (e.g. 12000000 for ¥12M).
-`formatYen(12000000)` → `¥12.0M`.
-All UI inputs that accept salary figures use ¥M notation and multiply by 1,000,000 before saving.
+### Key Field Conventions
+- `active_passive` — 'Active' | 'Passive'. Live urgency toggle. **Do not write to `urgency_to_move`.**
+- `urgency_notes` — free text urgency context.
+- `comp_notes` — free text compensation context.
+- `source` — linkedin / bizreach / doda / referral / inbound / other. Display as human label.
+- `additional_languages` — stored as "Korean — Business" (language + " — " + proficiency).
+- Salaries: raw yen in DB. UI inputs in ¥M (× 1,000,000). Use `formatYen()` for display.
+- `current_total` is auto-calculated from `current_base + current_bonus` in the UI. Do not make it editable again without adding an override pattern.
 
 ### Key Exported Symbols (candidates.tsx)
 ```typescript
@@ -222,42 +190,30 @@ withCandidateDefaults()  // Required for all navigate() to /candidates/*
 ```
 **IMPORTANT:** All navigation to `/candidates` or `/candidates/$id` must use `BLANK_CANDIDATE_SEARCH` or `withCandidateDefaults()`.
 
-### clients.$id.tsx — Current Structure (after session 5)
-```
-5 tabs: Timeline | Client info | Contacts | Jobs | Contract
-
-ClientDetail              — page shell, tab router
-ClientTimelineTab         — shows cross-linked candidate/contact chips
-LogInteractionDialog      — includes contact_id, primary_party, who-you-spoke-with
-ClientIntelligenceCard    — collapsible AI account summary
-ClientEnrichCard          — web search enrichment
-CompanyHeaderCard         — inline strategy notes + completeness bar
-JapanMarketContextCard    — all fields inline-editable
-ContactsCard              — contacts list, per-contact activity log, inline history
-JobsTab                   — inline AddJobForm + OpenRequisitionsCard
-  AddJobForm              — JD upload + key fields
-EditableContractTab       — inline-editable fields + contract file upload
-```
-
-### Key DB Columns Added (session 5)
-- `requisitions`: `is_backfill` bool, `hiring_manager_id` uuid FK, `salary_range_text` text, `location` text, `urgency_date` date
-- `interactions`: `contact_id` uuid FK to client_contacts, `primary_party` text ('candidate'|'client')
-
 ### Architecture Constraints
 - Icons: `@tabler/icons-react` outline variants only
 - Toast: `sonner` only
-- Salary: always `¥XM` format via `formatYen()` — raw yen in DB
+- Salary: always `¥XM` via `formatYen()` — raw yen in DB
 - Stage badge: always `<StageBadge stage={...} />`
 - TanStack Query: always `staleTime: 30_000, retry: 1`
-- **Forbidden words in all prompts:** `straightforward`, `genuinely`, `honestly`, `leverage` (as verb), `utilize`, em dashes
-- **AI model:** `claude-sonnet-4-20250514`
-- No `as any` — fix the type properly
+- AI model: `claude-sonnet-4-5-20250929`
+- No `as any` — use `as unknown as X` with a specific type and comment explaining why
 - No `select("*")` — always explicit column lists
 
-### Known Technical Debt
-1. Team Activity Feed on dashboard still shows only logged-in recruiter's own interactions
-2. Submission package "Accept All / Reject All" not implemented in TranscriptPanel
-3. `/jobs/$id` — no "Add condition" shortcut from within JD text
-4. Single-team bootstrap — second recruiter joining requires a manual SQL update
-5. Advanced Search location filter uses text search of notes; no dedicated `preferred_location` DB column
-6. `clients` table still has a `select("*")` — fix when next touching the client data hook (columns are known: id, company_name, logo_url, is_active, status, fee_pct, started_at, years_in_japan, japan_team_size, japan_team_japanese_pct, employee_japanese_pct, japan_role_in_group, kk_entity, strategy_notes, contract_signed, contract_url, ai_context, ai_context_updated_at)
+---
+
+## Known Technical Debt (updated)
+
+1. **`current_total` has no manual override** — it is locked to auto-calculate from base + bonus. If a recruiter needs to record a total that includes other comp (e.g. stock, allowances not captured separately), they cannot. Add an override pattern: show auto-calc by default, allow recruiter to click a "Override" button that unlocks the field for direct edit.
+
+2. **`urgency_to_move` is a dead column** — still in DB with CHECK constraint (`High`/`Medium`/`Low`), still in `Candidate` type, but no longer written by the UI. Old candidate data may have values there. Options: (a) add a migration to DROP the column, or (b) run a one-time backfill converting High→Active, Low/Medium→Passive into `active_passive`. Do option (b) first if old data matters.
+
+3. Team Activity Feed on dashboard shows only logged-in recruiter's own interactions.
+
+4. Submission package "Accept All / Reject All" not implemented in TranscriptPanel.
+
+5. `/jobs/$id` — no "Add condition" shortcut from within JD text.
+
+6. Single-team bootstrap — second recruiter joining requires a manual SQL update.
+
+7. Advanced Search location filter uses text search of notes; no dedicated `preferred_location` DB column.
