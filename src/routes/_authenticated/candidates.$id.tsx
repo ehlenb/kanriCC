@@ -327,10 +327,20 @@ function CandidateProfile() {
               </span>
             </div>
           )}
-          {c.location_preferences && (
-            <div className="mt-1 text-[12px]" style={{ color: "var(--color-ink-60)" }}>
-              <span className="font-mono text-[10px] uppercase tracking-wide mr-1.5" style={{ color: "var(--color-ink-30)" }}>Location</span>
-              {c.location_preferences}
+          {(c.address || c.location_preferences) && (
+            <div className="mt-1.5 space-y-0.5">
+              {c.address && (
+                <div className="flex items-baseline gap-2 text-[12px]">
+                  <span className="font-mono text-[10px] uppercase tracking-wide shrink-0" style={{ color: "var(--color-ink-30)" }}>Current</span>
+                  <span style={{ color: "var(--color-ink-60)" }}>{c.address}</span>
+                </div>
+              )}
+              {c.location_preferences && (
+                <div className="flex items-baseline gap-2 text-[12px]">
+                  <span className="font-mono text-[10px] uppercase tracking-wide shrink-0" style={{ color: "var(--color-ink-30)" }}>Preferred</span>
+                  <span style={{ color: "var(--color-ink-60)" }}>{c.location_preferences}</span>
+                </div>
+              )}
             </div>
           )}
           <div className="mt-1.5 font-mono text-[10px] tracking-[0.08em] uppercase" style={{ color: "var(--color-ink-30)" }}>
