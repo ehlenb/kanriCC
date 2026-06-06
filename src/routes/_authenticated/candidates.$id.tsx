@@ -5,7 +5,6 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import {
-  initials,
   relativeTime,
   formatYen,
   daysSince,
@@ -295,32 +294,32 @@ function CandidateProfile() {
   const lastContact = relativeTime(c.updated_at);
   const daysAgo = daysSince(c.updated_at);
 
+  const headerAccent =
+    c.candidate_status === "active"  ? "var(--color-vermillion)" :
+    c.candidate_status === "placed"  ? "var(--color-indigo)" :
+    c.candidate_status === "passive" ? "var(--color-gold)" :
+    "var(--color-ink-15)";
+
   return (
     <div className="px-8 py-6 max-w-3xl">
       {/* Profile header */}
-      <div className="flex items-center gap-3 mb-4">
-        <div
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[14px] font-medium"
-          style={{ background: "var(--color-indigo-light)", color: "var(--color-indigo)" }}
-        >
-          {initials(c.full_name)}
-        </div>
+      <div
+        className="flex items-start gap-5 mb-5 pl-4"
+        style={{ borderLeft: `3px solid ${headerAccent}` }}
+      >
         <div className="flex-1 min-w-0">
-          <div className="text-[17px] font-medium font-display">
-            {c.full_name}{" "}
-            {c.full_name_japanese && (
-              <span className="text-[14px] font-normal" style={{ color: "var(--color-ink-60)" }}>
-                / {c.full_name_japanese}
-              </span>
-            )}
+          <div className="text-[18px] font-medium font-display leading-snug">
+            {c.full_name_japanese
+              ? <>{c.full_name_japanese} / {c.full_name}</>
+              : c.full_name}
           </div>
-          <div className="text-[12px]" style={{ color: "var(--color-ink-60)" }}>
+          <div className="mt-0.5 text-[13px]" style={{ color: "var(--color-ink-60)" }}>
             {[c.current_title, c.current_company, c.age ? `Age ${c.age}` : null]
               .filter(Boolean)
               .join(" · ")}
           </div>
           {(c.current_total || c.expected_total_min || c.expected_total_max) && (
-            <div className="flex items-center gap-2 mt-0.5 text-[12px]">
+            <div className="flex items-center gap-2 mt-1 text-[12px]">
               {c.current_total && (
                 <span style={{ color: "var(--color-ink)" }}>
                   Current <strong>{formatYen(c.current_total)}</strong>
@@ -341,14 +340,12 @@ function CandidateProfile() {
               )}
             </div>
           )}
-        </div>
-        <div className="text-right text-[11px]">
-          Last contact:{" "}
-          <span
-            style={{ color: daysAgo > 14 ? "var(--color-danger)" : "var(--color-ink)", fontWeight: 500 }}
-          >
-            {lastContact}
-          </span>
+          <div className="mt-1.5 font-mono text-[10px] tracking-[0.08em] uppercase" style={{ color: "var(--color-ink-30)" }}>
+            Last contact:{" "}
+            <span style={{ color: daysAgo > 14 ? "var(--color-danger)" : "var(--color-ink-60)" }}>
+              {lastContact}
+            </span>
+          </div>
         </div>
       </div>
 
