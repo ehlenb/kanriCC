@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import type { TablesUpdate } from "@/integrations/supabase/types";
 import { useAuth } from "@/lib/auth-context";
 import {
   relativeTime,
@@ -110,6 +111,7 @@ type Candidate = {
   ai_context: string | null;
   ai_context_updated_at: string | null;
   updated_at: string;
+  team_id: string;
 };
 
 type Motivation = { id: string; rank: number; motivation_text: string; motivation_type: string | null };
@@ -404,7 +406,6 @@ function CandidateProfile() {
       {page === "registration" && (
         <RegistrationPage
           candidateId={id}
-          recruiterId={user!.id}
           candidate={c}
         />
       )}
@@ -416,11 +417,9 @@ function CandidateProfile() {
 
 function RegistrationPage({
   candidateId,
-  recruiterId,
   candidate: c,
 }: {
   candidateId: string;
-  recruiterId: string;
   candidate: Candidate;
 }) {
   const [cvExtracted, setCvExtracted] = useState<ExtractedCandidate | null>(null);
@@ -438,7 +437,7 @@ function RegistrationPage({
       {/* Registration form upload — primary document */}
       <RegistrationFormUploadZone
         candidateId={candidateId}
-        recruiterId={recruiterId}
+        teamId={c.team_id}
         registrationFormUrl={c.registration_form_url}
         onExtracted={(data) => handleExtracted("reg", data)}
       />
@@ -446,7 +445,7 @@ function RegistrationPage({
       {/* CV Upload */}
       <CvUploadZone
         candidateId={candidateId}
-        recruiterId={recruiterId}
+        teamId={c.team_id}
         cvUrl={c.cv_url ?? null}
         onExtracted={(data) => handleExtracted("cv", data)}
       />
@@ -481,6 +480,7 @@ function RegistrationPage({
           cvExtracted={cvExtracted}
           regExtracted={regExtracted}
           candidateId={candidateId}
+          currentCandidate={c}
         />
       )}
     </div>
@@ -3546,7 +3546,6 @@ type ExtractedCandidate = {
   english_level: string | null;
   additionalLanguages: string | null;
   notice_period_months: number | null;
-  noticePeriodMonths: number | null;
   current_base: number | null;
   current_total: number | null;
   roles: Array<{
@@ -3562,12 +3561,12 @@ type ExtractedCandidate = {
 
 function CvUploadZone({
   candidateId,
-  recruiterId,
+  teamId,
   cvUrl,
   onExtracted,
 }: {
   candidateId: string;
-  recruiterId: string;
+  teamId: string;
   cvUrl: string | null;
   onExtracted: (data: ExtractedCandidate) => void;
 }) {
@@ -3583,7 +3582,7 @@ function CvUploadZone({
     }
     setState("uploading");
     try {
-      const path = `${recruiterId}/${candidateId}/${Date.now()}_${file.name.replace(/\s+/g, "_")}`;
+      const path = `${teamId}/${candidateId}/${Date.now()}_${file.name.replace(/\s+/g, "_")}`;
       const { error: uploadErr } = await supabase.storage.from("resumes").upload(path, file);
       if (uploadErr) {
         const msg = uploadErr.message ?? String(uploadErr);
@@ -3774,7 +3773,7 @@ const FIELD_SPECS: Array<FieldSpec & { dbKey: string }> = [
   { label: "Japanese level",       dbKey: "japanese_level",      get: (e) => e.japanese_level },
   { label: "English level",        dbKey: "english_level",       get: (e) => e.english_level },
   { label: "Additional languages", dbKey: "additional_languages",get: (e) => e.additionalLanguages },
-  { label: "Notice period",        dbKey: "notice_period_months",get: (e) => (e.notice_period_months ?? e.noticePeriodMonths) != null ? (e.notice_period_months ?? e.noticePeriodMonths) : null, format: (v) => `${v} months` },
+  { label: "Notice period",        dbKey: "notice_period_months",get: (e) => e.notice_period_months, format: (v) => `${v} months` },
   { label: "Current base",         dbKey: "current_base",        get: (e) => e.current_base,  format: (v) => `¥${(Number(v) / 1_000_000).toFixed(1)}M` },
   { label: "Current total",        dbKey: "current_total",       get: (e) => e.current_total, format: (v) => `¥${(Number(v) / 1_000_000).toFixed(1)}M` },
 ];
@@ -3785,17 +3784,23 @@ function ExtractionReviewModal({
   cvExtracted,
   regExtracted,
   candidateId,
+  currentCandidate,
 }: {
   open: boolean;
   onClose: () => void;
   cvExtracted: ExtractedCandidate | null;
   regExtracted: ExtractedCandidate | null;
   candidateId: string;
+  currentCandidate: Candidate;
 }) {
   const qc = useQueryClient();
   const [applying, setApplying] = useState(false);
   // Per-field conflict resolution: "cv" or "reg"
   const [resolution, setResolution] = useState<Record<string, ExtractionSource>>({});
+
+  useEffect(() => {
+    if (open) setResolution({});
+  }, [open]);
 
   const hasConflicts = FIELD_SPECS.some((f) => {
     const cv = cvExtracted ? f.get(cvExtracted) : null;
@@ -3814,21 +3819,26 @@ function ExtractionReviewModal({
     return cv ?? reg ?? null;
   }
 
+  // A field should be cleared when the resolved extraction value is null but the DB has a value.
+  // This means the new CV explicitly found no value for it, overriding the old one.
+  function shouldClear(f: typeof FIELD_SPECS[number]): boolean {
+    const v = resolvedValue(f);
+    if (v != null) return false;
+    const dbVal = (currentCandidate as unknown as Record<string, unknown>)[f.dbKey];
+    return dbVal != null;
+  }
+
   async function applyFields() {
     setApplying(true);
     try {
-      type CandidatePatch = {
-        full_name?: string; full_name_japanese?: string; current_title?: string;
-        current_company?: string; age?: number; date_of_birth?: string;
-        email?: string; phone?: string; address?: string;
-        linkedin_url?: string; japanese_level?: string; english_level?: string;
-        additional_languages?: string; notice_period_months?: number;
-        current_base?: number; current_total?: number;
-      };
-      const patch: CandidatePatch = {};
+      const patch: TablesUpdate<"candidates"> = {};
       for (const f of FIELD_SPECS) {
         const v = resolvedValue(f);
-        if (v != null) (patch as Record<string, string | number>)[f.dbKey] = v as string | number;
+        if (v != null) {
+          (patch as Record<string, string | number>)[f.dbKey] = v as string | number;
+        } else if (shouldClear(f)) {
+          (patch as Record<string, null>)[f.dbKey] = null;
+        }
       }
       if (Object.keys(patch).length > 0) {
         const { error } = await supabase.from("candidates").update(patch).eq("id", candidateId);
@@ -3845,7 +3855,20 @@ function ExtractionReviewModal({
   }
 
   const bothSources = cvExtracted != null && regExtracted != null;
-  const roles = cvExtracted?.roles ?? regExtracted?.roles ?? [];
+  const roles = (() => {
+    const cv = cvExtracted?.roles ?? [];
+    const reg = regExtracted?.roles ?? [];
+    if (!cv.length) return reg;
+    if (!reg.length) return cv;
+    // Both present — merge, dedup by company_name+title, preferring cv entries
+    const seen = new Set<string>();
+    const merged = [...cv];
+    for (const r of merged) seen.add(`${r.company_name}|${r.title}`);
+    for (const r of reg) {
+      if (!seen.has(`${r.company_name}|${r.title}`)) merged.push(r);
+    }
+    return merged;
+  })();
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
@@ -3866,10 +3889,20 @@ function ExtractionReviewModal({
             const reg = regExtracted ? f.get(regExtracted) : null;
             const isConflict = cv != null && reg != null && String(cv) !== String(reg);
             const displayVal = resolvedValue(f);
-            if (displayVal == null && !isConflict) return null;
+            const willClear = !isConflict && displayVal == null && shouldClear(f);
+            if (displayVal == null && !isConflict && !willClear) return null;
 
             const fmt = (v: string | number | null | undefined) =>
               v == null ? null : f.format ? f.format(v as string | number) : String(v);
+
+            if (willClear) {
+              return (
+                <div key={f.dbKey} className="flex items-baseline justify-between gap-4 py-1.5" style={{ borderBottom: "0.5px solid rgba(26,26,24,0.08)" }}>
+                  <span className="text-[12px]" style={{ color: "var(--color-ink-30)" }}>{f.label}</span>
+                  <span className="text-[12px] font-mono" style={{ color: "var(--color-vermillion)" }}>will be cleared</span>
+                </div>
+              );
+            }
 
             if (isConflict) {
               const chosen = resolution[f.dbKey] ?? "reg";
@@ -4090,12 +4123,12 @@ function StatusToggle({
 
 function RegistrationFormUploadZone({
   candidateId,
-  recruiterId,
+  teamId,
   registrationFormUrl,
   onExtracted,
 }: {
   candidateId: string;
-  recruiterId: string;
+  teamId: string;
   registrationFormUrl: string | null;
   onExtracted: (data: ExtractedCandidate) => void;
 }) {
@@ -4108,7 +4141,7 @@ function RegistrationFormUploadZone({
     if (file.type !== "application/pdf") { toast.error("PDF files only."); return; }
     setState("uploading");
     try {
-      const path = `${recruiterId}/${candidateId}/regform_${Date.now()}_${file.name.replace(/\s+/g, "_")}`;
+      const path = `${teamId}/${candidateId}/regform_${Date.now()}_${file.name.replace(/\s+/g, "_")}`;
       const { error: uploadErr } = await supabase.storage.from("resumes").upload(path, file);
       if (uploadErr) { toast.error(`Upload failed: ${uploadErr.message}`); setState("error"); return; }
       await supabase.from("candidates").update({ registration_form_url: path }).eq("id", candidateId);
