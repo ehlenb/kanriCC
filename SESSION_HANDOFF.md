@@ -1,123 +1,143 @@
 # Kanri — Session Handoff Document
 
 > Generated: 6 June 2026
-> Build status: **passing** (TypeScript clean, all migrations applied, pushed to main)
-> Last session: 6th session — candidate notes tab overhaul + client page polish
+> Build status: **passing** (TypeScript clean, all migrations applied)
+> Last session: 7th session — technical debt cleanup + design system foundation
 
 ---
 
 ## Project Overview
 
-Kanri is an AI-native recruiter intelligence platform and CRM for boutique agency recruiters in the Japan bilingual talent market.
-
-**Core thesis:** Recruiters lose hours rebuilding context before every call and making prioritisation decisions with incomplete information. Kanri eliminates that tax.
-
-**Target users:** Boutique and mid-sized agency recruiting firms. Initial focus: Japan bilingual and gaishikei recruitment. Reference companies: Torch (Vincere ATS, 4 consultants), Robert Walters Japan, Hays.
-
-**Current status:** Candidate page fully revised (sessions 3, 4, 6). Client page revised (sessions 5, 6).
+Kanri is an AI-native recruiter intelligence platform and CRM for boutique agency recruiters in the Japan bilingual talent market. See CLAUDE.md for full spec.
 
 ---
 
-## What Was Completed This Session (6th session, 6 June 2026)
+## What Was Completed This Session (7th session, 6 June 2026)
 
-### Candidate Notes Tab — Full Overhaul
+### Technical Debt Items Fixed
 
-**Source selector (new):**
-- Six pill buttons at the top of the Notes tab: LinkedIn / BizReach / Doda / Referral / Inbound / Other
-- Saves to `candidates.source`. Click active pill to deselect (clears to null).
-- Intelligence tab profile panel now shows human label (BizReach, not bizreach).
+**1. `current_total` manual override**
+- `NoteCompensationFields` in `candidates.$id.tsx` now has an `overrideTotal` state (boolean, default false).
+- Default: current total is locked read-only, labelled "Auto-calculated — Override" (clickable link).
+- Override mode: field becomes editable. Auto-calc from base+bonus is suppressed. Label shows "Manual — Auto" (clickable link to restore).
+- `restoreAutoTotal()` recalculates from `current_base + current_bonus` and resets override state.
+- Override is session-local (resets on navigation). The manually saved value persists in DB.
 
-**Interview notes — document upload + AI formatting:**
-- Upload button added to Interview Notes card header. Accepts PDF and DOCX.
-- Extracts text client-side (mammoth for DOCX, `/api/extract-text` for PDF).
-- Sends raw text to new `/api/ai/format-interview-notes` endpoint.
-- AI formats into BACKGROUND / CAREER HISTORY / MOTIVATIONS plain-text sections.
-- Result shown in an editable blue preview box — recruiter can edit, then Accept (appends to existing notes) or dismiss.
+**2. `urgency_to_move` dead column removed**
+- Migration `019_drop_urgency_to_move.sql` applied: backfills `active_passive` (High → Active, Medium/Low → Passive where null), then `DROP COLUMN urgency_to_move`.
+- `urgency_to_move: string | null` removed from the `Candidate` type in `candidates.$id.tsx`.
+- No UI references remain.
 
-**Save UX — checkmark button on all editable fields:**
-- All `NoteField` components now show a dark "✓ Save" button (bottom-right of textarea) when in edit mode.
-- Enter key also saves for single-line fields. Shift+Enter still inserts newlines.
+**3. Candidate page general review — no issues found**
+- Source label on Intelligence tab: correct (uses `{linkedin: "LinkedIn", bizreach: "BizReach", ...}` mapping).
+- Other languages display: correct (`additional_languages ?? other_languages ?? "None"`).
+- Interview notes upload flow: complete end-to-end.
 
-**Urgency to move — redesigned:**
-- Replaced High/Medium/Low select with Active/Passive toggle buttons → writes to `active_passive` column.
-- `urgency_to_move` (High/Medium/Low) is a **legacy column** — do not write to it from the UI. Old data may still be there.
-- New `urgency_notes` free-text field below the toggle for context (why active, when passive might look, etc.).
-- Intelligence tab profile panel updated to display `active_passive` instead of `urgency_to_move`.
+### Design System Foundation Laid (partial — visual changes not yet visible)
 
-**Other languages — redesigned:**
-- Step 1: type the language name into the input, press Enter or click "Set level".
-- Step 2: pick proficiency from a grid dropdown (same scale as Japanese/English).
-- Saves as "Korean — Business" format to `additional_languages`.
-- Saved value shows with "Change level" link and ✕ to clear.
+**What was done:**
+- `src/styles.css` fully replaced with Kanri design token system: Shippori Mincho / Plus Jakarta Sans / DM Mono fonts, ink/vermillion/indigo/moss/gold palette, `.btn`, `.card`, `.badge`, `.label`, `.stat-*`, `.nav-tab`, `.divider` component classes.
+- CLAUDE.md updated with full Design System Contract section (fonts, colors, radius rules, component patterns, migration checklist).
+- Global class sweep across all route and shared component files: removed all `rounded-lg/xl/2xl/3xl/md`, all `shadow-*`, replaced `bg-gray-*`/`text-gray-*` with ink tokens.
+- `font-display` (Shippori Mincho) added to: dashboard greeting h1, stat numbers, login h1, sidebar wordmark, candidate name header in profile, candidate list names, client company name h2, jobs page h1.
+- Shared components migrated: `Card`, `FieldRow`, `StageBadge`, `SectionLabel` now use design tokens.
+- Tab navigation (`candidates.$id.tsx`, `clients.$id.tsx`) switched to `.nav-tab`/`.active` CSS classes.
+- Sidebar background → `var(--color-white)`, border → `1px solid var(--color-ink-15)`.
 
-**Compensation — fixed:**
-- ¥ symbol now always shows inline left of input — no more jumping to bottom-left.
-- Removed "¥M — type 12 for ¥12M" helper text.
-- `current_total` is now auto-calculated from `current_base + current_bonus` (read-only, labelled "Auto-calculated").
-- `comp_notes` free-text field added at bottom for bonus structure, equity, base priority context.
-
-### Client Page — Polish Pass
-
-**Contacts tab — Log activity pre-fill:**
-- "Log activity" button now passes contact name to `LogInteractionDialog`.
-- Summary placeholder pre-fills as "e.g. Call with [Name] — topic discussed".
-- `contact_id` was already saving correctly (no DB change needed).
-
-**Jobs tab — closed jobs empty state:**
-- Closed jobs section always renders. Shows "No closed jobs." when empty instead of nothing.
-
-**Japan Market Context card — redesigned:**
-- Replaced inline click-to-edit rows (which caused layout jump) with stacked label/value layout.
-- Each field has a pencil icon button. Clicking it activates a full-width input with Save/Cancel.
-- No more horizontal squeeze or input jumping off-screen.
-
-**Contract tab — toggle fix:**
-- `ContractFieldRow` now resets `draft` state via `useEffect` when `value` prop changes.
-- "Contract signed" correctly updates to "Yes" after file upload without needing a page reload.
-
-### Search Panel Fixes
-
-- Enter key now triggers immediate search on the name and company text inputs.
-- `LanguageFilter` now accepts a `levels` prop — English filter was previously hardcoded to render Japanese level options.
-
-### Migration Applied
-
-**018** — `candidates`: ADD `urgency_notes` text, ADD `comp_notes` text
-
-### Types Regenerated
-
-`src/integrations/supabase/types.ts` — regenerated with `urgency_notes` and `comp_notes` on candidates. Custom types block re-appended.
-
-### New AI Endpoint
-
-`api/ai/format-interview-notes.ts` — takes `raw_text` (string), returns `data` (formatted plain-text interview notes). Model: `claude-sonnet-4-5-20250929`. Max tokens: 1024.
+**Why changes are not visually obvious yet:**
+The codebase uses **inline `style={{ color: "#xxx" }}`** for almost all colour and spacing.
+`candidates.$id.tsx` alone has 241 inline style attributes with hardcoded hex values like `#1a1a18`, `#5f5e5a`, `#888780`, `#f5f5f3`, `#185fa5`, `#e6f1fb`, `#633806`, `#27500a`, `#a32d2d`.
+CSS token changes do not affect inline styles. The next session must replace these inline hex values with `var(--color-*)` CSS custom properties to make the design system visible.
 
 ---
 
-## What Was Completed In Prior Sessions (3–5)
+## What Needs to Happen Next Session
 
-### Session 5 — Client Page Major Revision
+### The single most important task: inline style migration
 
-New 5-tab client page: Timeline | Client info | Contacts | Jobs | Contract.
+Go file by file (highest traffic first) and replace all hardcoded hex colours in `style={{}}` props with CSS custom properties from the design system.
 
-- **Jobs tab:** Inline `AddJobForm` replaces old `RequisitionIntakeModal`. JD upload → AI extracts fields.
-- **Contacts tab:** `ContactsCard` moved here. Per-contact activity log button + inline interaction history.
-- **Timeline cross-linking:** "re: [candidate]" and "with [contact]" chips on client timeline.
-- **Japan Market Context:** click-to-edit inline (now replaced with pencil-icon stacked layout in session 6).
-- **Contract tab:** upload + AI extract + inline editable fields.
-- Migration 017: `requisitions` ADD is_backfill, hiring_manager_id, salary_range_text, location, urgency_date; `interactions` ADD contact_id, primary_party.
+**Colour mapping — hardcoded hex → CSS token:**
 
-### Session 4 — Candidate Notes Tab Redesign
+| Old hex | Token | Meaning |
+|---|---|---|
+| `#1a1a18` | `var(--color-ink)` | Primary text / borders |
+| `#5f5e5a` | `var(--color-ink-60)` | Secondary text |
+| `#888780` | `var(--color-ink-30)` | Muted / placeholder text |
+| `#b8b7b2` | `var(--color-ink-30)` | Same token, lighter use |
+| `#d9d7d3` | `var(--color-ink-15)` | Default borders |
+| `#f5f5f3` | `var(--color-ink-10)` | Sunken / input background |
+| `#f5f5f3` / `#eeede8` | `var(--color-bg-page)` | Page background areas |
+| `#ffffff` / `#fff` | `var(--color-white)` | Card / surface background |
+| `#fafaf9` | `var(--color-white)` | Same, slightly off-white |
+| `#185fa5` | `var(--color-indigo)` | Info / link / CCM blue |
+| `#e6f1fb` | `var(--color-indigo-light)` | Info background |
+| `#27500a` | `var(--color-moss)` | Success / placed green |
+| `#eaf3de` | `var(--color-moss-light)` | Success background |
+| `#633806` | `var(--color-gold)` | Warning / offer amber |
+| `#fdf3e7` / `#faeeda` | `var(--color-gold-light)` | Warning background |
+| `#a32d2d` | `var(--color-danger)` | Danger / risk red |
+| `#fcebeb` | `var(--color-danger-bg)` | Danger background |
+| `#173404` / `#3b6d11` | Keep as-is | Process tab own (green) — intentional |
+| `#2c2c2a` / `#501313` | Keep as-is | Process tab colleague/uncovered — intentional |
 
-Replaced TipTap HTML editor with structured inline form (click-to-edit field boxes, save on blur).
+**Also fix border shorthand strings:**
 
-Sections: Current employment, Interview notes, Notice period & urgency, Language assessment, Compensation, Recruiter assessment.
+| Old | New |
+|---|---|
+| `"0.5px solid rgba(26,26,24,0.12)"` | `"0.5px solid var(--color-ink-15)"` |
+| `"0.5px solid rgba(26,26,24,0.08)"` | `"0.5px solid var(--color-border-subtle)"` |
+| `"0.5px solid rgba(26,26,24,0.20)"` | `"0.5px solid var(--color-ink)"` |
+| `"0.5px solid rgba(26,26,24,0.22)"` | `"0.5px solid var(--color-ink-15)"` |
 
-Migration 016: `notes_interview` column + expanded interactions type constraint.
+**Priority order (do these files, in this order):**
 
-### Sessions 3 — Candidate Page Revision
+1. `src/routes/_authenticated/candidates.$id.tsx` — 241 inline styles, highest traffic
+2. `src/routes/_authenticated/clients.$id.tsx` — second highest traffic
+3. `src/routes/_authenticated/dashboard.tsx`
+4. `src/routes/_authenticated/advanced-search.tsx`
+5. `src/routes/_authenticated/candidates.tsx` (list pane)
+6. `src/routes/_authenticated/jobs.$id.tsx`
 
-Registration tab contact fields. Compensation card trim. Log activity bug fix.
+**Approach per file:**
+- Do one file per commit.
+- Use sed for the repeated hex-to-token substitutions, then manually fix any edge cases.
+- Run `npx tsc --noEmit` after each file — must stay clean.
+- Run dev server after each file and visually check the page before committing.
+
+**Sed commands to run on each file (adapt path):**
+```bash
+FILE="src/routes/_authenticated/candidates.\$id.tsx"
+sed -i '' \
+  -e 's/color: "#1a1a18"/color: "var(--color-ink)"/g' \
+  -e 's/color: "#5f5e5a"/color: "var(--color-ink-60)"/g' \
+  -e 's/color: "#888780"/color: "var(--color-ink-30)"/g' \
+  -e 's/color: "#b8b7b2"/color: "var(--color-ink-30)"/g' \
+  -e 's/background: "#f5f5f3"/background: "var(--color-ink-10)"/g' \
+  -e 's/background: "#fafaf9"/background: "var(--color-white)"/g' \
+  -e 's/background: "#ffffff"/background: "var(--color-white)"/g' \
+  -e 's/background: "#fff"/background: "var(--color-white)"/g' \
+  -e 's/color: "#185fa5"/color: "var(--color-indigo)"/g' \
+  -e 's/background: "#e6f1fb"/background: "var(--color-indigo-light)"/g' \
+  -e 's/color: "#27500a"/color: "var(--color-moss)"/g' \
+  -e 's/background: "#eaf3de"/background: "var(--color-moss-light)"/g' \
+  -e 's/color: "#633806"/color: "var(--color-gold)"/g' \
+  -e 's/background: "#fdf3e7"/background: "var(--color-gold-light)"/g' \
+  -e 's/color: "#a32d2d"/color: "var(--color-danger)"/g' \
+  -e 's/background: "#fcebeb"/background: "var(--color-danger-bg)"/g' \
+  "$FILE"
+```
+
+---
+
+## Known Technical Debt (remaining)
+
+3. Team Activity Feed on dashboard shows only logged-in recruiter's own interactions.
+4. Submission package "Accept All / Reject All" not implemented in TranscriptPanel.
+5. `/jobs/$id` — no "Add condition" shortcut from within JD text.
+6. Single-team bootstrap — second recruiter joining requires a manual SQL update.
+7. Advanced Search location filter uses text search of notes; no dedicated `preferred_location` DB column.
+8. **Inline style migration incomplete** — design system tokens defined but not yet wired to component inline styles (see above). No visual impact until this is done.
 
 ---
 
@@ -129,7 +149,7 @@ src/
   routes/
     _authenticated/
       dashboard.tsx
-      candidates.tsx          — list pane + filter panel (source/status/japanese/english/last_touch)
+      candidates.tsx          — list pane + filter panel
       candidates.$id.tsx      — 4-tab candidate detail (Timeline / Notes / Intelligence / Registration)
       clients.tsx
       clients.$id.tsx         — 5-tab client detail (Timeline / Client info / Contacts / Jobs / Contract)
@@ -138,50 +158,32 @@ src/
       advanced-search.tsx
   components/
     ui/                       — shadcn/ui primitives — never modify
-    shared/                   — Card, SectionLabel, FieldRow, StageBadge
+    shared/                   — Card, SectionLabel, FieldRow, StageBadge (all on design tokens)
     candidate/
       TranscriptPanel.tsx
       SubmissionPackagePanel.tsx
 ```
 
-### candidates.$id.tsx — Notes Tab Components
-```
-NotesTab
-  source selector             — pill buttons → candidates.source
-  InterviewNotesCard          — textarea + Upload doc button → /api/ai/format-interview-notes
-  NoteField                   — reusable click-to-edit textarea with ✓ Save button
-  NoticeUrgencyFields         — notice period (number input + ✓) + Active/Passive toggle + urgency_notes textarea
-  LanguageFields              — Japanese select + English select + Other (type name → pick proficiency)
-  NoteCompensationFields      — 5 yen fields (total read-only, auto-calc) + comp_notes textarea
-```
-
-### clients.$id.tsx — Key Components
-```
-5 tabs: Timeline | Client info | Contacts | Jobs | Contract
-
-ClientDetail              — page shell, tab router
-ClientTimelineTab         — cross-linked candidate/contact chips
-LogInteractionDialog      — contact_id, primary_party, pre-fills contact name in summary placeholder
-JapanMarketContextCard    — stacked label/value rows with pencil edit buttons
-ContactsCard              — per-contact activity log (passes name to dialog), inline interaction history
-JobsTab                   — inline AddJobForm + open reqs list + closed reqs section (always renders)
-EditableContractTab       — upload + inline-editable fields, draft resets on value change
-```
+### Design System Status
+- `src/styles.css` — fully replaced with Kanri token system. Tailwind v4 `@theme` block defines all tokens. Legacy aliases preserved for shadcn compat.
+- `CLAUDE.md` — Design System Contract appended as final section. Read it before any UI work.
+- Shared components (Card, FieldRow, StageBadge, SectionLabel) — on design tokens.
+- Route files — Tailwind class cleanup done. **Inline styles not yet migrated** (next session task).
 
 ### Database — All Applied Migrations
 ```
-001–017  (see prior sessions)
-018_candidate_notes_extra.sql   — candidates: ADD urgency_notes text, comp_notes text
+001–018  (see prior sessions)
+019_drop_urgency_to_move.sql  — backfill active_passive from urgency_to_move, then DROP COLUMN
 ```
 
 ### Key Field Conventions
-- `active_passive` — 'Active' | 'Passive'. Live urgency toggle. **Do not write to `urgency_to_move`.**
+- `active_passive` — 'Active' | 'Passive'. Live urgency toggle. `urgency_to_move` column is gone.
 - `urgency_notes` — free text urgency context.
 - `comp_notes` — free text compensation context.
+- `current_total` — auto-calculated from `current_base + current_bonus` in UI. Override pattern available (session-local).
 - `source` — linkedin / bizreach / doda / referral / inbound / other. Display as human label.
 - `additional_languages` — stored as "Korean — Business" (language + " — " + proficiency).
 - Salaries: raw yen in DB. UI inputs in ¥M (× 1,000,000). Use `formatYen()` for display.
-- `current_total` is auto-calculated from `current_base + current_bonus` in the UI. Do not make it editable again without adding an override pattern.
 
 ### Key Exported Symbols (candidates.tsx)
 ```typescript
@@ -199,21 +201,3 @@ withCandidateDefaults()  // Required for all navigate() to /candidates/*
 - AI model: `claude-sonnet-4-5-20250929`
 - No `as any` — use `as unknown as X` with a specific type and comment explaining why
 - No `select("*")` — always explicit column lists
-
----
-
-## Known Technical Debt (updated)
-
-1. **`current_total` has no manual override** — it is locked to auto-calculate from base + bonus. If a recruiter needs to record a total that includes other comp (e.g. stock, allowances not captured separately), they cannot. Add an override pattern: show auto-calc by default, allow recruiter to click a "Override" button that unlocks the field for direct edit.
-
-2. **`urgency_to_move` is a dead column** — still in DB with CHECK constraint (`High`/`Medium`/`Low`), still in `Candidate` type, but no longer written by the UI. Old candidate data may have values there. Options: (a) add a migration to DROP the column, or (b) run a one-time backfill converting High→Active, Low/Medium→Passive into `active_passive`. Do option (b) first if old data matters.
-
-3. Team Activity Feed on dashboard shows only logged-in recruiter's own interactions.
-
-4. Submission package "Accept All / Reject All" not implemented in TranscriptPanel.
-
-5. `/jobs/$id` — no "Add condition" shortcut from within JD text.
-
-6. Single-team bootstrap — second recruiter joining requires a manual SQL update.
-
-7. Advanced Search location filter uses text search of notes; no dedicated `preferred_location` DB column.
