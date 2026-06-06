@@ -33,14 +33,13 @@ function hoursSince(isoDate: string | null): number {
 }
 
 // Higher CCM = closer to offer = lower rank number = shown first
+// CCM1→25, CCM2→20, CCM3→15, CCM4→12, CCM5→9, CCM6→6 …
 function ccmPriorityRank(stage: string): number {
   const n = parseInt(stage.replace("CCM", ""), 10);
   if (isNaN(n)) return 30;
   if (n <= 1) return 25;
   if (n === 2) return 20;
-  if (n === 3) return 15;
-  if (n === 4) return 12;
-  return 10; // CCM5+
+  return Math.max(1, 15 - (n - 3) * 3); // CCM3+: strictly decreasing, floor 1
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
