@@ -141,6 +141,7 @@ type Process = {
   ai_snapshot: string | null;
   updated_at: string;
   buy_in_confirmed_at: string | null;
+  not_interested_at: string | null;
   cv_sent_at: string | null;
   placed_date: string | null;
   last_activity_at: string | null;
@@ -180,6 +181,8 @@ type CandidateInteraction = {
   summary: string | null;
   full_notes: string | null;
   interacted_at: string;
+  scheduled_at: string | null;
+  is_future: boolean;
   client_id: string | null;
   contact_id: string | null;
   primary_party: string | null;
@@ -231,7 +234,7 @@ function useCandidateProfile(id: string) {
           .select(
             `
             id, stage, coverage_type, ai_snapshot, updated_at,
-            buy_in_confirmed_at, cv_sent_at, placed_date, last_activity_at,
+            buy_in_confirmed_at, not_interested_at, cv_sent_at, placed_date, last_activity_at,
             ccm_outcome, ccm_feedback_notes, ccm_feedback_at,
             requisitions (
               id, title, salary_min, salary_max, salary_stretch,
@@ -244,7 +247,7 @@ function useCandidateProfile(id: string) {
           .order("updated_at", { ascending: false }),
         supabase
           .from("interactions")
-          .select("id, interaction_type, summary, full_notes, interacted_at, client_id, contact_id, primary_party, clients(id, company_name), client_contacts(id, name)")
+          .select("id, interaction_type, summary, full_notes, interacted_at, scheduled_at, is_future, client_id, contact_id, primary_party, clients(id, company_name), client_contacts(id, name)")
           .eq("candidate_id", id)
           .order("interacted_at", { ascending: false })
           .limit(50),
@@ -2781,10 +2784,25 @@ function BuyInPanel({
   blockers: Blocker[];
   recruiterId: string;
 }) {
+  const qc = useQueryClient();
   const [showEmail, setShowEmail] = useState(false);
   const [showCall, setShowCall] = useState(false);
   const [loadingPositioning, setLoadingPositioning] = useState(false);
   const [positioning, setPositioning] = useState<string | null>(p.ai_snapshot);
+  const [markingNotInterested, setMarkingNotInterested] = useState(false);
+
+  async function handleNotInterested() {
+    if (!confirm("Mark this candidate as not interested in this role? This will remove them from the buy-in priority list.")) return;
+    setMarkingNotInterested(true);
+    const { error } = await supabase
+      .from("processes")
+      .update({ not_interested_at: new Date().toISOString() })
+      .eq("id", p.id);
+    setMarkingNotInterested(false);
+    if (error) { toast.error("Could not update. Try again."); return; }
+    toast.success("Marked as not interested.");
+    void qc.invalidateQueries({ queryKey: ["candidate-profile", c.id] });
+  }
 
   const watchOuts = blockers.filter((b) => b.is_risk);
 
@@ -2838,11 +2856,32 @@ Handle objections:
 Close for buy-in:
 I am not asking you to commit. I am asking: would you be comfortable if I shared your profile with them? I will send the JD now and we talk after you have read it.`;
 
+  const isNotInterested = !!p.not_interested_at;
+
   return (
-    <div>
-      <p className="text-[13px] mb-3" style={{ color: "var(--color-ink-60)" }}>
-        Not yet approached. Goal is to get buy-in to submit the profile to the client.
-      </p>
+    <div style={{ opacity: isNotInterested ? 0.5 : 1 }}>
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-[13px]" style={{ color: "var(--color-ink-60)" }}>
+          Not yet approached. Goal is to get buy-in to submit the profile to the client.
+        </p>
+        {isNotInterested ? (
+          <span
+            className="text-[11px] font-mono px-2 py-1"
+            style={{ background: "var(--color-ink-10)", color: "var(--color-ink-30)", border: "0.5px solid var(--color-ink-15)", whiteSpace: "nowrap" }}
+          >
+            Not interested — {new Date(p.not_interested_at!).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+          </span>
+        ) : (
+          <button
+            className="ab"
+            style={{ fontSize: 11, padding: "4px 10px", color: "var(--color-ink-60)" }}
+            onClick={() => void handleNotInterested()}
+            disabled={markingNotInterested}
+          >
+            {markingNotInterested ? "Saving…" : "Not interested"}
+          </button>
+        )}
+      </div>
 
       <div className="grid grid-cols-2 gap-4 mb-4">
         <div>
@@ -3336,20 +3375,22 @@ function AddToProcessModal({
 // ─── candidate timeline tab ───────────────────────────────────────────────────
 
 const CAND_INTERACTION_ICON: Record<string, React.ElementType> = {
-  call:              IconPhone,
-  email:             IconMail,
-  meeting:           IconCalendar,
-  "job spec sent":   IconFileText,
-  "linkedin message": IconMessage,
-  other:             IconClipboard,
+  call:                 IconPhone,
+  email:                IconMail,
+  meeting:              IconCalendar,
+  "interview scheduled": IconCalendar,
+  "job spec sent":      IconFileText,
+  "linkedin message":   IconMessage,
+  other:                IconClipboard,
 };
 const CAND_INTERACTION_COLORS: Record<string, { bg: string; color: string }> = {
-  call:              { bg: "var(--color-indigo-light)", color: "var(--color-indigo)" },
-  email:             { bg: "var(--color-ink-10)", color: "var(--color-ink-60)" },
-  meeting:           { bg: "var(--color-moss-light)", color: "#3b6d11" },
-  "job spec sent":   { bg: "#fef3e2", color: "#974c00" },
-  "linkedin message":{ bg: "#f0eafb", color: "#6b3fa0" },
-  other:             { bg: "var(--color-ink-10)", color: "var(--color-ink-30)" },
+  call:                 { bg: "var(--color-indigo-light)", color: "var(--color-indigo)" },
+  email:                { bg: "var(--color-ink-10)", color: "var(--color-ink-60)" },
+  meeting:              { bg: "var(--color-moss-light)", color: "#3b6d11" },
+  "interview scheduled":{ bg: "var(--color-indigo-light)", color: "var(--color-indigo)" },
+  "job spec sent":      { bg: "#fef3e2", color: "#974c00" },
+  "linkedin message":   { bg: "#f0eafb", color: "#6b3fa0" },
+  other:                { bg: "var(--color-ink-10)", color: "var(--color-ink-30)" },
 };
 
 function CandidateTimelineTab({
@@ -3370,8 +3411,12 @@ function CandidateTimelineTab({
     | { kind: "interaction"; data: CandidateInteraction; ts: string }
     | { kind: "process"; data: Process; ts: string };
 
+  const upcomingEvents = interactions
+    .filter((i) => i.is_future)
+    .sort((a, b) => new Date(a.scheduled_at ?? a.interacted_at).getTime() - new Date(b.scheduled_at ?? b.interacted_at).getTime());
+
   const feed: FeedEntry[] = [
-    ...interactions.map((i) => ({ kind: "interaction" as const, data: i, ts: i.interacted_at })),
+    ...interactions.filter((i) => !i.is_future).map((i) => ({ kind: "interaction" as const, data: i, ts: i.interacted_at })),
     ...processes.map((p) => ({ kind: "process" as const, data: p, ts: p.updated_at })),
   ].sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime());
 
@@ -3383,6 +3428,16 @@ function CandidateTimelineTab({
     });
   }
 
+  function formatDateTime(iso: string) {
+    return new Date(iso).toLocaleString("en-GB", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
+
   const [showLogActivity, setShowLogActivity] = useState(false);
 
   return (
@@ -3390,7 +3445,7 @@ function CandidateTimelineTab({
       {/* Action bar */}
       <div className="flex items-center justify-between">
         <p className="text-[12px]" style={{ color: "var(--color-ink-30)" }}>
-          {feed.length} {feed.length === 1 ? "entry" : "entries"}
+          {feed.length + upcomingEvents.length} {feed.length + upcomingEvents.length === 1 ? "entry" : "entries"}{upcomingEvents.length > 0 ? `, ${upcomingEvents.length} upcoming` : ""}
         </p>
         <div className="flex items-center gap-2">
           <button
@@ -3441,6 +3496,67 @@ function CandidateTimelineTab({
         </div>
       )}
 
+      {/* ── Upcoming events ─────────────────────────────────────── */}
+      {upcomingEvents.length > 0 && (
+        <div className="space-y-1.5">
+          <p className="label" style={{ color: "var(--color-indigo)" }}>UPCOMING</p>
+          {upcomingEvents.map((i) => {
+            const type = i.interaction_type ?? "interview scheduled";
+            const Icon = CAND_INTERACTION_ICON[type] ?? IconCalendar;
+            return (
+              <div
+                key={`upcoming-${i.id}`}
+                className="p-[14px_18px]"
+                style={{
+                  background: "var(--color-white)",
+                  borderLeft: "3px solid var(--color-indigo)",
+                  border: "0.5px solid var(--color-indigo-light)",
+                  borderLeftWidth: "3px",
+                }}
+              >
+                <div className="flex items-start gap-3">
+                  <div
+                    className="flex h-8 w-8 shrink-0 items-center justify-center mt-0.5"
+                    style={{ background: "var(--color-indigo-light)" }}
+                  >
+                    <Icon size={14} style={{ color: "var(--color-indigo)" }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <span
+                        className="text-[11px] font-mono uppercase tracking-wide px-[6px] py-[2px]"
+                        style={{ background: "var(--color-indigo-light)", color: "var(--color-indigo)" }}
+                      >
+                        UPCOMING
+                      </span>
+                      <span className="text-[11px] font-medium capitalize px-[6px] py-[2px]"
+                        style={{ background: "var(--color-indigo-light)", color: "var(--color-indigo)" }}>
+                        {type}
+                      </span>
+                      <span className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>
+                        {i.scheduled_at ? formatDateTime(i.scheduled_at) : "Date TBD"}
+                      </span>
+                    </div>
+                    {i.summary && (
+                      <p className="text-[13px] font-medium leading-snug">{i.summary}</p>
+                    )}
+                    {i.full_notes && (
+                      <p className="text-[12px] mt-1 whitespace-pre-wrap" style={{ color: "var(--color-ink-60)" }}>{i.full_notes}</p>
+                    )}
+                    {i.clients && (
+                      <p className="text-[11px] mt-1" style={{ color: "var(--color-ink-30)" }}>
+                        Re: {i.clients.company_name}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── Past activity feed ───────────────────────────────────── */}
       <div className="space-y-2">
       {feed.map((entry) => {
         if (entry.kind === "interaction") {
@@ -4344,7 +4460,7 @@ function CandidateIntelligenceCard({
 
 // ─── log activity panel ───────────────────────────────────────────────────────
 
-const LOG_ACTIVITY_TYPES = ["call", "email", "meeting", "job spec sent", "linkedin message", "other"] as const;
+const LOG_ACTIVITY_TYPES = ["call", "email", "meeting", "interview scheduled", "job spec sent", "linkedin message", "other"] as const;
 
 function LogActivityPanel({
   candidateId,
@@ -4355,13 +4471,23 @@ function LogActivityPanel({
   recruiterId: string;
   onSaved: () => void;
 }) {
+  const [timing, setTiming] = useState<"past" | "upcoming">("past");
   const [type, setType] = useState<string>("call");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+  const [scheduledDate, setScheduledDate] = useState(new Date().toISOString().split("T")[0]);
+  const [scheduledTime, setScheduledTime] = useState("10:00");
   const [summary, setSummary] = useState("");
   const [notes, setNotes] = useState("");
   const [clientId, setClientId] = useState<string | null>(null);
   const [primaryParty, setPrimaryParty] = useState<"candidate" | "client">("candidate");
   const [saving, setSaving] = useState(false);
+
+  // When switching to Upcoming, default type to "interview scheduled"
+  function handleTimingChange(v: "past" | "upcoming") {
+    setTiming(v);
+    if (v === "upcoming") setType("interview scheduled");
+    else if (type === "interview scheduled") setType("call");
+  }
 
   const { data: clients } = useQuery({
     queryKey: ["clients-list-slim"],
@@ -4379,12 +4505,21 @@ function LogActivityPanel({
 
   async function save() {
     if (!summary.trim()) { toast.error("A summary is required."); return; }
+    if (timing === "upcoming" && !scheduledDate) { toast.error("A scheduled date is required."); return; }
     setSaving(true);
+
+    const isFuture = timing === "upcoming";
+    const scheduledAt = isFuture
+      ? new Date(`${scheduledDate}T${scheduledTime}:00`).toISOString()
+      : null;
+
     const { error } = await supabase.from("interactions").insert({
       candidate_id: candidateId,
       recruiter_id: recruiterId,
       interaction_type: type,
       interacted_at: new Date(date + "T09:00:00").toISOString(),
+      scheduled_at: scheduledAt,
+      is_future: isFuture,
       summary: summary.trim(),
       full_notes: notes.trim() || null,
       client_id: clientId || null,
@@ -4392,7 +4527,7 @@ function LogActivityPanel({
     });
     setSaving(false);
     if (error) { toast.error("Failed to log activity."); return; }
-    toast.success("Activity logged.");
+    toast.success(isFuture ? "Upcoming event saved." : "Activity logged.");
     setSummary("");
     setNotes("");
     setClientId(null);
@@ -4404,6 +4539,23 @@ function LogActivityPanel({
     <Card>
       <SectionLabel>Log activity</SectionLabel>
       <div className="space-y-3 mt-2">
+        {/* Past / Upcoming toggle */}
+        <div className="flex gap-0" style={{ border: "0.5px solid var(--color-ink-15)" }}>
+          {(["past", "upcoming"] as const).map((v) => (
+            <button
+              key={v}
+              onClick={() => handleTimingChange(v)}
+              className="flex-1 py-1.5 text-[12px] font-medium capitalize transition-colors"
+              style={{
+                background: timing === v ? "var(--color-ink)" : "var(--color-white)",
+                color: timing === v ? "var(--color-white)" : "var(--color-ink-60)",
+              }}
+            >
+              {v === "upcoming" ? "Upcoming" : "Past"}
+            </button>
+          ))}
+        </div>
+
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <Label className="text-[12px]">Type</Label>
@@ -4418,16 +4570,40 @@ function LogActivityPanel({
               </SelectContent>
             </Select>
           </div>
+          {timing === "past" ? (
+            <div className="space-y-1.5">
+              <Label className="text-[12px]">Date</Label>
+              <Input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="h-8 text-[13px]"
+              />
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              <Label className="text-[12px]">Scheduled date</Label>
+              <Input
+                type="date"
+                value={scheduledDate}
+                onChange={(e) => setScheduledDate(e.target.value)}
+                className="h-8 text-[13px]"
+              />
+            </div>
+          )}
+        </div>
+
+        {timing === "upcoming" && (
           <div className="space-y-1.5">
-            <Label className="text-[12px]">Date</Label>
+            <Label className="text-[12px]">Scheduled time</Label>
             <Input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="h-8 text-[13px]"
+              type="time"
+              value={scheduledTime}
+              onChange={(e) => setScheduledTime(e.target.value)}
+              className="h-8 text-[13px] w-36"
             />
           </div>
-        </div>
+        )}
 
         <div className="space-y-1.5">
           <Label className="text-[12px]">Summary *</Label>
