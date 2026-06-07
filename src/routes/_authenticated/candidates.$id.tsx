@@ -3687,6 +3687,8 @@ function CvUploadZone({
   onExtracted: (data: ExtractedCandidate) => void;
 }) {
   const qc = useQueryClient();
+  const { user } = useAuth();
+  const recruiterId = user?.id ?? "";
   const [state, setState] = useState<"idle" | "uploading" | "extracting" | "done" | "error">("idle");
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -3723,6 +3725,14 @@ function CvUploadZone({
     }
   }
 
+  function fallbackStoragePath(path: string): string | null {
+    if (!recruiterId) return null;
+    const segments = path.split("/");
+    if (segments[0] === recruiterId) return null; // already recruiter_id prefix
+    segments[0] = recruiterId;
+    return segments.join("/");
+  }
+
   async function runExtraction(path: string) {
     setState("extracting");
     try {
@@ -3732,6 +3742,20 @@ function CvUploadZone({
         body: JSON.stringify({ candidateId, storageKey: path }),
       });
       if (!resp.ok) {
+        // Retry with recruiter_id-prefixed path (backward compat for pre-team_id uploads)
+        const fallback = fallbackStoragePath(path);
+        if (fallback) {
+          console.warn("[CvUploadZone] runExtraction: primary path failed, retrying with recruiter_id prefix");
+          const resp2 = await fetch("/api/ai/extract-candidate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ candidateId, storageKey: fallback }),
+          });
+          if (resp2.ok) {
+            const data2 = (await resp2.json()) as ExtractedCandidate & { error?: string };
+            if (!data2.error) { setState("done"); onExtracted(data2); return; }
+          }
+        }
         const errText = await resp.text();
         if (resp.status === 404) {
           toast.error("API route not found. Run the app with `vercel dev` instead of `npm run dev` to use AI features locally.");
@@ -3764,7 +3788,17 @@ function CvUploadZone({
     setFetchingUrl(true);
     try {
       const { data, error } = await supabase.storage.from("resumes").createSignedUrl(cvUrl, 120);
-      if (error || !data?.signedUrl) { toast.error("Could not open CV. Try again."); return; }
+      if (error || !data?.signedUrl) {
+        // Retry with recruiter_id-prefixed path (backward compat for pre-team_id uploads)
+        const fallback = fallbackStoragePath(cvUrl);
+        if (fallback) {
+          console.warn("[CvUploadZone] handleView: primary path failed, retrying with recruiter_id prefix");
+          const { data: fd, error: fe } = await supabase.storage.from("resumes").createSignedUrl(fallback, 120);
+          if (!fe && fd?.signedUrl) { window.open(fd.signedUrl, "_blank", "noopener,noreferrer"); return; }
+        }
+        toast.error("Could not open CV. Try again.");
+        return;
+      }
       window.open(data.signedUrl, "_blank", "noopener,noreferrer");
     } catch {
       toast.error("Could not open CV. Try again.");
@@ -4249,9 +4283,19 @@ function RegistrationFormUploadZone({
   onExtracted: (data: ExtractedCandidate) => void;
 }) {
   const qc = useQueryClient();
+  const { user } = useAuth();
+  const recruiterId = user?.id ?? "";
   const [state, setState] = useState<"idle" | "uploading" | "extracting" | "done" | "error">("idle");
   const [fetchingUrl, setFetchingUrl] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  function fallbackStoragePath(path: string): string | null {
+    if (!recruiterId) return null;
+    const segments = path.split("/");
+    if (segments[0] === recruiterId) return null;
+    segments[0] = recruiterId;
+    return segments.join("/");
+  }
 
   async function handleFile(file: File) {
     if (file.type !== "application/pdf") { toast.error("PDF files only."); return; }
@@ -4276,6 +4320,20 @@ function RegistrationFormUploadZone({
         body: JSON.stringify({ candidateId, storageKey: path }),
       });
       if (!resp.ok) {
+        // Retry with recruiter_id-prefixed path (backward compat for pre-team_id uploads)
+        const fallback = fallbackStoragePath(path);
+        if (fallback) {
+          console.warn("[RegistrationFormUploadZone] runExtraction: primary path failed, retrying with recruiter_id prefix");
+          const resp2 = await fetch("/api/ai/extract-candidate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ candidateId, storageKey: fallback }),
+          });
+          if (resp2.ok) {
+            const data2 = (await resp2.json()) as ExtractedCandidate & { error?: string };
+            if (!data2.error) { setState("done"); onExtracted(data2); return; }
+          }
+        }
         toast.error(`Extraction failed (${resp.status})`);
         setState("error");
         return;
@@ -4312,7 +4370,17 @@ function RegistrationFormUploadZone({
     setFetchingUrl(true);
     try {
       const { data, error } = await supabase.storage.from("resumes").createSignedUrl(registrationFormUrl, 120);
-      if (error || !data?.signedUrl) { toast.error("Could not open registration form. Try again."); return; }
+      if (error || !data?.signedUrl) {
+        // Retry with recruiter_id-prefixed path (backward compat for pre-team_id uploads)
+        const fallback = fallbackStoragePath(registrationFormUrl);
+        if (fallback) {
+          console.warn("[RegistrationFormUploadZone] handleView: primary path failed, retrying with recruiter_id prefix");
+          const { data: fd, error: fe } = await supabase.storage.from("resumes").createSignedUrl(fallback, 120);
+          if (!fe && fd?.signedUrl) { window.open(fd.signedUrl, "_blank", "noopener,noreferrer"); return; }
+        }
+        toast.error("Could not open registration form. Try again.");
+        return;
+      }
       window.open(data.signedUrl, "_blank", "noopener,noreferrer");
     } catch {
       toast.error("Could not open registration form. Try again.");
