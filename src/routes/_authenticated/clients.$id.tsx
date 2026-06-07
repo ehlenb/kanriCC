@@ -3213,33 +3213,35 @@ function EditableContractTab({ client: c, clientId }: { client: ClientRecord; cl
       const path = `contracts/${clientId}/${Date.now()}_${file.name.replace(/\s+/g, "_")}`;
       const { error } = await supabase.storage.from("resumes").upload(path, file);
       if (error) throw error;
-      // Try to extract fields from text (PDF/DOCX) before marking signed
-      let text = "";
-      if (file.name.endsWith(".docx")) {
+
+      // Build extraction payload — PDF goes via storageKey, DOCX via mammoth text
+      let extractBody: { storageKey?: string; contract_text?: string };
+      const isPdf = file.name.toLowerCase().endsWith(".pdf");
+      if (isPdf) {
+        extractBody = { storageKey: path };
+      } else {
         const mammoth = await import("mammoth");
         const buf = await file.arrayBuffer();
         const result = await mammoth.extractRawText({ arrayBuffer: buf });
-        text = result.value;
+        extractBody = { contract_text: result.value };
       }
 
       let extractedFields: { fee_pct?: number; started_at?: string } = {};
-      if (text.length > 50) {
-        setExtracting(true);
-        try {
-          const resp = await fetch("/api/ai/extract-contract", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ contract_text: text }),
-          });
-          const json = (await resp.json()) as { data?: { fee_pct?: number; started_at?: string } };
-          if (json.data && Object.keys(json.data).length > 0) {
-            extractedFields = json.data;
-          }
-        } catch {
-          toast.error("Could not extract contract fields. Upload saved, but fee % and start date were not auto-filled.");
-        } finally {
-          setExtracting(false);
+      setExtracting(true);
+      try {
+        const resp = await fetch("/api/ai/extract-contract", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(extractBody),
+        });
+        const json = (await resp.json()) as { data?: { fee_pct?: number; started_at?: string } };
+        if (json.data && Object.keys(json.data).length > 0) {
+          extractedFields = json.data;
         }
+      } catch {
+        toast.error("Could not extract contract fields. Upload saved, but fee % and start date were not auto-filled.");
+      } finally {
+        setExtracting(false);
       }
 
       await supabase
