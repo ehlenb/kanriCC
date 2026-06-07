@@ -752,10 +752,43 @@ Do not suggest, scaffold, or partially implement these unless explicitly instruc
 
 
 ## Project Status
-Kanri is the long-term vision. Active development is paused as of May 2026.
-The MVP pivot is a standalone product called CVFlow (separate repository).
-CVFlow's submission report capability will be integrated into Kanri in a future phase.
-Do not add new features to Kanri until CVFlow has validated core AI output quality.
+
+Active development resumed June 2026. All sessions below are committed and pushed to main.
+
+### Session log (June 2026)
+
+**Bug fixes (committed 2026-06-06)**
+- `dashboard`: requisition agenda items now navigate to client page (not candidate page); client_id threaded through daily-agenda API
+- `ai/competing-analysis`: candidate lookup changed from `recruiter_id` to `team_id` (teammates' candidates were invisible)
+- `candidates.$id`: extraction review modal shows toast and blocks `onExtracted` when Claude returns unparseable JSON
+- `clients.$id`: contract upload now runs extraction before marking `contract_signed = true`; extraction block has catch with toast
+
+**daily-agenda fixes (committed 2026-06-06)**
+- `ccmPriorityRank`: formula fixed — now strictly decreasing per CCM round (CCM1→25, CCM2→20, CCM3→15, CCM4→12, CCM5→9…)
+- Priority 8 (stale clients): `openClients` query changed from `recruiter_id` to `team_id` so teammate-owned clients surface
+- Priority 2 (feedback pending): now suppressed if ANY interaction (not just call/meeting) was logged after the last interview
+
+**ExtractionReviewModal + upload zone fixes (committed 2026-06-06)**
+- Null values in extraction now clear previously-set DB fields (shown as "will be cleared" in modal)
+- Roles from CV and registration form are merged + deduped when both present
+- Conflict resolution state resets when modal reopens
+- CV and registration form storage paths changed to `{team_id}/{candidate_id}/…` (was `{recruiter_id}/…`)
+- `noticePeriodMonths` duplicate removed from prompt schema and frontend type
+
+**Features (committed 2026-06-06)**
+- `candidates.$id` Timeline: "Upcoming" events — Past/Upcoming toggle in Log activity; upcoming items render above past feed with indigo left border; `is_future` + `scheduled_at` wired to migration 021
+- `candidates.$id` Buy-In: "Not interested" button sets `not_interested_at` on process; panel mutes; removes from daily-agenda priority list
+- `clients.$id` Jobs tab: "Find matches" button per open requisition — calls `/api/ai/advanced-search`, shows scored candidate list with AI reason and score bar; "Draft message" per candidate calls new `/api/ai/job-spec-message` endpoint, renders in editable textarea
+
+### Known issues / next session priorities
+
+1. **Storage path backward compatibility** — CV and registration form paths changed from `{recruiter_id}/{candidate_id}/…` to `{team_id}/{candidate_id}/…`. Existing candidates whose files were uploaded before this fix have stale `cv_url` / `registration_form_url` values pointing to the old path. Signed URL creation will 404 for those records. Fix: SQL update to rewrite paths, OR add a fallback in the upload zones that retries with the recruiter_id prefix if the team_id path returns an error.
+
+2. **`'note'` missing from log activity dropdown** — The DB constraint (migration 021) allows `note` and `cv sent` as interaction types, but `LOG_ACTIVITY_TYPES` in `candidates.$id.tsx` doesn't include `note`. A recruiter who wants to log a plain note has no clean option. Add `note` to the array and wire an icon/colour for it in `CAND_INTERACTION_ICON` / `CAND_INTERACTION_COLORS`.
+
+3. **Supabase types regeneration** — Types appear current through migration 022 but should be regenerated and the custom types block re-appended after every migration batch. Command in Section 19.
+
+4. **Error boundaries** — No React error boundary anywhere. A JS error in any component crashes the whole page to a blank screen. Add a top-level `<ErrorBoundary>` with a reload prompt in `_authenticated.tsx`.
 
 ---
 
