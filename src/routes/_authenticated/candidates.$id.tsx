@@ -3484,7 +3484,7 @@ function CandidateTimelineTab({
         />
       )}
 
-      {feed.length === 0 && !showTranscript && (
+      {feed.length === 0 && upcomingEvents.length === 0 && !showTranscript && (
         <div
           className=" px-5 py-12 text-center"
           style={{ background: "var(--color-white)", border: "0.5px solid var(--color-ink-15)" }}

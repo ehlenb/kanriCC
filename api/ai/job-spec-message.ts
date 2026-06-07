@@ -42,13 +42,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!candidate) return res.status(404).json({ error: "Candidate not found" });
   if (!requisition) return res.status(404).json({ error: "Requisition not found" });
 
-  const [{ data: motivations }] = await Promise.all([
-    supabase
-      .from("candidate_motivations")
-      .select("rank, motivation_text")
-      .eq("candidate_id", candidate_id)
-      .order("rank"),
-  ]);
+  const { data: motivations } = await supabase
+    .from("candidate_motivations")
+    .select("rank, motivation_text")
+    .eq("candidate_id", candidate_id)
+    .order("rank");
 
   const client = (Array.isArray(requisition.clients) ? requisition.clients[0] : requisition.clients) as {
     company_name: string;
