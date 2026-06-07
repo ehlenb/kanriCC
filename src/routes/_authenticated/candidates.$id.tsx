@@ -3377,6 +3377,7 @@ function AddToProcessModal({
 const CAND_INTERACTION_ICON: Record<string, React.ElementType> = {
   call:                 IconPhone,
   email:                IconMail,
+  note:                 IconClipboard,
   meeting:              IconCalendar,
   "interview scheduled": IconCalendar,
   "job spec sent":      IconFileText,
@@ -3386,6 +3387,7 @@ const CAND_INTERACTION_ICON: Record<string, React.ElementType> = {
 const CAND_INTERACTION_COLORS: Record<string, { bg: string; color: string }> = {
   call:                 { bg: "var(--color-indigo-light)", color: "var(--color-indigo)" },
   email:                { bg: "var(--color-ink-10)", color: "var(--color-ink-60)" },
+  note:                 { bg: "var(--color-ink-10)", color: "var(--color-ink-60)" },
   meeting:              { bg: "var(--color-moss-light)", color: "#3b6d11" },
   "interview scheduled":{ bg: "var(--color-indigo-light)", color: "var(--color-indigo)" },
   "job spec sent":      { bg: "#fef3e2", color: "#974c00" },
@@ -4528,7 +4530,7 @@ function CandidateIntelligenceCard({
 
 // ─── log activity panel ───────────────────────────────────────────────────────
 
-const LOG_ACTIVITY_TYPES = ["call", "email", "meeting", "interview scheduled", "job spec sent", "linkedin message", "other"] as const;
+const LOG_ACTIVITY_TYPES = ["call", "email", "note", "meeting", "interview scheduled", "job spec sent", "linkedin message", "other"] as const;
 
 function LogActivityPanel({
   candidateId,
