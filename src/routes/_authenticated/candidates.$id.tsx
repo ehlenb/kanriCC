@@ -212,21 +212,21 @@ function useCandidateProfile(id: string) {
           .single(),
         supabase
           .from("candidate_motivations")
-          .select("*")
+          .select("id, candidate_id, rank, motivation_text, motivation_type")
           .eq("candidate_id", id)
           .order("rank"),
         supabase
           .from("candidate_blockers")
-          .select("*")
+          .select("id, candidate_id, theme, detail, is_risk")
           .eq("candidate_id", id),
         supabase
           .from("candidate_roles")
-          .select("*")
+          .select("id, candidate_id, company_name, title, start_date, end_date, is_current, achievement_notes, reason_for_leaving_raw")
           .eq("candidate_id", id)
           .order("start_date", { ascending: true }),
         supabase
           .from("competing_interviews")
-          .select("*")
+          .select("id, candidate_id, company_name, source, stage, disclosed_at, is_active")
           .eq("candidate_id", id)
           .order("disclosed_at", { ascending: false }),
         supabase
@@ -3391,7 +3391,7 @@ const CAND_INTERACTION_COLORS: Record<string, { bg: string; color: string }> = {
   meeting:              { bg: "var(--color-moss-light)", color: "#3b6d11" },
   "interview scheduled":{ bg: "var(--color-indigo-light)", color: "var(--color-indigo)" },
   "job spec sent":      { bg: "#fef3e2", color: "#974c00" },
-  "linkedin message":   { bg: "#f0eafb", color: "#6b3fa0" },
+  "linkedin message":   { bg: "var(--color-indigo-light)", color: "var(--color-indigo)" },
   other:                { bg: "var(--color-ink-10)", color: "var(--color-ink-30)" },
 };
 
@@ -4569,7 +4569,7 @@ function LogActivityPanel({
         .limit(200);
       return (data ?? []) as { id: string; company_name: string }[];
     },
-    staleTime: 60_000,
+    staleTime: 30_000,
     retry: 1,
   });
 

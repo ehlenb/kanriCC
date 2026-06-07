@@ -314,8 +314,8 @@ function JdViewer({
 }) {
   const signedUrl = useQuery({
     queryKey: ["jd-signed-url", jdUrl],
-    staleTime: 50 * 60 * 1000,
-    retry: 0,
+    staleTime: 30_000,
+    retry: 1,
     enabled: !!jdUrl,
     queryFn: async () => {
       const { data, error } = await supabase.storage
@@ -709,8 +709,8 @@ function MatchCandidatesPanel({
 
   const matchQuery = useQuery({
     queryKey: ["match_candidates", requisitionId],
-    staleTime: 0,
-    retry: 0,
+    staleTime: 30_000,
+    retry: 1,
     queryFn: async (): Promise<MatchResult[]> => {
       const resp = await fetch("/api/ai/match-candidates", {
         method: "POST",
