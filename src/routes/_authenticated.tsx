@@ -14,9 +14,50 @@ import {
   IconLogout,
   IconX,
 } from "@tabler/icons-react";
-import { useEffect } from "react";
+import { Component, useEffect } from "react";
+import type { ReactNode } from "react";
 import { initials } from "@/lib/candidate-utils";
 import { BLANK_CANDIDATE_SEARCH } from "@/routes/_authenticated/candidates";
+
+class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: unknown, info: unknown) {
+    console.error("[ErrorBoundary]", error, info);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div
+          className="flex min-h-screen flex-col items-center justify-center gap-4"
+          style={{ background: "var(--color-ink-05)" }}
+        >
+          <h1 className="text-xl font-display" style={{ color: "var(--color-ink)" }}>
+            Something went wrong.
+          </h1>
+          <p className="text-sm font-sans" style={{ color: "var(--color-ink-60)" }}>
+            An unexpected error occurred. Please reload the page.
+          </p>
+          <button
+            className="btn btn-primary btn-sm"
+            onClick={() => window.location.reload()}
+          >
+            Reload
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 export const Route = createFileRoute("/_authenticated")({
   component: AuthedShell,
@@ -51,7 +92,9 @@ function AuthedShell() {
         email={user.email ?? ""}
       />
       <main className="ml-52 flex-1 min-w-0">
-        <Outlet />
+        <ErrorBoundary>
+          <Outlet />
+        </ErrorBoundary>
       </main>
     </div>
   );
