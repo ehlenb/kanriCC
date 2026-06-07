@@ -13,7 +13,7 @@
 
 DO $$
 DECLARE
-  v_recruiter_id  uuid := auth.uid();
+  v_recruiter_id  uuid;
   v_team_id       uuid;
 
   v_client_id     uuid := gen_random_uuid();
@@ -23,10 +23,15 @@ DECLARE
   v_candidate_id  uuid := gen_random_uuid();
   v_process_id    uuid := gen_random_uuid();
 BEGIN
-  -- ── resolve team_id ─────────────────────────────────────────────────────────
-  SELECT team_id INTO v_team_id FROM public.recruiters WHERE id = v_recruiter_id;
-  IF v_team_id IS NULL THEN
-    RAISE EXCEPTION 'Could not resolve team_id for user %. Make sure you are logged in.', v_recruiter_id;
+  -- ── resolve recruiter_id and team_id from the recruiters table ───────────────
+  -- The SQL editor runs as service role so auth.uid() is null.
+  -- This picks the first recruiter on the team — works fine for a solo workspace.
+  SELECT id, team_id INTO v_recruiter_id, v_team_id
+  FROM public.recruiters
+  LIMIT 1;
+
+  IF v_recruiter_id IS NULL THEN
+    RAISE EXCEPTION 'No recruiter found in public.recruiters. Make sure your account is set up.';
   END IF;
 
   -- ── client: Salesforce Japan ─────────────────────────────────────────────────
