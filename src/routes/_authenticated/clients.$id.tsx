@@ -3176,6 +3176,7 @@ function ClientTimelineTab({ interactions }: { interactions: Interaction[] }) {
 
 function EditableContractTab({ client: c, clientId }: { client: ClientRecord; clientId: string }) {
   const qc = useQueryClient();
+  const { user } = useAuth();
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [extracting, setExtracting] = useState(false);
@@ -3208,23 +3209,18 @@ function EditableContractTab({ client: c, clientId }: { client: ClientRecord; cl
   }
 
   async function handleContractFile(file: File) {
+    if (!file.name.toLowerCase().endsWith(".pdf")) {
+      toast.error("Only PDF contracts are supported. Please convert your document to PDF and try again.");
+      return;
+    }
     setUploading(true);
     try {
-      const path = `contracts/${clientId}/${Date.now()}_${file.name.replace(/\s+/g, "_")}`;
+      // Path must start with auth.uid() to satisfy storage RLS policy
+      const path = `${user!.id}/${clientId}/contract_${Date.now()}_${file.name.replace(/\s+/g, "_")}`;
       const { error } = await supabase.storage.from("resumes").upload(path, file);
       if (error) throw error;
 
-      // Build extraction payload — PDF goes via storageKey, DOCX via mammoth text
-      let extractBody: { storageKey?: string; contract_text?: string };
-      const isPdf = file.name.toLowerCase().endsWith(".pdf");
-      if (isPdf) {
-        extractBody = { storageKey: path };
-      } else {
-        const mammoth = await import("mammoth");
-        const buf = await file.arrayBuffer();
-        const result = await mammoth.extractRawText({ arrayBuffer: buf });
-        extractBody = { contract_text: result.value };
-      }
+      const extractBody = { storageKey: path };
 
       let extractedFields: { fee_pct?: number; started_at?: string } = {};
       setExtracting(true);
@@ -3278,7 +3274,7 @@ function EditableContractTab({ client: c, clientId }: { client: ClientRecord; cl
             {uploading ? "Uploading…" : extracting ? "Extracting fields…" : c.contract_signed ? "Contract on file" : "Upload contract"}
           </p>
           <p className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>
-            {c.contract_signed ? "PDF or DOCX — re-upload to update" : "PDF or DOCX — AI will extract fee % and start date"}
+            {c.contract_signed ? "PDF — re-upload to update" : "PDF — AI will extract fee % and start date"}
           </p>
         </div>
         {c.contract_signed && c.contract_url && (
@@ -3306,7 +3302,7 @@ function EditableContractTab({ client: c, clientId }: { client: ClientRecord; cl
             </button>
           </>
         )}
-        <input ref={fileRef} type="file" accept=".pdf,.docx" className="hidden"
+        <input ref={fileRef} type="file" accept=".pdf" className="hidden"
           onChange={(e) => { const f = e.target.files?.[0]; if (f) void handleContractFile(f); e.target.value = ""; }} />
       </div>
 
