@@ -43,6 +43,8 @@ import {
   IconUpload,
   IconBriefcase,
   IconX,
+  IconSearch,
+  IconMessageCircle,
 } from "@tabler/icons-react";
 
 export const Route = createFileRoute("/_authenticated/clients/$id")({
@@ -123,6 +125,23 @@ type Interaction = {
   primary_party: string | null;
   candidates: { id: string; full_name: string } | null;
   client_contacts: { id: string; name: string } | null;
+};
+
+// ─── job-spec match types ─────────────────────────────────────────────────────
+
+type AiMatchResult = {
+  candidate_id: string;
+  score: number;
+  reason: string;
+  is_salary_stretch: boolean;
+  meets_must_haves: boolean;
+  close_on_must_haves: boolean;
+};
+
+type MatchCandidate = AiMatchResult & {
+  full_name: string;
+  current_title: string | null;
+  current_company: string | null;
 };
 
 // ─── action item type ─────────────────────────────────────────────────────────
@@ -1519,12 +1538,16 @@ function OpenRequisitionsCard({
   contacts,
   onAdd,
   showHeader = true,
+  onFindMatches,
+  activeMatchReqId,
 }: {
   reqs: ReqWithPipeline[];
   closedReqs: ReqWithPipeline[];
   contacts: Contact[];
   onAdd?: () => void;
   showHeader?: boolean;
+  onFindMatches?: (reqId: string) => void;
+  activeMatchReqId?: string | null;
 }) {
   return (
     <Card>
@@ -1626,6 +1649,24 @@ function OpenRequisitionsCard({
                   {r.is_backfill ? "Backfill" : "Net-new"}
                 </PipelineBadge>
               </div>
+
+              {onFindMatches && (
+                <div className="mt-2">
+                  <button
+                    className="ab flex items-center gap-1"
+                    style={{
+                      fontSize: 11,
+                      padding: "4px 10px",
+                      background: activeMatchReqId === r.id ? "var(--color-ink)" : undefined,
+                      color: activeMatchReqId === r.id ? "var(--color-white)" : undefined,
+                    }}
+                    onClick={() => onFindMatches(r.id)}
+                  >
+                    <IconSearch size={11} />
+                    {activeMatchReqId === r.id ? "Hide matches" : "Find matches"}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         );
@@ -1648,6 +1689,239 @@ function OpenRequisitionsCard({
         </div>
       )}
     </Card>
+  );
+}
+
+// ─── job match panel ──────────────────────────────────────────────────────────
+
+function JobMatchPanel({
+  requisitionId,
+  clientId,
+  recruiterId,
+}: {
+  requisitionId: string;
+  clientId: string;
+  recruiterId: string;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [matches, setMatches] = useState<MatchCandidate[] | null>(null);
+  const [draftStates, setDraftStates] = useState<Record<string, { loading: boolean; text: string | null }>>({});
+
+  useEffect(() => {
+    void runSearch();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requisitionId]);
+
+  async function runSearch() {
+    setLoading(true);
+    setMatches(null);
+    setDraftStates({});
+    try {
+      const resp = await fetch("/api/ai/advanced-search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          requisition_id: requisitionId,
+          client_id: clientId,
+          threshold: 50,
+          recruiter_id: recruiterId,
+        }),
+      });
+      const data = (await resp.json()) as { matches?: AiMatchResult[]; error?: string };
+      if (data.error || !data.matches) {
+        toast.error("Could not load matches. Try again.");
+        setLoading(false);
+        return;
+      }
+
+      const top = data.matches.slice(0, 8);
+      if (top.length === 0) {
+        setMatches([]);
+        setLoading(false);
+        return;
+      }
+
+      // Enrich with candidate names from DB
+      const { data: cands } = await supabase
+        .from("candidates")
+        .select("id, full_name, current_title, current_company")
+        .in("id", top.map((m) => m.candidate_id));
+
+      const candMap = new Map(
+        ((cands ?? []) as { id: string; full_name: string; current_title: string | null; current_company: string | null }[])
+          .map((c) => [c.id, c]),
+      );
+
+      setMatches(
+        top.map((m) => ({
+          ...m,
+          full_name: candMap.get(m.candidate_id)?.full_name ?? "Unknown",
+          current_title: candMap.get(m.candidate_id)?.current_title ?? null,
+          current_company: candMap.get(m.candidate_id)?.current_company ?? null,
+        })),
+      );
+    } catch {
+      toast.error("Could not load matches. Try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function draftMessage(candidateId: string) {
+    setDraftStates((prev) => ({ ...prev, [candidateId]: { loading: true, text: null } }));
+    try {
+      const resp = await fetch("/api/ai/job-spec-message", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          candidate_id: candidateId,
+          requisition_id: requisitionId,
+          recruiter_id: recruiterId,
+        }),
+      });
+      const data = (await resp.json()) as { message?: string; error?: string };
+      if (data.error || !data.message) {
+        toast.error("Could not draft message. Try again.");
+        setDraftStates((prev) => ({ ...prev, [candidateId]: { loading: false, text: null } }));
+        return;
+      }
+      setDraftStates((prev) => ({ ...prev, [candidateId]: { loading: false, text: data.message! } }));
+    } catch {
+      toast.error("Could not draft message. Try again.");
+      setDraftStates((prev) => ({ ...prev, [candidateId]: { loading: false, text: null } }));
+    }
+  }
+
+  function ScoreBar({ score }: { score: number }) {
+    const color = score >= 80 ? "var(--color-moss)" : score >= 60 ? "var(--color-indigo)" : "var(--color-gold)";
+    return (
+      <div className="flex items-center gap-2">
+        <div className="flex-1 h-1" style={{ background: "var(--color-ink-15)" }}>
+          <div style={{ width: `${score}%`, height: "100%", background: color }} />
+        </div>
+        <span className="text-[11px] font-mono w-7 text-right" style={{ color }}>{score}%</span>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="mt-3 pt-3" style={{ borderTop: "0.5px solid var(--color-ink-15)" }}>
+        <p className="text-[12px]" style={{ color: "var(--color-ink-30)" }}>Finding matched candidates…</p>
+      </div>
+    );
+  }
+
+  if (matches === null) return null;
+
+  if (matches.length === 0) {
+    return (
+      <div className="mt-3 pt-3" style={{ borderTop: "0.5px solid var(--color-ink-15)" }}>
+        <p className="text-[12px]" style={{ color: "var(--color-ink-30)" }}>No matched candidates above threshold. Try adjusting the role criteria.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-3 pt-3 space-y-2" style={{ borderTop: "0.5px solid var(--color-ink-15)" }}>
+      <p className="text-[11px] font-mono uppercase tracking-wide" style={{ color: "var(--color-ink-30)" }}>
+        {matches.length} matched candidate{matches.length !== 1 ? "s" : ""}
+      </p>
+      {matches.map((m) => {
+        const draft = draftStates[m.candidate_id];
+        return (
+          <div
+            key={m.candidate_id}
+            className="p-3 space-y-2"
+            style={{ background: "var(--color-ink-05)", border: "0.5px solid var(--color-ink-15)" }}
+          >
+            {/* Candidate header row */}
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-[13px] font-medium">{m.full_name}</p>
+                {(m.current_title ?? m.current_company) && (
+                  <p className="text-[12px]" style={{ color: "var(--color-ink-60)" }}>
+                    {[m.current_title, m.current_company].filter(Boolean).join(" · ")}
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                {!m.meets_must_haves && (
+                  <span
+                    className="text-[10px] font-mono px-1.5 py-0.5"
+                    style={{ background: "var(--color-gold-light)", color: "var(--color-gold)", border: "0.5px solid rgba(184,146,42,0.3)" }}
+                  >
+                    stretch
+                  </span>
+                )}
+                {m.is_salary_stretch && (
+                  <span
+                    className="text-[10px] font-mono px-1.5 py-0.5"
+                    style={{ background: "var(--color-gold-light)", color: "var(--color-gold)", border: "0.5px solid rgba(184,146,42,0.3)" }}
+                  >
+                    ¥ stretch
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Score bar */}
+            <ScoreBar score={m.score} />
+
+            {/* AI reason */}
+            <p className="text-[12px]" style={{ color: "var(--color-ink-60)" }}>{m.reason}</p>
+
+            {/* Draft message */}
+            {draft?.text ? (
+              <div className="space-y-1.5">
+                <Textarea
+                  value={draft.text}
+                  onChange={(e) =>
+                    setDraftStates((prev) => ({
+                      ...prev,
+                      [m.candidate_id]: { loading: false, text: e.target.value },
+                    }))
+                  }
+                  className="text-[12px] min-h-[100px] font-sans"
+                  style={{ resize: "vertical" }}
+                />
+                <div className="flex items-center gap-2">
+                  <button
+                    className="ab flex items-center gap-1"
+                    style={{ fontSize: 11, padding: "3px 8px" }}
+                    onClick={() => {
+                      void navigator.clipboard.writeText(draft.text ?? "");
+                      toast.success("Copied.");
+                    }}
+                  >
+                    <IconCopy size={10} />
+                    Copy
+                  </button>
+                  <button
+                    className="ab flex items-center gap-1"
+                    style={{ fontSize: 11, padding: "3px 8px" }}
+                    onClick={() => void draftMessage(m.candidate_id)}
+                  >
+                    <IconSparkles size={10} />
+                    Regenerate
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                className="ab flex items-center gap-1"
+                style={{ fontSize: 11, padding: "4px 10px" }}
+                onClick={() => void draftMessage(m.candidate_id)}
+                disabled={draft?.loading}
+              >
+                <IconMessageCircle size={11} />
+                {draft?.loading ? "Drafting…" : "Draft message"}
+              </button>
+            )}
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -2158,6 +2432,11 @@ function JobsTab({
   const [jdUploading, setJdUploading] = useState(false);
   const [extracting, setExtracting] = useState(false);
   const [generatingContext, setGeneratingContext] = useState(false);
+  const [activeMatchReqId, setActiveMatchReqId] = useState<string | null>(null);
+
+  function handleFindMatches(reqId: string) {
+    setActiveMatchReqId((prev) => (prev === reqId ? null : reqId));
+  }
 
   async function handleJdFile(file: File) {
     setJdUploading(true);
@@ -2356,7 +2635,23 @@ function JobsTab({
 
       {/* Open jobs */}
       {openReqs.length > 0 && (
-        <OpenRequisitionsCard reqs={openReqs} closedReqs={[]} contacts={contacts} showHeader={false} />
+        <>
+          <OpenRequisitionsCard
+            reqs={openReqs}
+            closedReqs={[]}
+            contacts={contacts}
+            showHeader={false}
+            onFindMatches={handleFindMatches}
+            activeMatchReqId={activeMatchReqId}
+          />
+          {activeMatchReqId && (
+            <JobMatchPanel
+              requisitionId={activeMatchReqId}
+              clientId={clientId}
+              recruiterId={recruiterId}
+            />
+          )}
+        </>
       )}
 
       {openReqs.length === 0 && !showForm && (
