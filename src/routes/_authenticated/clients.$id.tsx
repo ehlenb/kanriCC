@@ -3031,49 +3031,62 @@ function EditableContractTab({ client: c, clientId }: { client: ClientRecord; cl
 
   return (
     <div className="space-y-4">
-      {/* Upload area */}
+      {/* File on record — shown above upload zone when a contract exists */}
+      {c.contract_signed && (
+        <div
+          className="px-4 py-3 flex items-center gap-3"
+          style={{ background: "var(--color-moss-light)", border: "0.5px solid rgba(39,80,10,0.3)" }}
+        >
+          <IconUpload size={14} style={{ color: "#3b6d11", flexShrink: 0 }} />
+          <div className="flex-1 min-w-0">
+            <p className="text-[13px] font-medium" style={{ color: "var(--color-moss)" }}>Contract on file</p>
+            {c.contract_url && (
+              <p className="text-[11px] truncate font-mono" style={{ color: "var(--color-ink-30)" }}>
+                {c.contract_url.split("/").pop()}
+              </p>
+            )}
+          </div>
+          <span className="text-[11px] px-[7px] py-[2px] shrink-0" style={{ background: "var(--color-moss-light)", color: "var(--color-moss)", border: "0.5px solid #c0dd97" }}>
+            Signed
+          </span>
+          {c.contract_url && (
+            <button
+              onClick={(e) => void handleViewContract(e)}
+              disabled={fetchingUrl}
+              className="text-[11px] px-2 py-1 shrink-0"
+              style={{ background: "var(--color-indigo-light)", color: "var(--color-indigo)", border: "0.5px solid rgba(44,62,107,0.3)" }}
+            >
+              {fetchingUrl ? "Opening…" : "View PDF"}
+            </button>
+          )}
+          <button
+            onClick={(e) => void handleRemoveContract(e)}
+            className="flex items-center gap-1 px-2 py-1 text-[11px] shrink-0"
+            style={{ background: "var(--color-white)", color: "var(--color-ink-60)", border: "0.5px solid var(--color-ink-15)" }}
+          >
+            <IconX size={10} /> Remove
+          </button>
+        </div>
+      )}
+
+      {/* Upload zone — always visible so recruiter can re-upload */}
       <div
-        className=" px-4 py-4 flex items-center gap-3 cursor-pointer"
+        className="px-4 py-4 flex items-center gap-3 cursor-pointer"
         style={{
-          background: c.contract_signed ? "var(--color-moss-light)" : "var(--color-ink-10)",
-          border: `0.5px dashed ${c.contract_signed ? "rgba(39,80,10,0.3)" : "rgba(26,26,24,0.2)"}`,
+          background: "var(--color-ink-10)",
+          border: "0.5px dashed rgba(26,26,24,0.2)",
         }}
-        onClick={() => !uploading && fileRef.current?.click()}
+        onClick={() => !uploading && !extracting && fileRef.current?.click()}
       >
-        <IconUpload size={16} style={{ color: c.contract_signed ? "#3b6d11" : "var(--color-ink-30)", flexShrink: 0 }} />
+        <IconUpload size={16} style={{ color: "var(--color-ink-30)", flexShrink: 0 }} />
         <div className="flex-1 min-w-0">
-          <p className="text-[13px] font-medium" style={{ color: c.contract_signed ? "var(--color-moss)" : "var(--color-ink)" }}>
-            {uploading ? "Uploading…" : extracting ? "Extracting fields…" : c.contract_signed ? "Contract on file" : "Upload contract"}
+          <p className="text-[13px] font-medium" style={{ color: "var(--color-ink)" }}>
+            {uploading ? "Uploading…" : extracting ? "Extracting fields…" : c.contract_signed ? "Replace contract" : "Upload contract"}
           </p>
           <p className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>
-            {c.contract_signed ? "PDF — re-upload to update" : "PDF — AI will extract fee % and start date"}
+            PDF — AI will extract fee % and start date
           </p>
         </div>
-        {c.contract_signed && c.contract_url && (
-          <button
-            onClick={handleViewContract}
-            disabled={fetchingUrl}
-            className="text-[11px] px-2 py-0.5 shrink-0"
-            style={{ background: "var(--color-indigo-light)", color: "var(--color-indigo)", border: "0.5px solid rgba(24,95,165,0.3)" }}
-          >
-            {fetchingUrl ? "Opening…" : "View"}
-          </button>
-        )}
-        {c.contract_signed && (
-          <>
-            <span className="text-[11px] px-[7px] py-[2px]" style={{ background: "var(--color-moss-light)", color: "var(--color-moss)", border: "0.5px solid #c0dd97" }}>
-              Signed
-            </span>
-            <button
-              onClick={handleRemoveContract}
-              className="flex items-center gap-1 px-2 py-0.5 text-[11px] shrink-0"
-              style={{ background: "var(--color-white)", color: "var(--color-ink-60)", border: "0.5px solid var(--color-ink-15)" }}
-              title="Remove contract"
-            >
-              <IconX size={10} /> Remove
-            </button>
-          </>
-        )}
         <input ref={fileRef} type="file" accept=".pdf" className="hidden"
           onChange={(e) => { const f = e.target.files?.[0]; if (f) void handleContractFile(f); e.target.value = ""; }} />
       </div>
