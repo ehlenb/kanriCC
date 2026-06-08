@@ -39,7 +39,6 @@ import {
   IconSparkles,
   IconPhone,
   IconMail,
-  IconCalendar,
   IconFileText,
   IconShield,
   IconMessage,
@@ -55,6 +54,9 @@ import {
 } from "@tabler/icons-react";
 import { TranscriptPanel } from "@/components/candidate/TranscriptPanel";
 import { SubmissionPackagePanel } from "@/components/candidate/SubmissionPackagePanel";
+import { ActivityTimeline } from "@/components/shared/ActivityTimeline";
+import type { TimelineMilestone } from "@/components/shared/ActivityTimeline";
+import { LogActivityModal } from "@/components/shared/LogActivityModal";
 
 export const Route = createFileRoute("/_authenticated/candidates/$id")({
   component: CandidateProfile,
@@ -3374,27 +3376,6 @@ function AddToProcessModal({
 
 // ─── candidate timeline tab ───────────────────────────────────────────────────
 
-const CAND_INTERACTION_ICON: Record<string, React.ElementType> = {
-  call:                 IconPhone,
-  email:                IconMail,
-  note:                 IconClipboard,
-  meeting:              IconCalendar,
-  "interview scheduled": IconCalendar,
-  "job spec sent":      IconFileText,
-  "linkedin message":   IconMessage,
-  other:                IconClipboard,
-};
-const CAND_INTERACTION_COLORS: Record<string, { bg: string; color: string }> = {
-  call:                 { bg: "var(--color-indigo-light)", color: "var(--color-indigo)" },
-  email:                { bg: "var(--color-ink-10)", color: "var(--color-ink-60)" },
-  note:                 { bg: "var(--color-ink-10)", color: "var(--color-ink-60)" },
-  meeting:              { bg: "var(--color-moss-light)", color: "#3b6d11" },
-  "interview scheduled":{ bg: "var(--color-indigo-light)", color: "var(--color-indigo)" },
-  "job spec sent":      { bg: "#fef3e2", color: "#974c00" },
-  "linkedin message":   { bg: "var(--color-indigo-light)", color: "var(--color-indigo)" },
-  other:                { bg: "var(--color-ink-10)", color: "var(--color-ink-30)" },
-};
-
 function CandidateTimelineTab({
   candidateId,
   recruiterId,
@@ -3407,59 +3388,41 @@ function CandidateTimelineTab({
   processes: Process[];
 }) {
   const queryClient = useQueryClient();
-  const [showTranscript, setShowTranscript] = useState(false);
-  // Build a unified feed: interactions + process milestone entries
-  type FeedEntry =
-    | { kind: "interaction"; data: CandidateInteraction; ts: string }
-    | { kind: "process"; data: Process; ts: string };
-
-  const upcomingEvents = interactions
-    .filter((i) => i.is_future)
-    .sort((a, b) => new Date(a.scheduled_at ?? a.interacted_at).getTime() - new Date(b.scheduled_at ?? b.interacted_at).getTime());
-
-  const feed: FeedEntry[] = [
-    ...interactions.filter((i) => !i.is_future).map((i) => ({ kind: "interaction" as const, data: i, ts: i.interacted_at })),
-    ...processes.map((p) => ({ kind: "process" as const, data: p, ts: p.updated_at })),
-  ].sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime());
-
-  function formatDate(iso: string) {
-    return new Date(iso).toLocaleDateString("en-GB", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
-  }
-
-  function formatDateTime(iso: string) {
-    return new Date(iso).toLocaleString("en-GB", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  }
-
   const [showLogActivity, setShowLogActivity] = useState(false);
+  const [showTranscript, setShowTranscript] = useState(false);
+
+  // Transform Process[] → TimelineMilestone[] for ActivityTimeline
+  const milestones: TimelineMilestone[] = processes.map((p) => ({
+    id: p.id,
+    stage: p.stage,
+    updatedAt: p.updated_at,
+    clientName: p.requisitions?.clients?.company_name ?? null,
+    requisitionTitle: p.requisitions?.title ?? null,
+  }));
+
+  const totalCount =
+    interactions.length + milestones.length;
+  const upcomingCount = interactions.filter((i) => i.is_future).length;
 
   return (
     <div className="space-y-3">
       {/* Action bar */}
       <div className="flex items-center justify-between">
         <p className="text-[12px]" style={{ color: "var(--color-ink-30)" }}>
-          {feed.length + upcomingEvents.length} {feed.length + upcomingEvents.length === 1 ? "entry" : "entries"}{upcomingEvents.length > 0 ? `, ${upcomingEvents.length} upcoming` : ""}
+          {totalCount} {totalCount === 1 ? "entry" : "entries"}
+          {upcomingCount > 0 ? `, ${upcomingCount} upcoming` : ""}
         </p>
         <div className="flex items-center gap-2">
           <button
             className="ab flex items-center gap-1"
-            onClick={() => { setShowLogActivity((v) => !v); setShowTranscript(false); }}
+            onClick={() => setShowLogActivity(true)}
           >
             <IconPlus size={12} />
-            {showLogActivity ? "Cancel" : "Log activity"}
+            Log activity
           </button>
           <button
             className="ab flex items-center gap-1"
-            onClick={() => { setShowTranscript((v) => !v); setShowLogActivity(false); }}
+            onClick={() => { setShowTranscript((v) => !v); }}
           >
             <IconMessage size={12} />
             {showTranscript ? "Hide transcript" : "Paste transcript"}
@@ -3467,16 +3430,14 @@ function CandidateTimelineTab({
         </div>
       </div>
 
-      {showLogActivity && (
-        <LogActivityPanel
-          candidateId={candidateId}
-          recruiterId={recruiterId}
-          onSaved={() => {
-            setShowLogActivity(false);
-            void queryClient.invalidateQueries({ queryKey: ["candidate-profile", candidateId] });
-          }}
-        />
-      )}
+      <LogActivityModal
+        open={showLogActivity}
+        onClose={() => setShowLogActivity(false)}
+        onSaved={() => {
+          void queryClient.invalidateQueries({ queryKey: ["candidate-profile", candidateId] });
+        }}
+        context={{ type: "candidate", id: candidateId }}
+      />
 
       {showTranscript && (
         <TranscriptPanel
@@ -3486,163 +3447,13 @@ function CandidateTimelineTab({
         />
       )}
 
-      {feed.length === 0 && upcomingEvents.length === 0 && !showTranscript && (
-        <div
-          className=" px-5 py-12 text-center"
-          style={{ background: "var(--color-white)", border: "0.5px solid var(--color-ink-15)" }}
-        >
-          <p className="text-[13px] font-medium" style={{ color: "var(--color-ink)" }}>No activity recorded yet.</p>
-          <p className="text-[12px] mt-1" style={{ color: "var(--color-ink-30)" }}>
-            Interactions linked to this candidate and their active processes will appear here.
-          </p>
-        </div>
-      )}
-
-      {/* ── Upcoming events ─────────────────────────────────────── */}
-      {upcomingEvents.length > 0 && (
-        <div className="space-y-1.5">
-          <p className="label" style={{ color: "var(--color-indigo)" }}>UPCOMING</p>
-          {upcomingEvents.map((i) => {
-            const type = i.interaction_type ?? "interview scheduled";
-            const Icon = CAND_INTERACTION_ICON[type] ?? IconCalendar;
-            return (
-              <div
-                key={`upcoming-${i.id}`}
-                className="p-[14px_18px]"
-                style={{
-                  background: "var(--color-white)",
-                  borderLeft: "3px solid var(--color-indigo)",
-                  border: "0.5px solid var(--color-indigo-light)",
-                  borderLeftWidth: "3px",
-                }}
-              >
-                <div className="flex items-start gap-3">
-                  <div
-                    className="flex h-8 w-8 shrink-0 items-center justify-center mt-0.5"
-                    style={{ background: "var(--color-indigo-light)" }}
-                  >
-                    <Icon size={14} style={{ color: "var(--color-indigo)" }} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <span
-                        className="text-[11px] font-mono uppercase tracking-wide px-[6px] py-[2px]"
-                        style={{ background: "var(--color-indigo-light)", color: "var(--color-indigo)" }}
-                      >
-                        UPCOMING
-                      </span>
-                      <span className="text-[11px] font-medium capitalize px-[6px] py-[2px]"
-                        style={{ background: "var(--color-indigo-light)", color: "var(--color-indigo)" }}>
-                        {type}
-                      </span>
-                      <span className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>
-                        {i.scheduled_at ? formatDateTime(i.scheduled_at) : "Date TBD"}
-                      </span>
-                    </div>
-                    {i.summary && (
-                      <p className="text-[13px] font-medium leading-snug">{i.summary}</p>
-                    )}
-                    {i.full_notes && (
-                      <p className="text-[12px] mt-1 whitespace-pre-wrap" style={{ color: "var(--color-ink-60)" }}>{i.full_notes}</p>
-                    )}
-                    {i.clients && (
-                      <p className="text-[11px] mt-1" style={{ color: "var(--color-ink-30)" }}>
-                        Re: {i.clients.company_name}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* ── Past activity feed ───────────────────────────────────── */}
-      <div className="space-y-2">
-      {feed.map((entry) => {
-        if (entry.kind === "interaction") {
-          const i = entry.data;
-          const type = i.interaction_type ?? "call";
-          const Icon = CAND_INTERACTION_ICON[type] ?? IconPhone;
-          const colors = CAND_INTERACTION_COLORS[type] ?? CAND_INTERACTION_COLORS.call;
-          return (
-            <div
-              key={`i-${i.id}`}
-              className=" p-[14px_18px]"
-              style={{ background: "var(--color-white)", border: "0.5px solid var(--color-ink-15)" }}
-            >
-              <div className="flex items-start gap-3">
-                <div
-                  className="flex h-8 w-8 shrink-0 items-center justify-center  mt-0.5"
-                  style={{ background: colors.bg }}
-                >
-                  <Icon size={14} style={{ color: colors.color }} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <span
-                      className="text-[11px] font-medium capitalize px-[6px] py-[2px] "
-                      style={{ background: colors.bg, color: colors.color }}
-                    >
-                      {type}
-                    </span>
-                    <span className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>
-                      {formatDate(i.interacted_at)}
-                    </span>
-                    {i.clients && (
-                      <span className="text-[11px] px-[6px] py-[2px] " style={{ background: "var(--color-indigo-light)", color: "var(--color-indigo)" }}>
-                        {i.clients.company_name}
-                      </span>
-                    )}
-                    {i.client_contacts && (
-                      <span className="text-[11px] px-[6px] py-[2px] " style={{ background: "var(--color-ink-10)", color: "var(--color-ink-60)" }}>
-                        with {i.client_contacts.name}
-                      </span>
-                    )}
-                    {i.primary_party === "client" && (
-                      <span className="text-[11px] px-[6px] py-[2px] " style={{ background: "var(--color-gold-light)", color: "var(--color-gold)" }}>
-                        spoke with client
-                      </span>
-                    )}
-                  </div>
-                  {i.summary && (
-                    <p className="text-[13px] font-medium mb-0.5">{i.summary}</p>
-                  )}
-                  {i.full_notes && (
-                    <p className="text-[12px] leading-relaxed" style={{ color: "var(--color-ink-60)" }}>
-                      {i.full_notes}
-                    </p>
-                  )}
-                  {!i.summary && !i.full_notes && (
-                    <p className="text-[12px]" style={{ color: "var(--color-ink-30)" }}>No notes recorded.</p>
-                  )}
-                </div>
-              </div>
-            </div>
-          );
-        }
-
-        // process milestone entry
-        const p = entry.data;
-        return (
-          <div
-            key={`p-${p.id}`}
-            className="flex items-center gap-3  px-4 py-3"
-            style={{ background: "var(--color-ink-10)", border: "0.5px solid var(--color-border-subtle)" }}
-          >
-            <StageBadge stage={p.stage} className="text-[11px]" />
-            <span className="flex-1 text-[12px]" style={{ color: "var(--color-ink-60)" }}>
-              {p.requisitions?.clients?.company_name ?? "—"}
-              {p.requisitions?.title ? ` — ${p.requisitions.title}` : ""}
-            </span>
-            <span className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>
-              {formatDate(p.updated_at)}
-            </span>
-          </div>
-        );
-      })}
-      </div>
+      <ActivityTimeline
+        interactions={interactions}
+        milestones={milestones}
+        perspective="candidate"
+        emptyMessage="No activity recorded yet."
+        emptySubMessage="Interactions linked to this candidate and their active processes will appear here."
+      />
     </div>
   );
 }
@@ -4525,225 +4336,6 @@ function CandidateIntelligenceCard({
         </div>
       )}
     </div>
-  );
-}
-
-// ─── log activity panel ───────────────────────────────────────────────────────
-
-const LOG_ACTIVITY_TYPES = ["call", "email", "note", "meeting", "interview scheduled", "job spec sent", "linkedin message", "other"] as const;
-
-function LogActivityPanel({
-  candidateId,
-  recruiterId,
-  onSaved,
-}: {
-  candidateId: string;
-  recruiterId: string;
-  onSaved: () => void;
-}) {
-  const [timing, setTiming] = useState<"past" | "upcoming">("past");
-  const [type, setType] = useState<string>("call");
-  const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
-  const [scheduledDate, setScheduledDate] = useState(new Date().toISOString().split("T")[0]);
-  const [scheduledTime, setScheduledTime] = useState("10:00");
-  const [summary, setSummary] = useState("");
-  const [notes, setNotes] = useState("");
-  const [clientId, setClientId] = useState<string | null>(null);
-  const [primaryParty, setPrimaryParty] = useState<"candidate" | "client">("candidate");
-  const [saving, setSaving] = useState(false);
-
-  // When switching to Upcoming, default type to "interview scheduled"
-  function handleTimingChange(v: "past" | "upcoming") {
-    setTiming(v);
-    if (v === "upcoming") setType("interview scheduled");
-    else if (type === "interview scheduled") setType("call");
-  }
-
-  const { data: clients } = useQuery({
-    queryKey: ["clients-list-slim"],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("clients")
-        .select("id, company_name")
-        .order("company_name")
-        .limit(200);
-      return (data ?? []) as { id: string; company_name: string }[];
-    },
-    staleTime: 30_000,
-    retry: 1,
-  });
-
-  async function save() {
-    if (!summary.trim()) { toast.error("A summary is required."); return; }
-    if (timing === "upcoming" && !scheduledDate) { toast.error("A scheduled date is required."); return; }
-    setSaving(true);
-
-    const isFuture = timing === "upcoming";
-    const scheduledAt = isFuture
-      ? new Date(`${scheduledDate}T${scheduledTime}:00`).toISOString()
-      : null;
-
-    const { error } = await supabase.from("interactions").insert({
-      candidate_id: candidateId,
-      recruiter_id: recruiterId,
-      interaction_type: type,
-      interacted_at: new Date(date + "T09:00:00").toISOString(),
-      scheduled_at: scheduledAt,
-      is_future: isFuture,
-      summary: summary.trim(),
-      full_notes: notes.trim() || null,
-      client_id: clientId || null,
-      primary_party: clientId ? primaryParty : "candidate",
-    });
-    setSaving(false);
-    if (error) { toast.error("Failed to log activity."); return; }
-    toast.success(isFuture ? "Upcoming event saved." : "Activity logged.");
-    setSummary("");
-    setNotes("");
-    setClientId(null);
-    setPrimaryParty("candidate");
-    onSaved();
-  }
-
-  return (
-    <Card>
-      <SectionLabel>Log activity</SectionLabel>
-      <div className="space-y-3 mt-2">
-        {/* Past / Upcoming toggle */}
-        <div className="flex gap-0" style={{ border: "0.5px solid var(--color-ink-15)" }}>
-          {(["past", "upcoming"] as const).map((v) => (
-            <button
-              key={v}
-              onClick={() => handleTimingChange(v)}
-              className="flex-1 py-1.5 text-[12px] font-medium capitalize transition-colors"
-              style={{
-                background: timing === v ? "var(--color-ink)" : "var(--color-white)",
-                color: timing === v ? "var(--color-white)" : "var(--color-ink-60)",
-              }}
-            >
-              {v === "upcoming" ? "Upcoming" : "Past"}
-            </button>
-          ))}
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label className="text-[12px]">Type</Label>
-            <Select value={type} onValueChange={setType}>
-              <SelectTrigger className="h-8 text-[13px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {LOG_ACTIVITY_TYPES.map((t) => (
-                  <SelectItem key={t} value={t} className="capitalize text-[13px]">{t}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          {timing === "past" ? (
-            <div className="space-y-1.5">
-              <Label className="text-[12px]">Date</Label>
-              <Input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="h-8 text-[13px]"
-              />
-            </div>
-          ) : (
-            <div className="space-y-1.5">
-              <Label className="text-[12px]">Scheduled date</Label>
-              <Input
-                type="date"
-                value={scheduledDate}
-                onChange={(e) => setScheduledDate(e.target.value)}
-                className="h-8 text-[13px]"
-              />
-            </div>
-          )}
-        </div>
-
-        {timing === "upcoming" && (
-          <div className="space-y-1.5">
-            <Label className="text-[12px]">Scheduled time</Label>
-            <Input
-              type="time"
-              value={scheduledTime}
-              onChange={(e) => setScheduledTime(e.target.value)}
-              className="h-8 text-[13px] w-36"
-            />
-          </div>
-        )}
-
-        <div className="space-y-1.5">
-          <Label className="text-[12px]">Summary *</Label>
-          <Input
-            value={summary}
-            onChange={(e) => setSummary(e.target.value)}
-            placeholder="e.g. Initial screening call — strong profile, moving forward"
-            className="text-[13px]"
-          />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label className="text-[12px]">Notes</Label>
-          <Textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="Detailed notes from this interaction…"
-            className="min-h-[80px] text-[13px]"
-          />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label className="text-[12px]">Linked client (optional)</Label>
-          <Select
-            value={clientId ?? "__none__"}
-            onValueChange={(v) => setClientId(v === "__none__" ? null : v)}
-          >
-            <SelectTrigger className="h-8 text-[13px]">
-              <SelectValue placeholder="Link to a client if applicable…" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__none__" className="text-[13px]">No client</SelectItem>
-              {(clients ?? []).map((cl) => (
-                <SelectItem key={cl.id} value={cl.id} className="text-[13px]">
-                  {cl.company_name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {clientId && (
-            <div className="space-y-1.5 mt-1">
-              <Label className="text-[12px]">Who did you speak with?</Label>
-              <div className="flex gap-2">
-                {(["candidate", "client"] as const).map((party) => (
-                  <button
-                    key={party}
-                    onClick={() => setPrimaryParty(party)}
-                    className="text-[12px] px-3 py-1.5"
-                    style={{
-                      background: primaryParty === party ? "var(--color-indigo-light)" : "var(--color-ink-10)",
-                      color: primaryParty === party ? "var(--color-indigo)" : "var(--color-ink-60)",
-                      border: `0.5px solid ${primaryParty === party ? "#b5d4f4" : "rgba(26,26,24,0.12)"}`,
-                    }}
-                  >
-                    {party === "candidate" ? "Candidate" : "Client contact"}
-                  </button>
-                ))}
-              </div>
-              <p className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>This activity will appear on both timelines.</p>
-            </div>
-          )}
-        </div>
-
-        <div className="flex justify-end">
-          <Button size="sm" onClick={() => void save()} disabled={saving || !summary.trim()}>
-            {saving ? "Saving…" : "Log activity"}
-          </Button>
-        </div>
-      </div>
-    </Card>
   );
 }
 

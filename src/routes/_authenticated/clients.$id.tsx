@@ -32,8 +32,6 @@ import {
   IconArrowLeft,
   IconSparkles,
   IconPhone,
-  IconMail,
-  IconCalendar,
   IconPencil,
   IconPlus,
   IconFileText,
@@ -46,6 +44,8 @@ import {
   IconSearch,
   IconMessageCircle,
 } from "@tabler/icons-react";
+import { ActivityTimeline } from "@/components/shared/ActivityTimeline";
+import { LogActivityModal } from "@/components/shared/LogActivityModal";
 
 export const Route = createFileRoute("/_authenticated/clients/$id")({
   component: ClientDetail,
@@ -506,8 +506,7 @@ function ClientDetail() {
   const [addContactOpen, setAddContactOpen] = useState(false);
   const [logInteractionOpen, setLogInteractionOpen] = useState(false);
   const [logForContactId, setLogForContactId] = useState<string | null>(null);
-  const [logForContactName, setLogForContactName] = useState<string | null>(null);
-  const [logEventType, setLogEventType] = useState<"call" | "email" | "meeting">("call");
+  const [logEventType, setLogEventType] = useState<string>("call");
   const [snapshotData, setSnapshotData] = useState<{
     whereThingsStand: string;
     watchOut: string;
@@ -806,7 +805,12 @@ function ClientDetail() {
             alignItems: "start",
           }}
         >
-          <ClientTimelineTab interactions={interactions} />
+          <ActivityTimeline
+            interactions={interactions}
+            perspective="client"
+            emptyMessage="No interactions logged yet."
+            emptySubMessage='Use "Log event" to record calls, emails, and meetings with this client.'
+          />
           <div className="space-y-3">
             <RecommendedActionsPanel
               actions={actions}
@@ -882,9 +886,8 @@ function ClientDetail() {
             clientId={id}
             interactions={interactions}
             onAdd={() => setAddContactOpen(true)}
-            onLogActivity={(contactId, contactName) => {
+            onLogActivity={(contactId) => {
               setLogForContactId(contactId);
-              setLogForContactName(contactName);
               setLogInteractionOpen(true);
             }}
           />
@@ -918,15 +921,17 @@ function ClientDetail() {
         open={addContactOpen}
         onClose={() => setAddContactOpen(false)}
       />
-      <LogInteractionDialog
-        clientId={id}
-        recruiterId={user!.id}
-        contacts={contacts}
+      <LogActivityModal
         open={logInteractionOpen}
-        onClose={() => { setLogInteractionOpen(false); setLogForContactId(null); setLogForContactName(null); }}
+        onClose={() => { setLogInteractionOpen(false); setLogForContactId(null); }}
+        onSaved={() => void qc.invalidateQueries({ queryKey: ["client", id] })}
+        context={{
+          type: "client",
+          id,
+          contacts: contacts.map((ct) => ({ id: ct.id, name: ct.name })),
+          initialContactId: logForContactId,
+        }}
         initialType={logEventType}
-        initialContactId={logForContactId}
-        initialContactName={logForContactName}
       />
       <DraftModal
         draft={draftModal}
@@ -1417,23 +1422,15 @@ function ContactsCard({
                       </div>
                     )}
 
-                    {/* Recent contact interactions */}
+                    {/* Contact-filtered activity timeline */}
                     {onLogActivity && (interactions ?? []).filter((i) => i.contact_id === contact.id).length > 0 && (
-                      <div className="mt-2 space-y-1.5">
-                        {(interactions ?? [])
-                          .filter((i) => i.contact_id === contact.id)
-                          .slice(0, 3)
-                          .map((i) => (
-                            <div key={i.id} className="flex items-start gap-2 px-2 py-1.5" style={{ background: "var(--color-ink-10)" }}>
-                              <span className="text-[11px] capitalize font-medium mt-0.5" style={{ color: "var(--color-ink-30)", minWidth: 36 }}>{i.interaction_type}</span>
-                              <div className="flex-1 min-w-0">
-                                {i.summary && <p className="text-[12px] truncate">{i.summary}</p>}
-                                <p className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>
-                                  {new Date(i.interacted_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
-                                </p>
-                              </div>
-                            </div>
-                          ))}
+                      <div className="mt-2">
+                        <ActivityTimeline
+                          interactions={interactions ?? []}
+                          filterContactId={contact.id}
+                          perspective="client"
+                          emptyMessage="No interactions for this contact yet."
+                        />
                       </div>
                     )}
                   </div>
@@ -2688,132 +2685,7 @@ function JobsTab({
   );
 }
 
-// ─── log interaction dialog ───────────────────────────────────────────────────
-
-function LogInteractionDialog({
-  clientId,
-  recruiterId,
-  contacts,
-  open,
-  onClose,
-  initialType = "call",
-  initialContactId = null,
-  initialContactName = null,
-}: {
-  clientId: string;
-  recruiterId: string;
-  contacts: Contact[];
-  open: boolean;
-  onClose: () => void;
-  initialType?: string;
-  initialContactId?: string | null;
-  initialContactName?: string | null;
-}) {
-  const qc = useQueryClient();
-  const [type, setType] = useState(initialType);
-  const [summary, setSummary] = useState("");
-  const [notes, setNotes] = useState("");
-  const [contactId, setContactId] = useState<string | null>(initialContactId);
-  const [primaryParty, setPrimaryParty] = useState<"client" | "candidate">("client");
-
-  useEffect(() => {
-    if (open) {
-      setType(initialType);
-      setContactId(initialContactId);
-      setPrimaryParty("client");
-      setSummary("");
-      setNotes("");
-    }
-  }, [open, initialType, initialContactId]);
-
-  const mutation = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase.from("interactions").insert({
-        client_id: clientId,
-        recruiter_id: recruiterId,
-        interaction_type: type,
-        summary: summary.trim() || null,
-        full_notes: notes.trim() || null,
-        interacted_at: new Date().toISOString(),
-        contact_id: contactId || null,
-        primary_party: primaryParty,
-      });
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ["client", clientId] });
-      toast.success("Interaction logged");
-      onClose();
-    },
-    onError: () => toast.error("Failed to log interaction"),
-  });
-
-  return (
-    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Log event</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4 py-1">
-          <div className="grid grid-cols-2 gap-3">
-            <F label="Type">
-              <Select value={type} onValueChange={setType}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="call">Call</SelectItem>
-                  <SelectItem value="meeting">Meeting</SelectItem>
-                  <SelectItem value="email">Email</SelectItem>
-                  <SelectItem value="note">Note</SelectItem>
-                </SelectContent>
-              </Select>
-            </F>
-            <F label="Who you spoke with">
-              <Select value={primaryParty} onValueChange={(v) => setPrimaryParty(v as "client" | "candidate")}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="client">Client contact</SelectItem>
-                  <SelectItem value="candidate">Candidate</SelectItem>
-                </SelectContent>
-              </Select>
-            </F>
-          </div>
-
-          {primaryParty === "client" && contacts.length > 0 && (
-            <F label="Contact (optional)">
-              <Select value={contactId ?? "__none__"} onValueChange={(v) => setContactId(v === "__none__" ? null : v)}>
-                <SelectTrigger><SelectValue placeholder="Select contact…" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">No specific contact</SelectItem>
-                  {contacts.map((ct) => (
-                    <SelectItem key={ct.id} value={ct.id}>{ct.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </F>
-          )}
-
-          <F label="Summary (1 line — shown in activity feed)">
-            <Input
-              value={summary}
-              onChange={(e) => setSummary(e.target.value)}
-              placeholder={initialContactName ? `e.g. Call with ${initialContactName} — topic discussed` : "e.g. Call with Yamada — discussed VP Eng req, 4 rounds confirmed"}
-              autoFocus
-            />
-          </F>
-          <F label="Full notes">
-            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Key points discussed, agreements made, follow-ups outstanding…" className="min-h-[80px]" />
-          </F>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
-          <Button size="sm" onClick={() => mutation.mutate()} disabled={(!summary.trim() && !notes.trim()) || mutation.isPending}>
-            {mutation.isPending ? "Saving…" : "Save"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
+// LogInteractionDialog removed — replaced by LogActivityModal from shared/
 
 // ─── draft modal ─────────────────────────────────────────────────────────────
 
@@ -3070,107 +2942,7 @@ function ClientEnrichCard({ clientId, companyName }: { clientId: string; company
 
 // ─── client timeline tab ──────────────────────────────────────────────────────
 
-const INTERACTION_ICON: Record<string, React.ElementType> = {
-  call: IconPhone,
-  email: IconMail,
-  meeting: IconCalendar,
-};
-
-const INTERACTION_COLORS: Record<string, { bg: string; color: string }> = {
-  call:    { bg: "var(--color-indigo-light)", color: "var(--color-indigo)" },
-  email:   { bg: "var(--color-ink-10)", color: "var(--color-ink-60)" },
-  meeting: { bg: "var(--color-moss-light)", color: "#3b6d11" },
-};
-
-function formatInteractionDate(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
-}
-
-function ClientTimelineTab({ interactions }: { interactions: Interaction[] }) {
-  if (interactions.length === 0) {
-    return (
-      <div
-        className=" px-5 py-12 text-center"
-        style={{ background: "var(--color-white)", border: "0.5px solid var(--color-ink-15)" }}
-      >
-        <p className="text-[13px] font-medium" style={{ color: "var(--color-ink)" }}>No interactions logged yet.</p>
-        <p className="text-[12px] mt-1" style={{ color: "var(--color-ink-30)" }}>
-          Use "Log event" to record calls, emails, and meetings with this client.
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-2">
-      {interactions.map((item) => {
-        const type = item.interaction_type ?? "call";
-        const Icon = INTERACTION_ICON[type] ?? IconPhone;
-        const colors = INTERACTION_COLORS[type] ?? INTERACTION_COLORS.call;
-        return (
-          <div
-            key={item.id}
-            className=" p-[14px_18px]"
-            style={{ background: "var(--color-white)", border: "0.5px solid var(--color-ink-15)" }}
-          >
-            <div className="flex items-start gap-3">
-              {/* Icon */}
-              <div
-                className="flex h-8 w-8 shrink-0 items-center justify-center  mt-0.5"
-                style={{ background: colors.bg }}
-              >
-                <Icon size={14} style={{ color: colors.color }} />
-              </div>
-
-              {/* Content */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1 flex-wrap">
-                  <span
-                    className="text-[11px] font-medium capitalize px-[6px] py-[2px] "
-                    style={{ background: colors.bg, color: colors.color }}
-                  >
-                    {type}
-                  </span>
-                  <span className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>
-                    {formatInteractionDate(item.interacted_at)}
-                  </span>
-                  {item.client_contacts && (
-                    <span className="text-[11px] px-[6px] py-[2px] " style={{ background: "var(--color-ink-10)", color: "var(--color-ink-60)" }}>
-                      with {item.client_contacts.name}
-                    </span>
-                  )}
-                  {item.candidates && (
-                    <span className="text-[11px] px-[6px] py-[2px] " style={{ background: "var(--color-indigo-light)", color: "var(--color-indigo)" }}>
-                      re: {item.candidates.full_name}
-                    </span>
-                  )}
-                  {item.primary_party === "candidate" && (
-                    <span className="text-[11px] px-[6px] py-[2px] " style={{ background: "var(--color-moss-light)", color: "var(--color-moss)" }}>
-                      spoke with candidate
-                    </span>
-                  )}
-                </div>
-
-                {item.summary && (
-                  <p className="text-[13px] font-medium mb-0.5">{item.summary}</p>
-                )}
-                {item.full_notes && (
-                  <p className="text-[12px] leading-relaxed" style={{ color: "var(--color-ink-60)" }}>
-                    {item.full_notes}
-                  </p>
-                )}
-                {!item.summary && !item.full_notes && (
-                  <p className="text-[12px]" style={{ color: "var(--color-ink-30)" }}>No notes recorded.</p>
-                )}
-              </div>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
+// ClientTimelineTab removed — replaced by ActivityTimeline from shared/
 
 // ─── editable contract tab ────────────────────────────────────────────────────
 
