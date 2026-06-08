@@ -1,0 +1,216 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 700" width="900" height="700" font-family="'DM Mono', 'Courier New', monospace">
+
+  <!-- Background -->
+  <rect width="900" height="700" fill="#f8f7f5"/>
+
+  <!-- Title -->
+  <text x="48" y="48" font-family="Georgia, serif" font-size="22" font-weight="700" fill="#1a1814">Kanri — Tech Stack</text>
+  <text x="48" y="66" font-family="'DM Mono', monospace" font-size="10" fill="#b8b5b0" letter-spacing="0.12em">ARCHITECTURE OVERVIEW · 2026</text>
+  <line x1="48" y1="76" x2="852" y2="76" stroke="#1a1814" stroke-width="2"/>
+
+  <!-- ═══════════════════════════════════ -->
+  <!-- LAYER 1: BROWSER -->
+  <!-- ═══════════════════════════════════ -->
+  <rect x="48" y="96" width="804" height="22" fill="#1a1814"/>
+  <text x="56" y="111" font-family="'DM Mono', monospace" font-size="10" fill="#f8f7f5" letter-spacing="0.12em">BROWSER LAYER</text>
+
+  <!-- Row of frontend boxes -->
+  <!-- React 19 + TypeScript -->
+  <rect x="48" y="118" width="152" height="72" fill="#fdfcfa" stroke="#d9d7d3" stroke-width="1"/>
+  <rect x="48" y="118" width="4" height="72" fill="#c94f2a"/>
+  <text x="62" y="134" font-family="'DM Mono', monospace" font-size="9" fill="#b8b5b0" letter-spacing="0.1em">RUNTIME</text>
+  <text x="62" y="153" font-family="Georgia, serif" font-size="14" font-weight="700" fill="#1a1814">React 19</text>
+  <text x="62" y="170" font-family="'DM Mono', monospace" font-size="10" fill="#6b6760">TypeScript · Vite 6</text>
+  <text x="62" y="182" font-family="'DM Mono', monospace" font-size="10" fill="#6b6760">src/routes/ · src/</text>
+
+  <!-- TanStack Router -->
+  <rect x="212" y="118" width="152" height="72" fill="#fdfcfa" stroke="#d9d7d3" stroke-width="1"/>
+  <rect x="212" y="118" width="4" height="72" fill="#c94f2a"/>
+  <text x="226" y="134" font-family="'DM Mono', monospace" font-size="9" fill="#b8b5b0" letter-spacing="0.1em">ROUTING</text>
+  <text x="226" y="153" font-family="Georgia, serif" font-size="14" font-weight="700" fill="#1a1814">TanStack</text>
+  <text x="226" y="169" font-family="Georgia, serif" font-size="14" font-weight="700" fill="#1a1814">Router v1</text>
+  <text x="226" y="182" font-family="'DM Mono', monospace" font-size="10" fill="#6b6760">File-based routes</text>
+
+  <!-- TanStack Query -->
+  <rect x="376" y="118" width="152" height="72" fill="#fdfcfa" stroke="#d9d7d3" stroke-width="1"/>
+  <rect x="376" y="118" width="4" height="72" fill="#c94f2a"/>
+  <text x="390" y="134" font-family="'DM Mono', monospace" font-size="9" fill="#b8b5b0" letter-spacing="0.1em">DATA FETCHING</text>
+  <text x="390" y="153" font-family="Georgia, serif" font-size="14" font-weight="700" fill="#1a1814">TanStack</text>
+  <text x="390" y="169" font-family="Georgia, serif" font-size="14" font-weight="700" fill="#1a1814">Query v5</text>
+  <text x="390" y="182" font-family="'DM Mono', monospace" font-size="10" fill="#6b6760">staleTime 30s · retry 1</text>
+
+  <!-- UI / Styling -->
+  <rect x="540" y="118" width="152" height="72" fill="#fdfcfa" stroke="#d9d7d3" stroke-width="1"/>
+  <rect x="540" y="118" width="4" height="72" fill="#c94f2a"/>
+  <text x="554" y="134" font-family="'DM Mono', monospace" font-size="9" fill="#b8b5b0" letter-spacing="0.1em">UI / STYLING</text>
+  <text x="554" y="151" font-family="Georgia, serif" font-size="13" font-weight="700" fill="#1a1814">shadcn/ui</text>
+  <text x="554" y="166" font-family="'DM Mono', monospace" font-size="10" fill="#6b6760">Tailwind CSS v4</text>
+  <text x="554" y="178" font-family="'DM Mono', monospace" font-size="10" fill="#6b6760">Radix UI · sonner</text>
+  <text x="554" y="190" font-family="'DM Mono', monospace" font-size="10" fill="#6b6760">@tabler/icons-react</text>
+
+  <!-- Icons / Fonts -->
+  <rect x="704" y="118" width="148" height="72" fill="#fdfcfa" stroke="#d9d7d3" stroke-width="1"/>
+  <rect x="704" y="118" width="4" height="72" fill="#c94f2a"/>
+  <text x="718" y="134" font-family="'DM Mono', monospace" font-size="9" fill="#b8b5b0" letter-spacing="0.1em">DESIGN SYSTEM</text>
+  <text x="718" y="151" font-family="Georgia, serif" font-size="13" font-weight="700" fill="#1a1814">Shippori Mincho</text>
+  <text x="718" y="166" font-family="'DM Mono', monospace" font-size="10" fill="#6b6760">Plus Jakarta Sans</text>
+  <text x="718" y="178" font-family="'DM Mono', monospace" font-size="10" fill="#6b6760">DM Mono</text>
+  <text x="718" y="190" font-family="'DM Mono', monospace" font-size="10" fill="#6b6760">CSS custom props</text>
+
+  <!-- ═══════════════════════════════════ -->
+  <!-- ARROWS DOWN -->
+  <!-- ═══════════════════════════════════ -->
+  <!-- Arrow: Browser → API -->
+  <line x1="450" y1="200" x2="450" y2="224" stroke="#b8b5b0" stroke-width="1.5" stroke-dasharray="4,3"/>
+  <polygon points="446,222 450,230 454,222" fill="#b8b5b0"/>
+  <text x="455" y="220" font-family="'DM Mono', monospace" font-size="9" fill="#b8b5b0">POST /api/ai/*</text>
+
+  <!-- ═══════════════════════════════════ -->
+  <!-- LAYER 2: API / SERVERLESS -->
+  <!-- ═══════════════════════════════════ -->
+  <rect x="48" y="234" width="804" height="22" fill="#2c3e6b"/>
+  <text x="56" y="249" font-family="'DM Mono', monospace" font-size="10" fill="#f8f7f5" letter-spacing="0.12em">API LAYER — VERCEL SERVERLESS FUNCTIONS  ·  api/ai/</text>
+
+  <!-- API handlers box -->
+  <rect x="48" y="256" width="804" height="80" fill="#fdfcfa" stroke="#d9d7d3" stroke-width="1"/>
+  <rect x="48" y="256" width="4" height="80" fill="#2c3e6b"/>
+
+  <text x="62" y="272" font-family="'DM Mono', monospace" font-size="9" fill="#b8b5b0" letter-spacing="0.1em">HANDLERS</text>
+
+  <!-- Handler pills in two rows -->
+  <!-- Row 1 -->
+  <rect x="62" y="278" width="108" height="16" fill="#d8dde8"/>
+  <text x="116" y="289" font-family="'DM Mono', monospace" font-size="9" fill="#2c3e6b" text-anchor="middle">daily-agenda</text>
+
+  <rect x="178" y="278" width="120" height="16" fill="#d8dde8"/>
+  <text x="238" y="289" font-family="'DM Mono', monospace" font-size="9" fill="#2c3e6b" text-anchor="middle">pre-call-briefing</text>
+
+  <rect x="306" y="278" width="96" height="16" fill="#d8dde8"/>
+  <text x="354" y="289" font-family="'DM Mono', monospace" font-size="9" fill="#2c3e6b" text-anchor="middle">positioning</text>
+
+  <rect x="410" y="278" width="116" height="16" fill="#d8dde8"/>
+  <text x="468" y="289" font-family="'DM Mono', monospace" font-size="9" fill="#2c3e6b" text-anchor="middle">submission-note</text>
+
+  <rect x="534" y="278" width="108" height="16" fill="#d8dde8"/>
+  <text x="588" y="289" font-family="'DM Mono', monospace" font-size="9" fill="#2c3e6b" text-anchor="middle">client-snapshot</text>
+
+  <rect x="650" y="278" width="120" height="16" fill="#d8dde8"/>
+  <text x="710" y="289" font-family="'DM Mono', monospace" font-size="9" fill="#2c3e6b" text-anchor="middle">advanced-search</text>
+
+  <rect x="778" y="278" width="66" height="16" fill="#d8dde8"/>
+  <text x="811" y="289" font-family="'DM Mono', monospace" font-size="9" fill="#2c3e6b" text-anchor="middle">+ more</text>
+
+  <!-- Row 2 -->
+  <rect x="62" y="300" width="118" height="16" fill="#d8dde8"/>
+  <text x="121" y="311" font-family="'DM Mono', monospace" font-size="9" fill="#2c3e6b" text-anchor="middle">extract-candidate</text>
+
+  <rect x="188" y="300" width="108" height="16" fill="#d8dde8"/>
+  <text x="242" y="311" font-family="'DM Mono', monospace" font-size="9" fill="#2c3e6b" text-anchor="middle">extract-contract</text>
+
+  <rect x="304" y="300" width="116" height="16" fill="#d8dde8"/>
+  <text x="362" y="311" font-family="'DM Mono', monospace" font-size="9" fill="#2c3e6b" text-anchor="middle">extract-req-fields</text>
+
+  <rect x="428" y="300" width="128" height="16" fill="#d8dde8"/>
+  <text x="492" y="311" font-family="'DM Mono', monospace" font-size="9" fill="#2c3e6b" text-anchor="middle">extract-compensation</text>
+
+  <rect x="564" y="300" width="120" height="16" fill="#d8dde8"/>
+  <text x="624" y="311" font-family="'DM Mono', monospace" font-size="9" fill="#2c3e6b" text-anchor="middle">enrich-client</text>
+
+  <rect x="692" y="300" width="148" height="16" fill="#d8dde8"/>
+  <text x="766" y="311" font-family="'DM Mono', monospace" font-size="9" fill="#2c3e6b" text-anchor="middle">format-interview-notes</text>
+
+  <text x="62" y="330" font-family="'DM Mono', monospace" font-size="9" fill="#6b6760">All handlers: validate → fetch Supabase (service role) → build prompt → call Claude → return JSON</text>
+
+  <!-- ═══════════════════════════════════ -->
+  <!-- ARROWS DOWN -->
+  <!-- ═══════════════════════════════════ -->
+  <line x1="280" y1="346" x2="280" y2="370" stroke="#b8b5b0" stroke-width="1.5" stroke-dasharray="4,3"/>
+  <polygon points="276,368 280,376 284,368" fill="#b8b5b0"/>
+  <text x="196" y="363" font-family="'DM Mono', monospace" font-size="9" fill="#b8b5b0">service_role_key</text>
+
+  <line x1="620" y1="346" x2="620" y2="370" stroke="#b8b5b0" stroke-width="1.5" stroke-dasharray="4,3"/>
+  <polygon points="616,368 620,376 624,368" fill="#b8b5b0"/>
+  <text x="560" y="363" font-family="'DM Mono', monospace" font-size="9" fill="#b8b5b0">ANTHROPIC_API_KEY</text>
+
+  <!-- ═══════════════════════════════════ -->
+  <!-- LAYER 3: SERVICES -->
+  <!-- ═══════════════════════════════════ -->
+  <rect x="48" y="380" width="804" height="22" fill="#4a5e3a"/>
+  <text x="56" y="395" font-family="'DM Mono', monospace" font-size="10" fill="#f8f7f5" letter-spacing="0.12em">EXTERNAL SERVICES</text>
+
+  <!-- Supabase box -->
+  <rect x="48" y="402" width="392" height="136" fill="#fdfcfa" stroke="#d9d7d3" stroke-width="1"/>
+  <rect x="48" y="402" width="4" height="136" fill="#4a5e3a"/>
+
+  <text x="62" y="418" font-family="'DM Mono', monospace" font-size="9" fill="#b8b5b0" letter-spacing="0.1em">DATABASE &amp; AUTH</text>
+  <text x="62" y="438" font-family="Georgia, serif" font-size="16" font-weight="700" fill="#1a1814">Supabase</text>
+  <text x="62" y="454" font-family="'DM Mono', monospace" font-size="9" fill="#6b6760">Project: iqotqiqamytpjoafwgzb</text>
+
+  <line x1="62" y1="462" x2="432" y2="462" stroke="#d9d7d3" stroke-width="1"/>
+
+  <!-- Supabase sub-services -->
+  <rect x="62" y="468" width="86" height="34" fill="#dce4d5" stroke="#4a5e3a" stroke-width="1"/>
+  <text x="105" y="481" font-family="'DM Mono', monospace" font-size="9" fill="#4a5e3a" text-anchor="middle">PostgreSQL</text>
+  <text x="105" y="495" font-family="'DM Mono', monospace" font-size="8" fill="#4a5e3a" text-anchor="middle">RLS · 18 migrations</text>
+
+  <rect x="156" y="468" width="86" height="34" fill="#dce4d5" stroke="#4a5e3a" stroke-width="1"/>
+  <text x="199" y="481" font-family="'DM Mono', monospace" font-size="9" fill="#4a5e3a" text-anchor="middle">Auth</text>
+  <text x="199" y="495" font-family="'DM Mono', monospace" font-size="8" fill="#4a5e3a" text-anchor="middle">email · JWT</text>
+
+  <rect x="250" y="468" width="86" height="34" fill="#dce4d5" stroke="#4a5e3a" stroke-width="1"/>
+  <text x="293" y="481" font-family="'DM Mono', monospace" font-size="9" fill="#4a5e3a" text-anchor="middle">Storage</text>
+  <text x="293" y="495" font-family="'DM Mono', monospace" font-size="8" fill="#4a5e3a" text-anchor="middle">resumes bucket</text>
+
+  <rect x="344" y="468" width="86" height="34" fill="#dce4d5" stroke="#4a5e3a" stroke-width="1"/>
+  <text x="387" y="481" font-family="'DM Mono', monospace" font-size="9" fill="#4a5e3a" text-anchor="middle">RLS Policy</text>
+  <text x="387" y="495" font-family="'DM Mono', monospace" font-size="8" fill="#4a5e3a" text-anchor="middle">team_id scoped</text>
+
+  <text x="62" y="520" font-family="'DM Mono', monospace" font-size="9" fill="#6b6760">Browser: anon_key (VITE_)    ·    Server: service_role_key (env only)</text>
+  <text x="62" y="533" font-family="'DM Mono', monospace" font-size="9" fill="#6b6760">Tables: candidates · recruiters · teams · clients · requisitions</text>
+  <text x="62" y="546" font-family="'DM Mono', monospace" font-size="9" fill="#6b6760">         processes · interactions · candidate_lists · …</text>
+
+  <!-- Anthropic box -->
+  <rect x="460" y="402" width="392" height="136" fill="#fdfcfa" stroke="#d9d7d3" stroke-width="1"/>
+  <rect x="460" y="402" width="4" height="136" fill="#c94f2a"/>
+
+  <text x="474" y="418" font-family="'DM Mono', monospace" font-size="9" fill="#b8b5b0" letter-spacing="0.1em">AI PROVIDER</text>
+  <text x="474" y="438" font-family="Georgia, serif" font-size="16" font-weight="700" fill="#1a1814">Anthropic</text>
+  <text x="474" y="454" font-family="'DM Mono', monospace" font-size="9" fill="#6b6760">SDK · server-side only · never from browser</text>
+
+  <line x1="474" y1="462" x2="844" y2="462" stroke="#d9d7d3" stroke-width="1"/>
+
+  <rect x="474" y="468" width="186" height="34" fill="#f0e0d8" stroke="#c94f2a" stroke-width="1"/>
+  <text x="567" y="483" font-family="'DM Mono', monospace" font-size="9" fill="#c94f2a" text-anchor="middle">claude-sonnet-4-5-20250929</text>
+  <text x="567" y="497" font-family="'DM Mono', monospace" font-size="8" fill="#c94f2a" text-anchor="middle">max_tokens: 1024 · all handlers</text>
+
+  <rect x="668" y="468" width="164" height="34" fill="#f0e0d8" stroke="#c94f2a" stroke-width="1"/>
+  <text x="750" y="483" font-family="'DM Mono', monospace" font-size="9" fill="#c94f2a" text-anchor="middle">Messages API</text>
+  <text x="750" y="497" font-family="'DM Mono', monospace" font-size="8" fill="#c94f2a" text-anchor="middle">anthropic-version: 2023-06-01</text>
+
+  <text x="474" y="520" font-family="'DM Mono', monospace" font-size="9" fill="#6b6760">Key rules: no notes_internal · no notes_presentation read</text>
+  <text x="474" y="533" font-family="'DM Mono', monospace" font-size="9" fill="#6b6760">Output always editable · AI output never auto-sent</text>
+  <text x="474" y="546" font-family="'DM Mono', monospace" font-size="9" fill="#6b6760">Claude 4+ models only (Claude 3 IDs return 404)</text>
+
+  <!-- ═══════════════════════════════════ -->
+  <!-- LAYER 4: DEPLOYMENT -->
+  <!-- ═══════════════════════════════════ -->
+  <rect x="48" y="552" width="804" height="22" fill="#b8922a"/>
+  <text x="56" y="567" font-family="'DM Mono', monospace" font-size="10" fill="#fdfcfa" letter-spacing="0.12em">DEPLOYMENT</text>
+
+  <rect x="48" y="574" width="804" height="60" fill="#fdfcfa" stroke="#d9d7d3" stroke-width="1"/>
+  <rect x="48" y="574" width="4" height="60" fill="#b8922a"/>
+
+  <text x="62" y="596" font-family="Georgia, serif" font-size="14" font-weight="700" fill="#1a1814">Vercel</text>
+  <text x="62" y="612" font-family="'DM Mono', monospace" font-size="9" fill="#6b6760">Auto-deploys on push to main  ·  Frontend: Vite SPA  ·  Backend: api/ai/*.ts serverless functions</text>
+  <text x="62" y="626" font-family="'DM Mono', monospace" font-size="9" fill="#6b6760">Local dev: npm run dev (Vite :5173) + npm run dev:api (tsx :3001)  ·  /api/* proxied by vite.config.ts</text>
+
+  <!-- Security note -->
+  <rect x="62" y="598" width="8" height="8" fill="#c94f2a"/>
+  <text x="432" y="606" font-family="'DM Mono', monospace" font-size="9" fill="#c94f2a">VITE_ = browser-safe   ·   non-VITE_ = server only</text>
+
+  <!-- Footer -->
+  <line x1="48" y1="644" x2="852" y2="644" stroke="#d9d7d3" stroke-width="1"/>
+  <text x="48" y="660" font-family="'DM Mono', monospace" font-size="9" fill="#b8b5b0" letter-spacing="0.08em">KANRI · RECRUITER INTELLIGENCE LAYER · ehlenb/kanriCC</text>
+  <text x="852" y="660" font-family="'DM Mono', monospace" font-size="9" fill="#b8b5b0" text-anchor="end">2026-06-08</text>
+
+</svg>
