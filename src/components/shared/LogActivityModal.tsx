@@ -44,6 +44,7 @@ export type LogActivityContext =
       name?: string;
       contacts?: { id: string; name: string }[];
       initialContactId?: string | null;
+      openReqs?: { id: string; title: string }[];
     };
 
 const ALL_TYPES = [
@@ -109,13 +110,14 @@ export function LogActivityModal({
     "candidate"
   );
 
-  // Client-specific: optional contact selector
+  // Client-specific: optional contact selector and linked job
   const [contactId, setContactId] = useState<string | null>(
     context.type === "client" ? (context.initialContactId ?? null) : null
   );
   const [clientPrimaryParty, setClientPrimaryParty] = useState<
     "client" | "candidate"
   >("client");
+  const [linkedReqId, setLinkedReqId] = useState<string | null>(null);
 
   // Reset when modal opens
   useEffect(() => {
@@ -133,6 +135,7 @@ export function LogActivityModal({
         context.type === "client" ? (context.initialContactId ?? null) : null
       );
       setClientPrimaryParty("client");
+      setLinkedReqId(null);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -211,6 +214,7 @@ export function LogActivityModal({
             full_notes: notes.trim() || null,
             contact_id: contactId || null,
             primary_party: clientPrimaryParty,
+            requisition_id: linkedReqId || null,
           }
     );
     setSaving(false);
@@ -409,59 +413,88 @@ export function LogActivityModal({
 
           {/* ── Client context: who you spoke with + contact selector ── */}
           {context.type === "client" && (
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-[12px]">Who you spoke with</Label>
-                <Select
-                  value={clientPrimaryParty}
-                  onValueChange={(v) =>
-                    setClientPrimaryParty(v as "client" | "candidate")
-                  }
-                >
-                  <SelectTrigger className="h-8 text-[13px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="client" className="text-[13px]">
-                      Client contact
-                    </SelectItem>
-                    <SelectItem value="candidate" className="text-[13px]">
-                      Candidate
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {clientPrimaryParty === "client" && contacts.length > 0 && (
+            <>
+              <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-[12px]">Contact (optional)</Label>
+                  <Label className="text-[12px]">Who you spoke with</Label>
                   <Select
-                    value={contactId ?? "__none__"}
+                    value={clientPrimaryParty}
                     onValueChange={(v) =>
-                      setContactId(v === "__none__" ? null : v)
+                      setClientPrimaryParty(v as "client" | "candidate")
                     }
                   >
                     <SelectTrigger className="h-8 text-[13px]">
-                      <SelectValue placeholder="Select contact…" />
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="client" className="text-[13px]">
+                        Client contact
+                      </SelectItem>
+                      <SelectItem value="candidate" className="text-[13px]">
+                        Candidate
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {clientPrimaryParty === "client" && contacts.length > 0 && (
+                  <div className="space-y-1.5">
+                    <Label className="text-[12px]">Contact (optional)</Label>
+                    <Select
+                      value={contactId ?? "__none__"}
+                      onValueChange={(v) =>
+                        setContactId(v === "__none__" ? null : v)
+                      }
+                    >
+                      <SelectTrigger className="h-8 text-[13px]">
+                        <SelectValue placeholder="Select contact…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__" className="text-[13px]">
+                          No specific contact
+                        </SelectItem>
+                        {contacts.map((ct) => (
+                          <SelectItem
+                            key={ct.id}
+                            value={ct.id}
+                            className="text-[13px]"
+                          >
+                            {ct.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+
+              {/* Linked job — shown when there are open reqs */}
+              {(context.openReqs ?? []).length > 0 && (
+                <div className="space-y-1.5">
+                  <Label className="text-[12px]">Linked job (optional)</Label>
+                  <Select
+                    value={linkedReqId ?? "__none__"}
+                    onValueChange={(v) =>
+                      setLinkedReqId(v === "__none__" ? null : v)
+                    }
+                  >
+                    <SelectTrigger className="h-8 text-[13px]">
+                      <SelectValue placeholder="Link to an open role…" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="__none__" className="text-[13px]">
-                        No specific contact
+                        No linked job
                       </SelectItem>
-                      {contacts.map((ct) => (
-                        <SelectItem
-                          key={ct.id}
-                          value={ct.id}
-                          className="text-[13px]"
-                        >
-                          {ct.name}
+                      {(context.openReqs ?? []).map((r) => (
+                        <SelectItem key={r.id} value={r.id} className="text-[13px]">
+                          {r.title}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
               )}
-            </div>
+            </>
           )}
         </div>
 

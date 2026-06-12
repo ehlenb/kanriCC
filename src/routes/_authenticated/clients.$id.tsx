@@ -124,6 +124,7 @@ type Interaction = {
   interacted_at: string;
   candidate_id: string | null;
   contact_id: string | null;
+  requisition_id: string | null;
   primary_party: string | null;
   candidates: { id: string; full_name: string } | null;
   client_contacts: { id: string; name: string } | null;
@@ -203,7 +204,7 @@ function useClientDetail(id: string) {
         supabase
           .from("interactions")
           .select(
-            "id, interaction_type, summary, full_notes, interacted_at, candidate_id, contact_id, primary_party, candidates(id, full_name), client_contacts(id, name)",
+            "id, interaction_type, summary, full_notes, interacted_at, candidate_id, contact_id, requisition_id, primary_party, candidates(id, full_name), client_contacts(id, name)",
           )
           .eq("client_id", id)
           .order("interacted_at", { ascending: false })
@@ -917,6 +918,7 @@ function ClientDetail() {
             openReqs={openReqs}
             closedReqs={closedReqs}
             contacts={contacts}
+            interactions={interactions}
           />
         </div>
       )}
@@ -944,6 +946,7 @@ function ClientDetail() {
           id,
           contacts: contacts.map((ct) => ({ id: ct.id, name: ct.name })),
           initialContactId: logForContactId,
+          openReqs: openReqs.map((r) => ({ id: r.id, title: r.title })),
         }}
         initialType={logEventType}
       />
@@ -1459,6 +1462,8 @@ function OpenRequisitionsCard({
   showHeader = true,
   onFindMatches,
   activeMatchReqId,
+  onSelectReq,
+  selectedReqId,
 }: {
   reqs: ReqWithPipeline[];
   closedReqs: ReqWithPipeline[];
@@ -1467,6 +1472,8 @@ function OpenRequisitionsCard({
   showHeader?: boolean;
   onFindMatches?: (reqId: string) => void;
   activeMatchReqId?: string | null;
+  onSelectReq?: (reqId: string) => void;
+  selectedReqId?: string | null;
 }) {
   return (
     <Card>
@@ -1514,7 +1521,13 @@ function OpenRequisitionsCard({
 
             {/* Content */}
             <div className="flex-1 min-w-0">
-              <p className="text-[13px] font-medium mb-0.5">{r.title}</p>
+              <button
+                className="text-[13px] font-medium mb-0.5 text-left hover:underline"
+                style={{ color: selectedReqId === r.id ? "var(--color-vermillion)" : "var(--color-ink)" }}
+                onClick={() => onSelectReq?.(r.id)}
+              >
+                {r.title}
+              </button>
               <p className="text-[12px] mb-1.5" style={{ color: "var(--color-ink-60)" }}>
                 {[
                   r.salary_range_text
@@ -1840,6 +1853,82 @@ function JobMatchPanel({
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// ─── job detail panel ────────────────────────────────────────────────────────
+
+function JobDetailPanel({
+  req,
+  contacts,
+  interactions,
+}: {
+  req: ReqWithPipeline;
+  contacts: Contact[];
+  interactions: Interaction[];
+}) {
+  const hm = contacts.find((c) => c.id === req.hiring_manager_id);
+  const salary =
+    req.salary_range_text ??
+    (req.salary_min || req.salary_max
+      ? `${formatYen(req.salary_min)}–${formatYen(req.salary_max)} base`
+      : null);
+
+  const linked = interactions.filter((i) => i.requisition_id === req.id);
+
+  return (
+    <div className="p-4 space-y-3" style={{ background: "var(--color-white)", border: "0.5px solid var(--color-ink-15)", borderTop: "none" }}>
+      {/* Header row */}
+      <div className="flex items-start gap-4 flex-wrap">
+        {salary && (
+          <div>
+            <p className="text-[10px] font-mono uppercase tracking-[0.08em]" style={{ color: "var(--color-ink-30)" }}>Salary</p>
+            <p className="text-[13px] font-medium">{salary}</p>
+          </div>
+        )}
+        {req.location && (
+          <div>
+            <p className="text-[10px] font-mono uppercase tracking-[0.08em]" style={{ color: "var(--color-ink-30)" }}>Location</p>
+            <p className="text-[13px]">{req.location}</p>
+          </div>
+        )}
+        {hm && (
+          <div>
+            <p className="text-[10px] font-mono uppercase tracking-[0.08em]" style={{ color: "var(--color-ink-30)" }}>Hiring manager</p>
+            <p className="text-[13px]">{hm.name}{hm.title ? ` · ${hm.title}` : ""}</p>
+          </div>
+        )}
+        {req.urgency_date && (
+          <div>
+            <p className="text-[10px] font-mono uppercase tracking-[0.08em]" style={{ color: "var(--color-ink-30)" }}>Target close</p>
+            <p className="text-[13px]">{req.urgency_date}</p>
+          </div>
+        )}
+      </div>
+
+      {req.strategic_context && (
+        <div>
+          <p className="text-[10px] font-mono uppercase tracking-[0.08em] mb-1" style={{ color: "var(--color-ink-30)" }}>Strategic context</p>
+          <p className="text-[13px] leading-[1.5]" style={{ color: "var(--color-ink-60)" }}>{req.strategic_context}</p>
+        </div>
+      )}
+
+      {/* Linked interactions */}
+      <div>
+        <p className="text-[10px] font-mono uppercase tracking-[0.08em] mb-1.5" style={{ color: "var(--color-ink-30)" }}>
+          Activity linked to this role ({linked.length})
+        </p>
+        {linked.length === 0 ? (
+          <p className="text-[12px]" style={{ color: "var(--color-ink-30)" }}>No interactions linked to this role yet. Use "Linked job" when logging activity.</p>
+        ) : (
+          <ActivityTimeline
+            interactions={linked}
+            perspective="client"
+            emptyMessage="No linked interactions."
+          />
+        )}
+      </div>
     </div>
   );
 }
@@ -2335,12 +2424,14 @@ function JobsTab({
   openReqs,
   closedReqs,
   contacts,
+  interactions,
 }: {
   clientId: string;
   recruiterId: string;
   openReqs: ReqWithPipeline[];
   closedReqs: ReqWithPipeline[];
   contacts: Contact[];
+  interactions: Interaction[];
 }) {
   const qc = useQueryClient();
   const jdInputRef = useRef<HTMLInputElement>(null);
@@ -2352,9 +2443,15 @@ function JobsTab({
   const [extracting, setExtracting] = useState(false);
   const [generatingContext, setGeneratingContext] = useState(false);
   const [activeMatchReqId, setActiveMatchReqId] = useState<string | null>(null);
+  const [selectedReqId, setSelectedReqId] = useState<string | null>(null);
 
   function handleFindMatches(reqId: string) {
     setActiveMatchReqId((prev) => (prev === reqId ? null : reqId));
+  }
+
+  function handleSelectReq(reqId: string) {
+    setSelectedReqId((prev) => (prev === reqId ? null : reqId));
+    setActiveMatchReqId(null);
   }
 
   async function handleJdFile(file: File) {
@@ -2562,7 +2659,15 @@ function JobsTab({
             showHeader={false}
             onFindMatches={handleFindMatches}
             activeMatchReqId={activeMatchReqId}
+            onSelectReq={handleSelectReq}
+            selectedReqId={selectedReqId}
           />
+          {selectedReqId && (() => {
+            const req = openReqs.find((r) => r.id === selectedReqId);
+            return req ? (
+              <JobDetailPanel req={req} contacts={contacts} interactions={interactions} />
+            ) : null;
+          })()}
           {activeMatchReqId && (
             <JobMatchPanel
               requisitionId={activeMatchReqId}
