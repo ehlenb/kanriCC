@@ -805,12 +805,24 @@ function ClientDetail() {
             alignItems: "start",
           }}
         >
-          <ActivityTimeline
-            interactions={interactions}
-            perspective="client"
-            emptyMessage="No interactions logged yet."
-            emptySubMessage='Use "Log event" to record calls, emails, and meetings with this client.'
-          />
+          <div className="space-y-3">
+            {/* Timeline header with Log Activity button */}
+            <div className="flex items-center justify-between">
+              <p className="label">Activity</p>
+              <button
+                className="ab flex items-center gap-1"
+                onClick={() => setLogInteractionOpen(true)}
+              >
+                <IconPlus size={11} /> Log activity
+              </button>
+            </div>
+            <ActivityTimeline
+              interactions={interactions}
+              perspective="client"
+              emptyMessage="No interactions logged yet."
+              emptySubMessage="Use Log activity to record calls, emails, and meetings with this client."
+            />
+          </div>
           <div className="space-y-3">
             <RecommendedActionsPanel
               actions={actions}

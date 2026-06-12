@@ -64,7 +64,7 @@ const CANDIDATE_TYPES: readonly string[] = [
   "interview scheduled", "job spec sent", "linkedin message", "other",
 ];
 const CLIENT_TYPES: readonly string[] = [
-  "call", "email", "note", "meeting", "job spec sent", "other",
+  "call", "email", "note", "meeting", "other",
 ];
 
 // ─── component ────────────────────────────────────────────────────────────────
@@ -100,7 +100,6 @@ export function LogActivityModal({
     new Date().toISOString().split("T")[0]
   );
   const [scheduledTime, setScheduledTime] = useState("10:00");
-  const [summary, setSummary] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -126,7 +125,6 @@ export function LogActivityModal({
       setDate(new Date().toISOString().split("T")[0]);
       setScheduledDate(new Date().toISOString().split("T")[0]);
       setScheduledTime("10:00");
-      setSummary("");
       setNotes("");
       setSaving(false);
       setCrossClientId(null);
@@ -166,10 +164,12 @@ export function LogActivityModal({
   }
 
   async function save() {
-    if (!summary.trim()) {
-      toast.error("A summary is required.");
+    if (!notes.trim()) {
+      toast.error("Notes are required.");
       return;
     }
+    // Derive a one-line summary from the first sentence/line of notes
+    const summary = notes.trim().split(/[\n.]/)[0].trim().slice(0, 160);
     if (timing === "upcoming" && !scheduledDate) {
       toast.error("A scheduled date is required.");
       return;
@@ -331,26 +331,15 @@ export function LogActivityModal({
             </div>
           )}
 
-          {/* Summary */}
+          {/* Notes — single field */}
           <div className="space-y-1.5">
-            <Label className="text-[12px]">Summary *</Label>
-            <Input
-              value={summary}
-              onChange={(e) => setSummary(e.target.value)}
-              placeholder="e.g. Initial screening call — strong profile, moving forward"
-              className="text-[13px]"
-              autoFocus
-            />
-          </div>
-
-          {/* Notes */}
-          <div className="space-y-1.5">
-            <Label className="text-[12px]">Notes</Label>
+            <Label className="text-[12px]">Notes *</Label>
             <Textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Detailed notes from this interaction…"
-              className="min-h-[80px] text-[13px]"
+              placeholder="What happened, what was agreed, what to follow up on…"
+              className="min-h-[120px] text-[13px]"
+              autoFocus
             />
           </div>
 
@@ -483,7 +472,7 @@ export function LogActivityModal({
           <Button
             size="sm"
             onClick={() => void save()}
-            disabled={saving || !summary.trim()}
+            disabled={saving || !notes.trim()}
           >
             {saving ? "Saving…" : "Log activity"}
           </Button>

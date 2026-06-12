@@ -91,6 +91,12 @@ function fmtDateTime(iso: string) {
   });
 }
 
+// ─── helpers ──────────────────────────────────────────────────────────────────
+
+function capitalize(s: string) {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
 // ─── sub-components ───────────────────────────────────────────────────────────
 
 function Chip({ bg, fg, children }: { bg: string; fg: string; children: React.ReactNode }) {
@@ -107,6 +113,7 @@ function Chip({ bg, fg, children }: { bg: string; fg: string; children: React.Re
 function UpcomingEntry({ item }: { item: TimelineInteraction }) {
   const type = item.interaction_type;
   const Icon = ICON[type] ?? IconCalendar;
+  const notes = item.full_notes || item.summary;
 
   return (
     <div
@@ -125,19 +132,17 @@ function UpcomingEntry({ item }: { item: TimelineInteraction }) {
           <Icon size={14} style={{ color: "var(--color-indigo)" }} />
         </div>
         <div className="flex-1 min-w-0">
+          {/* Type as primary header */}
           <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <Chip bg="var(--color-indigo-light)" fg="var(--color-indigo)">UPCOMING</Chip>
-            <Chip bg="var(--color-indigo-light)" fg="var(--color-indigo)">{type}</Chip>
+            <span className="text-[13px] font-semibold">{capitalize(type)}</span>
+            <Chip bg="var(--color-indigo-light)" fg="var(--color-indigo)">Upcoming</Chip>
             <span className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>
               {item.scheduled_at ? fmtDateTime(item.scheduled_at) : "Date TBD"}
             </span>
           </div>
-          {item.summary && (
-            <p className="text-[13px] font-medium leading-snug">{item.summary}</p>
-          )}
-          {item.full_notes && (
-            <p className="text-[12px] mt-1 whitespace-pre-wrap" style={{ color: "var(--color-ink-60)" }}>
-              {item.full_notes}
+          {notes && (
+            <p className="text-[12px] leading-relaxed whitespace-pre-wrap" style={{ color: "var(--color-ink-60)" }}>
+              {notes}
             </p>
           )}
           {item.clients && (
@@ -161,6 +166,12 @@ function InteractionEntry({
   const type = item.interaction_type;
   const Icon = ICON[type] ?? IconPhone;
   const col = COLOR[type] ?? FALLBACK_COLOR;
+  const notes = item.full_notes || item.summary;
+
+  // Build a clear "with / re:" context line
+  const contactName = item.client_contacts?.name;
+  const candidateName = item.candidates?.full_name;
+  const clientName = item.clients?.company_name;
 
   return (
     <div
@@ -175,47 +186,53 @@ function InteractionEntry({
           <Icon size={14} style={{ color: col.fg }} />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <Chip bg={col.bg} fg={col.fg}>{type}</Chip>
+          {/* Row 1: type (bold) + date */}
+          <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+            <span className="text-[13px] font-semibold">{capitalize(type)}</span>
             <span className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>
               {fmtDate(item.interacted_at)}
             </span>
-
-            {/* Cross-link badges */}
-            {perspective === "candidate" && item.clients && (
-              <Chip bg="var(--color-indigo-light)" fg="var(--color-indigo)">
-                {item.clients.company_name}
-              </Chip>
-            )}
-            {perspective === "client" && item.candidates && (
-              <Chip bg="var(--color-indigo-light)" fg="var(--color-indigo)">
-                re: {item.candidates.full_name}
-              </Chip>
-            )}
-            {item.client_contacts && (
-              <Chip bg="var(--color-ink-10)" fg="var(--color-ink-60)">
-                with {item.client_contacts.name}
-              </Chip>
-            )}
-
-            {/* Primary-party badge */}
-            {perspective === "candidate" && item.primary_party === "client" && (
-              <Chip bg="var(--color-gold-light)" fg="var(--color-gold)">spoke with client</Chip>
-            )}
-            {perspective === "client" && item.primary_party === "candidate" && (
-              <Chip bg="var(--color-moss-light)" fg="var(--color-moss)">spoke with candidate</Chip>
-            )}
           </div>
 
-          {item.summary && (
-            <p className="text-[13px] font-medium mb-0.5">{item.summary}</p>
+          {/* Row 2: context chips — who/re: */}
+          {(contactName || candidateName || clientName ||
+            (perspective === "candidate" && item.primary_party === "client") ||
+            (perspective === "client" && item.primary_party === "candidate")) && (
+            <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
+              {/* Client perspective: show candidate as "re: Tanaka-san" */}
+              {perspective === "client" && candidateName && (
+                <Chip bg="var(--color-indigo-light)" fg="var(--color-indigo)">
+                  re: {candidateName.split(" ")[1] ? `${candidateName.split(" ")[1]}-san` : candidateName}
+                </Chip>
+              )}
+              {/* Candidate perspective: show client name */}
+              {perspective === "candidate" && clientName && (
+                <Chip bg="var(--color-indigo-light)" fg="var(--color-indigo)">
+                  {clientName}
+                </Chip>
+              )}
+              {/* Contact: "with Shimada-san" */}
+              {contactName && (
+                <Chip bg="var(--color-ink-10)" fg="var(--color-ink-60)">
+                  with {contactName.split(" ")[1] ? `${contactName.split(" ")[1]}-san` : contactName}
+                </Chip>
+              )}
+              {/* Primary party — only show when cross-linked */}
+              {perspective === "candidate" && item.primary_party === "client" && clientName && (
+                <Chip bg="var(--color-gold-light)" fg="var(--color-gold)">client-side call</Chip>
+              )}
+              {perspective === "client" && item.primary_party === "candidate" && candidateName && (
+                <Chip bg="var(--color-moss-light)" fg="var(--color-moss)">candidate-side call</Chip>
+              )}
+            </div>
           )}
-          {item.full_notes && (
+
+          {/* Notes */}
+          {notes ? (
             <p className="text-[12px] leading-relaxed" style={{ color: "var(--color-ink-60)" }}>
-              {item.full_notes}
+              {notes}
             </p>
-          )}
-          {!item.summary && !item.full_notes && (
+          ) : (
             <p className="text-[12px]" style={{ color: "var(--color-ink-30)" }}>No notes recorded.</p>
           )}
         </div>

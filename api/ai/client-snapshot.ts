@@ -89,7 +89,9 @@ Rules: Write in clear English suitable for non-native speakers. Do not use: stra
     messages: [{ role: "user", content: prompt }],
   });
 
-  const text = message.content[0].type === "text" ? message.content[0].text : "{}";
+  const raw = message.content[0].type === "text" ? message.content[0].text : "{}";
+  // Strip markdown code fences if Claude wraps the JSON
+  const text = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
 
   try {
     const parsed = JSON.parse(text) as { whereThingsStand?: string; watchOut?: string };
@@ -98,6 +100,7 @@ Rules: Write in clear English suitable for non-native speakers. Do not use: stra
       watchOut: parsed.watchOut ?? "",
     });
   } catch {
+    // Last resort — return raw text in first field so something useful shows
     return res.status(200).json({ whereThingsStand: text, watchOut: "" });
   }
 }
