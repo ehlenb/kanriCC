@@ -780,15 +780,34 @@ Active development resumed June 2026. All sessions below are committed and pushe
 - `candidates.$id` Buy-In: "Not interested" button sets `not_interested_at` on process; panel mutes; removes from daily-agenda priority list
 - `clients.$id` Jobs tab: "Find matches" button per open requisition — calls `/api/ai/advanced-search`, shows scored candidate list with AI reason and score bar; "Draft message" per candidate calls new `/api/ai/job-spec-message` endpoint, renders in editable textarea
 
+**Activity logging refactor (committed 2026-06-12)**
+- New shared `src/components/shared/ActivityTimeline.tsx` — unified feed for both candidate and client pages; handles upcoming events, milestones, cross-link badges, contact filtering
+- New shared `src/components/shared/LogActivityModal.tsx` — unified log activity dialog replacing `LogActivityPanel` (candidates) and `LogInteractionDialog` (clients); single Notes field (summary auto-derived); client types exclude "job spec sent"
+- `candidates.$id`: wired to ActivityTimeline + LogActivityModal; old LogActivityPanel removed
+- `clients.$id`: wired to ActivityTimeline + LogActivityModal; old LogInteractionDialog removed; per-contact filtered timeline in ContactsCard; Log activity button at top of timeline feed
+- `ActivityTimeline`: interaction type capitalized and bold as primary header; cross-link chips use -san suffix (Shimada-san, Watanabe-san); "re:" and "with" chips clearly labeled
+- `api/ai/client-snapshot.ts`: markdown fences stripped before JSON.parse (fixes raw JSON rendering in snapshot panel)
+- `clients.$id` contract tab: View/Remove buttons extracted from upload div into separate row; filename shown; "Replace contract" zone always visible
+
+**Mock data (2026-06-12)**
+- `scripts/seed-mock-data.sql`: full deal cycle — Salesforce Japan × Masahiko Tanaka (Sony); client, 2 contacts, requisition, candidate, 2 roles, 3 motivations, 2 blockers, 2 competing interviews, 1 process (CCM1), 4 interactions
+- Contract PDF uploaded to storage: `SalesforceJapan_AgencyContract.pdf` (32% fee, April 2023)
+
 ### Known issues / next session priorities
 
-1. **Storage path backward compatibility** — CV and registration form paths changed from `{recruiter_id}/{candidate_id}/…` to `{team_id}/{candidate_id}/…`. Existing candidates whose files were uploaded before this fix have stale `cv_url` / `registration_form_url` values pointing to the old path. Signed URL creation will 404 for those records. Fix: SQL update to rewrite paths, OR add a fallback in the upload zones that retries with the recruiter_id prefix if the team_id path returns an error.
+**Bugs to fix:**
+1. **Find matches broken** — `clients.$id` Jobs tab "Find matches" returns "Could not load matches" error. Need to debug the `/api/ai/advanced-search` call — likely a missing field or model error in the handler.
+2. **Storage path backward compatibility** — paths changed from `{recruiter_id}/{candidate_id}/…` to `{team_id}/{candidate_id}/…`. Old files 404. Fix: fallback retry with recruiter_id prefix in upload zones.
 
-2. **`'note'` missing from log activity dropdown** — The DB constraint (migration 021) allows `note` and `cv sent` as interaction types, but `LOG_ACTIVITY_TYPES` in `candidates.$id.tsx` doesn't include `note`. A recruiter who wants to log a plain note has no clean option. Add `note` to the array and wire an icon/colour for it in `CAND_INTERACTION_ICON` / `CAND_INTERACTION_COLORS`.
+**UI work from simulation (Module 1 feedback):**
+3. **Editable timeline entries** — interactions in ActivityTimeline should be editable inline (type, date, notes, linked candidate/client). Needs edit modal triggered from each entry.
+4. **Contacts tab redesign** — currently shows flat cards with relationship dots, primary contact flags. Replace with: collapsible list (name + title only when collapsed), click to expand contact detail + per-contact timeline. Remove relationship barometer and primary/decision-maker designation (those are job-specific, not contact-level). Add per-contact AI summary based on notes + linked interactions.
+5. **Job detail view** — clicking a job in the Jobs tab should open a detail view: JD, hiring manager, salary, strategic context, linked interactions. Add optional `requisition_id` to interaction logging so client-tab activities can cross-link to a specific job (log once, surfaces in both places).
+6. **Contract PDF thumbnail** — show a small screenshot/preview of the uploaded contract PDF in the Contract tab so recruiter can visually verify it before relying on extracted fields.
 
-3. **Supabase types regeneration** — Types appear current through migration 022 but should be regenerated and the custom types block re-appended after every migration batch. Command in Section 19.
-
-4. **Error boundaries** — No React error boundary anywhere. A JS error in any component crashes the whole page to a blank screen. Add a top-level `<ErrorBoundary>` with a reload prompt in `_authenticated.tsx`.
+**Deferred (do not build yet):**
+- Per-contact AI summary (needs design decision on where/how AI reads contact notes)
+- Interaction editing (assess scope before starting)
 
 ---
 
