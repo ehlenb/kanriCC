@@ -43,6 +43,8 @@ import {
   IconX,
   IconSearch,
   IconMessageCircle,
+  IconChevronDown,
+  IconChevronRight,
 } from "@tabler/icons-react";
 import { ActivityTimeline } from "@/components/shared/ActivityTimeline";
 import { LogActivityModal } from "@/components/shared/LogActivityModal";
@@ -1274,12 +1276,17 @@ function ContactsCard({
   onLogActivity?: (contactId: string, contactName: string) => void;
 }) {
   const qc = useQueryClient();
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [editingNote, setEditingNote] = useState<{ contactId: string; value: string } | null>(null);
 
-  const updateScore = async (contactId: string, score: number) => {
-    await supabase.from("client_contacts").update({ relationship_score: score }).eq("id", contactId);
-    void qc.invalidateQueries({ queryKey: ["client", clientId] });
-  };
+  function toggleExpand(id: string) {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   async function saveNote() {
     if (!editingNote) return;
@@ -1303,60 +1310,62 @@ function ContactsCard({
           No contacts added. Add your hiring manager and HR gatekeeper first.
         </p>
       ) : (
-        <div className="space-y-3">
-          {contacts.map((contact) => {
+        <div>
+          {contacts.map((contact, idx) => {
             const avatarStyle = ROLE_AVATAR[contact.role];
             const badge = ROLE_BADGE[contact.role];
+            const isExpanded = expandedIds.has(contact.id);
+            const isLast = idx === contacts.length - 1;
 
             return (
-              <div key={contact.id}>
-                {/* Gatekeeper warning */}
-                {contact.role === "hr_gatekeeper" && contact.bypass_hr_warning && (
+              <div
+                key={contact.id}
+                style={!isLast ? { borderBottom: "0.5px solid var(--color-ink-15)" } : undefined}
+              >
+                {/* Collapsed row — always visible */}
+                <button
+                  className="flex items-center gap-2.5 w-full text-left py-2.5"
+                  onClick={() => toggleExpand(contact.id)}
+                >
+                  <span style={{ color: "var(--color-ink-30)", flexShrink: 0 }}>
+                    {isExpanded ? <IconChevronDown size={13} /> : <IconChevronRight size={13} />}
+                  </span>
                   <div
-                    className="text-[12px] px-3 py-2 mb-1.5 leading-snug"
-                    style={{ background: "var(--color-gold-light)", color: "var(--color-gold)" }}
-                  >
-                    Do not send scheduling requests to the hiring manager directly — {contact.name} will notice and it creates friction.
-                  </div>
-                )}
-
-                <div className="flex items-start gap-2.5">
-                  {/* Avatar */}
-                  <div
-                    className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full text-[12px] font-medium"
+                    className="flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-full text-[11px] font-medium"
                     style={avatarStyle}
                   >
                     {initials(contact.name)}
                   </div>
+                  <span className="text-[13px] font-medium flex-1 min-w-0 truncate">{contact.name}</span>
+                  {contact.title && (
+                    <span className="text-[12px] truncate" style={{ color: "var(--color-ink-30)" }}>
+                      {contact.title}
+                    </span>
+                  )}
+                  <span
+                    className="text-[10px] font-medium px-[6px] py-[2px] shrink-0 border"
+                    style={badge.style}
+                  >
+                    {badge.label}
+                  </span>
+                </button>
 
-                  {/* Name + badges */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
-                      <span className="text-[13px] font-medium">{contact.name}</span>
-                      {contact.title && (
-                        <span className="text-[12px]" style={{ color: "var(--color-ink-30)" }}>
-                          · {contact.title}
-                        </span>
-                      )}
-                      <span
-                        className="text-[11px] font-medium px-[7px] py-[2px]  border"
-                        style={badge.style}
+                {/* Expanded detail */}
+                {isExpanded && (
+                  <div className="pb-3 pl-[52px] space-y-2">
+                    {/* Gatekeeper warning */}
+                    {contact.role === "hr_gatekeeper" && contact.bypass_hr_warning && (
+                      <div
+                        className="text-[12px] px-3 py-2 leading-snug"
+                        style={{ background: "var(--color-gold-light)", color: "var(--color-gold)" }}
                       >
-                        {badge.label}
-                      </span>
-                      {contact.is_primary && (
-                        <span
-                          className="text-[11px] font-medium px-[7px] py-[2px]  border"
-                          style={{ background: "var(--color-gold-light)", color: "var(--color-gold)", borderColor: "#fac775" }}
-                        >
-                          Primary contact
-                        </span>
-                      )}
-                    </div>
+                        Do not send scheduling requests to the hiring manager directly. {contact.name} will notice and it creates friction.
+                      </div>
+                    )}
 
                     {/* Contact details */}
                     {(contact.email || contact.phone || contact.linkedin_url) && (
-                      <div className="flex items-center gap-3 mt-0.5 mb-1">
+                      <div className="flex items-center gap-3 flex-wrap">
                         {contact.email && (
                           <a href={`mailto:${contact.email}`} className="text-[11px]" style={{ color: "var(--color-indigo)" }}>{contact.email}</a>
                         )}
@@ -1369,12 +1378,6 @@ function ContactsCard({
                       </div>
                     )}
 
-                    {/* Relationship dots */}
-                    <RelationshipDots
-                      score={contact.relationship_score}
-                      onUpdate={(s) => void updateScore(contact.id, s)}
-                    />
-
                     {/* Note — inline editable */}
                     {editingNote?.contactId === contact.id ? (
                       <textarea
@@ -1386,7 +1389,7 @@ function ContactsCard({
                         onBlur={() => void saveNote()}
                         rows={2}
                         placeholder="Add a note about this person's style, process approach, or how to manage them..."
-                        className="w-full mt-1 text-[12px] leading-[1.4] px-2 py-1 resize-none"
+                        className="w-full text-[12px] leading-[1.4] px-2 py-1 resize-none"
                         style={{
                           border: "0.5px solid rgba(26,26,24,0.20)",
                           background: "var(--color-white)",
@@ -1396,32 +1399,26 @@ function ContactsCard({
                       />
                     ) : (
                       <button
-                        className="w-full text-left mt-1"
+                        className="w-full text-left"
                         onClick={() =>
                           setEditingNote({ contactId: contact.id, value: contact.notes ?? "" })
                         }
                       >
                         {contact.notes ? (
-                          <p
-                            className="text-[12px] leading-[1.4]"
-                            style={{ color: "var(--color-ink-60)" }}
-                          >
+                          <p className="text-[12px] leading-[1.4]" style={{ color: "var(--color-ink-60)" }}>
                             {contact.notes}
                           </p>
                         ) : (
-                          <p
-                            className="text-[12px] leading-[1.4]"
-                            style={{ color: "var(--color-ink-30)" }}
-                          >
+                          <p className="text-[12px] leading-[1.4]" style={{ color: "var(--color-ink-30)" }}>
                             Add a note about this contact...
                           </p>
                         )}
                       </button>
                     )}
 
-                    {/* Contact activity footer */}
+                    {/* Log activity + interaction count */}
                     {onLogActivity && (
-                      <div className="flex items-center justify-between mt-2 pt-2" style={{ borderTop: "0.5px solid var(--color-border-subtle)" }}>
+                      <div className="flex items-center justify-between pt-1">
                         <span className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>
                           {(interactions ?? []).filter((i) => i.contact_id === contact.id).length} interaction{(interactions ?? []).filter((i) => i.contact_id === contact.id).length !== 1 ? "s" : ""} logged
                         </span>
@@ -1434,108 +1431,21 @@ function ContactsCard({
                       </div>
                     )}
 
-                    {/* Contact-filtered activity timeline */}
-                    {onLogActivity && (interactions ?? []).filter((i) => i.contact_id === contact.id).length > 0 && (
-                      <div className="mt-2">
-                        <ActivityTimeline
-                          interactions={interactions ?? []}
-                          filterContactId={contact.id}
-                          perspective="client"
-                          emptyMessage="No interactions for this contact yet."
-                        />
-                      </div>
-                    )}
+                    {/* Per-contact activity timeline */}
+                    <ActivityTimeline
+                      interactions={interactions ?? []}
+                      filterContactId={contact.id}
+                      perspective="client"
+                      emptyMessage="No interactions for this contact yet."
+                    />
                   </div>
-                </div>
+                )}
               </div>
             );
           })}
         </div>
       )}
     </Card>
-  );
-}
-
-const DOT_LABELS: Record<number, string> = {
-  1: "No real relationship yet",
-  2: "Some contact, still thin",
-  3: "Working relationship",
-  4: "Solid — responsive and trusting",
-  5: "Strong partner",
-};
-
-function dotStyle(dotIndex: number, score: number | null): React.CSSProperties {
-  if (!score || dotIndex > score) return { background: "var(--color-ink-10)", border: "0.5px solid var(--color-ink-15)" };
-  return { background: score >= 4 ? "var(--color-indigo)" : "#b5d4f4" };
-}
-
-function RelationshipDots({
-  score,
-  onUpdate,
-}: {
-  score: number | null;
-  onUpdate: (s: number) => void;
-}) {
-  const [open, setOpen] = useState(false);
-
-  function handleSelect(s: number) {
-    onUpdate(s);
-    setOpen(false);
-  }
-
-  return (
-    <>
-      <button
-        className="flex items-center gap-[3px] mt-1"
-        onClick={() => setOpen(true)}
-        title="Click to update relationship score"
-      >
-        {[1, 2, 3, 4, 5].map((i) => (
-          <span
-            key={i}
-            className="block w-2 h-2 rounded-full"
-            style={dotStyle(i, score)}
-          />
-        ))}
-        <span className="ml-1.5 text-[11px]" style={{ color: "var(--color-ink-30)" }}>
-          {score ? DOT_LABELS[score] : "Rate relationship"}
-        </span>
-      </button>
-
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent style={{ maxWidth: 320 }}>
-          <DialogHeader>
-            <DialogTitle>Relationship score</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-1.5 py-1">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <button
-                key={i}
-                onClick={() => handleSelect(i)}
-                className="flex items-center gap-3 w-full px-3 py-2 text-left transition-colors"
-                style={{
-                  background: score === i ? "var(--color-indigo-light)" : "var(--color-ink-10)",
-                  border: score === i ? "0.5px solid #b5d4f4" : "0.5px solid transparent",
-                }}
-              >
-                <div className="flex items-center gap-[3px] shrink-0">
-                  {[1, 2, 3, 4, 5].map((d) => (
-                    <span
-                      key={d}
-                      className="block w-2 h-2 rounded-full"
-                      style={dotStyle(d, i)}
-                    />
-                  ))}
-                </div>
-                <span className="text-[12px]" style={{ color: "var(--color-ink)" }}>
-                  {i} — {DOT_LABELS[i]}
-                </span>
-              </button>
-            ))}
-          </div>
-        </DialogContent>
-      </Dialog>
-    </>
   );
 }
 
