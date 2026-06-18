@@ -164,8 +164,10 @@ type Process = {
 /** Parse ai_snapshot (JSON string) into NFAR point array. Falls back gracefully for old plain-text snapshots. */
 function parsePositioningPoints(raw: string | null): Array<{ label: string; body: string }> | null {
   if (!raw) return null;
+  // Strip markdown code fences the model occasionally adds despite the prompt
+  const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
   try {
-    const parsed = JSON.parse(raw) as { points?: Array<{ label: string; body: string }> };
+    const parsed = JSON.parse(cleaned) as { points?: Array<{ label: string; body: string }> };
     if (Array.isArray(parsed.points) && parsed.points.length > 0) return parsed.points;
   } catch {
     // legacy plain-text snapshot — wrap as a single block so it still renders
@@ -322,7 +324,7 @@ function CandidateProfile() {
               : c.full_name}
           </div>
           <div className="mt-0.5 text-[13px]" style={{ color: "var(--color-ink-60)" }}>
-            {[c.current_title, c.current_company, c.age ? `Age ${c.age}` : null]
+            {[c.current_title, c.current_company, c.age ? `Age ${c.age}` : null, c.address ?? null]
               .filter(Boolean)
               .join(" · ")}
           </div>
@@ -333,20 +335,10 @@ function CandidateProfile() {
               </span>
             </div>
           )}
-          {(c.address || c.location_preferences) && (
-            <div className="mt-1.5 space-y-0.5">
-              {c.address && (
-                <div className="flex items-baseline gap-2 text-[12px]">
-                  <span className="font-mono text-[10px] uppercase tracking-wide shrink-0" style={{ color: "var(--color-ink-30)" }}>Current</span>
-                  <span style={{ color: "var(--color-ink-60)" }}>{c.address}</span>
-                </div>
-              )}
-              {c.location_preferences && (
-                <div className="flex items-baseline gap-2 text-[12px]">
-                  <span className="font-mono text-[10px] uppercase tracking-wide shrink-0" style={{ color: "var(--color-ink-30)" }}>Preferred</span>
-                  <span style={{ color: "var(--color-ink-60)" }}>{c.location_preferences}</span>
-                </div>
-              )}
+          {c.location_preferences && (
+            <div className="mt-1 text-[12px] flex items-baseline gap-2">
+              <span className="font-mono text-[10px] uppercase tracking-wide shrink-0" style={{ color: "var(--color-ink-30)" }}>Preferred</span>
+              <span style={{ color: "var(--color-ink-60)" }}>{c.location_preferences}</span>
             </div>
           )}
           <div className="mt-1.5 font-mono text-[10px] tracking-[0.08em] uppercase" style={{ color: "var(--color-ink-30)" }}>
@@ -3767,13 +3759,16 @@ function ExtractionReviewModal({
     return cv ?? reg ?? null;
   }
 
-  // A field should be cleared when the resolved extraction value is null but the DB has a value.
-  // This means the new CV explicitly found no value for it, overriding the old one.
+  // A field should be cleared only when the registration form (source of truth) explicitly
+  // found no value for it AND the CV also has no value. CV-only null never clears existing data.
   function shouldClear(f: typeof FIELD_SPECS[number]): boolean {
     const v = resolvedValue(f);
     if (v != null) return false;
     const dbVal = (currentCandidate as unknown as Record<string, unknown>)[f.dbKey];
-    return dbVal != null;
+    if (dbVal == null) return false;
+    // Only clear if the registration form was present and returned null for this field
+    const regVal = regExtracted ? f.get(regExtracted) : undefined;
+    return regExtracted != null && regVal == null;
   }
 
   async function applyFields() {
