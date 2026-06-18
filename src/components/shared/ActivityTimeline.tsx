@@ -204,10 +204,10 @@ function InteractionEntry({
             (perspective === "candidate" && item.primary_party === "client") ||
             (perspective === "client" && item.primary_party === "candidate")) && (
             <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
-              {/* Client perspective: show candidate as "re: Tanaka-san" */}
+              {/* Client perspective: show candidate clearly as "candidate" */}
               {perspective === "client" && candidateName && (
-                <Chip bg="var(--color-indigo-light)" fg="var(--color-indigo)">
-                  re: {candidateName.split(" ")[1] ? `${candidateName.split(" ")[1]}-san` : candidateName}
+                <Chip bg="var(--color-moss-light)" fg="var(--color-moss)">
+                  candidate: {candidateName.split(" ")[1] ? `${candidateName.split(" ")[1]}-san` : candidateName}
                 </Chip>
               )}
               {/* Candidate perspective: show client name */}

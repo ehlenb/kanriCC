@@ -1281,6 +1281,8 @@ function ContactsCard({
   const qc = useQueryClient();
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [editingNote, setEditingNote] = useState<{ contactId: string; value: string } | null>(null);
+  const [editingContactId, setEditingContactId] = useState<string | null>(null);
+  const [editContactForm, setEditContactForm] = useState<{ name: string; title: string; role: ContactRole }>({ name: "", title: "", role: "other" });
 
   function toggleExpand(id: string) {
     setExpandedIds((prev) => {
@@ -1289,6 +1291,21 @@ function ContactsCard({
       else next.add(id);
       return next;
     });
+  }
+
+  function startEditContact(contact: Contact) {
+    setEditingContactId(contact.id);
+    setEditContactForm({ name: contact.name, title: contact.title ?? "", role: contact.role });
+  }
+
+  async function saveContactFields() {
+    if (!editingContactId) return;
+    await supabase
+      .from("client_contacts")
+      .update({ name: editContactForm.name.trim(), title: editContactForm.title.trim() || null, role: editContactForm.role })
+      .eq("id", editingContactId);
+    void qc.invalidateQueries({ queryKey: ["client", clientId] });
+    setEditingContactId(null);
   }
 
   async function saveNote() {
@@ -1356,6 +1373,53 @@ function ContactsCard({
                 {/* Expanded detail */}
                 {isExpanded && (
                   <div className="pb-3 pl-[52px] space-y-2">
+                    {/* Inline edit form */}
+                    {editingContactId === contact.id ? (
+                      <div className="space-y-2 py-1">
+                        <input
+                          autoFocus
+                          value={editContactForm.name}
+                          onChange={(e) => setEditContactForm((p) => ({ ...p, name: e.target.value }))}
+                          placeholder="Full name"
+                          className="w-full text-[12px] px-2 py-1"
+                          style={{ border: "0.5px solid var(--color-ink-15)", background: "var(--color-white)", outline: "none" }}
+                        />
+                        <input
+                          value={editContactForm.title}
+                          onChange={(e) => setEditContactForm((p) => ({ ...p, title: e.target.value }))}
+                          placeholder="Job title"
+                          className="w-full text-[12px] px-2 py-1"
+                          style={{ border: "0.5px solid var(--color-ink-15)", background: "var(--color-white)", outline: "none" }}
+                        />
+                        <select
+                          value={editContactForm.role}
+                          onChange={(e) => setEditContactForm((p) => ({ ...p, role: e.target.value as ContactRole }))}
+                          className="w-full text-[12px] px-2 py-1"
+                          style={{ border: "0.5px solid var(--color-ink-15)", background: "var(--color-white)", outline: "none" }}
+                        >
+                          <option value="hiring_manager">Hiring Manager</option>
+                          <option value="hr_gatekeeper">HR Gatekeeper</option>
+                          <option value="ta_coordinator">TA Coordinator</option>
+                          <option value="executive">Executive</option>
+                          <option value="other">Other</option>
+                        </select>
+                        <div className="flex items-center gap-2">
+                          <button className="btn btn-primary btn-sm" onClick={() => void saveContactFields()}>Save</button>
+                          <button className="btn btn-ghost btn-sm" onClick={() => setEditingContactId(null)}>Cancel</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex justify-end">
+                        <button
+                          className="text-[11px]"
+                          style={{ color: "var(--color-ink-30)" }}
+                          onClick={() => startEditContact(contact)}
+                        >
+                          Edit contact
+                        </button>
+                      </div>
+                    )}
+
                     {/* Gatekeeper warning */}
                     {contact.role === "hr_gatekeeper" && contact.bypass_hr_warning && (
                       <div
@@ -2980,6 +3044,14 @@ function EditableContractTab({ client: c, clientId }: { client: ClientRecord; cl
   const [uploading, setUploading] = useState(false);
   const [extracting, setExtracting] = useState(false);
   const [fetchingUrl, setFetchingUrl] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!c.contract_url) { setPreviewUrl(null); return; }
+    supabase.storage.from("resumes").createSignedUrl(c.contract_url, 3600).then(({ data }) => {
+      if (data?.signedUrl) setPreviewUrl(data.signedUrl);
+    });
+  }, [c.contract_url]);
 
   async function handleViewContract(e: React.MouseEvent) {
     e.stopPropagation();
@@ -3093,6 +3165,18 @@ function EditableContractTab({ client: c, clientId }: { client: ClientRecord; cl
           >
             <IconX size={10} /> Remove
           </button>
+        </div>
+      )}
+
+      {/* PDF preview */}
+      {previewUrl && (
+        <div style={{ border: "0.5px solid var(--color-ink-15)", background: "var(--color-white)" }}>
+          <p className="px-4 pt-3 pb-2 label" style={{ color: "var(--color-ink-30)" }}>Contract preview</p>
+          <iframe
+            src={previewUrl}
+            title="Contract PDF"
+            style={{ width: "100%", height: 480, border: "none", display: "block" }}
+          />
         </div>
       )}
 
