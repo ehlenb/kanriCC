@@ -7,7 +7,7 @@ import { useAuth } from "@/lib/auth-context";
 import { BLANK_CANDIDATE_SEARCH } from "@/routes/_authenticated/candidates";
 import { greetingByHour, todayFormatted, relativeTime } from "@/lib/candidate-utils";
 import { Skeleton } from "@/components/ui/skeleton";
-import { IconChevronRight, IconAlertTriangle, IconSparkles, IconCheck, IconBellOff, IconBriefcase } from "@tabler/icons-react";
+import { IconChevronRight, IconSparkles, IconCheck, IconBellOff, IconBriefcase, IconX } from "@tabler/icons-react";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
@@ -52,6 +52,7 @@ type AgendaItem = {
   action_type: string;
   priority_rank: number;
   client_id?: string;
+  candidate_id?: string;
 };
 
 type MetricKey = "specs" | "cvs" | "interviewing" | "offers" | "placed";
@@ -77,19 +78,6 @@ type ProcessRow = {
   company_name: string;
   role_title: string;
 };
-
-type CompetingAlert = {
-  candidate_id: string;
-  candidate_name: string;
-  full_name_japanese: string | null;
-  my_stage: string;
-  company_name: string;
-  role_title: string;
-  competing: { company_name: string; stage: string | null; disclosed_at: string | null }[];
-  urgency: "critical" | "high" | "medium";
-};
-
-type AnalysisState = { loading: boolean; text: string | null };
 
 // ─── period helpers ───────────────────────────────────────────────────────────
 
@@ -134,9 +122,9 @@ function formatDate(iso: string | null): string {
   return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 }
 
-// ─── urgency helpers ──────────────────────────────────────────────────────────
+// ─── priority action helpers ──────────────────────────────────────────────────
 
-function computeUrgency(
+function compUrgency(
   myStage: string,
   competing: { stage: string | null }[],
 ): "critical" | "high" | "medium" {
@@ -149,7 +137,164 @@ function computeUrgency(
   return "medium";
 }
 
-const URGENCY_ORDER = { critical: 2, high: 1, medium: 0 };
+// ─── priority actions hook (rule-based, no AI call) ───────────────────────────
+
+function usePriorityActions(recruiterId: string) {
+  return useQuery({
+    queryKey: ["priority-actions", recruiterId],
+    staleTime: 30_000,
+    retry: 1,
+    queryFn: async (): Promise<AgendaItem[]> => {
+      const now = new Date();
+      const actions: AgendaItem[] = [];
+
+      // Fetch all active processes with related data
+      const { data: procs } = await supabase
+        .from("processes")
+        .select(
+          "id, stage, candidate_id, cv_sent_at, last_activity_at, ccm_feedback_at, ccm_outcome, buy_in_confirmed_at, candidates(id, full_name), requisitions(id, title, clients(id, company_name))"
+        )
+        .eq("owner_recruiter_id", recruiterId)
+        .not("stage", "in", '("Closed lost","Placed")');
+
+      const activeCandidateIds = [
+        ...new Set(
+          (procs ?? [])
+            .filter((p) => /^CCM\d+$/.test(p.stage) || p.stage === "Offer")
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            .map((p) => (p as any).candidate_id as string)
+        ),
+      ];
+
+      // Fetch competing interviews for CCM/Offer candidates
+      const compMap: Record<string, { company_name: string; stage: string | null }[]> = {};
+      if (activeCandidateIds.length > 0) {
+        const { data: competing } = await supabase
+          .from("competing_interviews")
+          .select("candidate_id, company_name, stage")
+          .in("candidate_id", activeCandidateIds);
+        for (const c of (competing ?? [])) {
+          const cid = c.candidate_id as string;
+          if (!compMap[cid]) compMap[cid] = [];
+          compMap[cid].push({ company_name: c.company_name, stage: c.stage });
+        }
+      }
+
+      for (const proc of (procs ?? [])) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const cand = Array.isArray((proc as any).candidates) ? (proc as any).candidates[0] : (proc as any).candidates;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const req = Array.isArray((proc as any).requisitions) ? (proc as any).requisitions[0] : (proc as any).requisitions;
+        const cli = req?.clients ? (Array.isArray(req.clients) ? req.clients[0] : req.clients) : null;
+
+        const candidateId = (proc as { candidate_id?: string }).candidate_id ?? "";
+        const candidateName = (cand as { full_name?: string } | null)?.full_name ?? "—";
+        const firstName = candidateName.split(" ")[0];
+        const clientName = (cli as { company_name?: string } | null)?.company_name ?? "—";
+        const clientId = (cli as { id?: string } | null)?.id;
+
+        const lastTouch = proc.last_activity_at ? new Date(proc.last_activity_at) : null;
+        const daysSinceTouch = lastTouch
+          ? Math.floor((now.getTime() - lastTouch.getTime()) / 86_400_000)
+          : 999;
+
+        // Rule 1: Offer stage — highest priority
+        if (proc.stage === "Offer") {
+          actions.push({
+            entity_type: "candidate", entity_id: candidateId,
+            entity_name: candidateName, process_id: proc.id, stage: proc.stage,
+            candidate_id: candidateId, client_id: clientId,
+            reason: `Offer out at ${clientName}${daysSinceTouch < 999 ? ` — last contact ${daysSinceTouch}d ago` : ""}.`,
+            suggested_action: `Confirm acceptance timeline and manage the close with ${firstName}.`,
+            action_type: "pre_call", priority_rank: 1,
+          });
+        }
+
+        const ccmMatch = /^CCM(\d+)$/.exec(proc.stage);
+
+        // Rule 2: Competing interview risk (critical or high) for CCM/Offer stages
+        const competing = compMap[candidateId];
+        if (competing?.length) {
+          const urgency = compUrgency(proc.stage, competing);
+          if (urgency !== "medium") {
+            const compList = competing.map((c) => c.company_name).join(", ");
+            actions.push({
+              entity_type: "candidate", entity_id: candidateId,
+              entity_name: candidateName, process_id: proc.id, stage: proc.stage,
+              candidate_id: candidateId, client_id: clientId,
+              reason: `Competing at ${compList} — ${urgency === "critical" ? "critical offer risk" : "high risk"}.`,
+              suggested_action: `Call ${firstName} to assess motivation and defend your process at ${clientName}.`,
+              action_type: "competing_risk",
+              priority_rank: urgency === "critical" ? 2 : 7,
+            });
+          }
+        }
+
+        // Rule 3: CCM stage — feedback from client pending > 2 days
+        if (ccmMatch && !proc.ccm_feedback_at && daysSinceTouch > 2) {
+          const ccmNum = parseInt(ccmMatch[1], 10);
+          actions.push({
+            entity_type: "candidate", entity_id: candidateId,
+            entity_name: candidateName, process_id: proc.id, stage: proc.stage,
+            candidate_id: candidateId, client_id: clientId,
+            reason: `CCM${ccmNum} with ${clientName} — feedback pending ${daysSinceTouch}d.`,
+            suggested_action: `Chase ${clientName} for CCM${ccmNum} feedback on ${firstName}.`,
+            action_type: "follow_up", priority_rank: 10,
+          });
+        }
+
+        // Rule 4: CV Sent > 5 days with no response
+        if (proc.stage === "CV Sent" && proc.cv_sent_at) {
+          const daysSinceCv = Math.floor(
+            (now.getTime() - new Date(proc.cv_sent_at).getTime()) / 86_400_000
+          );
+          if (daysSinceCv >= 5) {
+            actions.push({
+              entity_type: "candidate", entity_id: candidateId,
+              entity_name: candidateName, process_id: proc.id, stage: proc.stage,
+              candidate_id: candidateId, client_id: clientId,
+              reason: `CV sent to ${clientName} ${daysSinceCv}d ago — no feedback recorded.`,
+              suggested_action: `Chase ${clientName} for CV feedback on ${firstName}.`,
+              action_type: "follow_up", priority_rank: 20,
+            });
+          }
+        }
+
+        // Rule 5: Buy-In stalled > 7 days
+        if (proc.stage === "Buy-In" && daysSinceTouch > 7) {
+          actions.push({
+            entity_type: "candidate", entity_id: candidateId,
+            entity_name: candidateName, process_id: proc.id, stage: proc.stage,
+            candidate_id: candidateId, client_id: clientId,
+            reason: `Buy-in pending — no follow-up in ${daysSinceTouch}d.`,
+            suggested_action: `Confirm ${firstName}'s buy-in status before submitting CV.`,
+            action_type: "pre_call", priority_rank: 30,
+          });
+        }
+
+        // Rule 6: Active process gone cold (last touch > 30 days, non-terminal)
+        if (
+          !["Offer", "CV Sent", "Buy-In"].includes(proc.stage) &&
+          !/^CCM\d+$/.test(proc.stage) &&
+          daysSinceTouch > 30
+        ) {
+          actions.push({
+            entity_type: "candidate", entity_id: candidateId,
+            entity_name: candidateName, process_id: proc.id, stage: proc.stage,
+            candidate_id: candidateId, client_id: clientId,
+            reason: `No contact in ${daysSinceTouch}d — process at ${clientName} may be going cold.`,
+            suggested_action: `Re-engage ${firstName} to confirm they are still active.`,
+            action_type: "pre_call", priority_rank: 40,
+          });
+        }
+      }
+
+      // Sort by priority rank ascending (lower = more urgent)
+      actions.sort((a, b) => a.priority_rank - b.priority_rank);
+      return actions;
+    },
+  });
+}
 
 // ─── process row normaliser ───────────────────────────────────────────────────
 
@@ -174,25 +319,6 @@ function normaliseProcessRow(row: any): ProcessRow {
 
 const PROCESS_SELECT =
   "id, stage, cv_sent_at, offer_date, placed_date, placed_fee_jpy, candidate_id, candidates(id, full_name), requisitions(title, clients(company_name))";
-
-// ─── agenda hook ─────────────────────────────────────────────────────────────
-
-function useDailyAgenda(recruiterId: string) {
-  return useQuery({
-    queryKey: ["dashboard", recruiterId],
-    staleTime: 30_000,
-    retry: 1,
-    queryFn: async (): Promise<AgendaItem[]> => {
-      const resp = await fetch("/api/ai/daily-agenda", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ recruiter_id: recruiterId }),
-      });
-      const data = (await resp.json()) as { agenda?: AgendaItem[] };
-      return data.agenda ?? [];
-    },
-  });
-}
 
 // ─── data hooks ──────────────────────────────────────────────────────────────
 
@@ -358,78 +484,6 @@ function usePlacedDetail(recruiterId: string, from: string | null, enabled: bool
   });
 }
 
-function useCompetingAlerts(recruiterId: string) {
-  return useQuery({
-    queryKey: ["competing-alerts", recruiterId],
-    staleTime: 30_000,
-    retry: 1,
-    queryFn: async (): Promise<CompetingAlert[]> => {
-      // Fetch all active non-closed processes
-      const { data: procs } = await supabase
-        .from("processes")
-        .select(
-          "id, stage, candidate_id, candidates(id, full_name, full_name_japanese), requisitions(title, clients(company_name))",
-        )
-        .eq("owner_recruiter_id", recruiterId)
-        .not("stage", "in", '("Closed lost","Placed")');
-
-      if (!procs?.length) return [];
-
-      // Filter to CCM + Offer stages
-      const activeCcmOffer = procs.filter(
-        (p) => /^CCM\d+$/.test(p.stage) || p.stage === "Offer",
-      );
-      if (!activeCcmOffer.length) return [];
-
-      const candidateIds = [...new Set(activeCcmOffer.map((p) => p.candidate_id as string))];
-
-      // Fetch competing interviews for those candidates
-      const { data: competing } = await supabase
-        .from("competing_interviews")
-        .select("candidate_id, company_name, stage, disclosed_at")
-        .in("candidate_id", candidateIds);
-
-      if (!competing?.length) return [];
-
-      // Group competing by candidate_id
-      const compMap: Record<string, typeof competing> = {};
-      for (const c of competing) {
-        const cid = c.candidate_id as string;
-        if (!compMap[cid]) compMap[cid] = [];
-        compMap[cid].push(c);
-      }
-
-      const seen = new Set<string>();
-      const alerts: CompetingAlert[] = [];
-
-      for (const proc of activeCcmOffer) {
-        const cid = proc.candidate_id as string;
-        if (seen.has(cid) || !compMap[cid]?.length) continue;
-        seen.add(cid);
-
-        const cand = Array.isArray(proc.candidates) ? proc.candidates[0] : proc.candidates;
-        const req  = Array.isArray(proc.requisitions) ? proc.requisitions[0] : proc.requisitions;
-        const cli  = req?.clients ? (Array.isArray(req.clients) ? req.clients[0] : req.clients) : null;
-
-        alerts.push({
-          candidate_id:      cid,
-          candidate_name:    (cand as { full_name?: string } | null)?.full_name ?? "—",
-          full_name_japanese:(cand as { full_name_japanese?: string } | null)?.full_name_japanese ?? null,
-          my_stage:          proc.stage,
-          company_name:      (cli as { company_name?: string } | null)?.company_name ?? "—",
-          role_title:        (req as { title?: string } | null)?.title ?? "—",
-          competing:         compMap[cid],
-          urgency:           computeUrgency(proc.stage, compMap[cid]),
-        });
-      }
-
-      return alerts.sort(
-        (a, b) => URGENCY_ORDER[b.urgency] - URGENCY_ORDER[a.urgency],
-      );
-    },
-  });
-}
-
 // ─── dashboard component ──────────────────────────────────────────────────────
 
 function Dashboard() {
@@ -443,13 +497,13 @@ function Dashboard() {
   const [showAllAgenda, setShowAllAgenda] = useState(false);
 
   const metrics = useWeeklyMetrics(recruiterId);
-  const agenda = useDailyAgenda(recruiterId);
+  const priorityActions = usePriorityActions(recruiterId);
 
   useEffect(() => {
-    if (agenda.data) {
-      setAgendaItems(agenda.data.filter((item) => isVisible(item.entity_id)));
+    if (priorityActions.data) {
+      setAgendaItems(priorityActions.data.filter((item) => isVisible(item.entity_id)));
     }
-  }, [agenda.data]);
+  }, [priorityActions.data]);
 
   function handleDone(entityId: string) {
     markDoneToday(entityId);
@@ -555,11 +609,12 @@ function Dashboard() {
       {/* Priority actions */}
       <PrioritySection
         items={agendaItems}
-        isLoading={agenda.isLoading}
+        isLoading={priorityActions.isLoading}
         showAll={showAllAgenda}
         onToggleShowAll={() => setShowAllAgenda((v) => !v)}
         onDone={handleDone}
         onSnooze={handleSnooze}
+        recruiterId={recruiterId}
         onNavigate={(item) => {
           if (item.entity_type === "candidate") {
             void navigate({ to: "/candidates/$id", params: { id: item.entity_id }, search: BLANK_CANDIDATE_SEARCH });
@@ -574,9 +629,6 @@ function Dashboard() {
           }
         }}
       />
-
-      {/* Competing interviews section */}
-      <CompetingSection recruiterId={recruiterId} />
     </div>
   );
 }
@@ -859,10 +911,7 @@ function PlacedTable({ items, onNavigate }: { items: ProcessRow[]; onNavigate: (
 // ─── priority section ─────────────────────────────────────────────────────────
 
 const STAGE_COLOR: Record<string, string> = {
-  Offer:   "var(--color-gold)",
-  CCM1:    "var(--color-indigo)",
-  CCM2:    "var(--color-indigo)",
-  CCM3:    "var(--color-indigo)",
+  Offer:    "var(--color-gold)",
   "Buy-In": "var(--color-ink-30)",
 };
 
@@ -872,6 +921,8 @@ function stageBadgeColor(stage: string | undefined): string {
   return STAGE_COLOR[stage] ?? "var(--color-ink-30)";
 }
 
+type BriefState = { loading: boolean; text: string | null };
+
 function PrioritySection({
   items,
   isLoading,
@@ -880,6 +931,7 @@ function PrioritySection({
   onDone,
   onSnooze,
   onNavigate,
+  recruiterId,
 }: {
   items: AgendaItem[];
   isLoading: boolean;
@@ -888,9 +940,34 @@ function PrioritySection({
   onDone: (entityId: string) => void;
   onSnooze: (entityId: string) => void;
   onNavigate: (item: AgendaItem) => void;
+  recruiterId: string;
 }) {
   const VISIBLE_COUNT = 5;
   const visible = showAll ? items : items.slice(0, VISIBLE_COUNT);
+  const [briefs, setBriefs] = useState<Record<string, BriefState>>({});
+
+  async function getAiBrief(item: AgendaItem) {
+    const key = item.process_id ?? item.entity_id;
+    setBriefs((prev) => ({ ...prev, [key]: { loading: true, text: null } }));
+    try {
+      const resp = await fetch("/api/ai/pre-call-briefing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          entity_type: item.entity_type,
+          entity_id: item.entity_id,
+          process_id: item.process_id ?? null,
+          recruiter_id: recruiterId,
+        }),
+      });
+      const json = (await resp.json()) as { content?: string; error?: string };
+      if (json.error) throw new Error(json.error);
+      setBriefs((prev) => ({ ...prev, [key]: { loading: false, text: json.content ?? "" } }));
+    } catch {
+      toast.error("Could not generate brief. Try again.");
+      setBriefs((prev) => ({ ...prev, [key]: { loading: false, text: null } }));
+    }
+  }
 
   return (
     <div style={{ border: "0.5px solid var(--color-ink-15)" }}>
@@ -933,78 +1010,132 @@ function PrioritySection({
           item.priority_rank <= 3 ? "var(--color-vermillion)" :
           item.priority_rank <= 10 ? "var(--color-gold)" :
           "var(--color-ink-15)";
+        const briefKey = item.process_id ?? item.entity_id;
+        const brief = briefs[briefKey];
 
         return (
           <div
-            key={`${item.entity_id}-${i}`}
-            className="flex items-stretch"
+            key={`${item.entity_id}-${item.process_id ?? ""}-${i}`}
             style={{ borderBottom: "0.5px solid var(--color-border-subtle)" }}
           >
-            {/* Priority accent bar + number */}
-            <div
-              className="flex w-10 shrink-0 flex-col items-center justify-start pt-4 gap-1"
-              style={{ background: "var(--color-ink-10)", borderRight: "0.5px solid var(--color-ink-15)" }}
-            >
-              <span className="font-mono text-[11px] font-medium" style={{ color: accentColor }}>
-                {i + 1}
-              </span>
-            </div>
-
-            {/* Content */}
-            <button
-              onClick={() => onNavigate(item)}
-              className="flex flex-1 flex-col items-start px-4 py-3 text-left transition-colors hover:bg-[--color-ink-10]"
-              style={{ outline: "none" }}
-            >
-              <div className="flex w-full items-center justify-between gap-3 mb-1">
-                <div className="flex items-center gap-2 min-w-0">
-                  {isReq && (
-                    <IconBriefcase size={13} style={{ color: "var(--color-gold)", flexShrink: 0 }} />
-                  )}
-                  <span className="text-[13px] font-medium font-display truncate">{item.entity_name}</span>
-                  {item.stage && (
-                    <span
-                      className="shrink-0 font-mono text-[9px] tracking-[0.08em] uppercase px-1.5 py-0.5"
-                      style={{ background: stageBadgeColor(item.stage) + "22", color: stageBadgeColor(item.stage) }}
-                    >
-                      {item.stage}
-                    </span>
-                  )}
-                </div>
-                <IconChevronRight size={13} style={{ color: "var(--color-ink-30)", flexShrink: 0 }} />
-              </div>
-              <p className="text-[12px] leading-snug" style={{ color: "var(--color-ink-60)" }}>
-                {item.reason}
-              </p>
-              {item.suggested_action && (
-                <p className="mt-1 text-[12px] font-medium" style={{ color: "var(--color-ink)" }}>
-                  → {item.suggested_action}
-                </p>
-              )}
-            </button>
-
-            {/* Actions */}
-            <div
-              className="flex shrink-0 flex-col border-l"
-              style={{ borderColor: "var(--color-ink-15)" }}
-            >
-              <button
-                onClick={(e) => { e.stopPropagation(); onDone(item.entity_id); }}
-                title="Mark done for today"
-                className="flex flex-1 items-center justify-center w-10 transition-colors hover:bg-[--color-moss-light]"
-                style={{ outline: "none", borderBottom: "0.5px solid var(--color-ink-15)" }}
+            <div className="flex items-stretch">
+              {/* Priority number */}
+              <div
+                className="flex w-10 shrink-0 flex-col items-center justify-start pt-4 gap-1"
+                style={{ background: "var(--color-ink-10)", borderRight: "0.5px solid var(--color-ink-15)" }}
               >
-                <IconCheck size={13} style={{ color: "var(--color-ink-30)" }} />
-              </button>
+                <span className="font-mono text-[11px] font-medium" style={{ color: accentColor }}>
+                  {i + 1}
+                </span>
+              </div>
+
+              {/* Content — navigates to the profile */}
               <button
-                onClick={(e) => { e.stopPropagation(); onSnooze(item.entity_id); }}
-                title="Snooze until tomorrow"
-                className="flex flex-1 items-center justify-center w-10 transition-colors hover:bg-[--color-gold-light]"
+                onClick={() => onNavigate(item)}
+                className="flex flex-1 flex-col items-start px-4 py-3 text-left transition-colors hover:bg-[--color-ink-10]"
                 style={{ outline: "none" }}
               >
-                <IconBellOff size={13} style={{ color: "var(--color-ink-30)" }} />
+                <div className="flex w-full items-center justify-between gap-3 mb-1">
+                  <div className="flex items-center gap-2 min-w-0">
+                    {isReq && (
+                      <IconBriefcase size={13} style={{ color: "var(--color-gold)", flexShrink: 0 }} />
+                    )}
+                    <span className="text-[13px] font-medium font-display truncate">{item.entity_name}</span>
+                    {item.stage && (
+                      <span
+                        className="shrink-0 font-mono text-[9px] tracking-[0.08em] uppercase px-1.5 py-0.5"
+                        style={{ background: stageBadgeColor(item.stage) + "22", color: stageBadgeColor(item.stage) }}
+                      >
+                        {item.stage}
+                      </span>
+                    )}
+                  </div>
+                  <IconChevronRight size={13} style={{ color: "var(--color-ink-30)", flexShrink: 0 }} />
+                </div>
+                <p className="text-[12px] leading-snug" style={{ color: "var(--color-ink-60)" }}>
+                  {item.reason}
+                </p>
+                {item.suggested_action && (
+                  <p className="mt-1 text-[12px] font-medium" style={{ color: "var(--color-ink)" }}>
+                    → {item.suggested_action}
+                  </p>
+                )}
               </button>
+
+              {/* Right action strip */}
+              <div
+                className="flex shrink-0 flex-col border-l"
+                style={{ borderColor: "var(--color-ink-15)" }}
+              >
+                {/* AI brief button */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (!brief?.text) void getAiBrief(item);
+                    else setBriefs((prev) => ({ ...prev, [briefKey]: { loading: false, text: null } }));
+                  }}
+                  title="Get AI pre-call brief"
+                  disabled={brief?.loading}
+                  className="flex flex-1 items-center justify-center w-10 transition-colors hover:bg-[--color-indigo-light]"
+                  style={{
+                    outline: "none",
+                    borderBottom: "0.5px solid var(--color-ink-15)",
+                    opacity: brief?.loading ? 0.5 : 1,
+                  }}
+                >
+                  <IconSparkles size={13} style={{ color: brief?.text ? "var(--color-indigo)" : "var(--color-ink-30)" }} />
+                </button>
+                {/* Mark done */}
+                <button
+                  onClick={(e) => { e.stopPropagation(); onDone(item.entity_id); }}
+                  title="Mark done"
+                  className="flex flex-1 items-center justify-center w-10 transition-colors hover:bg-[--color-moss-light]"
+                  style={{ outline: "none", borderBottom: "0.5px solid var(--color-ink-15)" }}
+                >
+                  <IconCheck size={13} style={{ color: "var(--color-ink-30)" }} />
+                </button>
+                {/* Snooze */}
+                <button
+                  onClick={(e) => { e.stopPropagation(); onSnooze(item.entity_id); }}
+                  title="Snooze until tomorrow"
+                  className="flex flex-1 items-center justify-center w-10 transition-colors hover:bg-[--color-gold-light]"
+                  style={{ outline: "none" }}
+                >
+                  <IconBellOff size={13} style={{ color: "var(--color-ink-30)" }} />
+                </button>
+              </div>
             </div>
+
+            {/* AI brief output — inline below item */}
+            {brief?.text && (
+              <div
+                className="px-5 pb-4 pt-3"
+                style={{ borderTop: "0.5px solid var(--color-ink-15)", background: "var(--color-indigo-light)" }}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-mono text-[10px] tracking-[0.1em] uppercase" style={{ color: "var(--color-indigo)" }}>
+                    Pre-call brief — edit freely before using
+                  </span>
+                  <button
+                    onClick={() => setBriefs((prev) => ({ ...prev, [briefKey]: { loading: false, text: null } }))}
+                    style={{ color: "var(--color-indigo)", outline: "none" }}
+                  >
+                    <IconX size={13} />
+                  </button>
+                </div>
+                <textarea
+                  value={brief.text}
+                  onChange={(e) =>
+                    setBriefs((prev) => ({ ...prev, [briefKey]: { ...prev[briefKey], text: e.target.value } }))
+                  }
+                  className="w-full resize-none bg-transparent text-[13px] leading-relaxed"
+                  style={{
+                    border: "none", outline: "none",
+                    color: "var(--color-ink)", fontFamily: "inherit", minHeight: "140px",
+                  }}
+                />
+              </div>
+            )}
           </div>
         );
       })}
@@ -1023,171 +1154,6 @@ function PrioritySection({
           {showAll ? "Show less" : `Show ${items.length - VISIBLE_COUNT} more`}
         </button>
       )}
-    </div>
-  );
-}
-
-// ─── competing alerts section ─────────────────────────────────────────────────
-
-function CompetingSection({ recruiterId }: { recruiterId: string }) {
-  const q = useCompetingAlerts(recruiterId);
-  const [analyses, setAnalyses] = useState<Record<string, AnalysisState>>({});
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
-
-  if (q.isLoading) return null;
-  if (!q.data?.length) return null;
-
-  async function getAnalysis(candidateId: string) {
-    setAnalyses((prev) => ({ ...prev, [candidateId]: { loading: true, text: null } }));
-    try {
-      const resp = await fetch("/api/ai/competing-analysis", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ candidate_id: candidateId, recruiter_id: recruiterId }),
-      });
-      const json = (await resp.json()) as { analysis?: string; error?: string };
-      if (json.error) throw new Error(json.error);
-      setAnalyses((prev) => ({ ...prev, [candidateId]: { loading: false, text: json.analysis ?? "" } }));
-      setExpanded((prev) => new Set([...prev, candidateId]));
-    } catch {
-      toast.error("Could not generate competitive analysis. Try again.");
-      setAnalyses((prev) => ({ ...prev, [candidateId]: { loading: false, text: null } }));
-    }
-  }
-
-  const urgencyColor = (u: CompetingAlert["urgency"]) =>
-    u === "critical" ? "var(--color-danger)" :
-    u === "high"     ? "var(--color-gold)" :
-    "var(--color-ink-30)";
-
-  const urgencyLabel = (u: CompetingAlert["urgency"]) =>
-    u === "critical" ? "CRITICAL" : u === "high" ? "HIGH RISK" : "WATCH";
-
-  return (
-    <div style={{ border: "0.5px solid var(--color-ink-15)" }}>
-      {/* Section header */}
-      <div
-        className="flex items-center gap-2 px-5 py-3"
-        style={{ background: "var(--color-ink-10)", borderBottom: "0.5px solid var(--color-ink-15)" }}
-      >
-        <IconAlertTriangle size={14} style={{ color: "var(--color-gold)" }} />
-        <span className="font-mono text-[10px] tracking-[0.1em] uppercase" style={{ color: "var(--color-ink-30)" }}>
-          Competing interviews — {q.data.length} candidate{q.data.length !== 1 ? "s" : ""} flagged
-        </span>
-      </div>
-
-      {q.data.map((alert) => {
-        const analysis = analyses[alert.candidate_id];
-        const isExpanded = expanded.has(alert.candidate_id);
-
-        return (
-          <div key={alert.candidate_id} style={{ borderBottom: "0.5px solid var(--color-border-subtle)" }}>
-            {/* Alert row */}
-            <div className="flex items-start justify-between gap-4 px-5 py-4">
-              <div className="flex-1 min-w-0">
-                {/* Candidate + urgency */}
-                <div className="flex items-center gap-3 mb-1">
-                  <span className="text-[14px] font-medium font-display">
-                    {alert.full_name_japanese
-                      ? <>{alert.full_name_japanese} / {alert.candidate_name}</>
-                      : alert.candidate_name}
-                  </span>
-                  <span
-                    className="font-mono text-[9px] tracking-[0.1em] uppercase px-1.5 py-0.5 border"
-                    style={{
-                      color: urgencyColor(alert.urgency),
-                      borderColor: urgencyColor(alert.urgency),
-                      background: alert.urgency === "critical" ? "var(--color-danger-bg)" : "transparent",
-                    }}
-                  >
-                    {urgencyLabel(alert.urgency)}
-                  </span>
-                </div>
-
-                {/* Your process */}
-                <p className="text-[12px]" style={{ color: "var(--color-ink-60)" }}>
-                  Your process:{" "}
-                  <span className="font-medium" style={{ color: "var(--color-indigo)" }}>{alert.my_stage}</span>
-                  {" "}at {alert.company_name} — {alert.role_title}
-                </p>
-
-                {/* Competing companies */}
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {alert.competing.map((c, i) => (
-                    <span
-                      key={i}
-                      className="font-mono text-[10px] tracking-[0.06em] px-2 py-0.5 border"
-                      style={{
-                        color: "var(--color-ink-60)",
-                        borderColor: "var(--color-ink-15)",
-                        background: "var(--color-ink-10)",
-                      }}
-                    >
-                      {c.company_name}{c.stage ? ` · ${c.stage}` : ""}
-                      {c.disclosed_at ? ` · ${formatDate(c.disclosed_at)}` : ""}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              {/* AI analysis button */}
-              <button
-                onClick={() => {
-                  if (analysis?.text) {
-                    setExpanded((prev) => {
-                      const next = new Set(prev);
-                      isExpanded ? next.delete(alert.candidate_id) : next.add(alert.candidate_id);
-                      return next;
-                    });
-                  } else {
-                    void getAnalysis(alert.candidate_id);
-                  }
-                }}
-                disabled={analysis?.loading}
-                className="flex shrink-0 items-center gap-1.5 px-3 py-2 text-[12px] font-medium transition-colors"
-                style={{
-                  background: "var(--color-ink)",
-                  color: "var(--color-white)",
-                  outline: "none",
-                  opacity: analysis?.loading ? 0.6 : 1,
-                }}
-              >
-                <IconSparkles size={13} />
-                {analysis?.loading ? "Analysing…" : analysis?.text ? (isExpanded ? "Hide" : "Show Analysis") : "Get AI Analysis"}
-              </button>
-            </div>
-
-            {/* Analysis output */}
-            {isExpanded && analysis?.text && (
-              <div
-                className="px-5 pb-5"
-                style={{ borderTop: "0.5px solid var(--color-ink-15)", background: "var(--color-ink-05)" }}
-              >
-                <p className="font-mono text-[10px] tracking-[0.1em] uppercase pt-4 pb-2" style={{ color: "var(--color-ink-30)" }}>
-                  AI Competitive Analysis — edit freely before using
-                </p>
-                <textarea
-                  value={analysis.text}
-                  onChange={(e) =>
-                    setAnalyses((prev) => ({
-                      ...prev,
-                      [alert.candidate_id]: { ...prev[alert.candidate_id], text: e.target.value },
-                    }))
-                  }
-                  className="w-full resize-none bg-transparent text-[13px] leading-relaxed"
-                  style={{
-                    border: "none",
-                    outline: "none",
-                    color: "var(--color-ink)",
-                    fontFamily: "inherit",
-                    minHeight: "240px",
-                  }}
-                />
-              </div>
-            )}
-          </div>
-        );
-      })}
     </div>
   );
 }
