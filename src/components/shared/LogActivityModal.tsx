@@ -59,18 +59,21 @@ const ALL_TYPES = [
   "other",
 ] as const;
 
-// Types shown in the selector per context
+// UI display types — "candidate_call" / "client_call" are virtual values that
+// both persist as interaction_type="call" with the appropriate primary_party.
 const CANDIDATE_TYPES: readonly string[] = [
-  "call", "email", "note", "meeting",
+  "candidate_call", "client_call", "email", "note", "meeting",
   "ccm1", "ccm2", "ccm3", "ccm4", "ccm5", "ccm6",
   "job spec sent", "linkedin message", "other",
 ];
 const CLIENT_TYPES: readonly string[] = [
-  "call", "email", "note", "meeting", "other",
+  "client_call", "candidate_call", "email", "note", "meeting", "other",
 ];
 
 /** Human-readable label for an interaction type in a given context. */
 export function interactionTypeLabel(type: string, primaryParty?: string | null): string {
+  if (type === "candidate_call") return "Candidate Call";
+  if (type === "client_call") return "Client Call";
   if (type === "call") {
     if (primaryParty === "candidate") return "Candidate Call";
     if (primaryParty === "client") return "Client Call";
@@ -78,6 +81,19 @@ export function interactionTypeLabel(type: string, primaryParty?: string | null)
   }
   if (/^ccm\d+$/i.test(type)) return type.toUpperCase();
   return type.charAt(0).toUpperCase() + type.slice(1).replace(/-/g, " ");
+}
+
+/** Map a display type to the DB interaction_type. */
+function toDbType(displayType: string): string {
+  if (displayType === "candidate_call" || displayType === "client_call") return "call";
+  return displayType;
+}
+
+/** Derive primary_party from a display type. */
+function toPrimaryParty(displayType: string, fallback: "candidate" | "client"): "candidate" | "client" {
+  if (displayType === "candidate_call") return "candidate";
+  if (displayType === "client_call") return "client";
+  return fallback;
 }
 
 // ─── component ────────────────────────────────────────────────────────────────
@@ -118,17 +134,11 @@ export function LogActivityModal({
 
   // Candidate-specific: optional client cross-link
   const [crossClientId, setCrossClientId] = useState<string | null>(null);
-  const [primaryParty, setPrimaryParty] = useState<"candidate" | "client">(
-    "candidate"
-  );
 
   // Client-specific: optional contact selector and linked job
   const [contactId, setContactId] = useState<string | null>(
     context.type === "client" ? (context.initialContactId ?? null) : null
   );
-  const [clientPrimaryParty, setClientPrimaryParty] = useState<
-    "client" | "candidate"
-  >("client");
   const [linkedReqId, setLinkedReqId] = useState<string | null>(null);
 
   // Reset when modal opens
@@ -142,11 +152,9 @@ export function LogActivityModal({
       setNotes("");
       setSaving(false);
       setCrossClientId(null);
-      setPrimaryParty("candidate");
       setContactId(
         context.type === "client" ? (context.initialContactId ?? null) : null
       );
-      setClientPrimaryParty("client");
       setLinkedReqId(null);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -196,31 +204,35 @@ export function LogActivityModal({
       : null;
     const interactedAt = new Date(date + "T09:00:00").toISOString();
 
+    const dbType = toDbType(type);
+    const derivedCandidateParty = toPrimaryParty(type, "candidate");
+    const derivedClientParty = toPrimaryParty(type, "client");
+
     const { error } = await supabase.from("interactions").insert(
       context.type === "candidate"
         ? {
             candidate_id: context.id,
             recruiter_id: user.id,
-            interaction_type: type,
+            interaction_type: dbType,
             interacted_at: interactedAt,
             scheduled_at: scheduledAt,
             is_future: isFuture,
             summary: summary.trim(),
             full_notes: notes.trim() || null,
             client_id: crossClientId || null,
-            primary_party: crossClientId ? primaryParty : "candidate",
+            primary_party: crossClientId ? derivedCandidateParty : "candidate",
           }
         : {
             client_id: context.id,
             recruiter_id: user.id,
-            interaction_type: type,
+            interaction_type: dbType,
             interacted_at: interactedAt,
             scheduled_at: scheduledAt,
             is_future: isFuture,
             summary: summary.trim(),
             full_notes: notes.trim() || null,
             contact_id: contactId || null,
-            primary_party: clientPrimaryParty,
+            primary_party: derivedClientParty,
             requisition_id: linkedReqId || null,
           }
     );
@@ -354,10 +366,12 @@ export function LogActivityModal({
             />
           </div>
 
-          {/* ── Candidate context: optional client cross-link ── */}
+          {/* ── Candidate context: client cross-link — shown when "Client Call" is selected ── */}
           {context.type === "candidate" && (
             <div className="space-y-1.5">
-              <Label className="text-[12px]">Linked client (optional)</Label>
+              <Label className="text-[12px]">
+                {type === "client_call" ? "Which client? (required for cross-link)" : "Linked client (optional)"}
+              </Label>
               <Select
                 value={crossClientId ?? "__none__"}
                 onValueChange={(v) =>
@@ -383,97 +397,45 @@ export function LogActivityModal({
                 </SelectContent>
               </Select>
               {crossClientId && (
-                <div className="space-y-1.5 mt-1">
-                  <Label className="text-[12px]">Who did you speak with?</Label>
-                  <div className="flex gap-2">
-                    {(["candidate", "client"] as const).map((party) => (
-                      <button
-                        key={party}
-                        onClick={() => setPrimaryParty(party)}
-                        className="text-[12px] px-3 py-1.5"
-                        style={{
-                          background:
-                            primaryParty === party
-                              ? "var(--color-indigo-light)"
-                              : "var(--color-ink-10)",
-                          color:
-                            primaryParty === party
-                              ? "var(--color-indigo)"
-                              : "var(--color-ink-60)",
-                          border: `0.5px solid ${primaryParty === party ? "#b5d4f4" : "rgba(26,26,24,0.12)"}`,
-                        }}
-                      >
-                        {party === "candidate" ? "Candidate" : "Client contact"}
-                      </button>
-                    ))}
-                  </div>
-                  <p
-                    className="text-[11px]"
-                    style={{ color: "var(--color-ink-30)" }}
-                  >
-                    This activity will appear on both timelines.
-                  </p>
-                </div>
+                <p className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>
+                  This activity will appear on both timelines.
+                </p>
               )}
             </div>
           )}
 
-          {/* ── Client context: who you spoke with + contact selector ── */}
+          {/* ── Client context: contact selector shown for client calls ── */}
           {context.type === "client" && (
             <>
-              <div className="grid grid-cols-2 gap-3">
+              {type === "client_call" && contacts.length > 0 && (
                 <div className="space-y-1.5">
-                  <Label className="text-[12px]">Who you spoke with</Label>
+                  <Label className="text-[12px]">Contact (optional)</Label>
                   <Select
-                    value={clientPrimaryParty}
+                    value={contactId ?? "__none__"}
                     onValueChange={(v) =>
-                      setClientPrimaryParty(v as "client" | "candidate")
+                      setContactId(v === "__none__" ? null : v)
                     }
                   >
                     <SelectTrigger className="h-8 text-[13px]">
-                      <SelectValue />
+                      <SelectValue placeholder="Select contact…" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="client" className="text-[13px]">
-                        Client contact
+                      <SelectItem value="__none__" className="text-[13px]">
+                        No specific contact
                       </SelectItem>
-                      <SelectItem value="candidate" className="text-[13px]">
-                        Candidate
-                      </SelectItem>
+                      {contacts.map((ct) => (
+                        <SelectItem
+                          key={ct.id}
+                          value={ct.id}
+                          className="text-[13px]"
+                        >
+                          {ct.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
-
-                {clientPrimaryParty === "client" && contacts.length > 0 && (
-                  <div className="space-y-1.5">
-                    <Label className="text-[12px]">Contact (optional)</Label>
-                    <Select
-                      value={contactId ?? "__none__"}
-                      onValueChange={(v) =>
-                        setContactId(v === "__none__" ? null : v)
-                      }
-                    >
-                      <SelectTrigger className="h-8 text-[13px]">
-                        <SelectValue placeholder="Select contact…" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__" className="text-[13px]">
-                          No specific contact
-                        </SelectItem>
-                        {contacts.map((ct) => (
-                          <SelectItem
-                            key={ct.id}
-                            value={ct.id}
-                            className="text-[13px]"
-                          >
-                            {ct.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-              </div>
+              )}
 
               {/* Linked job — shown when there are open reqs */}
               {(context.openReqs ?? []).length > 0 && (
