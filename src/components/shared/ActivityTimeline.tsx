@@ -13,9 +13,8 @@ import {
   IconFileText,
   IconMessage,
   IconClipboard,
-  IconArrowRight,
 } from "@tabler/icons-react";
-import { StageBadge } from "@/components/shared/StageBadge";
+import { interactionTypeLabel } from "@/components/shared/LogActivityModal";
 
 // ─── exported types ───────────────────────────────────────────────────────────
 
@@ -50,6 +49,8 @@ export type TimelineMilestone = {
 
 // ─── icon + colour maps (all 9 DB-allowed types) ─────────────────────────────
 
+const CCM_COLOR = { bg: "var(--color-indigo-light)", fg: "var(--color-indigo)" };
+
 const ICON: Record<string, React.ElementType> = {
   call:                  IconPhone,
   email:                 IconMail,
@@ -74,7 +75,15 @@ const COLOR: Record<string, { bg: string; fg: string }> = {
   other:                 { bg: "var(--color-ink-10)",       fg: "var(--color-ink-30)" },
 };
 
-const FALLBACK_COLOR = COLOR.call;
+function iconFor(type: string): React.ElementType {
+  if (/^ccm\d+$/i.test(type)) return IconCalendar;
+  return ICON[type] ?? IconPhone;
+}
+
+function colorFor(type: string): { bg: string; fg: string } {
+  if (/^ccm\d+$/i.test(type)) return CCM_COLOR;
+  return COLOR[type] ?? CCM_COLOR;
+}
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -93,10 +102,6 @@ function fmtDateTime(iso: string) {
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
-function capitalize(s: string) {
-  return s.charAt(0).toUpperCase() + s.slice(1);
-}
-
 // ─── sub-components ───────────────────────────────────────────────────────────
 
 function Chip({ bg, fg, children }: { bg: string; fg: string; children: React.ReactNode }) {
@@ -112,7 +117,7 @@ function Chip({ bg, fg, children }: { bg: string; fg: string; children: React.Re
 
 function UpcomingEntry({ item }: { item: TimelineInteraction }) {
   const type = item.interaction_type;
-  const Icon = ICON[type] ?? IconCalendar;
+  const Icon = iconFor(type);
   const notes = item.full_notes || item.summary;
 
   return (
@@ -134,7 +139,7 @@ function UpcomingEntry({ item }: { item: TimelineInteraction }) {
         <div className="flex-1 min-w-0">
           {/* Type as primary header */}
           <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <span className="text-[13px] font-semibold">{capitalize(type)}</span>
+            <span className="text-[13px] font-semibold">{interactionTypeLabel(type, item.primary_party)}</span>
             <Chip bg="var(--color-indigo-light)" fg="var(--color-indigo)">Upcoming</Chip>
             <span className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>
               {item.scheduled_at ? fmtDateTime(item.scheduled_at) : "Date TBD"}
@@ -164,8 +169,8 @@ function InteractionEntry({
   perspective: "candidate" | "client";
 }) {
   const type = item.interaction_type;
-  const Icon = ICON[type] ?? IconPhone;
-  const col = COLOR[type] ?? FALLBACK_COLOR;
+  const Icon = iconFor(type);
+  const col = colorFor(type);
   const notes = item.full_notes || item.summary;
 
   // Build a clear "with / re:" context line
@@ -188,7 +193,7 @@ function InteractionEntry({
         <div className="flex-1 min-w-0">
           {/* Row 1: type (bold) + date */}
           <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-            <span className="text-[13px] font-semibold">{capitalize(type)}</span>
+            <span className="text-[13px] font-semibold">{interactionTypeLabel(type, item.primary_party)}</span>
             <span className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>
               {fmtDate(item.interacted_at)}
             </span>
@@ -241,37 +246,16 @@ function InteractionEntry({
   );
 }
 
-function MilestoneEntry({ m }: { m: TimelineMilestone }) {
-  return (
-    <div
-      className="flex items-center gap-3 px-4 py-3"
-      style={{ background: "var(--color-ink-10)", border: "0.5px solid var(--color-ink-15)" }}
-    >
-      <IconArrowRight size={12} style={{ color: "var(--color-ink-30)", flexShrink: 0 }} />
-      <StageBadge stage={m.stage} className="text-[11px]" />
-      <span className="flex-1 text-[12px]" style={{ color: "var(--color-ink-60)" }}>
-        {m.clientName ?? "—"}
-        {m.requisitionTitle ? ` — ${m.requisitionTitle}` : ""}
-      </span>
-      <span className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>
-        {fmtDate(m.updatedAt)}
-      </span>
-    </div>
-  );
-}
-
 // ─── main component ───────────────────────────────────────────────────────────
 
 export function ActivityTimeline({
   interactions,
-  milestones,
   filterContactId,
   perspective,
   emptyMessage = "No activity recorded yet.",
   emptySubMessage,
 }: {
   interactions: TimelineInteraction[];
-  milestones?: TimelineMilestone[];
   /** When set, only interactions with this contact_id are shown. */
   filterContactId?: string;
   perspective: "candidate" | "client";
@@ -289,18 +273,9 @@ export function ActivityTimeline({
       new Date(b.scheduled_at ?? b.interacted_at).getTime()
     );
 
-  type FeedItem =
-    | { kind: "interaction"; item: TimelineInteraction; ts: string }
-    | { kind: "milestone"; item: TimelineMilestone; ts: string };
-
-  const feed: FeedItem[] = [
-    ...filtered
-      .filter((i) => !i.is_future)
-      .map((i) => ({ kind: "interaction" as const, item: i, ts: i.interacted_at })),
-    ...((milestones && !filterContactId) ? milestones.map((m) => ({
-      kind: "milestone" as const, item: m, ts: m.updatedAt,
-    })) : []),
-  ].sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime());
+  const feed = filtered
+    .filter((i) => !i.is_future)
+    .sort((a, b) => new Date(b.interacted_at).getTime() - new Date(a.interacted_at).getTime());
 
   if (feed.length === 0 && upcoming.length === 0) {
     return (
@@ -330,17 +305,13 @@ export function ActivityTimeline({
       )}
 
       <div className="space-y-2">
-        {feed.map((entry) =>
-          entry.kind === "interaction" ? (
-            <InteractionEntry
-              key={`i-${entry.item.id}`}
-              item={entry.item}
-              perspective={perspective}
-            />
-          ) : (
-            <MilestoneEntry key={`m-${entry.item.id}`} m={entry.item} />
-          )
-        )}
+        {feed.map((item) => (
+          <InteractionEntry
+            key={`i-${item.id}`}
+            item={item}
+            perspective={perspective}
+          />
+        ))}
       </div>
     </div>
   );

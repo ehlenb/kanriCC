@@ -52,21 +52,33 @@ const ALL_TYPES = [
   "email",
   "note",
   "meeting",
-  "interview scheduled",
   "job spec sent",
   "linkedin message",
   "cv sent",
+  "ccm1", "ccm2", "ccm3", "ccm4", "ccm5", "ccm6",
   "other",
 ] as const;
 
 // Types shown in the selector per context
 const CANDIDATE_TYPES: readonly string[] = [
   "call", "email", "note", "meeting",
-  "interview scheduled", "job spec sent", "linkedin message", "other",
+  "ccm1", "ccm2", "ccm3", "ccm4", "ccm5", "ccm6",
+  "job spec sent", "linkedin message", "other",
 ];
 const CLIENT_TYPES: readonly string[] = [
   "call", "email", "note", "meeting", "other",
 ];
+
+/** Human-readable label for an interaction type in a given context. */
+export function interactionTypeLabel(type: string, primaryParty?: string | null): string {
+  if (type === "call") {
+    if (primaryParty === "candidate") return "Candidate Call";
+    if (primaryParty === "client") return "Client Call";
+    return "Call";
+  }
+  if (/^ccm\d+$/i.test(type)) return type.toUpperCase();
+  return type.charAt(0).toUpperCase() + type.slice(1).replace(/-/g, " ");
+}
 
 // ─── component ────────────────────────────────────────────────────────────────
 
@@ -158,12 +170,7 @@ export function LogActivityModal({
 
   function handleTimingChange(v: "past" | "upcoming") {
     setTiming(v);
-    if (v === "upcoming") {
-      if (!availableTypes.includes("interview scheduled")) return;
-      setType("interview scheduled");
-    } else if (type === "interview scheduled") {
-      setType(availableTypes[0]);
-    }
+    // No forced type change — recruiter picks the type (call, ccm1, meeting, etc.)
   }
 
   async function save() {
@@ -290,8 +297,8 @@ export function LogActivityModal({
                 </SelectTrigger>
                 <SelectContent>
                   {availableTypes.map((t) => (
-                    <SelectItem key={t} value={t} className="capitalize text-[13px]">
-                      {t}
+                    <SelectItem key={t} value={t} className="text-[13px]">
+                      {interactionTypeLabel(t)}
                     </SelectItem>
                   ))}
                 </SelectContent>

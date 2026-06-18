@@ -55,7 +55,6 @@ import {
 import { TranscriptPanel } from "@/components/candidate/TranscriptPanel";
 import { SubmissionPackagePanel } from "@/components/candidate/SubmissionPackagePanel";
 import { ActivityTimeline } from "@/components/shared/ActivityTimeline";
-import type { TimelineMilestone } from "@/components/shared/ActivityTimeline";
 import { LogActivityModal } from "@/components/shared/LogActivityModal";
 
 export const Route = createFileRoute("/_authenticated/candidates/$id")({
@@ -388,7 +387,6 @@ function CandidateProfile() {
           candidateId={id}
           recruiterId={user!.id}
           interactions={interactions}
-          processes={processes}
         />
       )}
       {page === "notes" && (
@@ -3380,28 +3378,16 @@ function CandidateTimelineTab({
   candidateId,
   recruiterId,
   interactions,
-  processes,
 }: {
   candidateId: string;
   recruiterId: string;
   interactions: CandidateInteraction[];
-  processes: Process[];
 }) {
   const queryClient = useQueryClient();
   const [showLogActivity, setShowLogActivity] = useState(false);
   const [showTranscript, setShowTranscript] = useState(false);
 
-  // Transform Process[] → TimelineMilestone[] for ActivityTimeline
-  const milestones: TimelineMilestone[] = processes.map((p) => ({
-    id: p.id,
-    stage: p.stage,
-    updatedAt: p.updated_at,
-    clientName: p.requisitions?.clients?.company_name ?? null,
-    requisitionTitle: p.requisitions?.title ?? null,
-  }));
-
-  const totalCount =
-    interactions.length + milestones.length;
+  const totalCount = interactions.length;
   const upcomingCount = interactions.filter((i) => i.is_future).length;
 
   return (
@@ -3449,7 +3435,6 @@ function CandidateTimelineTab({
 
       <ActivityTimeline
         interactions={interactions}
-        milestones={milestones}
         perspective="candidate"
         emptyMessage="No activity recorded yet."
         emptySubMessage="Interactions linked to this candidate and their active processes will appear here."
