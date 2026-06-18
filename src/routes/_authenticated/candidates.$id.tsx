@@ -2338,6 +2338,112 @@ function TabLegend({ color, border, label }: { color: string; border: string; la
   );
 }
 
+// ─── situation banner ─────────────────────────────────────────────────────────
+
+function SituationBanner({
+  process: p,
+  candidateFirstName,
+  onGenerateInterviewPrep,
+  onGenerateRejection,
+  onCloseProcess,
+  loadingPrep,
+  loadingRejection,
+  closingProcess,
+}: {
+  process: Process;
+  candidateFirstName: string;
+  onGenerateInterviewPrep?: () => void;
+  onGenerateRejection?: () => void;
+  onCloseProcess?: () => void;
+  loadingPrep?: boolean;
+  loadingRejection?: boolean;
+  closingProcess?: boolean;
+}) {
+  const clientName = p.requisitions?.clients?.company_name ?? "the client";
+  const ccmMatch = /^CCM(\d+)$/.exec(p.stage);
+  const ccmNumber = ccmMatch ? parseInt(ccmMatch[1], 10) : null;
+  const outcome = p.ccm_outcome;
+
+  let bg = "var(--color-ink-10)";
+  let border = "var(--color-ink-15)";
+  let textColor = "var(--color-ink-60)";
+  let situation = "";
+  let actions: React.ReactNode = null;
+
+  if (p.stage === "Specs Sent") {
+    situation = `Get buy-in from ${candidateFirstName} before submitting to ${clientName}. Send the spec and confirm interest.`;
+  } else if (p.stage === "CV Sent") {
+    const daysSent = p.cv_sent_at ? Math.floor((Date.now() - new Date(p.cv_sent_at).getTime()) / 86_400_000) : null;
+    situation = `CV submitted to ${clientName}${daysSent !== null ? ` ${daysSent} day${daysSent === 1 ? "" : "s"} ago` : ""}. Chase for feedback if no response within 5 business days.`;
+    bg = "var(--color-gold-light)";
+    border = "rgba(184,146,42,0.3)";
+    textColor = "var(--color-gold)";
+  } else if (ccmNumber !== null) {
+    if (outcome === "pass") {
+      situation = `Green light from ${clientName} on CCM${ccmNumber}. Prep ${candidateFirstName} for CCM${ccmNumber + 1}.`;
+      bg = "var(--color-moss-light)";
+      border = "rgba(74,94,58,0.3)";
+      textColor = "#3b6d11";
+      actions = onGenerateInterviewPrep ? (
+        <button
+          className="text-[11px] px-2.5 py-1 font-medium shrink-0"
+          style={{ background: "var(--color-moss)", color: "var(--color-white)", border: "none" }}
+          onClick={onGenerateInterviewPrep}
+          disabled={loadingPrep}
+        >
+          {loadingPrep ? "Generating…" : `CCM${ccmNumber + 1} prep`}
+        </button>
+      ) : null;
+    } else if (outcome === "fail") {
+      situation = `${clientName} declined after CCM${ccmNumber}. Send a soft rejection to ${candidateFirstName} and close this process.`;
+      bg = "#fcebeb";
+      border = "rgba(163,45,45,0.25)";
+      textColor = "#a32d2d";
+      actions = (
+        <div className="flex items-center gap-2 shrink-0">
+          {onGenerateRejection && (
+            <button
+              className="text-[11px] px-2.5 py-1 font-medium"
+              style={{ background: "#a32d2d", color: "var(--color-white)", border: "none" }}
+              onClick={onGenerateRejection}
+              disabled={loadingRejection}
+            >
+              {loadingRejection ? "Generating…" : "Rejection email"}
+            </button>
+          )}
+          {onCloseProcess && (
+            <button
+              className="text-[11px] px-2.5 py-1 font-medium"
+              style={{ background: "var(--color-white)", color: "#a32d2d", border: "0.5px solid rgba(163,45,45,0.4)" }}
+              onClick={onCloseProcess}
+              disabled={closingProcess}
+            >
+              {closingProcess ? "Closing…" : "Close process"}
+            </button>
+          )}
+        </div>
+      );
+    } else {
+      situation = `CCM${ccmNumber} completed. Chase ${clientName} for feedback — record the outcome above before the conversation goes cold.`;
+      bg = "var(--color-indigo-light)";
+      border = "rgba(44,62,107,0.25)";
+      textColor = "var(--color-indigo)";
+    }
+  }
+
+  if (!situation) return null;
+
+  return (
+    <div
+      className="flex items-center gap-3 px-4 py-3 mb-4"
+      style={{ background: bg, border: `0.5px solid ${border}` }}
+    >
+      <p className="text-[12px] leading-snug flex-1" style={{ color: textColor }}>{situation}</p>
+      {actions}
+    </div>
+  );
+}
+
 // ─── process panel (white regardless of tab color) ───────────────────────────
 
 const PIPELINE_STAGES = [
@@ -2479,6 +2585,10 @@ function InterviewPanel({
   const [interviewPrep, setInterviewPrep] = useState<{ candidate_email: string; recruiter_prep_note: string } | null>(null);
   const [loadingSpecEmail, setLoadingSpecEmail] = useState(false);
   const [specEmail, setSpecEmail] = useState<{ email: string; talking_points: string[] } | null>(null);
+  const [loadingRejection, setLoadingRejection] = useState(false);
+  const [rejectionEmail, setRejectionEmail] = useState<string | null>(null);
+  const [closingProcess, setClosingProcess] = useState(false);
+  const stageChange = useStageChange(c.id);
 
   const ccmMatch = /^CCM(\d+)$/.exec(p.stage);
   const ccmNumber = ccmMatch ? parseInt(ccmMatch[1], 10) : null;
@@ -2604,10 +2714,51 @@ function InterviewPanel({
     }
   }
 
+  async function generateRejectionEmail() {
+    setLoadingRejection(true);
+    try {
+      const resp = await fetch("/api/ai/rejection-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ process_id: p.id, candidate_id: c.id }),
+      });
+      const json = await resp.json() as { email?: string; error?: string };
+      if (json.error) { toast.error("Could not generate rejection email. Try again."); return; }
+      if (json.email) setRejectionEmail(json.email);
+    } catch {
+      toast.error("Could not generate rejection email. Try again.");
+    } finally {
+      setLoadingRejection(false);
+    }
+  }
+
+  async function handleCloseProcess() {
+    if (!confirm("Close this process and mark as 'Closed lost'? This cannot be undone easily.")) return;
+    setClosingProcess(true);
+    try {
+      await stageChange.mutateAsync({ process: p, newStage: "Closed lost" });
+    } finally {
+      setClosingProcess(false);
+    }
+  }
+
   const watchOuts = blockers.filter((b) => b.is_risk);
+  const candidateFirstName = c.full_name.split(" ")[0];
 
   return (
     <div>
+      {/* Situation banner — stage-aware opinionated brief */}
+      <SituationBanner
+        process={p}
+        candidateFirstName={candidateFirstName}
+        onGenerateInterviewPrep={ccmNumber !== null ? generateInterviewPrep : undefined}
+        onGenerateRejection={generateRejectionEmail}
+        onCloseProcess={handleCloseProcess}
+        loadingPrep={loadingInterviewPrep}
+        loadingRejection={loadingRejection}
+        closingProcess={closingProcess}
+      />
+
       {/* Two-column: motivations + watch-outs */}
       <div className="grid grid-cols-2 gap-4 mb-4">
         <div>
@@ -2698,6 +2849,23 @@ function InterviewPanel({
         </div>
       )}
 
+      {/* Rejection email output */}
+      {rejectionEmail !== null && (
+        <div className="mb-4">
+          <div className="flex items-center justify-between mb-1.5">
+            <p className="sl" style={{ color: "#a32d2d" }}>Rejection email</p>
+            <button onClick={() => setRejectionEmail(null)} className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>Dismiss</button>
+          </div>
+          <textarea
+            value={rejectionEmail}
+            onChange={(e) => setRejectionEmail(e.target.value)}
+            rows={10}
+            className="w-full p-3 text-[13px] leading-relaxed resize-y outline-none"
+            style={{ background: "#fcebeb", border: "0.5px solid rgba(163,45,45,0.25)", color: "var(--color-ink)" }}
+          />
+        </div>
+      )}
+
       {/* Positioning talking points — NFAR blocks */}
       <SectionLabel>Positioning talking points</SectionLabel>
       {(() => {
@@ -2740,6 +2908,7 @@ function InterviewPanel({
           { key: "submission", label: "Submission note", icon: IconFileText, loading: loadingSubmission, onRun: generateSubmissionNote },
           ...(ccmNumber !== null ? [{ key: "prep", label: `Interview prep (CCM${ccmNumber})`, icon: IconClipboard, loading: loadingInterviewPrep, onRun: generateInterviewPrep }] : []),
           ...(p.stage === "Specs Sent" ? [{ key: "specemail", label: "Spec email", icon: IconMail, loading: loadingSpecEmail, onRun: generateSpecEmail }] : []),
+          ...(p.ccm_outcome === "fail" ? [{ key: "rejection", label: "Rejection email", icon: IconMail, loading: loadingRejection, onRun: generateRejectionEmail }] : []),
         ]}
       />
 
