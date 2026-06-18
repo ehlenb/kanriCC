@@ -176,6 +176,83 @@ function parsePositioningPoints(raw: string | null): Array<{ label: string; body
   return null;
 }
 
+// ─── AI toolbox dropdown ──────────────────────────────────────────────────────
+
+type ToolboxAction = {
+  key: string;
+  label: string;
+  icon: React.ElementType;
+  loading: boolean;
+  onRun: () => void;
+};
+
+function AIToolbox({ actions, inline = false }: { actions: ToolboxAction[]; inline?: boolean }) {
+  const [open, setOpen] = useState(false);
+  const anyLoading = actions.some((a) => a.loading);
+  const loadingAction = actions.find((a) => a.loading);
+
+  // inline mode: single-action button shown as a link (used inside text blocks)
+  if (inline && actions.length === 1) {
+    const a = actions[0];
+    const Icon = a.icon;
+    return (
+      <button
+        onClick={() => { a.onRun(); }}
+        disabled={a.loading}
+        className="inline-flex items-center gap-1 underline underline-offset-2 text-[13px]"
+        style={{ color: "var(--color-indigo)" }}
+      >
+        <Icon size={11} />
+        {a.loading ? "Generating…" : a.label}
+      </button>
+    );
+  }
+
+  return (
+    <div className="relative mt-2">
+      <button
+        className="ab flex items-center gap-1.5"
+        onClick={() => setOpen((v) => !v)}
+        disabled={anyLoading}
+      >
+        <IconSparkles size={12} />
+        {anyLoading ? `${loadingAction?.label ?? "Generating"}…` : "AI tools"}
+        <IconChevronDown size={11} style={{ opacity: 0.6 }} />
+      </button>
+
+      {open && (
+        <>
+          {/* Click-away backdrop */}
+          <div
+            className="fixed inset-0 z-10"
+            onClick={() => setOpen(false)}
+          />
+          <div
+            className="absolute left-0 z-20 mt-1 min-w-[200px] overflow-hidden"
+            style={{ background: "var(--color-white)", border: "0.5px solid var(--color-ink-15)" }}
+          >
+            {actions.map((a) => {
+              const Icon = a.icon;
+              return (
+                <button
+                  key={a.key}
+                  className="flex items-center gap-2 w-full px-3 py-2 text-left text-[12px] hover:bg-[var(--color-ink-10)] transition-colors"
+                  style={{ color: a.loading ? "var(--color-ink-30)" : "var(--color-ink)" }}
+                  disabled={a.loading}
+                  onClick={() => { a.onRun(); setOpen(false); }}
+                >
+                  <Icon size={13} style={{ color: "var(--color-ink-60)", flexShrink: 0 }} />
+                  {a.loading ? `${a.label}…` : a.label}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ─── types ────────────────────────────────────────────────────────────────────
 
 type CandidateInteraction = {
@@ -2655,33 +2732,16 @@ function InterviewPanel({
         );
       })()}
 
-      {/* Action buttons */}
-      <div className="flex gap-1.5 flex-wrap mt-2">
-        <button className="ab" onClick={generateBriefing} disabled={loadingBriefing}>
-          <IconPhone size={12} />
-          {loadingBriefing ? "Generating…" : "Pre-call briefing"}
-        </button>
-        <button className="ab" onClick={generateSubmissionNote} disabled={loadingSubmission}>
-          <IconFileText size={12} />
-          {loadingSubmission ? "Generating…" : "Submission note"}
-        </button>
-        <button className="ab" onClick={generatePositioning} disabled={loadingPositioning}>
-          <IconSparkles size={12} />
-          Refresh talking points
-        </button>
-        {ccmNumber !== null && (
-          <button className="ab" onClick={generateInterviewPrep} disabled={loadingInterviewPrep}>
-            <IconClipboard size={12} />
-            {loadingInterviewPrep ? "Generating…" : "Interview prep"}
-          </button>
-        )}
-        {p.stage === "Specs Sent" && (
-          <button className="ab" onClick={generateSpecEmail} disabled={loadingSpecEmail}>
-            <IconMail size={12} />
-            {loadingSpecEmail ? "Generating…" : "Spec email"}
-          </button>
-        )}
-      </div>
+      {/* AI Toolbox */}
+      <AIToolbox
+        actions={[
+          { key: "briefing", label: "Pre-call briefing", icon: IconPhone, loading: loadingBriefing, onRun: generateBriefing },
+          { key: "positioning", label: "Refresh talking points", icon: IconSparkles, loading: loadingPositioning, onRun: generatePositioning },
+          { key: "submission", label: "Submission note", icon: IconFileText, loading: loadingSubmission, onRun: generateSubmissionNote },
+          ...(ccmNumber !== null ? [{ key: "prep", label: `Interview prep (CCM${ccmNumber})`, icon: IconClipboard, loading: loadingInterviewPrep, onRun: generateInterviewPrep }] : []),
+          ...(p.stage === "Specs Sent" ? [{ key: "specemail", label: "Spec email", icon: IconMail, loading: loadingSpecEmail, onRun: generateSpecEmail }] : []),
+        ]}
+      />
 
       {/* Pre-call briefing output */}
       {briefing && (
@@ -2974,10 +3034,7 @@ I am not asking you to commit. I am asking: would you be comfortable if I shared
                     <p className="nfar-txt">{pt.body}</p>
                   </div>
                 ))}
-                <button className="ab mt-1" onClick={generatePositioning} disabled={loadingPositioning}>
-                  <IconSparkles size={11} />
-                  {loadingPositioning ? "Refreshing…" : "Refresh talking points"}
-                </button>
+                <AIToolbox actions={[{ key: "positioning", label: "Refresh talking points", icon: IconSparkles, loading: loadingPositioning, onRun: generatePositioning }]} />
               </div>
             );
           }
@@ -2987,14 +3044,7 @@ I am not asking you to commit. I am asking: would you be comfortable if I shared
               style={{ background: "var(--color-ink-10)", border: "0.5px dashed rgba(26,26,24,0.22)" }}
             >
               <span style={{ color: "var(--color-ink-30)" }}>No positioning points yet. </span>
-              <button
-                onClick={generatePositioning}
-                disabled={loadingPositioning}
-                className="underline underline-offset-2"
-                style={{ color: "var(--color-indigo)" }}
-              >
-                {loadingPositioning ? "Generating…" : "Generate with AI"}
-              </button>
+              <AIToolbox actions={[{ key: "positioning", label: "Generate talking points", icon: IconSparkles, loading: loadingPositioning, onRun: generatePositioning }]} inline />
             </div>
           );
         })()}
