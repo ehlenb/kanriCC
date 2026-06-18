@@ -649,6 +649,7 @@ Process tab colors: `tab-own` (green), `tab-colleague` (grey), `tab-uncovered` (
 | `apply-candidate-notes.ts` | `candidateId`, `existingTemplate`, `rawNotes?`, `fileBase64?`, `fileType?` | Distributes raw notes into the correct template sections; accepts text/PDF/Word |
 | `extract-compensation.ts` | `candidateId` | Reads `notes_template`, extracts salary figures, saves raw yen to candidates table |
 | `format-interview-notes.ts` | `raw_text` | Formats raw document text into clean structured interview notes (BACKGROUND / CAREER HISTORY / MOTIVATIONS sections) |
+| `rejection-email.ts` | `process_id`, `candidate_id` | Soft candidate rejection email in recruiter voice, using notes_interview + ccm_feedback_notes |
 
 ---
 
@@ -793,17 +794,32 @@ Active development resumed June 2026. All sessions below are committed and pushe
 - `scripts/seed-mock-data.sql`: full deal cycle — Salesforce Japan × Masahiko Tanaka (Sony); client, 2 contacts, requisition, candidate, 2 roles, 3 motivations, 2 blockers, 2 competing interviews, 1 process (CCM1), 4 interactions
 - Contract PDF uploaded to storage: `SalesforceJapan_AgencyContract.pdf` (32% fee, April 2023)
 
+**Module 1 + 2 simulation feedback — batch fixes (committed 2026-06-17)**
+- `api/ai/advanced-search.ts`: fixed model ID `claude-sonnet-4-20250514` → `claude-sonnet-4-5-20250929` (was returning 404)
+- `clients.$id` Contacts tab: redesigned as collapsible list; expanded view shows detail + editable notes + per-contact ActivityTimeline + Log activity button; removed RelationshipDots and primary contact badge; added inline edit form for contact name/title/role
+- `clients.$id` Jobs tab: job title is clickable, opens `JobDetailPanel` (salary, location, HM, strategic context, interactions filtered by requisition_id); interaction logging gains "Linked job" selector in client context
+- `supabase/migrations/023`: `requisition_id` FK on interactions (idempotent)
+- `LogActivityModal`: removed "interview scheduled", added ccm1–ccm6 as candidate activity types; exported `interactionTypeLabel(type, primaryParty)` helper; "call" renders as "Candidate Call" / "Client Call" based on `primary_party`
+- `ActivityTimeline`: removed milestone chips and `MilestoneEntry`; client-perspective candidate chip now reads "candidate: Tanaka-san" in moss green (was ambiguous "re:"); uses `interactionTypeLabel` for all type display
+- `supabase/migrations/024`: constraint updated to allow ccm1–ccm6 interaction types
+- `candidates.$id` header: `address` rendered inline in subtitle line
+- `ExtractionReviewModal.shouldClear()`: CV extraction no longer clears DB fields that exist but weren't in the CV — registration form is source of truth
+- `parsePositioningPoints`: strips markdown fences before JSON.parse (model occasionally wraps output in ```json blocks)
+- `AIToolbox` dropdown: replaces scattered AI action buttons across IntelligencePanel and BuyInPanel
+- `clients.$id` Contract tab: embedded PDF preview via 1-hour signed URL iframe
+
+**AI intelligence pipeline (committed 2026-06-17)**
+- `positioning.ts` + `pre-call-briefing.ts`: `notes_interview` is now the primary knowledge layer; recent interactions (last 5, ordered by date desc) are the fresher-data override layer; structured `candidate_motivations` / `candidate_blockers` tables are additive but no longer load-bearing
+- `seed-mock-data.sql`: removed pre-seeded `candidate_motivations` and `candidate_blockers` rows; rich `notes_interview` added to Tanaka record in recruiter voice; going forward, mock data uses notes/documents as source of truth (no direct DB seeding of structured intelligence)
+- `api/ai/rejection-email.ts`: new endpoint — reads `notes_interview` + `ccm_feedback_notes`, generates warm brief candidate rejection email
+- `candidates.$id` IntelligencePanel: `SituationBanner` at top of every process panel — stage + `ccm_outcome` aware; shows opinionated one-line brief and contextual action buttons:
+  - Specs Sent → prompt to get buy-in
+  - CV Sent → amber, flags days since submission
+  - CCM pending → blue, chase client for feedback
+  - CCM pass → green banner + one-click interview prep for next round
+  - CCM fail → red banner + rejection email button + close process button
+
 ### Known issues / next session priorities
-
-**Bugs to fix:**
-1. **Find matches broken** — `clients.$id` Jobs tab "Find matches" returns "Could not load matches" error. Need to debug the `/api/ai/advanced-search` call — likely a missing field or model error in the handler.
-2. **Storage path backward compatibility** — paths changed from `{recruiter_id}/{candidate_id}/…` to `{team_id}/{candidate_id}/…`. Old files 404. Fix: fallback retry with recruiter_id prefix in upload zones.
-
-**UI work from simulation (Module 1 feedback):**
-3. **Editable timeline entries** — interactions in ActivityTimeline should be editable inline (type, date, notes, linked candidate/client). Needs edit modal triggered from each entry.
-4. **Contacts tab redesign** — currently shows flat cards with relationship dots, primary contact flags. Replace with: collapsible list (name + title only when collapsed), click to expand contact detail + per-contact timeline. Remove relationship barometer and primary/decision-maker designation (those are job-specific, not contact-level). Add per-contact AI summary based on notes + linked interactions.
-5. **Job detail view** — clicking a job in the Jobs tab should open a detail view: JD, hiring manager, salary, strategic context, linked interactions. Add optional `requisition_id` to interaction logging so client-tab activities can cross-link to a specific job (log once, surfaces in both places).
-6. **Contract PDF thumbnail** — show a small screenshot/preview of the uploaded contract PDF in the Contract tab so recruiter can visually verify it before relying on extracted fields.
 
 **Deferred (do not build yet):**
 - Per-contact AI summary (needs design decision on where/how AI reads contact notes)
