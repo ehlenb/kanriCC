@@ -237,7 +237,7 @@
   }
 
   /* Inputs — flat, underline style */
-  input, select, textarea {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea {
     font-family: var(--font-body);
     font-size: var(--text-base);
     color: var(--color-ink);
@@ -250,7 +250,7 @@
     width: 100%;
     transition: border-color 0.15s ease;
   }
-  input:focus, select:focus, textarea:focus {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus, select:focus, textarea:focus {
     border-bottom-color: var(--color-vermillion);
     background: var(--color-white);
   }
