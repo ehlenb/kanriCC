@@ -112,6 +112,7 @@ BEGIN
     notice_period_months,
     source, candidate_status, active_passive,
     urgency_notes,
+    notes_interview,
     notes_personality,
     notes_pitch,
     notes_closing,
@@ -129,6 +130,28 @@ BEGIN
     3,
     'bizreach', 'active', 'Active',
     'Currently active and interviewing. Has two other processes ongoing — one at Microsoft Japan (CCM2) and one at SAP Japan (first interview done). Timing-sensitive. Likely to receive an offer within 6 weeks.',
+    'Registration interview — Masahiko Tanaka / 田中 雅彦
+Duration: approx 60 min (phone, BizReach intro)
+
+BACKGROUND
+34 years old. Native Japanese, fluent English — comfortable presenting in English to regional leadership. Currently Senior Solutions Consultant at Sony Corporation, FSI vertical, 6 years. Before that, Fujitsu for 5 years covering SMB accounts across Kanto — moved to Sony for the enterprise scope and a dedicated FSI focus.
+
+Has closed roughly ¥1.2B in total contract value at Sony over 5 years. Most recent deal: ¥180M, 3-year contract with a regional bank. Key relationships at MUFG, Tokio Marine, and Nomura. Now manages 2 junior consultants on the team.
+
+MOTIVATIONS
+1. Career progression — the primary driver. Promoted twice at Sony in 6 years but has hit the ceiling. The next step is director-level and that is at minimum 4 years away on Sony''s seniority-based timeline. He wants a clear path to a leadership or senior IC role within 2 years. He was direct about this being make-or-break for any new role.
+
+2. Compensation — base has not kept pace with his output. Current base is ¥9.5M, which he knows is below market for his profile. Annual bonus has come in at ¥800K for the last two years — capped, not meaningfully performance-linked. He wants ¥12M+ base as a firm floor with upside tied to his own performance, not team results. Non-negotiable.
+
+3. Work environment — wants more autonomy and fewer internal approval layers. Sony''s enterprise sales cycle involves multiple internal sign-offs at every stage, which he finds frustrating. He mentioned a strong interest in working in English day-to-day and in a global team context. Not looking for a Japan-only operation.
+
+CONCERNS
+Stability is the main concern. He has seen colleagues at foreign firms face sudden headcount reductions and is worried about "what if Japan operations are cut?" He specifically asked about Japan team size and leadership tenure during the call. Will need direct reassurance using Salesforce''s 25-year Japan track record, 800 staff, and the fact that 60% of the team are Japanese nationals. This is not a negotiating tactic — it is a genuine psychological barrier.
+
+Competing processes: Microsoft Japan is at CCM2 stage, roughly 3-4 weeks ahead of us. SAP Japan has completed a first interview. He said he is unlikely to wait more than 6 weeks for an offer from any company. We need to move fast.
+
+PERSONALITY
+Calm and methodical. Asks good questions before answering — a positive sign for a salesperson. Slightly reserved in the first part of the call but warmed up noticeably once we got into the deal history. Sony brand identity carries real psychological weight for him — needs soft handling on the stability question rather than dismissive reassurance. Not a big talker but very credible when he does.',
     'Calm, methodical thinker. Asks good questions before answering. Slightly reserved in first meetings but warms up quickly. Will need reassurance on stability — Sony brand identity is strong for him. Not a big talker but very credible.',
     'Strong FSI background — 6 years covering Japan''s top banks and insurance companies at Sony. Has existing relationships with CFOs at MUFG and Tokio Marine. Salesforce''s financial services cloud is a natural fit. His current ceiling at Sony is a director role in 4+ years; Salesforce can offer that in 18 months.',
     'Motivated by title progression and comp. Verify that the AE role has a clear path to Senior AE or team lead within 2 years — Watanabe has confirmed this is possible. If he gets a counter from Sony, use the fact that Sony promoted him twice in 6 years but has not once adjusted his base significantly.',
@@ -156,31 +179,6 @@ BEGIN
     '2019-08-01', null, true,
     'Owns the FSI vertical for Sony''s B2B solutions division. Key accounts include MUFG, Tokio Marine, and Nomura. Closed ¥1.2B in total contract value over 5 years. Promoted twice — from Consultant to Senior Consultant to current level. Manages 2 junior consultants. Most recent deal: ¥180M 3-year contract with a regional bank.',
     null
-  );
-
-  -- ── candidate motivations ────────────────────────────────────────────────────
-  INSERT INTO public.candidate_motivations (
-    candidate_id, rank, motivation_text
-  ) VALUES
-  (v_candidate_id, 1, 'Career progression — wants a clear path to a leadership or senior individual contributor role within 2 years. Sony''s promotion timeline is seniority-based and he has hit the ceiling for his tenure.'),
-  (v_candidate_id, 2, 'Compensation — base salary has not kept pace with his output. Wants ¥12M+ base with real upside through commission or variable pay tied to his own performance, not team results.'),
-  (v_candidate_id, 3, 'Working environment — wants more autonomy, fewer internal approval layers, and a global team context. Interested in working in English as a day-to-day language.');
-
-  -- ── candidate blockers ───────────────────────────────────────────────────────
-  INSERT INTO public.candidate_blockers (
-    candidate_id, theme, detail, is_risk
-  ) VALUES
-  (
-    v_candidate_id,
-    'Stability concern',
-    'Worried about foreign company stability — "what if Japan operations are cut?" Has seen colleagues at foreign firms face headcount reductions. Will need reassurance that Salesforce Japan is a core market, not a satellite.',
-    true
-  ),
-  (
-    v_candidate_id,
-    'Competing processes',
-    'Microsoft Japan is at CCM2 — their process is 3–4 weeks ahead of ours. SAP Japan has completed first interview. He is unlikely to wait more than 6 weeks for an offer from any company.',
-    true
   );
 
   -- ── competing interviews ─────────────────────────────────────────────────────

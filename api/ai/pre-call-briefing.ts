@@ -46,7 +46,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       supabase
         .from("candidates")
         .select(
-          "full_name, current_company, current_title, japanese_level, english_level, candidate_status, notice_period_months, current_total, expected_total_min, expected_total_max, base_is_priority, base_minimum, notes_personality, notes_pitch, notes_closing, ai_context",
+          "full_name, current_company, current_title, japanese_level, english_level, candidate_status, notice_period_months, current_total, expected_total_min, expected_total_max, base_is_priority, base_minimum, notes_interview, notes_personality, notes_pitch, notes_closing, ai_context",
         )
         .eq("id", resolvedEntityId)
         .single(),
@@ -94,6 +94,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       expected_total_max: number | null;
       base_is_priority: boolean;
       base_minimum: number | null;
+      notes_interview: string | null;
       notes_personality: string | null;
       notes_pitch: string | null;
       notes_closing: string | null;
@@ -136,13 +137,14 @@ Notice: ${c.notice_period_months ?? "—"} months
 Compensation: Current ${formatYen(c.current_total)}, target ${formatYen(c.expected_total_min)}–${formatYen(c.expected_total_max)}
 ${c.base_is_priority ? `Base priority: YES — minimum ${formatYen(c.base_minimum)}` : ""}
 
-${c.ai_context ? `Intelligence summary:\n${c.ai_context.slice(0, 600)}` : ""}
+${c.notes_interview ? `REGISTRATION INTERVIEW NOTES (primary knowledge base — may be superseded by more recent activity below):
+${c.notes_interview.slice(0, 1200)}` : ""}
 
-Top motivations:
-${(motivations ?? []).map((m: { rank: number; motivation_type: string | null; motivation_text: string }) => `${m.rank}. ${m.motivation_type ? `[${m.motivation_type}] ` : ""}${m.motivation_text}`).join("\n")}
+${c.ai_context ? `Intelligence summary:\n${c.ai_context.slice(0, 400)}` : ""}
 
-Active risks:
-${(blockers ?? []).map((b: { theme: string; detail: string | null }) => `- ${b.theme}: ${b.detail ?? ""}`).join("\n") || "None noted."}
+${(motivations ?? []).length > 0 ? `Recorded motivations:\n${(motivations ?? []).map((m: { rank: number; motivation_type: string | null; motivation_text: string }) => `${m.rank}. ${m.motivation_type ? `[${m.motivation_type}] ` : ""}${m.motivation_text}`).join("\n")}` : ""}
+
+${(blockers ?? []).length > 0 ? `Active risks:\n${(blockers ?? []).map((b: { theme: string; detail: string | null }) => `- ${b.theme}: ${b.detail ?? ""}`).join("\n")}` : ""}
 
 Active competing interviews:
 ${(competing ?? []).map((ci: { company_name: string; stage: string | null }) => `- ${ci.company_name}${ci.stage ? ` (${ci.stage})` : ""}`).join("\n") || "None disclosed."}
@@ -150,8 +152,8 @@ ${(competing ?? []).map((ci: { company_name: string; stage: string | null }) => 
 Recent roles:
 ${(roles ?? []).map((r: { company_name: string; title: string | null; is_current: boolean; achievement_notes: string | null }) => `- ${r.company_name}${r.is_current ? " (current)" : ""}: ${r.title ?? "—"}. ${r.achievement_notes?.slice(0, 200) ?? ""}`).join("\n")}
 
-Last 3 interactions:
-${(recentInteractions ?? []).map((i: { interaction_type: string; interacted_at: string; summary: string | null; full_notes: string | null }) => `- ${i.interaction_type} on ${new Date(i.interacted_at).toLocaleDateString()}: ${i.full_notes?.slice(0, 200) ?? i.summary ?? "No notes"}`).join("\n")}
+RECENT ACTIVITY (most recent first — treat as fresher intelligence):
+${(recentInteractions ?? []).map((i: { interaction_type: string; interacted_at: string; summary: string | null; full_notes: string | null }) => `- ${i.interaction_type} on ${new Date(i.interacted_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}: ${i.full_notes?.slice(0, 300) ?? i.summary ?? "No notes"}`).join("\n") || "No interactions logged yet."}
 
 ${c.notes_pitch ? `Pitch notes: ${c.notes_pitch.slice(0, 200)}` : ""}
 ${c.notes_personality ? `Personality: ${c.notes_personality.slice(0, 200)}` : ""}

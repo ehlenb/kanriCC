@@ -30,11 +30,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     { data: motivations },
     { data: blockers },
     { data: process },
+    { data: recentInteractions },
   ] = await Promise.all([
     supabase
       .from("candidates")
       .select(
-        "full_name, current_company, current_title, japanese_level, english_level, current_total, expected_total_min, expected_total_max, base_is_priority, base_minimum",
+        "full_name, current_company, current_title, japanese_level, english_level, current_total, expected_total_min, expected_total_max, base_is_priority, base_minimum, notes_interview",
       )
       .eq("id", candidateId)
       .single(),
@@ -55,6 +56,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       )
       .eq("id", processId)
       .single(),
+    supabase
+      .from("interactions")
+      .select("interaction_type, interacted_at, summary, full_notes, primary_party")
+      .eq("candidate_id", candidateId)
+      .not("interaction_type", "eq", "note")
+      .order("interacted_at", { ascending: false })
+      .limit(5),
   ]);
 
   if (!candidate || !process) {
@@ -93,8 +101,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     expected_total_max: number | null;
     base_is_priority: boolean;
     base_minimum: number | null;
+    notes_interview: string | null;
   };
   const c = candidate as CandidateData;
+
+  type RecentInteraction = { interaction_type: string; interacted_at: string; summary: string | null; full_notes: string | null; primary_party: string | null };
+  const interactions = (recentInteractions ?? []) as RecentInteraction[];
 
   const prompt = `
 Candidate: ${c.full_name}
@@ -103,11 +115,17 @@ Japanese: ${c.japanese_level ?? "—"} | English: ${c.english_level ?? "—"}
 Current total: ${formatYen(c.current_total)} | Expected: ${formatYen(c.expected_total_min)} – ${formatYen(c.expected_total_max)}
 Base priority: ${c.base_is_priority ? `Yes — minimum ${formatYen(c.base_minimum)}` : "No"}
 
-Ranked motivations (most important first):
-${(motivations ?? []).map((m: { rank: number; motivation_text: string }) => `${m.rank}. ${m.motivation_text}`).join("\n") || "None recorded"}
+${c.notes_interview ? `REGISTRATION INTERVIEW NOTES (base knowledge — may be superseded by recent activity below):
+${c.notes_interview}` : ""}
 
-Risk flags to address:
-${riskBlockers.length > 0 ? riskBlockers.map((b) => `- ${b.theme}${b.detail ? `: ${b.detail}` : ""}`).join("\n") : "None noted"}
+${(motivations ?? []).length > 0 ? `Ranked motivations (explicitly recorded):
+${(motivations ?? []).map((m: { rank: number; motivation_text: string }) => `${m.rank}. ${m.motivation_text}`).join("\n")}` : ""}
+
+${riskBlockers.length > 0 ? `Risk flags:
+${riskBlockers.map((b) => `- ${b.theme}${b.detail ? `: ${b.detail}` : ""}`).join("\n")}` : ""}
+
+${interactions.length > 0 ? `RECENT ACTIVITY (most recent first — treat as fresher intelligence that may update the interview notes above):
+${interactions.map((i) => `- ${i.interaction_type}${i.primary_party ? ` (${i.primary_party}-side)` : ""} on ${new Date(i.interacted_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}: ${i.full_notes?.slice(0, 300) ?? i.summary ?? "No notes"}`).join("\n")}` : ""}
 
 Role: ${req_?.title ?? "—"} at ${req_?.clients?.company_name ?? "—"}
 Salary: ${formatYen(req_?.salary_min ?? null)} – ${formatYen(req_?.salary_max ?? null)}${req_?.salary_stretch ? ` (stretch to ${formatYen(req_.salary_stretch)})` : ""}
@@ -123,16 +141,19 @@ Strategic context: ${req_?.strategic_context ?? "Not specified"}
 
 FORBIDDEN WORDS: straightforward, genuinely, honestly, leverage (as a verb), utilize.
 
+The registration interview notes are the primary source of truth for understanding this candidate — their motivations, concerns, and situation. Recent activity logs (if present) reflect newer intelligence and take priority over the interview notes when they conflict.
+
 Generate exactly 3 talking points. Each one must:
 - Use the NFAR framework implicitly: identify the need/pain, introduce the differentiator, suggest the action, state the outcome. Never label the framework.
 - Sound natural and conversational — the recruiter internalizes these, not reads them verbatim.
 - Be 2–3 sentences maximum.
 - Start with a short label (2–4 words) naming the topic it addresses.
+- Be specific to this candidate and this role — generic points are a failure state.
 
 Sequencing rules:
-- Talking point 1: addresses motivation rank 1.
-- Talking point 2: addresses motivation rank 2.
-- Talking point 3: addresses the most critical risk flag if any exist, otherwise motivation rank 3.
+- Talking point 1: the candidate's strongest or most urgent motivation.
+- Talking point 2: the next most important motivation or a key differentiator of this role.
+- Talking point 3: the most critical risk or concern to address proactively (from interview notes, blockers, or recent activity). If no risk exists, use a third motivation angle.
 
 Japan market context to apply where relevant:
 - Bilingual scarcity: this candidate profile is rare; competing roles at this level are few.
