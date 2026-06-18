@@ -164,8 +164,12 @@ type Process = {
 /** Parse ai_snapshot (JSON string) into NFAR point array. Falls back gracefully for old plain-text snapshots. */
 function parsePositioningPoints(raw: string | null): Array<{ label: string; body: string }> | null {
   if (!raw) return null;
-  // Strip markdown code fences the model occasionally adds despite the prompt
-  const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
+  // Strip markdown code fences or bare "json" token the model occasionally adds
+  const cleaned = raw
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/, "")
+    .replace(/^json\s*\n?/i, "")
+    .trim();
   try {
     const parsed = JSON.parse(cleaned) as { points?: Array<{ label: string; body: string }> };
     if (Array.isArray(parsed.points) && parsed.points.length > 0) return parsed.points;
@@ -2458,18 +2462,51 @@ function useStageChange(candidateId: string) {
       const now = new Date().toISOString();
       const today = now.slice(0, 10);
 
+      // Guard: advancing CCMn → CCMn+1 requires pass feedback AND the next CCM scheduled
+      const currentCcmMatch = /^CCM(\d+)$/.exec(process.stage);
+      const newCcmMatch = /^CCM(\d+)$/.exec(newStage);
+      if (currentCcmMatch && newCcmMatch) {
+        const currentNum = parseInt(currentCcmMatch[1], 10);
+        const newNum = parseInt(newCcmMatch[1], 10);
+        if (newNum === currentNum + 1) {
+          if (process.ccm_outcome !== "pass") {
+            throw new Error(`Set CCM${currentNum} feedback to "Pass" before advancing to CCM${newNum}.`);
+          }
+          const { data: scheduled } = await supabase
+            .from("interactions")
+            .select("id")
+            .eq("candidate_id", candidateId)
+            .eq("is_future", true)
+            .ilike("interaction_type", `ccm${newNum}`)
+            .limit(1);
+          if (!scheduled?.length) {
+            throw new Error(`Log an upcoming CCM${newNum} in the activity timeline before advancing.`);
+          }
+        }
+      }
+
       type ProcessPatch = {
         stage: string;
         last_activity_at: string;
         buy_in_confirmed_at?: string;
         cv_sent_at?: string;
         placed_date?: string;
+        ccm_outcome?: null;
+        ccm_feedback_notes?: null;
+        ccm_feedback_at?: null;
       };
       const patch: ProcessPatch = { stage: newStage, last_activity_at: now };
 
       if (newStage === "Buy-In" && !process.buy_in_confirmed_at) patch.buy_in_confirmed_at = now;
       if (newStage === "CV Sent" && !process.cv_sent_at) patch.cv_sent_at = now;
       if (newStage === "Placed") patch.placed_date = today;
+
+      // Clear CCM feedback when advancing to the next round so it starts as pending
+      if (currentCcmMatch && newCcmMatch && parseInt(newCcmMatch[1], 10) === parseInt(currentCcmMatch[1], 10) + 1) {
+        patch.ccm_outcome = null;
+        patch.ccm_feedback_notes = null;
+        patch.ccm_feedback_at = null;
+      }
 
       const { error } = await supabase.from("processes").update(patch).eq("id", process.id);
       if (error) throw error;
@@ -2490,7 +2527,7 @@ function useStageChange(candidateId: string) {
       void qc.invalidateQueries({ queryKey: ["candidate-profile", candidateId] });
       toast.success(`Stage updated to ${newStage}.`);
     },
-    onError: () => toast.error("Could not update stage. Try again."),
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Could not update stage. Try again."),
   });
 }
 
