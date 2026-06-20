@@ -242,7 +242,7 @@ function usePriorityActions(recruiterId: string) {
             candidate_id: candidateId, client_id: clientId,
             reason: `CCM${ccmNum} with ${clientName} — feedback pending ${daysSinceTouch}d.`,
             suggested_action: `Chase ${clientName} for CCM${ccmNum} feedback on ${firstName}.`,
-            action_type: "follow_up", priority_rank: 10,
+            action_type: "ccm_feedback", priority_rank: 10,
           });
         }
 
@@ -1011,6 +1011,12 @@ function PrioritySection({
             process_id: item.process_id ?? null,
             competing: item.competing ?? [],
           }),
+        });
+      } else if (item.action_type === "ccm_feedback") {
+        resp = await fetch("/api/ai/ccm-feedback-brief", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ process_id: item.process_id }),
         });
       } else {
         resp = await fetch("/api/ai/pre-call-briefing", {
