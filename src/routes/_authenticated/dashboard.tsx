@@ -1068,41 +1068,56 @@ function PrioritySection({
                 style={{ borderColor: "var(--color-ink-15)" }}
               >
                 {/* AI brief button */}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (!brief?.text) void getAiBrief(item);
-                    else setBriefs((prev) => ({ ...prev, [briefKey]: { loading: false, text: null } }));
-                  }}
-                  title="Get AI pre-call brief"
-                  disabled={brief?.loading}
-                  className="flex flex-1 items-center justify-center w-10 transition-colors hover:bg-[--color-indigo-light]"
-                  style={{
-                    outline: "none",
-                    borderBottom: "0.5px solid var(--color-ink-15)",
-                    opacity: brief?.loading ? 0.5 : 1,
-                  }}
-                >
-                  <IconSparkles size={13} style={{ color: brief?.text ? "var(--color-indigo)" : "var(--color-ink-30)" }} />
-                </button>
+                <div className="group/tip relative flex flex-1">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (!brief?.text) void getAiBrief(item);
+                      else setBriefs((prev) => ({ ...prev, [briefKey]: { loading: false, text: null } }));
+                    }}
+                    disabled={brief?.loading}
+                    className="flex flex-1 items-center justify-center w-10 transition-colors hover:bg-[--color-indigo-light]"
+                    style={{
+                      outline: "none",
+                      borderBottom: "0.5px solid var(--color-ink-15)",
+                      opacity: brief?.loading ? 0.5 : 1,
+                    }}
+                  >
+                    <IconSparkles size={13} style={{ color: brief?.text ? "var(--color-indigo)" : "var(--color-ink-30)" }} />
+                  </button>
+                  <div className="pointer-events-none absolute right-full top-1/2 -translate-y-1/2 mr-2 hidden group-hover/tip:flex items-center z-50">
+                    <span className="whitespace-nowrap font-mono text-[10px] px-2 py-1 text-[--color-white]" style={{ background: "var(--color-ink)", letterSpacing: "0.05em" }}>AI pre-call brief</span>
+                    <span style={{ borderLeft: "4px solid var(--color-ink)", borderTop: "4px solid transparent", borderBottom: "4px solid transparent" }} />
+                  </div>
+                </div>
                 {/* Mark done */}
-                <button
-                  onClick={(e) => { e.stopPropagation(); onDone(item.entity_id); }}
-                  title="Mark done"
-                  className="flex flex-1 items-center justify-center w-10 transition-colors hover:bg-[--color-moss-light]"
-                  style={{ outline: "none", borderBottom: "0.5px solid var(--color-ink-15)" }}
-                >
-                  <IconCheck size={13} style={{ color: "var(--color-ink-30)" }} />
-                </button>
+                <div className="group/tip relative flex flex-1">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onDone(item.entity_id); }}
+                    className="flex flex-1 items-center justify-center w-10 transition-colors hover:bg-[--color-moss-light]"
+                    style={{ outline: "none", borderBottom: "0.5px solid var(--color-ink-15)" }}
+                  >
+                    <IconCheck size={13} style={{ color: "var(--color-ink-30)" }} />
+                  </button>
+                  <div className="pointer-events-none absolute right-full top-1/2 -translate-y-1/2 mr-2 hidden group-hover/tip:flex items-center z-50">
+                    <span className="whitespace-nowrap font-mono text-[10px] px-2 py-1 text-[--color-white]" style={{ background: "var(--color-ink)", letterSpacing: "0.05em" }}>Done for today</span>
+                    <span style={{ borderLeft: "4px solid var(--color-ink)", borderTop: "4px solid transparent", borderBottom: "4px solid transparent" }} />
+                  </div>
+                </div>
                 {/* Snooze */}
-                <button
-                  onClick={(e) => { e.stopPropagation(); onSnooze(item.entity_id); }}
-                  title="Snooze until tomorrow"
-                  className="flex flex-1 items-center justify-center w-10 transition-colors hover:bg-[--color-gold-light]"
-                  style={{ outline: "none" }}
-                >
-                  <IconBellOff size={13} style={{ color: "var(--color-ink-30)" }} />
-                </button>
+                <div className="group/tip relative flex flex-1">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onSnooze(item.entity_id); }}
+                    className="flex flex-1 items-center justify-center w-10 transition-colors hover:bg-[--color-gold-light]"
+                    style={{ outline: "none" }}
+                  >
+                    <IconBellOff size={13} style={{ color: "var(--color-ink-30)" }} />
+                  </button>
+                  <div className="pointer-events-none absolute right-full top-1/2 -translate-y-1/2 mr-2 hidden group-hover/tip:flex items-center z-50">
+                    <span className="whitespace-nowrap font-mono text-[10px] px-2 py-1 text-[--color-white]" style={{ background: "var(--color-ink)", letterSpacing: "0.05em" }}>Snooze until tomorrow</span>
+                    <span style={{ borderLeft: "4px solid var(--color-ink)", borderTop: "4px solid transparent", borderBottom: "4px solid transparent" }} />
+                  </div>
+                </div>
               </div>
             </div>
 
