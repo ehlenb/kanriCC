@@ -91,6 +91,7 @@ export type Database = {
           created_by: string
           id: string
           name: string
+          requisition_id: string | null
           source: string
           team_id: string
           updated_at: string
@@ -102,6 +103,7 @@ export type Database = {
           created_by: string
           id?: string
           name: string
+          requisition_id?: string | null
           source?: string
           team_id?: string
           updated_at?: string
@@ -113,6 +115,7 @@ export type Database = {
           created_by?: string
           id?: string
           name?: string
+          requisition_id?: string | null
           source?: string
           team_id?: string
           updated_at?: string

@@ -45,6 +45,7 @@ import {
   IconMessageCircle,
   IconChevronDown,
   IconChevronRight,
+  IconList,
 } from "@tabler/icons-react";
 import { ActivityTimeline } from "@/components/shared/ActivityTimeline";
 import { LogActivityModal } from "@/components/shared/LogActivityModal";
@@ -1624,6 +1625,9 @@ function OpenRequisitionsCard({
   activeMatchReqId,
   onSelectReq,
   selectedReqId,
+  specListByReq,
+  activeSpecReqId,
+  onViewSpecList,
 }: {
   reqs: ReqWithPipeline[];
   closedReqs: ReqWithPipeline[];
@@ -1634,6 +1638,9 @@ function OpenRequisitionsCard({
   activeMatchReqId?: string | null;
   onSelectReq?: (reqId: string) => void;
   selectedReqId?: string | null;
+  specListByReq?: Map<string, SpecList>;
+  activeSpecReqId?: string | null;
+  onViewSpecList?: (reqId: string) => void;
 }) {
   return (
     <Card>
@@ -1742,21 +1749,38 @@ function OpenRequisitionsCard({
                 </PipelineBadge>
               </div>
 
-              {onFindMatches && (
-                <div className="mt-2">
-                  <button
-                    className="ab flex items-center gap-1"
-                    style={{
-                      fontSize: 11,
-                      padding: "4px 10px",
-                      background: activeMatchReqId === r.id ? "var(--color-ink)" : undefined,
-                      color: activeMatchReqId === r.id ? "var(--color-white)" : undefined,
-                    }}
-                    onClick={() => onFindMatches(r.id)}
-                  >
-                    <IconSearch size={11} />
-                    {activeMatchReqId === r.id ? "Hide matches" : "Find matches"}
-                  </button>
+              {(onFindMatches || specListByReq) && (
+                <div className="mt-2 flex items-center gap-2 flex-wrap">
+                  {onFindMatches && (
+                    <button
+                      className="ab flex items-center gap-1"
+                      style={{
+                        fontSize: 11,
+                        padding: "4px 10px",
+                        background: activeMatchReqId === r.id ? "var(--color-ink)" : undefined,
+                        color: activeMatchReqId === r.id ? "var(--color-white)" : undefined,
+                      }}
+                      onClick={() => onFindMatches(r.id)}
+                    >
+                      <IconSearch size={11} />
+                      {activeMatchReqId === r.id ? "Hide matches" : "Find matches"}
+                    </button>
+                  )}
+                  {specListByReq?.has(r.id) && onViewSpecList && (
+                    <button
+                      className="ab flex items-center gap-1"
+                      style={{
+                        fontSize: 11,
+                        padding: "4px 10px",
+                        background: activeSpecReqId === r.id ? "var(--color-indigo)" : "var(--color-indigo-light)",
+                        color: activeSpecReqId === r.id ? "var(--color-white)" : "var(--color-indigo)",
+                      }}
+                      onClick={() => onViewSpecList(r.id)}
+                    >
+                      <IconList size={11} />
+                      {activeSpecReqId === r.id ? "Hide spec list" : `Spec list (${specListByReq.get(r.id)!.candidate_ids.length})`}
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -1790,14 +1814,20 @@ function JobMatchPanel({
   requisitionId,
   clientId,
   recruiterId,
+  existingListId,
+  onSaveList,
 }: {
   requisitionId: string;
   clientId: string;
   recruiterId: string;
+  existingListId?: string | null;
+  onSaveList: (candidateIds: string[]) => Promise<void>;
 }) {
   const [loading, setLoading] = useState(false);
   const [matches, setMatches] = useState<MatchCandidate[] | null>(null);
   const [draftStates, setDraftStates] = useState<Record<string, { loading: boolean; text: string | null }>>({});
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(!!existingListId);
 
   useEffect(() => {
     void runSearch();
@@ -1914,11 +1944,40 @@ function JobMatchPanel({
     );
   }
 
+  async function handleSave() {
+    if (!matches) return;
+    setSaving(true);
+    try {
+      await onSaveList(matches.map((m) => m.candidate_id));
+      setSaved(true);
+      toast.success("Spec list saved.");
+    } catch {
+      toast.error("Could not save list. Try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <div className="mt-3 pt-3 space-y-2" style={{ borderTop: "0.5px solid var(--color-ink-15)" }}>
-      <p className="text-[11px] font-mono uppercase tracking-wide" style={{ color: "var(--color-ink-30)" }}>
-        {matches.length} matched candidate{matches.length !== 1 ? "s" : ""}
-      </p>
+      <div className="flex items-center justify-between">
+        <p className="text-[11px] font-mono uppercase tracking-wide" style={{ color: "var(--color-ink-30)" }}>
+          {matches.length} matched candidate{matches.length !== 1 ? "s" : ""}
+        </p>
+        {!saved ? (
+          <button
+            className="ab flex items-center gap-1"
+            style={{ fontSize: 11, padding: "3px 8px" }}
+            onClick={() => void handleSave()}
+            disabled={saving}
+          >
+            <IconPlus size={10} />
+            {saving ? "Saving…" : "Save as spec list"}
+          </button>
+        ) : (
+          <span className="text-[11px]" style={{ color: "var(--color-moss)" }}>Spec list saved</span>
+        )}
+      </div>
       {matches.map((m) => {
         const draft = draftStates[m.candidate_id];
         return (
@@ -2013,6 +2072,154 @@ function JobMatchPanel({
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// ─── spec list panel ─────────────────────────────────────────────────────────
+
+type SpecList = {
+  id: string;
+  name: string;
+  candidate_ids: string[];
+  created_at: string;
+};
+
+type SpecCandidate = {
+  id: string;
+  full_name: string;
+  current_title: string | null;
+  current_company: string | null;
+};
+
+function SpecListPanel({
+  list,
+  requisitionId,
+  recruiterId,
+  onDelete,
+}: {
+  list: SpecList;
+  requisitionId: string;
+  recruiterId: string;
+  onDelete: (listId: string) => void;
+}) {
+  const [candidates, setCandidates] = useState<SpecCandidate[] | null>(null);
+  const [draftStates, setDraftStates] = useState<Record<string, { loading: boolean; text: string | null }>>({});
+
+  useEffect(() => {
+    if (list.candidate_ids.length === 0) { setCandidates([]); return; }
+    void supabase
+      .from("candidates")
+      .select("id, full_name, current_title, current_company")
+      .in("id", list.candidate_ids)
+      .then(({ data }) => setCandidates((data ?? []) as SpecCandidate[]));
+  }, [list.id, list.candidate_ids]);
+
+  async function draftMessage(candidateId: string) {
+    setDraftStates((prev) => ({ ...prev, [candidateId]: { loading: true, text: null } }));
+    try {
+      const resp = await fetch("/api/ai/job-spec-message", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ candidate_id: candidateId, requisition_id: requisitionId, recruiter_id: recruiterId }),
+      });
+      const data = (await resp.json()) as { message?: string; error?: string };
+      if (data.message) {
+        setDraftStates((prev) => ({ ...prev, [candidateId]: { loading: false, text: data.message! } }));
+      } else {
+        toast.error("Could not draft message. Try again.");
+        setDraftStates((prev) => ({ ...prev, [candidateId]: { loading: false, text: null } }));
+      }
+    } catch {
+      toast.error("Could not draft message. Try again.");
+      setDraftStates((prev) => ({ ...prev, [candidateId]: { loading: false, text: null } }));
+    }
+  }
+
+  return (
+    <div
+      className="p-4 space-y-3"
+      style={{ background: "var(--color-white)", border: "0.5px solid var(--color-ink-15)", borderTop: "none" }}
+    >
+      <div className="flex items-center justify-between">
+        <p className="label">Spec list — {list.candidate_ids.length} candidate{list.candidate_ids.length !== 1 ? "s" : ""}</p>
+        <button
+          className="text-[11px]"
+          style={{ color: "var(--color-ink-30)" }}
+          onClick={() => {
+            if (confirm("Delete this spec list?")) onDelete(list.id);
+          }}
+        >
+          Delete list
+        </button>
+      </div>
+
+      {candidates === null ? (
+        <p className="text-[12px]" style={{ color: "var(--color-ink-30)" }}>Loading…</p>
+      ) : candidates.length === 0 ? (
+        <p className="text-[12px]" style={{ color: "var(--color-ink-30)" }}>No candidates in this list.</p>
+      ) : (
+        <div className="space-y-2">
+          {candidates.map((c) => {
+            const draft = draftStates[c.id];
+            return (
+              <div
+                key={c.id}
+                className="p-3 space-y-2"
+                style={{ background: "var(--color-ink-05)", border: "0.5px solid var(--color-ink-15)" }}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="text-[13px] font-medium">{c.full_name}</p>
+                    {(c.current_title ?? c.current_company) && (
+                      <p className="text-[12px]" style={{ color: "var(--color-ink-60)" }}>
+                        {[c.current_title, c.current_company].filter(Boolean).join(" · ")}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {draft?.text ? (
+                  <div className="space-y-1.5">
+                    <Textarea
+                      value={draft.text}
+                      onChange={(e) => setDraftStates((prev) => ({ ...prev, [c.id]: { loading: false, text: e.target.value } }))}
+                      className="text-[12px] min-h-[100px] font-sans"
+                      style={{ resize: "vertical" }}
+                    />
+                    <div className="flex items-center gap-2">
+                      <button
+                        className="ab flex items-center gap-1"
+                        style={{ fontSize: 11, padding: "3px 8px" }}
+                        onClick={() => { void navigator.clipboard.writeText(draft.text ?? ""); toast.success("Copied."); }}
+                      >
+                        <IconCopy size={10} /> Copy
+                      </button>
+                      <button
+                        className="ab flex items-center gap-1"
+                        style={{ fontSize: 11, padding: "3px 8px" }}
+                        onClick={() => void draftMessage(c.id)}
+                      >
+                        <IconSparkles size={10} /> Regenerate
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    className="ab flex items-center gap-1"
+                    style={{ fontSize: 11, padding: "4px 10px" }}
+                    onClick={() => void draftMessage(c.id)}
+                    disabled={draft?.loading}
+                  >
+                    <IconMessageCircle size={11} />
+                    {draft?.loading ? "Drafting…" : "Draft spec message"}
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -2618,6 +2825,55 @@ function JobsTab({
   const qc = useQueryClient();
   const jdInputRef = useRef<HTMLInputElement>(null);
 
+  const reqIds = openReqs.map((r) => r.id);
+  const { data: specLists, refetch: refetchLists } = useQuery({
+    queryKey: ["spec-lists", clientId],
+    enabled: reqIds.length > 0,
+    staleTime: 30_000,
+    retry: 1,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("candidate_lists")
+        .select("id, name, candidate_ids, created_at, requisition_id")
+        .in("requisition_id", reqIds)
+        .eq("source", "ai");
+      return (data ?? []) as (SpecList & { requisition_id: string })[];
+    },
+  });
+
+  const specListByReq = new Map(
+    (specLists ?? []).map((l) => [l.requisition_id, l]),
+  );
+
+  async function handleSaveSpecList(reqId: string, candidateIds: string[]) {
+    const existing = specListByReq.get(reqId);
+    if (existing) {
+      await supabase
+        .from("candidate_lists")
+        .update({ candidate_ids: candidateIds, updated_at: new Date().toISOString() })
+        .eq("id", existing.id);
+    } else {
+      const req = openReqs.find((r) => r.id === reqId);
+      await supabase.from("candidate_lists").insert({
+        name: `${req?.title ?? "Role"} — spec list`,
+        candidate_ids: candidateIds,
+        source: "ai",
+        created_by: recruiterId,
+        requisition_id: reqId,
+        visibility: "team",
+      });
+    }
+    await refetchLists();
+  }
+
+  async function handleDeleteSpecList(listId: string) {
+    await supabase.from("candidate_lists").delete().eq("id", listId);
+    await refetchLists();
+    toast.success("Spec list deleted.");
+  }
+
+  const [activeSpecReqId, setActiveSpecReqId] = useState<string | null>(null);
+
   function handleSaveReqNotes(reqId: string, notes: string) {
     void supabase
       .from("requisitions")
@@ -2851,6 +3107,9 @@ function JobsTab({
             activeMatchReqId={activeMatchReqId}
             onSelectReq={handleSelectReq}
             selectedReqId={selectedReqId}
+            specListByReq={specListByReq}
+            activeSpecReqId={activeSpecReqId}
+            onViewSpecList={(reqId) => setActiveSpecReqId((prev) => (prev === reqId ? null : reqId))}
           />
           {selectedReqId && (() => {
             const req = openReqs.find((r) => r.id === selectedReqId);
@@ -2858,11 +3117,24 @@ function JobsTab({
               <JobDetailPanel req={req} contacts={contacts} interactions={interactions} onSaveNotes={handleSaveReqNotes} />
             ) : null;
           })()}
+          {activeSpecReqId && (() => {
+            const list = specListByReq.get(activeSpecReqId);
+            return list ? (
+              <SpecListPanel
+                list={list}
+                requisitionId={activeSpecReqId}
+                recruiterId={recruiterId}
+                onDelete={(listId) => void handleDeleteSpecList(listId).then(() => setActiveSpecReqId(null))}
+              />
+            ) : null;
+          })()}
           {activeMatchReqId && (
             <JobMatchPanel
               requisitionId={activeMatchReqId}
               clientId={clientId}
               recruiterId={recruiterId}
+              existingListId={specListByReq.get(activeMatchReqId)?.id}
+              onSaveList={(ids) => handleSaveSpecList(activeMatchReqId, ids)}
             />
           )}
         </>
