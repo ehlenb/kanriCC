@@ -172,7 +172,8 @@ function usePriorityActions(recruiterId: string) {
         const { data: competing } = await supabase
           .from("competing_interviews")
           .select("candidate_id, company_name, stage")
-          .in("candidate_id", activeCandidateIds);
+          .in("candidate_id", activeCandidateIds)
+          .eq("is_active", true);
         for (const c of (competing ?? [])) {
           const cid = c.candidate_id as string;
           if (!compMap[cid]) compMap[cid] = [];
@@ -230,8 +231,8 @@ function usePriorityActions(recruiterId: string) {
           }
         }
 
-        // Rule 3: CCM stage — feedback from client pending > 2 days
-        if (ccmMatch && !proc.ccm_feedback_at && daysSinceTouch > 2) {
+        // Rule 3: CCM stage — feedback from client not yet logged
+        if (ccmMatch && !proc.ccm_feedback_at) {
           const ccmNum = parseInt(ccmMatch[1], 10);
           actions.push({
             entity_type: "candidate", entity_id: candidateId,
