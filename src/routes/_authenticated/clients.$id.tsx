@@ -1958,6 +1958,18 @@ function JobMatchPanel({
     }
   }
 
+  const callFirstIds = new Set(
+    [...matches]
+      .sort((a, b) => b.score - a.score)
+      .filter((m) => m.meets_must_haves)
+      .slice(0, 2)
+      .map((m) => m.candidate_id),
+  );
+  // Fall back to top 2 overall if fewer than 2 meet must-haves
+  if (callFirstIds.size < 2) {
+    [...matches].sort((a, b) => b.score - a.score).slice(0, 2).forEach((m) => callFirstIds.add(m.candidate_id));
+  }
+
   return (
     <div className="mt-3 pt-3 space-y-2" style={{ borderTop: "0.5px solid var(--color-ink-15)" }}>
       <div className="flex items-center justify-between">
@@ -1996,7 +2008,15 @@ function JobMatchPanel({
                   </p>
                 )}
               </div>
-              <div className="flex items-center gap-1 shrink-0">
+              <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
+                {callFirstIds.has(m.candidate_id) && (
+                  <span
+                    className="text-[10px] font-mono px-1.5 py-0.5"
+                    style={{ background: "var(--color-vermillion)", color: "#fff" }}
+                  >
+                    Call first
+                  </span>
+                )}
                 {!m.meets_must_haves && (
                   <span
                     className="text-[10px] font-mono px-1.5 py-0.5"
@@ -2092,6 +2112,8 @@ type SpecCandidate = {
   current_company: string | null;
 };
 
+type CallRanking = { candidate_id: string; priority: "call" | "email"; reason: string };
+
 function SpecListPanel({
   list,
   requisitionId,
@@ -2105,6 +2127,8 @@ function SpecListPanel({
 }) {
   const [candidates, setCandidates] = useState<SpecCandidate[] | null>(null);
   const [draftStates, setDraftStates] = useState<Record<string, { loading: boolean; text: string | null }>>({});
+  const [callRankings, setCallRankings] = useState<CallRanking[] | null>(null);
+  const [rankingLoading, setRankingLoading] = useState(false);
 
   useEffect(() => {
     if (list.candidate_ids.length === 0) { setCandidates([]); return; }
@@ -2114,6 +2138,24 @@ function SpecListPanel({
       .in("id", list.candidate_ids)
       .then(({ data }) => setCandidates((data ?? []) as SpecCandidate[]));
   }, [list.id, list.candidate_ids]);
+
+  async function rankCalls() {
+    setRankingLoading(true);
+    try {
+      const resp = await fetch("/api/ai/call-priority", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ candidate_ids: list.candidate_ids, requisition_id: requisitionId }),
+      });
+      const data = (await resp.json()) as { rankings?: CallRanking[]; error?: string };
+      if (data.rankings) setCallRankings(data.rankings);
+      else toast.error("Could not rank candidates. Try again.");
+    } catch {
+      toast.error("Could not rank candidates. Try again.");
+    } finally {
+      setRankingLoading(false);
+    }
+  }
 
   async function draftMessage(candidateId: string) {
     setDraftStates((prev) => ({ ...prev, [candidateId]: { loading: true, text: null } }));
@@ -2141,17 +2183,37 @@ function SpecListPanel({
       className="p-4 space-y-3"
       style={{ background: "var(--color-white)", border: "0.5px solid var(--color-ink-15)", borderTop: "none" }}
     >
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
         <p className="label">Spec list — {list.candidate_ids.length} candidate{list.candidate_ids.length !== 1 ? "s" : ""}</p>
-        <button
-          className="text-[11px]"
-          style={{ color: "var(--color-ink-30)" }}
-          onClick={() => {
-            if (confirm("Delete this spec list?")) onDelete(list.id);
-          }}
-        >
-          Delete list
-        </button>
+        <div className="flex items-center gap-2">
+          {!callRankings && (
+            <button
+              className="ab flex items-center gap-1"
+              style={{ fontSize: 11, padding: "3px 8px" }}
+              onClick={() => void rankCalls()}
+              disabled={rankingLoading}
+            >
+              <IconPhone size={10} />
+              {rankingLoading ? "Ranking…" : "Who to call first?"}
+            </button>
+          )}
+          {callRankings && (
+            <button
+              className="text-[11px]"
+              style={{ color: "var(--color-ink-30)" }}
+              onClick={() => setCallRankings(null)}
+            >
+              Clear ranking
+            </button>
+          )}
+          <button
+            className="text-[11px]"
+            style={{ color: "var(--color-ink-30)" }}
+            onClick={() => { if (confirm("Delete this spec list?")) onDelete(list.id); }}
+          >
+            Delete list
+          </button>
+        </div>
       </div>
 
       {candidates === null ? (
@@ -2160,8 +2222,18 @@ function SpecListPanel({
         <p className="text-[12px]" style={{ color: "var(--color-ink-30)" }}>No candidates in this list.</p>
       ) : (
         <div className="space-y-2">
-          {candidates.map((c) => {
+          {(() => {
+            // If rankings exist, reorder candidates to match ranking order
+            const orderedCandidates = callRankings
+              ? [...candidates].sort((a, b) => {
+                  const ai = callRankings.findIndex((r) => r.candidate_id === a.id);
+                  const bi = callRankings.findIndex((r) => r.candidate_id === b.id);
+                  return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+                })
+              : candidates;
+            return orderedCandidates.map((c) => {
             const draft = draftStates[c.id];
+            const ranking = callRankings?.find((r) => r.candidate_id === c.id);
             return (
               <div
                 key={c.id}
@@ -2169,14 +2241,29 @@ function SpecListPanel({
                 style={{ background: "var(--color-ink-05)", border: "0.5px solid var(--color-ink-15)" }}
               >
                 <div className="flex items-start justify-between gap-2">
-                  <div>
+                  <div className="flex-1 min-w-0">
                     <p className="text-[13px] font-medium">{c.full_name}</p>
                     {(c.current_title ?? c.current_company) && (
                       <p className="text-[12px]" style={{ color: "var(--color-ink-60)" }}>
                         {[c.current_title, c.current_company].filter(Boolean).join(" · ")}
                       </p>
                     )}
+                    {ranking && (
+                      <p className="text-[11px] mt-0.5" style={{ color: "var(--color-ink-60)" }}>{ranking.reason}</p>
+                    )}
                   </div>
+                  {ranking && (
+                    <span
+                      className="text-[10px] font-mono px-1.5 py-0.5 shrink-0"
+                      style={
+                        ranking.priority === "call"
+                          ? { background: "var(--color-vermillion)", color: "#fff" }
+                          : { background: "var(--color-ink-10)", color: "var(--color-ink-60)", border: "0.5px solid var(--color-ink-15)" }
+                      }
+                    >
+                      {ranking.priority === "call" ? "Call first" : "Email"}
+                    </span>
+                  )}
                 </div>
 
                 {draft?.text ? (
@@ -2217,7 +2304,8 @@ function SpecListPanel({
                 )}
               </div>
             );
-          })}
+          });
+          })()}
         </div>
       )}
     </div>
@@ -2242,8 +2330,42 @@ function JobDetailPanel({
   const hm = contacts.find((c) => c.id === req.hiring_manager_id);
   const [notesDraft, setNotesDraft] = useState(req.recruiter_notes ?? "");
   const [buyInDrafts, setBuyInDrafts] = useState<Record<string, { loading: boolean; text: string | null }>>({});
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [cvSendDraft, setCvSendDraft] = useState<{ subject: string; body: string } | null>(null);
+  const [cvSendLoading, setCvSendLoading] = useState(false);
 
   const buyInProcesses = req.processes.filter((p) => p.stage === "Buy-In" && p.candidates);
+
+  function toggleSelected(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  async function prepareCvSend() {
+    if (selectedIds.size === 0) return;
+    setCvSendLoading(true);
+    setCvSendDraft(null);
+    try {
+      const resp = await fetch("/api/ai/batch-cv-send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ candidate_ids: [...selectedIds], requisition_id: req.id }),
+      });
+      const data = (await resp.json()) as { subject?: string; body?: string; error?: string };
+      if (data.subject && data.body) {
+        setCvSendDraft({ subject: data.subject, body: data.body });
+      } else {
+        toast.error("Could not generate CV send email. Try again.");
+      }
+    } catch {
+      toast.error("Could not generate CV send email. Try again.");
+    } finally {
+      setCvSendLoading(false);
+    }
+  }
 
   async function draftBuyInMessage(candidateId: string) {
     setBuyInDrafts((prev) => ({ ...prev, [candidateId]: { loading: true, text: null } }));
@@ -2332,10 +2454,21 @@ function JobDetailPanel({
 
       {/* Buy-in list */}
       <div>
-        <div className="flex items-center gap-2 mb-1.5">
+        <div className="flex items-center justify-between mb-1.5">
           <p className="text-[10px] font-mono uppercase tracking-[0.08em]" style={{ color: "var(--color-ink-30)" }}>
             Buy-in secured ({buyInProcesses.length})
           </p>
+          {selectedIds.size > 0 && (
+            <button
+              className="ab flex items-center gap-1"
+              style={{ fontSize: 11, padding: "3px 10px", background: "var(--color-ink)", color: "var(--color-white)" }}
+              onClick={() => void prepareCvSend()}
+              disabled={cvSendLoading}
+            >
+              <IconFileText size={10} />
+              {cvSendLoading ? "Preparing…" : `Prepare CV send (${selectedIds.size})`}
+            </button>
+          )}
         </div>
         {buyInProcesses.length === 0 ? (
           <p className="text-[12px]" style={{ color: "var(--color-ink-30)" }}>
@@ -2346,22 +2479,32 @@ function JobDetailPanel({
             {buyInProcesses.map((p) => {
               const cand = p.candidates!;
               const draft = buyInDrafts[cand.id];
+              const isSelected = selectedIds.has(cand.id);
               return (
                 <div
                   key={p.id}
                   className="p-3 space-y-2"
                   style={{
-                    background: "var(--color-gold-light)",
-                    border: "0.5px solid rgba(184,146,42,0.3)",
+                    background: isSelected ? "var(--color-gold-light)" : "var(--color-ink-05)",
+                    border: isSelected ? "1px solid rgba(184,146,42,0.5)" : "0.5px solid var(--color-ink-15)",
                   }}
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <p className="text-[13px] font-medium">{cand.full_name}</p>
-                      {cand.current_title && (
-                        <p className="text-[12px]" style={{ color: "var(--color-ink-60)" }}>{cand.current_title}</p>
-                      )}
-                    </div>
+                    <label className="flex items-start gap-2 cursor-pointer flex-1 min-w-0">
+                      <input
+                        type="checkbox"
+                        className="mt-0.5 shrink-0"
+                        checked={isSelected}
+                        onChange={() => toggleSelected(cand.id)}
+                        style={{ accentColor: "var(--color-gold)", width: 13, height: 13 }}
+                      />
+                      <div className="min-w-0">
+                        <p className="text-[13px] font-medium">{cand.full_name}</p>
+                        {cand.current_title && (
+                          <p className="text-[12px]" style={{ color: "var(--color-ink-60)" }}>{cand.current_title}</p>
+                        )}
+                      </div>
+                    </label>
                     <span
                       className="text-[10px] font-mono px-1.5 py-0.5 shrink-0"
                       style={{ background: "var(--color-gold)", color: "#fff" }}
@@ -2409,6 +2552,58 @@ function JobDetailPanel({
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* Batch CV send email draft */}
+        {cvSendDraft && (
+          <div
+            className="mt-3 p-4 space-y-3"
+            style={{ background: "var(--color-white)", border: "1.5px solid var(--color-ink)" }}
+          >
+            <div className="flex items-center justify-between">
+              <p className="label">CV send email — review before sending</p>
+              <button className="text-[11px]" style={{ color: "var(--color-ink-30)" }} onClick={() => setCvSendDraft(null)}>
+                Dismiss
+              </button>
+            </div>
+            <div>
+              <p className="text-[10px] font-mono uppercase tracking-[0.08em] mb-1" style={{ color: "var(--color-ink-30)" }}>Subject</p>
+              <input
+                type="text"
+                className="w-full text-[12px]"
+                style={{ border: "0.5px solid var(--color-ink-15)", padding: "6px 8px", background: "var(--color-ink-05)" }}
+                value={cvSendDraft.subject}
+                onChange={(e) => setCvSendDraft({ ...cvSendDraft, subject: e.target.value })}
+              />
+            </div>
+            <div>
+              <p className="text-[10px] font-mono uppercase tracking-[0.08em] mb-1" style={{ color: "var(--color-ink-30)" }}>Body</p>
+              <Textarea
+                value={cvSendDraft.body}
+                onChange={(e) => setCvSendDraft({ ...cvSendDraft, body: e.target.value })}
+                className="text-[12px] font-sans min-h-[220px]"
+                style={{ resize: "vertical" }}
+              />
+            </div>
+            <div className="flex gap-2">
+              <button
+                className="btn btn-primary btn-sm flex items-center gap-1"
+                onClick={() => {
+                  void navigator.clipboard.writeText(`Subject: ${cvSendDraft.subject}\n\n${cvSendDraft.body}`);
+                  toast.success("Email copied to clipboard.");
+                }}
+              >
+                <IconCopy size={11} /> Copy email
+              </button>
+              <button
+                className="btn btn-ghost btn-sm flex items-center gap-1"
+                onClick={() => void prepareCvSend()}
+                disabled={cvSendLoading}
+              >
+                <IconSparkles size={11} /> Regenerate
+              </button>
+            </div>
           </div>
         )}
       </div>
