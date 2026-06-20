@@ -506,6 +506,14 @@ function Dashboard() {
     }
   }, [priorityActions.data]);
 
+  function handleRestore() {
+    localStorage.removeItem("kanri_done_today");
+    localStorage.removeItem("kanri_snoozed");
+    if (priorityActions.data) {
+      setAgendaItems(priorityActions.data);
+    }
+  }
+
   function handleDone(entityId: string) {
     const removed = agendaItems.find((i) => i.entity_id === entityId);
     markDoneToday(entityId);
@@ -651,6 +659,7 @@ function Dashboard() {
         onToggleShowAll={() => setShowAllAgenda((v) => !v)}
         onDone={handleDone}
         onSnooze={handleSnooze}
+        onRestore={handleRestore}
         recruiterId={recruiterId}
         onNavigate={(item) => {
           if (item.entity_type === "candidate") {
@@ -968,6 +977,7 @@ function PrioritySection({
   onDone,
   onSnooze,
   onNavigate,
+  onRestore,
   recruiterId,
 }: {
   items: AgendaItem[];
@@ -977,6 +987,7 @@ function PrioritySection({
   onDone: (entityId: string) => void;
   onSnooze: (entityId: string) => void;
   onNavigate: (item: AgendaItem) => void;
+  onRestore: () => void;
   recruiterId: string;
 }) {
   const VISIBLE_COUNT = 5;
@@ -1027,9 +1038,20 @@ function PrioritySection({
           )}
         </div>
         {!isLoading && items.length === 0 && (
-          <span className="text-[12px]" style={{ color: "var(--color-ink-30)" }}>
-            All clear — nothing urgent right now.
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="text-[12px]" style={{ color: "var(--color-ink-30)" }}>
+              All clear — nothing urgent right now.
+            </span>
+            {Object.keys(getDoneToday()).length > 0 && (
+              <button
+                onClick={onRestore}
+                className="text-[11px] underline"
+                style={{ color: "var(--color-ink-60)" }}
+              >
+                Restore {Object.keys(getDoneToday()).length} dismissed
+              </button>
+            )}
+          </div>
         )}
       </div>
 
