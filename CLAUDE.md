@@ -819,11 +819,57 @@ Active development resumed June 2026. All sessions below are committed and pushe
   - CCM pass → green banner + one-click interview prep for next round
   - CCM fail → red banner + rejection email button + close process button
 
-### Known issues / next session priorities
+**Module 3 + 4 + 5 simulation feedback (committed 2026-06-19)**
+- `candidates.$id` useStageChange: two-condition CCM advance guard — requires `ccm_outcome="pass"` AND a future `ccm{n+1}` interaction logged; clears `ccm_outcome/feedback_notes/feedback_at` on advance so new round starts clean
+- `parsePositioningPoints`: strips bare `json\n` prefix (no backticks) that model occasionally emits
+- `LogActivityModal`: "Call" split into "Candidate Call" / "Client Call" virtual UI types; both persist as `interaction_type="call"` with correct `primary_party`; old "call" rows still display correctly via `interactionTypeLabel`
+- `dashboard.tsx`: replaced AI-generated daily agenda with rule-based `usePriorityActions` hook (6 priority rules applied directly via Supabase query); removed separate Competing Interviews section — folds into unified priority stream; added inline AI pre-call briefing per item via `/api/ai/pre-call-briefing`
+- `src/styles.css`: excluded `input[type="checkbox"]`, `[type="radio"]`, `[type="range"]` from global `input { width: 100% }` rule — was causing advanced search candidate rows to render with 0px name column (checkbox expanded to fill entire flex row)
 
-**Deferred (do not build yet):**
+---
+
+### Roadmap — recommended sequence
+
+#### Phase 1: Day-in-the-life audit (do first)
+Go through a full recruiter workflow end-to-end before building anything new. This surfaces UX gaps, missing fields, and broken assumptions that seed data and integrations would otherwise hide. Sequence:
+1. Create a new client → add contacts → upload contract
+2. Create a job requisition
+3. Source / add a candidate → fill registration form → upload CV
+4. Run advanced search against the job → shortlist
+5. Log buy-in call → advance to CV Sent → log CCM1 → mark pass → advance to CCM2
+6. Check dashboard priority actions after each step
+7. Log a competing interview → observe dashboard surfacing it
+8. Advance to Offer → Placed
+
+Document every friction point. Each one becomes a fix before seeding.
+
+#### Phase 2: Seed data (after Phase 1 fixes land)
+Generate realistic demo data via Supabase SQL seed scripts:
+- ~20 clients (mix of gaishikei, domestic, PE-backed)
+- ~150 candidates (varied stages, Japanese/English names, real-feeling notes_pitch + notes_interview)
+- Processes at every stage — Specs Sent through Placed and Closed Lost
+- Activity timelines with realistic entry patterns (2–8 interactions per active process)
+- 3–5 candidates with competing interviews
+- 2–3 at Offer stage
+- Some cold (last touch >30 days)
+
+Key rule: no pre-seeded AI snapshots (`ai_snapshot` = null for all seed candidates). Intelligence is generated on demand from notes. This validates the real pipeline.
+
+#### Phase 3: Demo readiness
+- Run through the ROI calculator (`kanri-roi-calculator.html` on Desktop) — verify numbers feel right for a 5-person boutique
+- Test advanced search with seed data (AI search needs real requisitions + candidates)
+- Walk through a mock client pitch using the app as the live demo
+
+#### Phase 4: Outlook integration (future — not yet)
+Significant engineering: OAuth, Microsoft Graph API, email polling/webhooks, thread parsing, deduplication, activity auto-logging. Hold until at least one real user is asking for it.
+
+---
+
+### Known issues / deferred
+
 - Per-contact AI summary (needs design decision on where/how AI reads contact notes)
 - Interaction editing (assess scope before starting)
+- PDF export for ROI calculator (low priority — standalone HTML file is the demo path)
 
 ---
 
