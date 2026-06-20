@@ -53,6 +53,7 @@ type AgendaItem = {
   priority_rank: number;
   client_id?: string;
   candidate_id?: string;
+  competing?: { company_name: string; stage: string | null }[];
 };
 
 type MetricKey = "specs" | "cvs" | "interviewing" | "offers" | "placed";
@@ -227,6 +228,7 @@ function usePriorityActions(recruiterId: string) {
               suggested_action: `Call ${firstName} to assess motivation and defend your process at ${clientName}.`,
               action_type: "competing_risk",
               priority_rank: urgency === "critical" ? 2 : 7,
+              competing,
             });
           }
         }
@@ -995,19 +997,32 @@ function PrioritySection({
   const [briefs, setBriefs] = useState<Record<string, BriefState>>({});
 
   async function getAiBrief(item: AgendaItem) {
-    const key = item.process_id ?? item.entity_id;
+    const key = `${item.action_type}-${item.process_id ?? item.entity_id}`;
     setBriefs((prev) => ({ ...prev, [key]: { loading: true, text: null } }));
     try {
-      const resp = await fetch("/api/ai/pre-call-briefing", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          entity_type: item.entity_type,
-          entity_id: item.entity_id,
-          process_id: item.process_id ?? null,
-          recruiter_id: recruiterId,
-        }),
-      });
+      let resp: Response;
+      if (item.action_type === "competing_risk") {
+        resp = await fetch("/api/ai/competing-brief", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            candidate_id: item.candidate_id,
+            process_id: item.process_id ?? null,
+            competing: item.competing ?? [],
+          }),
+        });
+      } else {
+        resp = await fetch("/api/ai/pre-call-briefing", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            entity_type: item.entity_type,
+            entity_id: item.entity_id,
+            process_id: item.process_id ?? null,
+            recruiter_id: recruiterId,
+          }),
+        });
+      }
       const json = (await resp.json()) as { content?: string; error?: string };
       if (json.error) throw new Error(json.error);
       setBriefs((prev) => ({ ...prev, [key]: { loading: false, text: json.content ?? "" } }));
@@ -1069,7 +1084,7 @@ function PrioritySection({
           item.priority_rank <= 3 ? "var(--color-vermillion)" :
           item.priority_rank <= 10 ? "var(--color-gold)" :
           "var(--color-ink-15)";
-        const briefKey = item.process_id ?? item.entity_id;
+        const briefKey = `${item.action_type}-${item.process_id ?? item.entity_id}`;
         const brief = briefs[briefKey];
 
         return (
