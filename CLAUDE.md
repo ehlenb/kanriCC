@@ -819,6 +819,19 @@ Active development resumed June 2026. All sessions below are committed and pushe
   - CCM pass → green banner + one-click interview prep for next round
   - CCM fail → red banner + rejection email button + close process button
 
+**Phase 1 day-in-the-life audit — dashboard fixes (committed 2026-06-19)**
+- `dashboard`: icon action strip — replaced native `title` attributes with custom inline hover tooltips (dark pill, white text, arrow pointer); unique `briefKey` per `action_type` so competing risk and CCM feedback items never share the same brief panel
+- `dashboard`: priority Rule 3 (CCM feedback pending) — removed `daysSinceTouch > 2` guard; CCM with no `ccm_feedback_at` now always surfaces regardless of last touch date
+- `dashboard`: done/snooze handlers now show a sonner toast with 6s Undo button; `handleRestore()` clears all localStorage and restores full list; "Restore N dismissed" link appears in empty state
+- `dashboard`: only one brief open at a time; clicking sparkle on a new item closes any existing brief first
+- `dashboard`: two-column layout — priority list left (~42%), AI brief panel right (~58%); active item highlights indigo; no more scrolling down to read brief
+- `dashboard/BriefContent`: inline markdown renderer (bold + bullets, no library); click-to-edit textarea toggle; "Edit" button affordance
+- `api/ai/competing-brief.ts`: new endpoint — candidate-specific positioning vs competing processes; reads motivations, interview notes, recent activity; output framed as call to candidate
+- `api/ai/ccm-feedback-brief.ts`: new endpoint — framed as client-chase call (not candidate call); includes candidate strengths as reminder points, competing urgency, primary contact context
+- `api/ai/ccm-next-step.ts`: new endpoint — three outcome scenarios after CCM feedback chase: pass (candidate call brief + reinforce + next CCM prep), reject (soft rejection script + email draft), no_response (candidate warm email + client nudge line)
+- All AI endpoints: updated from ALL CAPS rigid sections to Claude-style formatting (`**bold headers**`, `•` bullets, natural prose)
+- `dashboard`: `competing_interviews` query filtered to `is_active = true`
+
 **Module 3 + 4 + 5 simulation feedback (committed 2026-06-19)**
 - `candidates.$id` useStageChange: two-condition CCM advance guard — requires `ccm_outcome="pass"` AND a future `ccm{n+1}` interaction logged; clears `ccm_outcome/feedback_notes/feedback_at` on advance so new round starts clean
 - `parsePositioningPoints`: strips bare `json\n` prefix (no backticks) that model occasionally emits
