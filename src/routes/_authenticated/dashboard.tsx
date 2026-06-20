@@ -998,7 +998,8 @@ function PrioritySection({
 
   async function getAiBrief(item: AgendaItem) {
     const key = `${item.action_type}-${item.process_id ?? item.entity_id}`;
-    setBriefs((prev) => ({ ...prev, [key]: { loading: true, text: null } }));
+    // Close all other open briefs — only one at a time
+    setBriefs({ [key]: { loading: true, text: null } });
     try {
       let resp: Response;
       if (item.action_type === "competing_risk") {
@@ -1090,7 +1091,7 @@ function PrioritySection({
         return (
           <div
             key={`${item.entity_id}-${item.process_id ?? ""}-${i}`}
-            style={{ borderBottom: "0.5px solid var(--color-border-subtle)" }}
+            style={{ borderBottom: i < visible.length - 1 ? "2px solid var(--color-ink-10)" : "none" }}
           >
             <div className="flex items-stretch">
               {/* Priority number */}
@@ -1147,7 +1148,7 @@ function PrioritySection({
                     onClick={(e) => {
                       e.stopPropagation();
                       if (!brief?.text) void getAiBrief(item);
-                      else setBriefs((prev) => ({ ...prev, [briefKey]: { loading: false, text: null } }));
+                      else setBriefs({});
                     }}
                     disabled={brief?.loading}
                     className="flex flex-1 items-center justify-center w-10 transition-colors hover:bg-[--color-indigo-light]"
