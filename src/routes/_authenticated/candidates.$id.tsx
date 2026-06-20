@@ -2455,7 +2455,29 @@ const PIPELINE_STAGES = [
   "Offer", "Placed", "Closed lost",
 ] as const;
 
-function useStageChange(candidateId: string) {
+function stageMilestoneToast(newStage: string, candidateName?: string) {
+  const ccmMatch = /^CCM(\d+)$/.exec(newStage);
+  if (newStage === "Buy-In") {
+    toast.success("Buy-in confirmed.", { description: "CV can now be submitted to the client." });
+  } else if (newStage === "CV Sent") {
+    toast.success("CV submitted.", { description: "Track client response — follow up in 3 days if no reply." });
+  } else if (ccmMatch) {
+    const n = ccmMatch[1];
+    const ordinal = n === "1" ? "First" : n === "2" ? "Second" : n === "3" ? "Third" : `${n}th`;
+    toast.success(`${ordinal} interview confirmed.`, { description: "Pipeline is moving. Prepare the candidate." });
+  } else if (newStage === "Offer") {
+    toast.success("Offer stage reached.", { description: "Prepare the offer package and brief the candidate.", duration: 6000 });
+  } else if (newStage === "Placed") {
+    toast.success(`${candidateName ? `${candidateName} is placed.` : "Placement confirmed."}`, {
+      description: "Deal done. Start the guarantee clock and request referrals.",
+      duration: 10000,
+    });
+  } else {
+    toast.success(`Stage updated to ${newStage}.`);
+  }
+}
+
+function useStageChange(candidateId: string, opts?: { candidateName?: string; onAdvanced?: () => void }) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ process, newStage }: { process: Process; newStage: string }) => {
@@ -2525,10 +2547,100 @@ function useStageChange(candidateId: string) {
     },
     onSuccess: (_, { newStage }) => {
       void qc.invalidateQueries({ queryKey: ["candidate-profile", candidateId] });
-      toast.success(`Stage updated to ${newStage}.`);
+      stageMilestoneToast(newStage, opts?.candidateName);
+      opts?.onAdvanced?.();
     },
     onError: (err) => toast.error(err instanceof Error ? err.message : "Could not update stage. Try again."),
   });
+}
+
+// ─── pipeline progress strip ──────────────────────────────────────────────────
+
+const PROGRESS_NODES = [
+  { key: "Specs Sent", label: "Specs" },
+  { key: "Buy-In",    label: "Buy-In" },
+  { key: "CV Sent",   label: "CV Sent" },
+  { key: "ccm",       label: "Interview" },
+  { key: "Offer",     label: "Offer" },
+  { key: "Placed",    label: "Placed" },
+] as const;
+
+function PipelineProgressStrip({ stage, justAdvanced }: { stage: string; justAdvanced: boolean }) {
+  const isCcm = /^CCM\d+$/.test(stage);
+  const ccmNum = isCcm ? stage.replace("CCM", "") : null;
+  const isClosedLost = stage === "Closed lost";
+
+  function nodeStatus(key: string): "done" | "active" | "future" {
+    const stageOrder: Record<string, number> = {
+      "Specs Sent": 0, "Buy-In": 1, "CV Sent": 2, ccm: 3, "Offer": 4, "Placed": 5,
+    };
+    const currentKey = isCcm ? "ccm" : stage;
+    const currentOrder = stageOrder[currentKey] ?? -1;
+    const nodeOrder = stageOrder[key] ?? 99;
+    if (isClosedLost) return "done"; // all grey for closed
+    if (nodeOrder < currentOrder) return "done";
+    if (nodeOrder === currentOrder) return "active";
+    return "future";
+  }
+
+  return (
+    <div className="flex items-center gap-0 mb-4">
+      {PROGRESS_NODES.map((node, i) => {
+        const status = nodeStatus(node.key);
+        const isActive = status === "active";
+        const isDone = status === "done";
+        const isLast = i === PROGRESS_NODES.length - 1;
+
+        const nodeColor = isClosedLost
+          ? "var(--color-ink-15)"
+          : isDone
+            ? "var(--color-ink)"
+            : isActive
+              ? "var(--color-vermillion)"
+              : "var(--color-ink-15)";
+
+        const labelColor = isActive
+          ? "var(--color-vermillion)"
+          : isDone
+            ? "var(--color-ink-60)"
+            : "var(--color-ink-30)";
+
+        return (
+          <div key={node.key} className="flex items-center" style={{ flex: isLast ? "0 0 auto" : 1 }}>
+            {/* Node */}
+            <div className="flex flex-col items-center gap-[3px]">
+              <div
+                className={isActive && justAdvanced ? "stage-advance" : ""}
+                style={{
+                  width: 7,
+                  height: 7,
+                  background: nodeColor,
+                  flexShrink: 0,
+                }}
+              />
+              <span
+                className="text-[9px] font-mono uppercase tracking-[0.06em] whitespace-nowrap"
+                style={{ color: labelColor }}
+              >
+                {node.key === "ccm" && ccmNum ? `CCM${ccmNum}` : node.label}
+              </span>
+            </div>
+            {/* Connector line */}
+            {!isLast && (
+              <div
+                style={{
+                  flex: 1,
+                  height: 1,
+                  marginBottom: 14,
+                  background: isDone ? "var(--color-ink-60)" : "var(--color-ink-15)",
+                }}
+              />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 function ProcessPanel({
@@ -2546,7 +2658,14 @@ function ProcessPanel({
 }) {
   const req = p.requisitions;
   const clientName = req?.clients?.company_name ?? "Unknown";
-  const stageChange = useStageChange(c.id);
+  const [justAdvanced, setJustAdvanced] = useState(false);
+  const stageChange = useStageChange(c.id, {
+    candidateName: c.full_name,
+    onAdvanced: () => {
+      setJustAdvanced(true);
+      setTimeout(() => setJustAdvanced(false), 700);
+    },
+  });
 
   return (
     <div
@@ -2556,6 +2675,11 @@ function ProcessPanel({
         border: "0.5px solid var(--color-ink-15)",
       }}
     >
+      {/* Pipeline progress strip */}
+      {p.stage !== "Closed lost" && (
+        <PipelineProgressStrip stage={p.stage} justAdvanced={justAdvanced} />
+      )}
+
       {/* Panel header */}
       <div
         className="flex items-center justify-between mb-4 pb-2.5 text-[12px]"
@@ -2625,7 +2749,7 @@ function InterviewPanel({
   const [loadingRejection, setLoadingRejection] = useState(false);
   const [rejectionEmail, setRejectionEmail] = useState<string | null>(null);
   const [closingProcess, setClosingProcess] = useState(false);
-  const stageChange = useStageChange(c.id);
+  const stageChange = useStageChange(c.id, { candidateName: c.full_name });
 
   const ccmMatch = /^CCM(\d+)$/.exec(p.stage);
   const ccmNumber = ccmMatch ? parseInt(ccmMatch[1], 10) : null;
