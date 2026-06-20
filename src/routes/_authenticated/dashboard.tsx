@@ -1145,7 +1145,7 @@ function PrioritySection({
                     <IconSparkles size={13} style={{ color: brief?.text ? "var(--color-indigo)" : "var(--color-ink-30)" }} />
                   </button>
                   <div className="pointer-events-none absolute right-full top-1/2 -translate-y-1/2 mr-2 hidden group-hover/tip:flex items-center z-50">
-                    <span className="whitespace-nowrap font-mono text-[10px] px-2 py-1 text-[--color-white]" style={{ background: "var(--color-ink)", letterSpacing: "0.05em" }}>AI pre-call brief</span>
+                    <span className="whitespace-nowrap font-mono text-[10px] px-2 py-1" style={{ background: "var(--color-ink)", color: "var(--color-white)", letterSpacing: "0.05em" }}>AI pre-call brief</span>
                     <span style={{ borderLeft: "4px solid var(--color-ink)", borderTop: "4px solid transparent", borderBottom: "4px solid transparent" }} />
                   </div>
                 </div>
@@ -1159,7 +1159,7 @@ function PrioritySection({
                     <IconCheck size={13} style={{ color: "var(--color-ink-30)" }} />
                   </button>
                   <div className="pointer-events-none absolute right-full top-1/2 -translate-y-1/2 mr-2 hidden group-hover/tip:flex items-center z-50">
-                    <span className="whitespace-nowrap font-mono text-[10px] px-2 py-1 text-[--color-white]" style={{ background: "var(--color-ink)", letterSpacing: "0.05em" }}>Done for today</span>
+                    <span className="whitespace-nowrap font-mono text-[10px] px-2 py-1" style={{ background: "var(--color-ink)", color: "var(--color-white)", letterSpacing: "0.05em" }}>Done for today</span>
                     <span style={{ borderLeft: "4px solid var(--color-ink)", borderTop: "4px solid transparent", borderBottom: "4px solid transparent" }} />
                   </div>
                 </div>
@@ -1173,7 +1173,7 @@ function PrioritySection({
                     <IconBellOff size={13} style={{ color: "var(--color-ink-30)" }} />
                   </button>
                   <div className="pointer-events-none absolute right-full top-1/2 -translate-y-1/2 mr-2 hidden group-hover/tip:flex items-center z-50">
-                    <span className="whitespace-nowrap font-mono text-[10px] px-2 py-1 text-[--color-white]" style={{ background: "var(--color-ink)", letterSpacing: "0.05em" }}>Snooze until tomorrow</span>
+                    <span className="whitespace-nowrap font-mono text-[10px] px-2 py-1" style={{ background: "var(--color-ink)", color: "var(--color-white)", letterSpacing: "0.05em" }}>Snooze until tomorrow</span>
                     <span style={{ borderLeft: "4px solid var(--color-ink)", borderTop: "4px solid transparent", borderBottom: "4px solid transparent" }} />
                   </div>
                 </div>
