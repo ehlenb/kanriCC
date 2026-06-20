@@ -2231,14 +2231,41 @@ function JobDetailPanel({
   contacts,
   interactions,
   onSaveNotes,
+  recruiterId,
 }: {
   req: ReqWithPipeline;
   contacts: Contact[];
   interactions: Interaction[];
   onSaveNotes: (reqId: string, notes: string) => void;
+  recruiterId: string;
 }) {
   const hm = contacts.find((c) => c.id === req.hiring_manager_id);
   const [notesDraft, setNotesDraft] = useState(req.recruiter_notes ?? "");
+  const [buyInDrafts, setBuyInDrafts] = useState<Record<string, { loading: boolean; text: string | null }>>({});
+
+  const buyInProcesses = req.processes.filter((p) => p.stage === "Buy-In" && p.candidates);
+
+  async function draftBuyInMessage(candidateId: string) {
+    setBuyInDrafts((prev) => ({ ...prev, [candidateId]: { loading: true, text: null } }));
+    try {
+      const resp = await fetch("/api/ai/job-spec-message", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ candidate_id: candidateId, requisition_id: req.id, recruiter_id: recruiterId }),
+      });
+      const data = (await resp.json()) as { message?: string; error?: string };
+      if (data.message) {
+        setBuyInDrafts((prev) => ({ ...prev, [candidateId]: { loading: false, text: data.message! } }));
+      } else {
+        toast.error("Could not draft message. Try again.");
+        setBuyInDrafts((prev) => ({ ...prev, [candidateId]: { loading: false, text: null } }));
+      }
+    } catch {
+      toast.error("Could not draft message. Try again.");
+      setBuyInDrafts((prev) => ({ ...prev, [candidateId]: { loading: false, text: null } }));
+    }
+  }
+
   const salary =
     req.salary_range_text ??
     (req.salary_min || req.salary_max
@@ -2301,6 +2328,89 @@ function JobDetailPanel({
           onChange={(e) => setNotesDraft(e.target.value)}
           onBlur={() => onSaveNotes(req.id, notesDraft.trim())}
         />
+      </div>
+
+      {/* Buy-in list */}
+      <div>
+        <div className="flex items-center gap-2 mb-1.5">
+          <p className="text-[10px] font-mono uppercase tracking-[0.08em]" style={{ color: "var(--color-ink-30)" }}>
+            Buy-in secured ({buyInProcesses.length})
+          </p>
+        </div>
+        {buyInProcesses.length === 0 ? (
+          <p className="text-[12px]" style={{ color: "var(--color-ink-30)" }}>
+            No candidates at buy-in stage for this role yet.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {buyInProcesses.map((p) => {
+              const cand = p.candidates!;
+              const draft = buyInDrafts[cand.id];
+              return (
+                <div
+                  key={p.id}
+                  className="p-3 space-y-2"
+                  style={{
+                    background: "var(--color-gold-light)",
+                    border: "0.5px solid rgba(184,146,42,0.3)",
+                  }}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="text-[13px] font-medium">{cand.full_name}</p>
+                      {cand.current_title && (
+                        <p className="text-[12px]" style={{ color: "var(--color-ink-60)" }}>{cand.current_title}</p>
+                      )}
+                    </div>
+                    <span
+                      className="text-[10px] font-mono px-1.5 py-0.5 shrink-0"
+                      style={{ background: "var(--color-gold)", color: "#fff" }}
+                    >
+                      Buy-in
+                    </span>
+                  </div>
+
+                  {draft?.text ? (
+                    <div className="space-y-1.5">
+                      <Textarea
+                        value={draft.text}
+                        onChange={(e) => setBuyInDrafts((prev) => ({ ...prev, [cand.id]: { loading: false, text: e.target.value } }))}
+                        className="text-[12px] min-h-[90px] font-sans"
+                        style={{ resize: "vertical", background: "var(--color-white)" }}
+                      />
+                      <div className="flex items-center gap-2">
+                        <button
+                          className="ab flex items-center gap-1"
+                          style={{ fontSize: 11, padding: "3px 8px" }}
+                          onClick={() => { void navigator.clipboard.writeText(draft.text ?? ""); toast.success("Copied."); }}
+                        >
+                          <IconCopy size={10} /> Copy
+                        </button>
+                        <button
+                          className="ab flex items-center gap-1"
+                          style={{ fontSize: 11, padding: "3px 8px" }}
+                          onClick={() => void draftBuyInMessage(cand.id)}
+                        >
+                          <IconSparkles size={10} /> Regenerate
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      className="ab flex items-center gap-1"
+                      style={{ fontSize: 11, padding: "4px 10px" }}
+                      onClick={() => void draftBuyInMessage(cand.id)}
+                      disabled={draft?.loading}
+                    >
+                      <IconMessageCircle size={11} />
+                      {draft?.loading ? "Drafting…" : "Draft spec message"}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Linked interactions */}
@@ -3114,7 +3224,7 @@ function JobsTab({
           {selectedReqId && (() => {
             const req = openReqs.find((r) => r.id === selectedReqId);
             return req ? (
-              <JobDetailPanel req={req} contacts={contacts} interactions={interactions} onSaveNotes={handleSaveReqNotes} />
+              <JobDetailPanel req={req} contacts={contacts} interactions={interactions} onSaveNotes={handleSaveReqNotes} recruiterId={recruiterId} />
             ) : null;
           })()}
           {activeSpecReqId && (() => {
