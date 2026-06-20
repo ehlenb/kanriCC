@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
@@ -977,6 +977,83 @@ type BriefState = {
   chainType?: "pass" | "reject" | "no_response";
 };
 
+// ─── markdown renderer (bold + bullets only, no library) ─────────────────────
+
+function renderMd(text: string): React.ReactNode[] {
+  return text.split("\n").map((line, li) => {
+    const trimmed = line.trimStart();
+    const isBullet = trimmed.startsWith("• ") || trimmed.startsWith("- ");
+    const content = isBullet ? trimmed.slice(2) : line;
+
+    const parts = content.split(/\*\*(.+?)\*\*/g).map((seg, si) =>
+      si % 2 === 1
+        ? <strong key={si} style={{ fontWeight: 600, color: "var(--color-ink)" }}>{seg}</strong>
+        : seg,
+    );
+
+    if (isBullet) {
+      return (
+        <div key={li} className="flex gap-2 mt-1">
+          <span style={{ color: "var(--color-ink-30)", flexShrink: 0, marginTop: 1 }}>•</span>
+          <span>{parts}</span>
+        </div>
+      );
+    }
+    if (!line.trim()) return <div key={li} className="h-3" />;
+    return <div key={li} className="mt-1">{parts}</div>;
+  });
+}
+
+function BriefContent({
+  text,
+  label,
+  onChange,
+}: {
+  text: string;
+  label?: string;
+  onChange: (t: string) => void;
+}) {
+  const [editing, setEditing] = React.useState(false);
+
+  return (
+    <div className="px-5 py-4">
+      {label && (
+        <span className="font-mono text-[10px] tracking-[0.1em] uppercase block mb-3" style={{ color: "var(--color-ink-30)" }}>
+          {label}
+        </span>
+      )}
+      {editing ? (
+        <textarea
+          autoFocus
+          value={text}
+          onChange={(e) => onChange(e.target.value)}
+          onBlur={() => setEditing(false)}
+          className="w-full resize-none bg-transparent text-[13px] leading-relaxed"
+          style={{ border: "none", outline: "none", color: "var(--color-ink)", fontFamily: "inherit", minHeight: "180px" }}
+        />
+      ) : (
+        <div
+          onClick={() => setEditing(true)}
+          className="text-[13px] leading-relaxed cursor-text"
+          style={{ color: "var(--color-ink-60)" }}
+          title="Click to edit"
+        >
+          {renderMd(text)}
+        </div>
+      )}
+      {!editing && (
+        <button
+          onClick={() => setEditing(true)}
+          className="mt-3 font-mono text-[10px] underline"
+          style={{ color: "var(--color-ink-30)", outline: "none" }}
+        >
+          Edit
+        </button>
+      )}
+    </div>
+  );
+}
+
 function PrioritySection({
   items,
   isLoading,
@@ -1062,275 +1139,268 @@ function PrioritySection({
     }
   }
 
+  // Derive the active brief and which item it belongs to
+  const activeBriefKey = Object.keys(briefs).find((k) => briefs[k].loading || briefs[k].text !== null);
+  const activeBrief = activeBriefKey ? briefs[activeBriefKey] : null;
+  const activeBriefItem = activeBriefKey
+    ? visible.find((item) => `${item.action_type}-${item.process_id ?? item.entity_id}` === activeBriefKey)
+    : null;
+
   return (
-    <div style={{ border: "0.5px solid var(--color-ink-15)" }}>
-      {/* Header */}
-      <div
-        className="flex items-center justify-between px-5 py-3"
-        style={{ background: "var(--color-ink-10)", borderBottom: "0.5px solid var(--color-ink-15)" }}
-      >
-        <div className="flex items-center gap-2">
-          <span className="font-mono text-[10px] tracking-[0.1em] uppercase" style={{ color: "var(--color-ink-30)" }}>
-            Priority actions
-          </span>
-          {!isLoading && items.length > 0 && (
-            <span
-              className="font-mono text-[9px] tracking-[0.08em] px-1.5 py-0.5"
-              style={{ background: "var(--color-vermillion)", color: "var(--color-white)" }}
-            >
-              {items.length}
+    <div className="flex" style={{ border: "0.5px solid var(--color-ink-15)" }}>
+      {/* ── Left: priority list ───────────────────────────────────────────── */}
+      <div className="flex flex-col min-w-0" style={{ flex: activeBrief ? "0 0 42%" : "1 1 100%", borderRight: activeBrief ? "0.5px solid var(--color-ink-15)" : "none", transition: "flex-basis 0.2s ease" }}>
+        {/* Header */}
+        <div
+          className="flex items-center justify-between px-4 py-3"
+          style={{ background: "var(--color-ink-10)", borderBottom: "0.5px solid var(--color-ink-15)" }}
+        >
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-[10px] tracking-[0.1em] uppercase" style={{ color: "var(--color-ink-30)" }}>
+              Priority actions
             </span>
-          )}
-        </div>
-        {!isLoading && items.length === 0 && (
-          <div className="flex items-center gap-3">
-            <span className="text-[12px]" style={{ color: "var(--color-ink-30)" }}>
-              All clear — nothing urgent right now.
-            </span>
-            {Object.keys(getDoneToday()).length > 0 && (
-              <button
-                onClick={onRestore}
-                className="text-[11px] underline"
-                style={{ color: "var(--color-ink-60)" }}
+            {!isLoading && items.length > 0 && (
+              <span
+                className="font-mono text-[9px] tracking-[0.08em] px-1.5 py-0.5"
+                style={{ background: "var(--color-vermillion)", color: "var(--color-white)" }}
               >
-                Restore {Object.keys(getDoneToday()).length} dismissed
-              </button>
+                {items.length}
+              </span>
             )}
           </div>
-        )}
-      </div>
-
-      {/* Loading state */}
-      {isLoading && (
-        <div className="px-5 py-4 space-y-3">
-          {[0, 1, 2].map((i) => <Skeleton key={i} className="h-16 w-full" />)}
+          {!isLoading && items.length === 0 && (
+            <div className="flex items-center gap-3">
+              <span className="text-[12px]" style={{ color: "var(--color-ink-30)" }}>
+                All clear — nothing urgent right now.
+              </span>
+              {Object.keys(getDoneToday()).length > 0 && (
+                <button onClick={onRestore} className="text-[11px] underline" style={{ color: "var(--color-ink-60)" }}>
+                  Restore {Object.keys(getDoneToday()).length} dismissed
+                </button>
+              )}
+            </div>
+          )}
         </div>
-      )}
 
-      {/* Items */}
-      {!isLoading && visible.map((item, i) => {
-        const isReq = item.entity_type === "requisition";
-        const accentColor =
-          item.priority_rank <= 3 ? "var(--color-vermillion)" :
-          item.priority_rank <= 10 ? "var(--color-gold)" :
-          "var(--color-ink-15)";
-        const briefKey = `${item.action_type}-${item.process_id ?? item.entity_id}`;
-        const brief = briefs[briefKey];
+        {/* Loading skeletons */}
+        {isLoading && (
+          <div className="px-4 py-4 space-y-3">
+            {[0, 1, 2].map((i) => <Skeleton key={i} className="h-16 w-full" />)}
+          </div>
+        )}
 
-        return (
-          <div
-            key={`${item.entity_id}-${item.process_id ?? ""}-${i}`}
-            style={{ borderBottom: i < visible.length - 1 ? "2px solid var(--color-ink-10)" : "none" }}
-          >
-            <div className="flex items-stretch">
-              {/* Priority number */}
-              <div
-                className="flex w-10 shrink-0 flex-col items-center justify-start pt-4 gap-1"
-                style={{ background: "var(--color-ink-10)", borderRight: "0.5px solid var(--color-ink-15)" }}
-              >
-                <span className="font-mono text-[11px] font-medium" style={{ color: accentColor }}>
-                  {i + 1}
-                </span>
-              </div>
+        {/* Items */}
+        {!isLoading && visible.map((item, i) => {
+          const isReq = item.entity_type === "requisition";
+          const accentColor =
+            item.priority_rank <= 3 ? "var(--color-vermillion)" :
+            item.priority_rank <= 10 ? "var(--color-gold)" :
+            "var(--color-ink-15)";
+          const briefKey = `${item.action_type}-${item.process_id ?? item.entity_id}`;
+          const isActive = briefKey === activeBriefKey;
 
-              {/* Content — navigates to the profile */}
-              <button
-                onClick={() => onNavigate(item)}
-                className="flex flex-1 flex-col items-start px-4 py-3 text-left transition-colors hover:bg-[--color-ink-10]"
-                style={{ outline: "none" }}
-              >
-                <div className="flex w-full items-center justify-between gap-3 mb-1">
-                  <div className="flex items-center gap-2 min-w-0">
-                    {isReq && (
-                      <IconBriefcase size={13} style={{ color: "var(--color-gold)", flexShrink: 0 }} />
-                    )}
-                    <span className="text-[13px] font-medium font-display truncate">{item.entity_name}</span>
-                    {item.stage && (
-                      <span
-                        className="shrink-0 font-mono text-[9px] tracking-[0.08em] uppercase px-1.5 py-0.5"
-                        style={{ background: stageBadgeColor(item.stage) + "22", color: stageBadgeColor(item.stage) }}
-                      >
-                        {item.stage}
-                      </span>
-                    )}
-                  </div>
-                  <IconChevronRight size={13} style={{ color: "var(--color-ink-30)", flexShrink: 0 }} />
+          return (
+            <div
+              key={`${item.entity_id}-${item.process_id ?? ""}-${i}`}
+              style={{
+                borderBottom: i < visible.length - 1 ? "2px solid var(--color-ink-10)" : "none",
+                background: isActive ? "var(--color-indigo-light)" : "transparent",
+              }}
+            >
+              <div className="flex items-stretch">
+                {/* Priority number */}
+                <div
+                  className="flex w-9 shrink-0 flex-col items-center justify-start pt-3 gap-1"
+                  style={{ background: isActive ? "transparent" : "var(--color-ink-10)", borderRight: "0.5px solid var(--color-ink-15)" }}
+                >
+                  <span className="font-mono text-[11px] font-medium" style={{ color: accentColor }}>{i + 1}</span>
                 </div>
-                <p className="text-[12px] leading-snug" style={{ color: "var(--color-ink-60)" }}>
-                  {item.reason}
-                </p>
-                {item.suggested_action && (
-                  <p className="mt-1 text-[12px] font-medium" style={{ color: "var(--color-ink)" }}>
-                    → {item.suggested_action}
-                  </p>
-                )}
-              </button>
 
-              {/* Right action strip */}
-              <div
-                className="flex shrink-0 flex-col border-l"
-                style={{ borderColor: "var(--color-ink-15)" }}
-              >
-                {/* AI brief button */}
-                <div className="group/tip relative flex flex-1">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (!brief?.text) void getAiBrief(item);
-                      else setBriefs({});
-                    }}
-                    disabled={brief?.loading}
-                    className="flex flex-1 items-center justify-center w-10 transition-colors hover:bg-[--color-indigo-light]"
-                    style={{
-                      outline: "none",
-                      borderBottom: "0.5px solid var(--color-ink-15)",
-                      opacity: brief?.loading ? 0.5 : 1,
-                    }}
-                  >
-                    <IconSparkles size={13} style={{ color: brief?.text ? "var(--color-indigo)" : "var(--color-ink-30)" }} />
-                  </button>
-                  <div className="pointer-events-none absolute right-full top-1/2 -translate-y-1/2 mr-2 hidden group-hover/tip:flex items-center z-50">
-                    <span className="whitespace-nowrap font-mono text-[10px] px-2 py-1" style={{ background: "var(--color-ink)", color: "var(--color-white)", letterSpacing: "0.05em" }}>AI pre-call brief</span>
-                    <span style={{ borderLeft: "4px solid var(--color-ink)", borderTop: "4px solid transparent", borderBottom: "4px solid transparent" }} />
+                {/* Content */}
+                <button
+                  onClick={() => onNavigate(item)}
+                  className="flex flex-1 flex-col items-start px-3 py-3 text-left transition-colors hover:bg-[--color-ink-10] min-w-0"
+                  style={{ outline: "none" }}
+                >
+                  <div className="flex w-full items-center justify-between gap-2 mb-0.5">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      {isReq && <IconBriefcase size={12} style={{ color: "var(--color-gold)", flexShrink: 0 }} />}
+                      <span className="text-[13px] font-medium font-display truncate">{item.entity_name}</span>
+                      {item.stage && (
+                        <span
+                          className="shrink-0 font-mono text-[9px] tracking-[0.08em] uppercase px-1 py-0.5"
+                          style={{ background: stageBadgeColor(item.stage) + "22", color: stageBadgeColor(item.stage) }}
+                        >
+                          {item.stage}
+                        </span>
+                      )}
+                    </div>
+                    <IconChevronRight size={12} style={{ color: "var(--color-ink-30)", flexShrink: 0 }} />
                   </div>
-                </div>
-                {/* Mark done */}
-                <div className="group/tip relative flex flex-1">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); onDone(item.entity_id); }}
-                    className="flex flex-1 items-center justify-center w-10 transition-colors hover:bg-[--color-moss-light]"
-                    style={{ outline: "none", borderBottom: "0.5px solid var(--color-ink-15)" }}
-                  >
-                    <IconCheck size={13} style={{ color: "var(--color-ink-30)" }} />
-                  </button>
-                  <div className="pointer-events-none absolute right-full top-1/2 -translate-y-1/2 mr-2 hidden group-hover/tip:flex items-center z-50">
-                    <span className="whitespace-nowrap font-mono text-[10px] px-2 py-1" style={{ background: "var(--color-ink)", color: "var(--color-white)", letterSpacing: "0.05em" }}>Done for today</span>
-                    <span style={{ borderLeft: "4px solid var(--color-ink)", borderTop: "4px solid transparent", borderBottom: "4px solid transparent" }} />
+                  <p className="text-[11px] leading-snug" style={{ color: "var(--color-ink-60)" }}>{item.reason}</p>
+                  {item.suggested_action && (
+                    <p className="mt-0.5 text-[11px]" style={{ color: "var(--color-ink-60)" }}>→ {item.suggested_action}</p>
+                  )}
+                </button>
+
+                {/* Action strip */}
+                <div className="flex shrink-0 flex-col border-l" style={{ borderColor: "var(--color-ink-15)" }}>
+                  {/* Sparkle */}
+                  <div className="group/tip relative flex flex-1">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); isActive ? setBriefs({}) : void getAiBrief(item); }}
+                      disabled={activeBrief?.loading && !isActive}
+                      className="flex flex-1 items-center justify-center w-9 transition-colors hover:bg-[--color-indigo-light]"
+                      style={{ outline: "none", borderBottom: "0.5px solid var(--color-ink-15)", opacity: activeBrief?.loading && !isActive ? 0.4 : 1 }}
+                    >
+                      <IconSparkles size={12} style={{ color: isActive ? "var(--color-indigo)" : "var(--color-ink-30)" }} />
+                    </button>
+                    <div className="pointer-events-none absolute right-full top-1/2 -translate-y-1/2 mr-2 hidden group-hover/tip:flex items-center z-50">
+                      <span className="whitespace-nowrap font-mono text-[10px] px-2 py-1" style={{ background: "var(--color-ink)", color: "var(--color-white)", letterSpacing: "0.05em" }}>AI insights</span>
+                      <span style={{ borderLeft: "4px solid var(--color-ink)", borderTop: "4px solid transparent", borderBottom: "4px solid transparent" }} />
+                    </div>
                   </div>
-                </div>
-                {/* Snooze */}
-                <div className="group/tip relative flex flex-1">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); onSnooze(item.entity_id); }}
-                    className="flex flex-1 items-center justify-center w-10 transition-colors hover:bg-[--color-gold-light]"
-                    style={{ outline: "none" }}
-                  >
-                    <IconBellOff size={13} style={{ color: "var(--color-ink-30)" }} />
-                  </button>
-                  <div className="pointer-events-none absolute right-full top-1/2 -translate-y-1/2 mr-2 hidden group-hover/tip:flex items-center z-50">
-                    <span className="whitespace-nowrap font-mono text-[10px] px-2 py-1" style={{ background: "var(--color-ink)", color: "var(--color-white)", letterSpacing: "0.05em" }}>Snooze until tomorrow</span>
-                    <span style={{ borderLeft: "4px solid var(--color-ink)", borderTop: "4px solid transparent", borderBottom: "4px solid transparent" }} />
+                  {/* Done */}
+                  <div className="group/tip relative flex flex-1">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onDone(item.entity_id); }}
+                      className="flex flex-1 items-center justify-center w-9 transition-colors hover:bg-[--color-moss-light]"
+                      style={{ outline: "none", borderBottom: "0.5px solid var(--color-ink-15)" }}
+                    >
+                      <IconCheck size={12} style={{ color: "var(--color-ink-30)" }} />
+                    </button>
+                    <div className="pointer-events-none absolute right-full top-1/2 -translate-y-1/2 mr-2 hidden group-hover/tip:flex items-center z-50">
+                      <span className="whitespace-nowrap font-mono text-[10px] px-2 py-1" style={{ background: "var(--color-ink)", color: "var(--color-white)", letterSpacing: "0.05em" }}>Done for today</span>
+                      <span style={{ borderLeft: "4px solid var(--color-ink)", borderTop: "4px solid transparent", borderBottom: "4px solid transparent" }} />
+                    </div>
+                  </div>
+                  {/* Snooze */}
+                  <div className="group/tip relative flex flex-1">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onSnooze(item.entity_id); }}
+                      className="flex flex-1 items-center justify-center w-9 transition-colors hover:bg-[--color-gold-light]"
+                      style={{ outline: "none" }}
+                    >
+                      <IconBellOff size={12} style={{ color: "var(--color-ink-30)" }} />
+                    </button>
+                    <div className="pointer-events-none absolute right-full top-1/2 -translate-y-1/2 mr-2 hidden group-hover/tip:flex items-center z-50">
+                      <span className="whitespace-nowrap font-mono text-[10px] px-2 py-1" style={{ background: "var(--color-ink)", color: "var(--color-white)", letterSpacing: "0.05em" }}>Snooze until tomorrow</span>
+                      <span style={{ borderLeft: "4px solid var(--color-ink)", borderTop: "4px solid transparent", borderBottom: "4px solid transparent" }} />
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
+          );
+        })}
 
-            {/* AI brief output — inline below item */}
-            {brief?.text && (
-              <div style={{ borderTop: "0.5px solid var(--color-ink-15)" }}>
-                {/* Brief panel */}
-                <div
-                  className="px-5 pb-4 pt-3"
-                  style={{ background: "var(--color-indigo-light)" }}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-mono text-[10px] tracking-[0.1em] uppercase" style={{ color: "var(--color-indigo)" }}>
-                      {item.action_type === "ccm_feedback" ? "Client chase brief — edit freely before using" : "Pre-call brief — edit freely before using"}
-                    </span>
-                    <button
-                      onClick={() => setBriefs({})}
-                      style={{ color: "var(--color-indigo)", outline: "none" }}
-                    >
-                      <IconX size={13} />
-                    </button>
-                  </div>
-                  <textarea
-                    value={brief.text}
-                    onChange={(e) =>
-                      setBriefs((prev) => ({ ...prev, [briefKey]: { ...prev[briefKey], text: e.target.value } }))
-                    }
-                    className="w-full resize-none bg-transparent text-[13px] leading-relaxed"
-                    style={{
-                      border: "none", outline: "none",
-                      color: "var(--color-ink)", fontFamily: "inherit", minHeight: "140px",
-                    }}
-                  />
-                </div>
+        {/* Show more / less */}
+        {!isLoading && items.length > VISIBLE_COUNT && (
+          <button
+            onClick={onToggleShowAll}
+            className="w-full py-2 text-center text-[11px] font-medium transition-colors hover:bg-[--color-ink-10]"
+            style={{ color: "var(--color-ink-60)", borderTop: "0.5px solid var(--color-ink-15)", outline: "none" }}
+          >
+            {showAll ? "Show less" : `Show ${items.length - VISIBLE_COUNT} more`}
+          </button>
+        )}
+      </div>
 
-                {/* CCM outcome chain — next step buttons */}
-                {item.action_type === "ccm_feedback" && item.process_id && (
-                  <div style={{ borderTop: "1px solid var(--color-ink-15)", background: "var(--color-ink-05)" }}>
-                    <div className="px-5 pt-3 pb-2">
-                      <span className="font-mono text-[10px] tracking-[0.1em] uppercase" style={{ color: "var(--color-ink-30)" }}>
-                        What happened next?
-                      </span>
-                    </div>
-                    <div className="flex gap-0" style={{ borderTop: "0.5px solid var(--color-ink-15)" }}>
-                      {(
-                        [
-                          { scenario: "pass" as const, label: "Positive feedback", color: "var(--color-moss)", bg: "var(--color-moss-light)" },
-                          { scenario: "reject" as const, label: "Candidate rejected", color: "var(--color-vermillion)", bg: "var(--color-vermillion-light)" },
-                          { scenario: "no_response" as const, label: "Client not responding", color: "var(--color-gold)", bg: "var(--color-gold-light)" },
-                        ] as const
-                      ).map(({ scenario, label, color, bg }) => (
-                        <button
-                          key={scenario}
-                          onClick={() => void getChainStep(briefKey, item.process_id!, scenario)}
-                          disabled={brief.chainLoading}
-                          className="flex flex-1 items-center justify-center gap-1.5 py-2.5 text-[11px] font-medium transition-colors"
-                          style={{
-                            color: brief.chainType === scenario ? color : "var(--color-ink-60)",
-                            background: brief.chainType === scenario ? bg : "transparent",
-                            borderRight: scenario !== "no_response" ? "0.5px solid var(--color-ink-15)" : "none",
-                            outline: "none",
-                            opacity: brief.chainLoading && brief.chainType !== scenario ? 0.4 : 1,
-                          }}
-                        >
-                          {brief.chainLoading && brief.chainType === scenario ? "Generating…" : label}
-                        </button>
-                      ))}
-                    </div>
-
-                    {/* Chained output */}
-                    {brief.chainText && (
-                      <div className="px-5 py-4" style={{ borderTop: "0.5px solid var(--color-ink-15)" }}>
-                        <span className="font-mono text-[10px] tracking-[0.1em] uppercase block mb-2" style={{ color: "var(--color-ink-30)" }}>
-                          Next step — edit freely before using
-                        </span>
-                        <textarea
-                          value={brief.chainText}
-                          onChange={(e) =>
-                            setBriefs((prev) => ({ ...prev, [briefKey]: { ...prev[briefKey], chainText: e.target.value } }))
-                          }
-                          className="w-full resize-none bg-transparent text-[13px] leading-relaxed"
-                          style={{
-                            border: "none", outline: "none",
-                            color: "var(--color-ink)", fontFamily: "inherit", minHeight: "160px",
-                          }}
-                        />
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
+      {/* ── Right: brief panel ────────────────────────────────────────────── */}
+      {activeBrief && (
+        <div className="flex flex-col min-w-0" style={{ flex: "1 1 58%" }}>
+          {/* Panel header */}
+          <div
+            className="flex items-center justify-between px-5 py-3 shrink-0"
+            style={{ background: "var(--color-ink-10)", borderBottom: "0.5px solid var(--color-ink-15)" }}
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <IconSparkles size={12} style={{ color: "var(--color-indigo)", flexShrink: 0 }} />
+              <span className="font-mono text-[10px] tracking-[0.1em] uppercase truncate" style={{ color: "var(--color-indigo)" }}>
+                {activeBriefItem?.action_type === "ccm_feedback"
+                  ? `Client chase brief · ${activeBriefItem.entity_name}`
+                  : activeBriefItem?.action_type === "competing_risk"
+                  ? `Competing risk · ${activeBriefItem.entity_name}`
+                  : `AI insights · ${activeBriefItem?.entity_name ?? ""}`}
+              </span>
+            </div>
+            <button onClick={() => setBriefs({})} style={{ color: "var(--color-ink-30)", outline: "none", flexShrink: 0 }}>
+              <IconX size={13} />
+            </button>
           </div>
-        );
-      })}
 
-      {/* Show more / less */}
-      {!isLoading && items.length > VISIBLE_COUNT && (
-        <button
-          onClick={onToggleShowAll}
-          className="w-full py-2.5 text-center text-[12px] font-medium transition-colors hover:bg-[--color-ink-10]"
-          style={{
-            color: "var(--color-ink-60)",
-            borderTop: "0.5px solid var(--color-ink-15)",
-            outline: "none",
-          }}
-        >
-          {showAll ? "Show less" : `Show ${items.length - VISIBLE_COUNT} more`}
-        </button>
+          {/* Loading state */}
+          {activeBrief.loading && (
+            <div className="flex-1 flex items-center justify-center px-6 py-10">
+              <div className="space-y-3 w-full max-w-sm">
+                {[100, 85, 90, 70].map((w, i) => (
+                  <Skeleton key={i} className="h-3" style={{ width: `${w}%` }} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Brief content */}
+          {!activeBrief.loading && activeBrief.text && (
+            <div className="flex-1 flex flex-col overflow-y-auto">
+              <BriefContent
+                text={activeBrief.text}
+                onChange={(t) => setBriefs((prev) => ({ ...prev, [activeBriefKey!]: { ...prev[activeBriefKey!], text: t } }))}
+              />
+
+              {/* CCM chain */}
+              {activeBriefItem?.action_type === "ccm_feedback" && activeBriefItem.process_id && (
+                <div style={{ borderTop: "1px solid var(--color-ink-15)" }}>
+                  <div className="px-5 pt-3 pb-2 flex items-center gap-2">
+                    <span className="font-mono text-[10px] tracking-[0.1em] uppercase" style={{ color: "var(--color-ink-30)" }}>
+                      What happened next?
+                    </span>
+                  </div>
+                  <div className="flex" style={{ borderTop: "0.5px solid var(--color-ink-15)" }}>
+                    {(
+                      [
+                        { scenario: "pass" as const, label: "Positive feedback", color: "var(--color-moss)", bg: "var(--color-moss-light)" },
+                        { scenario: "reject" as const, label: "Candidate rejected", color: "var(--color-vermillion)", bg: "var(--color-vermillion-light)" },
+                        { scenario: "no_response" as const, label: "Client not responding", color: "var(--color-gold)", bg: "var(--color-gold-light)" },
+                      ] as const
+                    ).map(({ scenario, label, color, bg }) => (
+                      <button
+                        key={scenario}
+                        onClick={() => void getChainStep(activeBriefKey!, activeBriefItem.process_id!, scenario)}
+                        disabled={activeBrief.chainLoading}
+                        className="flex flex-1 items-center justify-center py-2.5 text-[11px] font-medium transition-colors"
+                        style={{
+                          color: activeBrief.chainType === scenario ? color : "var(--color-ink-60)",
+                          background: activeBrief.chainType === scenario ? bg : "transparent",
+                          borderRight: scenario !== "no_response" ? "0.5px solid var(--color-ink-15)" : "none",
+                          outline: "none",
+                          opacity: activeBrief.chainLoading && activeBrief.chainType !== scenario ? 0.4 : 1,
+                        }}
+                      >
+                        {activeBrief.chainLoading && activeBrief.chainType === scenario ? "Generating…" : label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {activeBrief.chainText && (
+                    <div style={{ borderTop: "0.5px solid var(--color-ink-15)" }}>
+                      <BriefContent
+                        text={activeBrief.chainText}
+                        label="Next step"
+                        onChange={(t) => setBriefs((prev) => ({ ...prev, [activeBriefKey!]: { ...prev[activeBriefKey!], chainText: t } }))}
+                      />
+                    </div>
+                  )}
+                  {activeBrief.chainLoading && !activeBrief.chainText && (
+                    <div className="px-5 py-6 space-y-2">
+                      {[100, 80, 90].map((w, i) => <Skeleton key={i} className="h-3" style={{ width: `${w}%` }} />)}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

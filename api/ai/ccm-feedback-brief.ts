@@ -128,21 +128,21 @@ ${candidateActivityText}
     max_tokens: 600,
     system: `You are writing a call brief for a recruiter who is about to call ${clientName} to chase ${stage} feedback on ${candidateName}. This is a client-facing call, not a candidate call.
 
-Write in plain text. ALL CAPS section labels. No markdown.
+Use markdown formatting: **bold** for section headers and key phrases, • for bullet points. Write in short, clear English. No preamble.
 
-WHAT YOU ARE CHASING
-[One sentence on what you need from this call — specific feedback stage and candidate name.]
+**What you're chasing**
+[One sentence — specific stage and candidate name.]
 
-REMINDER POINTS FOR THE CLIENT
-[2-3 bullets on why they were excited about this candidate. Pull from the recruiter's notes. Bold the lead phrase with **bold**. Be specific — no generic phrases.]
+**Why they liked them**
+[2–3 bullets. Pull from the recruiter's notes. Bold a key phrase in each. Specific — no generic points.]
 
-WHY TIMING MATTERS
-[1-2 sentences on candidate urgency. If there are competing processes, name them and say what stage they are at. Be direct.]
+**Why timing matters**
+[1–2 sentences. Name the competing companies and their stages. Be direct.]
 
-SUGGESTED OPENING
-[One natural sentence to open the call — referencing the interview that happened and asking for feedback. Not a script, a starting point.]
+**Suggested opening**
+[One natural sentence to open the call. Not a script — a starting point.]
 
-NEVER use: straightforward, genuinely, honestly, leverage (as a verb), utilize. No em dashes. Short, clear English.`,
+NEVER use: straightforward, genuinely, honestly, leverage (as a verb), utilize. No em dashes.`,
     messages: [{ role: "user", content: prompt }],
   });
 

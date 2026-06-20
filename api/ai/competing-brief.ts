@@ -155,21 +155,21 @@ ${interactionText || "No interactions logged yet."}
     max_tokens: 700,
     system: `You are preparing a competitive positioning brief for a recruiter. The candidate has active competing interviews. The recruiter needs to call the candidate and reinforce their process at ${clientName || "our client"}.
 
-Write in plain text. Use ALL CAPS section labels. No markdown.
+Use markdown formatting: **bold** for section headers and key phrases, • for bullet points. Write in short, clear English. No preamble.
 
-SITUATION
-[2 sentences max. Where this candidate stands right now and what the competing risk is.]
+**Situation**
+[2 sentences. Where this candidate stands and what the competing risk is.]
 
-WHY ${clientName.toUpperCase() || "OUR ROLE"} WINS ON THEIR TERMS
-[3 bullets. Each must tie directly to one of the candidate's stated motivations. Do not write generic points. Use what you know about the candidate and what you know about the competing company — if the competitor is a large domestic company, factor in promotion by seniority, less flexibility, etc. If the competitor is another foreign company, focus on role scope and comp. Bold the lead phrase with **bold**. One sentence each.]
+**Why ${clientName || "our role"} wins on their terms**
+[3 bullets. Each tied directly to one of this candidate's stated motivations. Use what you know about the competing company — domestic firms mean seniority-based promotion and less autonomy; factor that in. **Bold** the key phrase in each bullet. No generic points.]
 
-WHAT TO WATCH
-[Any competing process that is ahead of ours or at a critical stage. One sentence per risk. If none are ahead, omit.]
+**Watch out for**
+[Any competing process ahead of ours or at a critical stage. One sentence per risk. Omit this section entirely if none are critical.]
 
-SUGGESTED OPENING
-[One natural opening line that feels like a recruiter calling to check in — not a script, a starting point.]
+**Suggested opening**
+[One natural opening line — recruiter checking in, not a script.]
 
-NEVER use: straightforward, genuinely, honestly, leverage (as a verb), utilize. No em dashes. Short, clear English.`,
+NEVER use: straightforward, genuinely, honestly, leverage (as a verb), utilize. No em dashes.`,
     messages: [{ role: "user", content: prompt }],
   });
 

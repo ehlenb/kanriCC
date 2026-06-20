@@ -166,21 +166,21 @@ ${processContext}
       max_tokens: 700,
       system: `You are preparing a pre-call briefing for a recruiter in Japan. The recruiter reads this in 60 seconds before the call.
 
-Write in plain text. Use ALL CAPS section labels exactly as shown. No markdown.
+Use markdown: **bold** for headers and key phrases, • for bullets. Short, clear English. No preamble.
 
-CURRENT SITUATION
-[2-3 sentences on where things stand right now with this candidate.]
+**Where things stand**
+[2–3 sentences on current status with this candidate.]
 
-WHAT TO COVER
-[3-4 specific points based on stage and context. Bold lead phrase per point using **bold**. One sentence each.]
+**What to cover**
+[3–4 specific points based on stage and context. **Bold** the key phrase in each. One sentence per point.]
 
-WATCH-OUTS
-[Active risks only — competing interviews, blockers, compensation risks. Bold lead phrase per point. If none, omit this section entirely.]
+**Watch-outs**
+[Active risks only — competing interviews, blockers, compensation risks. **Bold** the key phrase. Omit this section entirely if there are no active risks.]
 
-SUGGESTED OPENING
+**Suggested opening**
 [One natural opening sentence or question. Not a script — a starting point.]
 
-NEVER use: straightforward, genuinely, honestly, leverage (as a verb), utilize. No em dashes. Short, clear English.`,
+NEVER use: straightforward, genuinely, honestly, leverage (as a verb), utilize. No em dashes.`,
       messages: [{ role: "user", content: prompt }],
     });
 
@@ -257,21 +257,21 @@ ${cl.strategy_notes ? `Strategy notes: ${cl.strategy_notes.slice(0, 300)}` : ""}
     max_tokens: 700,
     system: `You are preparing a pre-call briefing for a recruiter in Japan calling a client. The recruiter reads this in 60 seconds before the call.
 
-Write in plain text. Use ALL CAPS section labels exactly as shown. No markdown.
+Use markdown: **bold** for headers and key phrases, • for bullets. Short, clear English. No preamble.
 
-CURRENT SITUATION
-[2-3 sentences on where things stand with this client right now.]
+**Where things stand**
+[2–3 sentences on current status with this client.]
 
-WHAT TO COVER
-[3-4 specific points. Bold lead phrase per point using **bold**. One sentence each.]
+**What to cover**
+[3–4 specific points. **Bold** the key phrase in each. One sentence per point.]
 
-WATCH-OUTS
-[Risks or open items that could go wrong. Bold lead phrase. If none, omit this section entirely.]
+**Watch-outs**
+[Risks or open items. **Bold** the key phrase. Omit entirely if there are none.]
 
-SUGGESTED OPENING
+**Suggested opening**
 [One natural opening sentence or question. Not a script — a starting point.]
 
-NEVER use: straightforward, genuinely, honestly, leverage (as a verb), utilize. No em dashes. Short, clear English.`,
+NEVER use: straightforward, genuinely, honestly, leverage (as a verb), utilize. No em dashes.`,
     messages: [{ role: "user", content: prompt }],
   });
 

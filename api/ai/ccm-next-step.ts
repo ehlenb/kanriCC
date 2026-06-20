@@ -114,65 +114,65 @@ ${activityText}
   if (scenario === "pass") {
     systemPrompt = `You are writing a call brief for a recruiter who just received positive ${stage} feedback from ${clientName} on ${candidateName}. The next step is to call ${firstName} to share the news, gauge where they stand on all their processes, reinforce the ${clientName} opportunity, and prepare them for ${nextCcm}.
 
-Write in plain text. ALL CAPS section labels. No markdown.
+Use markdown: **bold** for headers and key phrases, • for bullets. Short, clear English. No preamble.
 
-OPENING
-[One sentence to open the call — share the good news naturally.]
+**How to open**
+[One sentence — share the good news naturally.]
 
-GAUGE THEIR POSITION
-[2-3 specific questions to ask about where they stand across all their competing processes. Reference the actual competing companies by name. You need to know if they are close to an offer elsewhere before scheduling the next round.]
+**Gauge their position**
+[2–3 specific questions about where they stand across all competing processes. Name the actual companies. You need to know if they are close to an offer elsewhere before scheduling ${nextCcm}.]
 
-REINFORCE THE OPPORTUNITY
-[2-3 points tied to this candidate's ranked motivations. Why ${clientName} is the right move for them specifically. Bold lead phrase with **bold**. One sentence each. No generic points.]
+**Reinforce the opportunity**
+[2–3 bullets tied to this candidate's ranked motivations. Why ${clientName} specifically. **Bold** the key phrase in each. No generic points.]
 
-NEXT STEPS TO CONFIRM ON THE CALL
-[What to agree before hanging up — ${nextCcm} scheduling, any prep they need, timeline alignment. 2-3 bullet points.]
+**Before you hang up**
+[What to confirm — ${nextCcm} scheduling, any prep needed, timeline. 2–3 bullets.]
 
-NEVER use: straightforward, genuinely, honestly, leverage (as a verb), utilize. No em dashes. Short, clear English.`;
+NEVER use: straightforward, genuinely, honestly, leverage (as a verb), utilize. No em dashes.`;
 
     userPrompt = baseContext;
   } else if (scenario === "reject") {
-    systemPrompt = `You are writing a script and email draft for a recruiter who received a rejection from ${clientName} after ${stage} for ${candidateName}. The goal is to deliver the news softly, maintain the relationship, and keep the candidate engaged for future opportunities.
+    systemPrompt = `You are writing a call script and email draft for a recruiter who received a rejection from ${clientName} after ${stage} for ${candidateName}. Goal: deliver the news softly, maintain the relationship, keep the candidate engaged.
 
-Write in plain text. ALL CAPS section labels. No markdown.
+Use markdown: **bold** for headers and key phrases, • for bullets. Short, clear English. No preamble.
 
-CALL SCRIPT — HOW TO OPEN
-[2-3 sentences on how to open this difficult call. Acknowledge their effort. Do not lead with the rejection.]
+**How to open the call**
+[2–3 sentences. Acknowledge their effort. Do not lead with the rejection.]
 
-WHAT TO SAY
-[The rejection message itself — 3-4 sentences. Soft, professional, candidate-first. Include the feedback framing without making it feel final. Use what you know about the client's concern if any is evident from the notes.]
+**How to frame the news**
+[3–4 sentences. Soft, professional, candidate-first. Where possible, frame the feedback constructively without making it feel final.]
 
-HOW TO KEEP THEM ENGAGED
-[1-2 sentences on what to offer next — other roles you are working on, staying in touch, next check-in timing.]
+**Keep them engaged**
+[1–2 sentences on what you offer next — other searches, timing for next contact.]
 
-EMAIL DRAFT — SUBJECT LINE
-[One subject line for a follow-up email.]
+**Email — subject line**
+[One subject line.]
 
-EMAIL DRAFT — BODY
-[A short, warm rejection email in recruiter voice. 4-6 sentences. Copy-paste ready. Do not use the word "unfortunately".]
+**Email — body**
+[Short, warm rejection email in recruiter voice. 4–5 sentences. Copy-paste ready. Do not use the word "unfortunately".]
 
-NEVER use: straightforward, genuinely, honestly, leverage (as a verb), utilize. No em dashes. Short, clear English.`;
+NEVER use: straightforward, genuinely, honestly, leverage (as a verb), utilize. No em dashes.`;
 
     userPrompt = baseContext;
   } else {
     // no_response
-    systemPrompt = `You are writing a candidate warm email for a recruiter who is waiting for ${stage} feedback from ${clientName} on ${candidateName}. The client has not responded yet. The recruiter needs to keep ${firstName} warm and engaged while they wait, without revealing that the client is slow.
+    systemPrompt = `You are writing a candidate-warm email for a recruiter waiting for ${stage} feedback from ${clientName} on ${candidateName}. The client has not responded. Keep ${firstName} warm and engaged without revealing the client is slow.
 
-Write in plain text. ALL CAPS section labels. No markdown.
+Use markdown: **bold** for headers and key phrases, • for bullets. Short, clear English. No preamble.
 
-SITUATION ASSESSMENT
-[1-2 sentences on how to frame this internally — is there urgency given competing processes? What is the risk of going quiet?]
+**Read the situation**
+[1–2 sentences on internal framing — urgency given competing processes, risk of going quiet.]
 
-EMAIL DRAFT — SUBJECT LINE
+**Email — subject line**
 [One natural subject line. Not "Checking in" or "Following up".]
 
-EMAIL DRAFT — BODY
-[A short warm email to ${firstName} — 4-5 sentences. Reference something specific from their recent conversations or the process. Keep energy positive. Do not say feedback is pending. Copy-paste ready.]
+**Email — body**
+[4–5 sentences to ${firstName}. Reference something specific from recent conversations or the process. Keep energy positive. Do not mention that feedback is pending. Copy-paste ready.]
 
-IF YOU NEED TO FOLLOW UP WITH THE CLIENT TOO
-[One sentence on how to nudge ${clientName} without being aggressive — referencing the candidate's timeline or competing processes if relevant.]
+**Nudging the client (if needed)**
+[One sentence on how to follow up with ${clientName} without being aggressive — use the candidate's competing timeline as natural context.]
 
-NEVER use: straightforward, genuinely, honestly, leverage (as a verb), utilize. No em dashes. Short, clear English.`;
+NEVER use: straightforward, genuinely, honestly, leverage (as a verb), utilize. No em dashes.`;
 
     userPrompt = baseContext;
   }
