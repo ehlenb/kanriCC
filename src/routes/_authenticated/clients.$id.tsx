@@ -520,6 +520,48 @@ function ClientDetail() {
     content: string;
   } | null>(null);
   const [draftLoading, setDraftLoading] = useState(false);
+  const [strategyPreview, setStrategyPreview] = useState<{
+    draft: string;
+    loading: boolean;
+  } | null>(null);
+
+  async function handleStrategyNote(item: { summary: string | null; full_notes: string | null }) {
+    setStrategyPreview({ draft: "", loading: true });
+    // Switch to info tab so the preview is visible
+    setClientTab("info");
+    try {
+      const resp = await fetch("/api/ai/update-client-strategy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          client_id: id,
+          interaction_summary: item.summary,
+          interaction_notes: item.full_notes,
+        }),
+      });
+      const data = (await resp.json()) as { strategy_notes?: string; error?: string };
+      if (data.strategy_notes) {
+        setStrategyPreview({ draft: data.strategy_notes, loading: false });
+      } else {
+        toast.error("Could not update strategy notes. Try again.");
+        setStrategyPreview(null);
+      }
+    } catch {
+      toast.error("Could not update strategy notes. Try again.");
+      setStrategyPreview(null);
+    }
+  }
+
+  async function saveStrategyPreview() {
+    if (!strategyPreview) return;
+    await supabase
+      .from("clients")
+      .update({ strategy_notes: strategyPreview.draft })
+      .eq("id", id);
+    await qc.invalidateQueries({ queryKey: ["client", id] });
+    toast.success("Strategy notes updated.");
+    setStrategyPreview(null);
+  }
 
   if (isLoading) {
     return (
@@ -824,6 +866,7 @@ function ClientDetail() {
               perspective="client"
               emptyMessage="No interactions logged yet."
               emptySubMessage="Use Log activity to record calls, emails, and meetings with this client."
+              onStrategyNote={(item) => void handleStrategyNote(item)}
             />
           </div>
           <div className="space-y-3">
@@ -867,6 +910,58 @@ function ClientDetail() {
                   .then(() => qc.invalidateQueries({ queryKey: ["client", id] }));
               }}
             />
+
+            {/* ── Strategy notes preview (from timeline entry) ── */}
+            {strategyPreview && (
+              <div
+                className="p-4 space-y-3"
+                style={{ background: "var(--color-white)", border: "1.5px solid var(--color-indigo)" }}
+              >
+                <div className="flex items-center justify-between">
+                  <p className="label" style={{ color: "var(--color-indigo)" }}>AI — Updated strategy notes</p>
+                  <button
+                    className="text-[11px]"
+                    style={{ color: "var(--color-ink-30)" }}
+                    onClick={() => setStrategyPreview(null)}
+                  >
+                    Discard
+                  </button>
+                </div>
+                {strategyPreview.loading ? (
+                  <p className="text-[12px]" style={{ color: "var(--color-ink-60)" }}>Synthesising…</p>
+                ) : (
+                  <>
+                    <textarea
+                      className="w-full text-[13px] leading-relaxed resize-none"
+                      style={{
+                        border: "0.5px solid var(--color-ink-15)",
+                        padding: "10px 12px",
+                        background: "var(--color-ink-05)",
+                        color: "var(--color-ink)",
+                        minHeight: 140,
+                      }}
+                      value={strategyPreview.draft}
+                      onChange={(e) => setStrategyPreview({ ...strategyPreview, draft: e.target.value })}
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        className="btn btn-primary btn-sm"
+                        onClick={() => void saveStrategyPreview()}
+                      >
+                        Save to strategy notes
+                      </button>
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => setStrategyPreview(null)}
+                      >
+                        Discard
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
             <ClientEnrichCard clientId={id} companyName={c.company_name} />
             <ClientIntelligenceCard
               clientId={id}

@@ -13,6 +13,7 @@ import {
   IconFileText,
   IconMessage,
   IconClipboard,
+  IconArrowRight,
 } from "@tabler/icons-react";
 import { interactionTypeLabel } from "@/components/shared/LogActivityModal";
 
@@ -164,9 +165,11 @@ function UpcomingEntry({ item }: { item: TimelineInteraction }) {
 function InteractionEntry({
   item,
   perspective,
+  onStrategyNote,
 }: {
   item: TimelineInteraction;
   perspective: "candidate" | "client";
+  onStrategyNote?: (item: TimelineInteraction) => void;
 }) {
   const type = item.interaction_type;
   const Icon = iconFor(type);
@@ -240,6 +243,20 @@ function InteractionEntry({
           ) : (
             <p className="text-[12px]" style={{ color: "var(--color-ink-30)" }}>No notes recorded.</p>
           )}
+
+          {/* Strategy notes button — client perspective only */}
+          {perspective === "client" && onStrategyNote && (notes) && (
+            <div className="mt-2 pt-2" style={{ borderTop: "0.5px solid var(--color-ink-15)" }}>
+              <button
+                className="flex items-center gap-1 text-[11px]"
+                style={{ color: "var(--color-indigo)" }}
+                onClick={() => onStrategyNote(item)}
+              >
+                <IconArrowRight size={12} />
+                Add to strategy notes
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -254,6 +271,7 @@ export function ActivityTimeline({
   perspective,
   emptyMessage = "No activity recorded yet.",
   emptySubMessage,
+  onStrategyNote,
 }: {
   interactions: TimelineInteraction[];
   /** When set, only interactions with this contact_id are shown. */
@@ -261,6 +279,8 @@ export function ActivityTimeline({
   perspective: "candidate" | "client";
   emptyMessage?: string;
   emptySubMessage?: string;
+  /** Client perspective only — called when recruiter clicks "Add to strategy notes" on an entry. */
+  onStrategyNote?: (item: TimelineInteraction) => void;
 }) {
   const filtered = filterContactId
     ? interactions.filter((i) => i.contact_id === filterContactId)
@@ -310,6 +330,7 @@ export function ActivityTimeline({
             key={`i-${item.id}`}
             item={item}
             perspective={perspective}
+            onStrategyNote={onStrategyNote}
           />
         ))}
       </div>
