@@ -506,14 +506,50 @@ function Dashboard() {
   }, [priorityActions.data]);
 
   function handleDone(entityId: string) {
+    const removed = agendaItems.find((i) => i.entity_id === entityId);
     markDoneToday(entityId);
     setAgendaItems((prev) => prev.filter((i) => i.entity_id !== entityId));
+    if (removed) {
+      toast("Marked done for today", {
+        action: {
+          label: "Undo",
+          onClick: () => {
+            const d = getDoneToday();
+            delete d[entityId];
+            localStorage.setItem("kanri_done_today", JSON.stringify(d));
+            setAgendaItems((prev) => {
+              if (prev.some((i) => i.entity_id === entityId)) return prev;
+              return [removed, ...prev];
+            });
+          },
+        },
+        duration: 6000,
+      });
+    }
   }
   function handleSnooze(entityId: string) {
+    const removed = agendaItems.find((i) => i.entity_id === entityId);
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     snoozeUntil(entityId, tomorrow.toISOString().slice(0, 10));
     setAgendaItems((prev) => prev.filter((i) => i.entity_id !== entityId));
+    if (removed) {
+      toast("Snoozed until tomorrow", {
+        action: {
+          label: "Undo",
+          onClick: () => {
+            const d = getSnoozed();
+            delete d[entityId];
+            localStorage.setItem("kanri_snoozed", JSON.stringify(d));
+            setAgendaItems((prev) => {
+              if (prev.some((i) => i.entity_id === entityId)) return prev;
+              return [removed, ...prev];
+            });
+          },
+        },
+        duration: 6000,
+      });
+    }
   }
   const m = metrics.data;
 
