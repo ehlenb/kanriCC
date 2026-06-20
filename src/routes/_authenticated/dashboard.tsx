@@ -969,7 +969,13 @@ function stageBadgeColor(stage: string | undefined): string {
   return STAGE_COLOR[stage] ?? "var(--color-ink-30)";
 }
 
-type BriefState = { loading: boolean; text: string | null };
+type BriefState = {
+  loading: boolean;
+  text: string | null;
+  chainLoading?: boolean;
+  chainText?: string | null;
+  chainType?: "pass" | "reject" | "no_response";
+};
 
 function PrioritySection({
   items,
@@ -995,6 +1001,23 @@ function PrioritySection({
   const VISIBLE_COUNT = 5;
   const visible = showAll ? items : items.slice(0, VISIBLE_COUNT);
   const [briefs, setBriefs] = useState<Record<string, BriefState>>({});
+
+  async function getChainStep(briefKey: string, processId: string, scenario: "pass" | "reject" | "no_response") {
+    setBriefs((prev) => ({ ...prev, [briefKey]: { ...prev[briefKey], chainLoading: true, chainText: null, chainType: scenario } }));
+    try {
+      const resp = await fetch("/api/ai/ccm-next-step", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ process_id: processId, scenario }),
+      });
+      const json = (await resp.json()) as { content?: string; error?: string };
+      if (json.error) throw new Error(json.error);
+      setBriefs((prev) => ({ ...prev, [briefKey]: { ...prev[briefKey], chainLoading: false, chainText: json.content ?? "" } }));
+    } catch {
+      toast.error("Could not generate next step. Try again.");
+      setBriefs((prev) => ({ ...prev, [briefKey]: { ...prev[briefKey], chainLoading: false } }));
+    }
+  }
 
   async function getAiBrief(item: AgendaItem) {
     const key = `${item.action_type}-${item.process_id ?? item.entity_id}`;
@@ -1204,32 +1227,91 @@ function PrioritySection({
 
             {/* AI brief output — inline below item */}
             {brief?.text && (
-              <div
-                className="px-5 pb-4 pt-3"
-                style={{ borderTop: "0.5px solid var(--color-ink-15)", background: "var(--color-indigo-light)" }}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-mono text-[10px] tracking-[0.1em] uppercase" style={{ color: "var(--color-indigo)" }}>
-                    Pre-call brief — edit freely before using
-                  </span>
-                  <button
-                    onClick={() => setBriefs((prev) => ({ ...prev, [briefKey]: { loading: false, text: null } }))}
-                    style={{ color: "var(--color-indigo)", outline: "none" }}
-                  >
-                    <IconX size={13} />
-                  </button>
+              <div style={{ borderTop: "0.5px solid var(--color-ink-15)" }}>
+                {/* Brief panel */}
+                <div
+                  className="px-5 pb-4 pt-3"
+                  style={{ background: "var(--color-indigo-light)" }}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-mono text-[10px] tracking-[0.1em] uppercase" style={{ color: "var(--color-indigo)" }}>
+                      {item.action_type === "ccm_feedback" ? "Client chase brief — edit freely before using" : "Pre-call brief — edit freely before using"}
+                    </span>
+                    <button
+                      onClick={() => setBriefs({})}
+                      style={{ color: "var(--color-indigo)", outline: "none" }}
+                    >
+                      <IconX size={13} />
+                    </button>
+                  </div>
+                  <textarea
+                    value={brief.text}
+                    onChange={(e) =>
+                      setBriefs((prev) => ({ ...prev, [briefKey]: { ...prev[briefKey], text: e.target.value } }))
+                    }
+                    className="w-full resize-none bg-transparent text-[13px] leading-relaxed"
+                    style={{
+                      border: "none", outline: "none",
+                      color: "var(--color-ink)", fontFamily: "inherit", minHeight: "140px",
+                    }}
+                  />
                 </div>
-                <textarea
-                  value={brief.text}
-                  onChange={(e) =>
-                    setBriefs((prev) => ({ ...prev, [briefKey]: { ...prev[briefKey], text: e.target.value } }))
-                  }
-                  className="w-full resize-none bg-transparent text-[13px] leading-relaxed"
-                  style={{
-                    border: "none", outline: "none",
-                    color: "var(--color-ink)", fontFamily: "inherit", minHeight: "140px",
-                  }}
-                />
+
+                {/* CCM outcome chain — next step buttons */}
+                {item.action_type === "ccm_feedback" && item.process_id && (
+                  <div style={{ borderTop: "1px solid var(--color-ink-15)", background: "var(--color-ink-05)" }}>
+                    <div className="px-5 pt-3 pb-2">
+                      <span className="font-mono text-[10px] tracking-[0.1em] uppercase" style={{ color: "var(--color-ink-30)" }}>
+                        What happened next?
+                      </span>
+                    </div>
+                    <div className="flex gap-0" style={{ borderTop: "0.5px solid var(--color-ink-15)" }}>
+                      {(
+                        [
+                          { scenario: "pass" as const, label: "Positive feedback", color: "var(--color-moss)", bg: "var(--color-moss-light)" },
+                          { scenario: "reject" as const, label: "Candidate rejected", color: "var(--color-vermillion)", bg: "var(--color-vermillion-light)" },
+                          { scenario: "no_response" as const, label: "Client not responding", color: "var(--color-gold)", bg: "var(--color-gold-light)" },
+                        ] as const
+                      ).map(({ scenario, label, color, bg }) => (
+                        <button
+                          key={scenario}
+                          onClick={() => void getChainStep(briefKey, item.process_id!, scenario)}
+                          disabled={brief.chainLoading}
+                          className="flex flex-1 items-center justify-center gap-1.5 py-2.5 text-[11px] font-medium transition-colors"
+                          style={{
+                            color: brief.chainType === scenario ? color : "var(--color-ink-60)",
+                            background: brief.chainType === scenario ? bg : "transparent",
+                            borderRight: scenario !== "no_response" ? "0.5px solid var(--color-ink-15)" : "none",
+                            outline: "none",
+                            opacity: brief.chainLoading && brief.chainType !== scenario ? 0.4 : 1,
+                          }}
+                        >
+                          {brief.chainLoading && brief.chainType === scenario ? "Generating…" : label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Chained output */}
+                    {brief.chainText && (
+                      <div className="px-5 py-4" style={{ borderTop: "0.5px solid var(--color-ink-15)" }}>
+                        <span className="font-mono text-[10px] tracking-[0.1em] uppercase block mb-2" style={{ color: "var(--color-ink-30)" }}>
+                          Next step — edit freely before using
+                        </span>
+                        <textarea
+                          value={brief.chainText}
+                          onChange={(e) =>
+                            setBriefs((prev) => ({ ...prev, [briefKey]: { ...prev[briefKey], chainText: e.target.value } }))
+                          }
+                          className="w-full resize-none bg-transparent text-[13px] leading-relaxed"
+                          style={{
+                            border: "none", outline: "none",
+                            color: "var(--color-ink)", fontFamily: "inherit", minHeight: "160px",
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
