@@ -981,6 +981,7 @@ export type Database = {
           salary_min: number | null
           salary_range_text: string | null
           salary_stretch: number | null
+          recruiter_notes: string | null
           skills_test_notes: string | null
           strategic_context: string | null
           target_start_date: string | null
@@ -1026,6 +1027,7 @@ export type Database = {
           salary_max?: number | null
           salary_min?: number | null
           salary_range_text?: string | null
+          recruiter_notes?: string | null
           salary_stretch?: number | null
           skills_test_notes?: string | null
           strategic_context?: string | null
@@ -1072,6 +1074,7 @@ export type Database = {
           salary_max?: number | null
           salary_min?: number | null
           salary_range_text?: string | null
+          recruiter_notes?: string | null
           salary_stretch?: number | null
           skills_test_notes?: string | null
           strategic_context?: string | null

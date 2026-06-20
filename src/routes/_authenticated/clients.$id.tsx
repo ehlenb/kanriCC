@@ -113,6 +113,7 @@ type ReqWithPipeline = {
   hiring_manager_id: string | null;
   why_role_opened: string | null;
   strategic_context: string | null;
+  recruiter_notes: string | null;
   processes: PipelineProcess[];
 };
 
@@ -193,7 +194,7 @@ function useClientDetail(id: string) {
           .from("requisitions")
           .select(
             `id, title, salary_min, salary_max, salary_stretch, salary_range_text, location, urgency_date, is_open, is_backfill,
-             interview_rounds, hiring_manager_id, why_role_opened, strategic_context,
+             interview_rounds, hiring_manager_id, why_role_opened, strategic_context, recruiter_notes,
              processes (
                id, stage, coverage_type, updated_at,
                candidates ( id, full_name, full_name_japanese, current_title )
@@ -2022,12 +2023,15 @@ function JobDetailPanel({
   req,
   contacts,
   interactions,
+  onSaveNotes,
 }: {
   req: ReqWithPipeline;
   contacts: Contact[];
   interactions: Interaction[];
+  onSaveNotes: (reqId: string, notes: string) => void;
 }) {
   const hm = contacts.find((c) => c.id === req.hiring_manager_id);
+  const [notesDraft, setNotesDraft] = useState(req.recruiter_notes ?? "");
   const salary =
     req.salary_range_text ??
     (req.salary_min || req.salary_max
@@ -2072,6 +2076,25 @@ function JobDetailPanel({
           <p className="text-[13px] leading-[1.5]" style={{ color: "var(--color-ink-60)" }}>{req.strategic_context}</p>
         </div>
       )}
+
+      {/* Recruiter notes — always visible, inline editable */}
+      <div>
+        <p className="text-[10px] font-mono uppercase tracking-[0.08em] mb-1" style={{ color: "var(--color-ink-30)" }}>Role notes</p>
+        <textarea
+          className="w-full text-[12px] leading-relaxed resize-none"
+          style={{
+            border: "0.5px solid var(--color-ink-15)",
+            padding: "8px 10px",
+            background: "var(--color-ink-05)",
+            color: notesDraft ? "var(--color-ink)" : "var(--color-ink-30)",
+            minHeight: 72,
+          }}
+          placeholder="Notes on this role — what the client said, nuances, red flags, ideal profile details…"
+          value={notesDraft}
+          onChange={(e) => setNotesDraft(e.target.value)}
+          onBlur={() => onSaveNotes(req.id, notesDraft.trim())}
+        />
+      </div>
 
       {/* Linked interactions */}
       <div>
@@ -2594,6 +2617,14 @@ function JobsTab({
 }) {
   const qc = useQueryClient();
   const jdInputRef = useRef<HTMLInputElement>(null);
+
+  function handleSaveReqNotes(reqId: string, notes: string) {
+    void supabase
+      .from("requisitions")
+      .update({ recruiter_notes: notes || null })
+      .eq("id", reqId)
+      .then(() => qc.invalidateQueries({ queryKey: ["client", clientId] }));
+  }
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<AddJobForm>(EMPTY_ADD_JOB);
   const [jdText, setJdText] = useState("");
@@ -2824,7 +2855,7 @@ function JobsTab({
           {selectedReqId && (() => {
             const req = openReqs.find((r) => r.id === selectedReqId);
             return req ? (
-              <JobDetailPanel req={req} contacts={contacts} interactions={interactions} />
+              <JobDetailPanel req={req} contacts={contacts} interactions={interactions} onSaveNotes={handleSaveReqNotes} />
             ) : null;
           })()}
           {activeMatchReqId && (
