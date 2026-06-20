@@ -215,8 +215,7 @@ function NewClientDialog({
 }) {
   const [form, setForm] = useState({
     company_name: "",
-    years_in_japan: "",
-    japan_team_size: "",
+    website: "",
     hiring_manager_name: "",
   });
   const [busy, setBusy] = useState(false);
@@ -229,12 +228,7 @@ function NewClientDialog({
       .insert({
         recruiter_id: recruiterId,
         company_name: form.company_name.trim(),
-        years_in_japan: form.years_in_japan
-          ? parseInt(form.years_in_japan)
-          : null,
-        japan_team_size: form.japan_team_size
-          ? parseInt(form.japan_team_size)
-          : null,
+        website: form.website.trim() || null,
         hiring_manager_name: form.hiring_manager_name || null,
       })
       .select("id")
@@ -246,8 +240,7 @@ function NewClientDialog({
     }
     setForm({
       company_name: "",
-      years_in_japan: "",
-      japan_team_size: "",
+      website: "",
       hiring_manager_name: "",
     });
     onCreated(data.id);
@@ -268,24 +261,13 @@ function NewClientDialog({
               autoFocus
             />
           </Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Years in Japan">
-              <Input
-                type="number"
-                value={form.years_in_japan}
-                onChange={(e) => setForm({ ...form, years_in_japan: e.target.value })}
-                placeholder="e.g. 18"
-              />
-            </Field>
-            <Field label="Japan team size">
-              <Input
-                type="number"
-                value={form.japan_team_size}
-                onChange={(e) => setForm({ ...form, japan_team_size: e.target.value })}
-                placeholder="e.g. 120"
-              />
-            </Field>
-          </div>
+          <Field label="Company website">
+            <Input
+              value={form.website}
+              onChange={(e) => setForm({ ...form, website: e.target.value })}
+              placeholder="e.g. https://techgiant.co.jp"
+            />
+          </Field>
           <Field label="Hiring manager name">
             <Input
               value={form.hiring_manager_name}

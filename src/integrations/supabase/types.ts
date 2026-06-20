@@ -533,6 +533,7 @@ export type Database = {
           status: string
           strategy_notes: string | null
           team_id: string
+          website: string | null
           years_in_japan: number | null
         }
         Insert: {
@@ -558,6 +559,7 @@ export type Database = {
           status?: string
           strategy_notes?: string | null
           team_id?: string
+          website?: string | null
           years_in_japan?: number | null
         }
         Update: {
@@ -583,6 +585,7 @@ export type Database = {
           status?: string
           strategy_notes?: string | null
           team_id?: string
+          website?: string | null
           years_in_japan?: number | null
         }
         Relationships: [
