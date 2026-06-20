@@ -839,6 +839,14 @@ Active development resumed June 2026. All sessions below are committed and pushe
 - `dashboard.tsx`: replaced AI-generated daily agenda with rule-based `usePriorityActions` hook (6 priority rules applied directly via Supabase query); removed separate Competing Interviews section — folds into unified priority stream; added inline AI pre-call briefing per item via `/api/ai/pre-call-briefing`
 - `src/styles.css`: excluded `input[type="checkbox"]`, `[type="radio"]`, `[type="range"]` from global `input { width: 100% }` rule — was causing advanced search candidate rows to render with 0px name column (checkbox expanded to fill entire flex row)
 
+**Phase 1 day-in-the-life — 6 structural gaps fixed (committed 2026-06-19)**
+- Gap 1 — Strategy notes feed-forward: "Add to strategy notes" link on client timeline entries for past client-perspective interactions; clicking triggers `POST /api/ai/update-client-strategy` which synthesizes meeting notes into a living client brief (consolidation prompt if notes exist, initial brief if not); inline editable preview panel on Client Info tab with Save/Discard
+- Gap 2 — Job recruiter notes: `recruiter_notes text` column added to `requisitions` (migration 025); inline textarea in `JobDetailPanel` saves on blur via Supabase update
+- Gap 3 — Persistent spec shortlist: `requisition_id uuid` FK added to `candidate_lists` (migration 026); AI match results (`JobMatchPanel`) show "Call first" vermillion badge on top 2 candidates + "Save as spec list" button; `SpecListPanel` renders saved spec list candidates with per-candidate "Draft spec message" and "Who to call first?" AI ranking via `/api/ai/call-priority`
+- Gap 4 — Buy-in list per req: `JobDetailPanel` derives `buyInProcesses` from loaded pipeline data (no extra query); checkboxes per candidate + "Prepare CV send (N)" button; inline CV send draft panel with editable subject/body, copy, and regenerate via `/api/ai/batch-cv-send`
+- Gap 5 — Call priority + batch CV send: `/api/ai/call-priority` ranks candidates by `"call"` vs `"email"` with one-line reason; `/api/ai/batch-cv-send` generates multi-candidate introduction email in flowing prose (no bullets); both endpoints read candidate pitch/personality notes and requisition context; never read `notes_internal` or `notes_presentation`
+- Gap 6 — Pipeline UX: `PipelineProgressStrip` (6 nodes: Specs Sent · Buy-In · CV Sent · Interview · Offer · Placed) renders at top of every process panel; `stageMilestoneToast()` fires stage-specific coaching text (Buy-In through Placed, with 6s/10s hold for Offer/Placed); spring-physics `.stage-advance` CSS animation on active node when stage advances; `@keyframes stageAdvance` in `src/styles.css`
+
 ---
 
 ### Roadmap — recommended sequence
