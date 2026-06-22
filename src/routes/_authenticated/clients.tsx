@@ -249,7 +249,7 @@ function NewClientDialog({
       // Fetch enrichment first
       const body: Record<string, string> = { company_name: form.company_name.trim() };
       if (form.website.trim()) body.url = form.website.trim();
-      const enrichRes = await fetch("/api/ai/enrich-client", {
+      const enrichRes = await fetch("/api/ai?type=enrich-client", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),

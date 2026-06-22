@@ -135,7 +135,7 @@ function TaskpanePage() {
 
   async function matchSender(fromEmail: string) {
     try {
-      const resp = await fetch("/api/addin/match-sender", {
+      const resp = await fetch("/api/addin?action=match-sender", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: fromEmail }),
@@ -183,7 +183,7 @@ function TaskpanePage() {
     }
 
     try {
-      const resp = await fetch("/api/addin/log-email", {
+      const resp = await fetch("/api/addin?action=log-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

@@ -1208,7 +1208,7 @@ function TranslateButtonInline({ text, onTranslated }: { text: string; onTransla
     if (!text?.trim() || done) return;
     setLoading(true);
     try {
-      const res = await fetch("/api/ai/translate", {
+      const res = await fetch("/api/ai?type=translate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text, target_lang: targetLang }),
@@ -1261,7 +1261,7 @@ function PrioritySection({
   async function getChainStep(briefKey: string, processId: string, scenario: "pass" | "reject" | "no_response") {
     setBriefs((prev) => ({ ...prev, [briefKey]: { ...prev[briefKey], chainLoading: true, chainText: null, chainType: scenario } }));
     try {
-      const resp = await fetch("/api/ai/ccm-next-step", {
+      const resp = await fetch("/api/ai?type=ccm-next-step", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ process_id: processId, scenario }),
@@ -1283,7 +1283,7 @@ function PrioritySection({
       let resp: Response;
       if (item.placement_milestone && item.process_id) {
         const fmt = format ?? checkinFormat;
-        resp = await fetch("/api/ai/placed-checkin-message", {
+        resp = await fetch("/api/ai?type=placed-checkin-message", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -1293,7 +1293,7 @@ function PrioritySection({
           }),
         });
       } else if (item.action_type === "competing_risk") {
-        resp = await fetch("/api/ai/competing-brief", {
+        resp = await fetch("/api/ai?type=competing-brief", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -1303,13 +1303,13 @@ function PrioritySection({
           }),
         });
       } else if (item.action_type === "ccm_feedback") {
-        resp = await fetch("/api/ai/ccm-feedback-brief", {
+        resp = await fetch("/api/ai?type=ccm-feedback-brief", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ process_id: item.process_id }),
         });
       } else {
-        resp = await fetch("/api/ai/pre-call-briefing", {
+        resp = await fetch("/api/ai?type=pre-call-briefing", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

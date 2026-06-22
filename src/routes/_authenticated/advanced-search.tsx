@@ -375,7 +375,7 @@ function AdvancedSearch() {
     setAiRunning(true);
     setAiResults(null);
     try {
-      const resp = await fetch("/api/ai/advanced-search", {
+      const resp = await fetch("/api/ai?type=advanced-search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

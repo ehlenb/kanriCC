@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AddinTaskpaneRouteImport } from './routes/addin/taskpane'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedJobsRouteImport } from './routes/_authenticated/jobs'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
@@ -34,6 +35,11 @@ const AuthenticatedRoute = AuthenticatedRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AddinTaskpaneRoute = AddinTaskpaneRouteImport.update({
+  id: '/addin/taskpane',
+  path: '/addin/taskpane',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
@@ -93,6 +99,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/jobs': typeof AuthenticatedJobsRouteWithChildren
   '/settings': typeof AuthenticatedSettingsRoute
+  '/addin/taskpane': typeof AddinTaskpaneRoute
   '/candidates/$id': typeof AuthenticatedCandidatesIdRoute
   '/clients/$id': typeof AuthenticatedClientsIdRoute
   '/jobs/$id': typeof AuthenticatedJobsIdRoute
@@ -106,6 +113,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/jobs': typeof AuthenticatedJobsRouteWithChildren
   '/settings': typeof AuthenticatedSettingsRoute
+  '/addin/taskpane': typeof AddinTaskpaneRoute
   '/candidates/$id': typeof AuthenticatedCandidatesIdRoute
   '/clients/$id': typeof AuthenticatedClientsIdRoute
   '/jobs/$id': typeof AuthenticatedJobsIdRoute
@@ -121,6 +129,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/jobs': typeof AuthenticatedJobsRouteWithChildren
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
+  '/addin/taskpane': typeof AddinTaskpaneRoute
   '/_authenticated/candidates/$id': typeof AuthenticatedCandidatesIdRoute
   '/_authenticated/clients/$id': typeof AuthenticatedClientsIdRoute
   '/_authenticated/jobs/$id': typeof AuthenticatedJobsIdRoute
@@ -136,6 +145,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/jobs'
     | '/settings'
+    | '/addin/taskpane'
     | '/candidates/$id'
     | '/clients/$id'
     | '/jobs/$id'
@@ -149,6 +159,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/jobs'
     | '/settings'
+    | '/addin/taskpane'
     | '/candidates/$id'
     | '/clients/$id'
     | '/jobs/$id'
@@ -163,6 +174,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/jobs'
     | '/_authenticated/settings'
+    | '/addin/taskpane'
     | '/_authenticated/candidates/$id'
     | '/_authenticated/clients/$id'
     | '/_authenticated/jobs/$id'
@@ -172,6 +184,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
   LoginRoute: typeof LoginRoute
+  AddinTaskpaneRoute: typeof AddinTaskpaneRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -195,6 +208,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/addin/taskpane': {
+      id: '/addin/taskpane'
+      path: '/addin/taskpane'
+      fullPath: '/addin/taskpane'
+      preLoaderRoute: typeof AddinTaskpaneRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/settings': {
@@ -325,6 +345,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
   LoginRoute: LoginRoute,
+  AddinTaskpaneRoute: AddinTaskpaneRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

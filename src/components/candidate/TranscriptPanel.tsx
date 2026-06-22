@@ -50,7 +50,7 @@ export function TranscriptPanel({
     if (!transcript.trim()) { toast.error("Paste a transcript first."); return; }
     setProcessing(true);
     try {
-      const resp = await fetch("/api/ai/process-transcript", {
+      const resp = await fetch("/api/ai?type=process-transcript", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ candidate_id: candidateId, transcript_raw: transcript, interaction_type: interactionType, interacted_at: new Date(interactedAt).toISOString() }),
@@ -120,7 +120,7 @@ export function TranscriptPanel({
           .not("stage", "in", '("Placed","Closed lost")'),
       ]);
 
-      fetch("/api/ai/refresh-context", {
+      fetch("/api/ai?type=refresh-context", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ entity_type: "candidate", entity_id: candidateId }),

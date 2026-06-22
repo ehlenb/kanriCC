@@ -1526,7 +1526,7 @@ function InterviewNotesCard({
       }
       if (!text || text.length < 20) { toast.error("Could not extract text from file."); return; }
 
-      const resp = await fetch("/api/ai/format-interview-notes", {
+      const resp = await fetch("/api/ai?type=format-interview-notes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ raw_text: text }),
@@ -2240,7 +2240,7 @@ function ProcessesPage({
   async function handleSyncCompFromNotes() {
     setSyncingComp(true);
     try {
-      const res = await fetch("/api/ai/extract-compensation", {
+      const res = await fetch("/api/ai?type=extract-compensation", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ candidateId: c.id }),
@@ -2863,7 +2863,7 @@ function InterviewPanel({
   async function generatePositioning() {
     setLoadingPositioning(true);
     try {
-      const resp = await fetch("/api/ai/positioning", {
+      const resp = await fetch("/api/ai?type=positioning", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ processId: p.id, candidateId: c.id, recruiterId }),
@@ -2878,7 +2878,7 @@ function InterviewPanel({
   async function generateBriefing() {
     setLoadingBriefing(true);
     try {
-      const resp = await fetch("/api/ai/pre-call-briefing", {
+      const resp = await fetch("/api/ai?type=pre-call-briefing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ entity_type: "candidate", entity_id: c.id, process_id: p.id }),
@@ -2894,7 +2894,7 @@ function InterviewPanel({
     if (!p.requisitions?.id) { toast.error("No requisition linked to this process."); return; }
     setLoadingSubmission(true);
     try {
-      const resp = await fetch("/api/ai/submission-note", {
+      const resp = await fetch("/api/ai?type=submission-note", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -2915,7 +2915,7 @@ function InterviewPanel({
     if (!ccmNumber) return;
     setLoadingInterviewPrep(true);
     try {
-      const resp = await fetch("/api/ai/interview-prep", {
+      const resp = await fetch("/api/ai?type=interview-prep", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ process_id: p.id, ccm_number: ccmNumber }),
@@ -2936,7 +2936,7 @@ function InterviewPanel({
     if (!p.requisitions?.id) { toast.error("No requisition linked to this process."); return; }
     setLoadingSpecEmail(true);
     try {
-      const resp = await fetch("/api/ai/spec-email", {
+      const resp = await fetch("/api/ai?type=spec-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ candidate_id: c.id, requisition_id: p.requisitions.id }),
@@ -2956,7 +2956,7 @@ function InterviewPanel({
   async function generateRejectionEmail() {
     setLoadingRejection(true);
     try {
-      const resp = await fetch("/api/ai/rejection-email", {
+      const resp = await fetch("/api/ai?type=rejection-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ process_id: p.id, candidate_id: c.id }),
@@ -3315,7 +3315,7 @@ function BuyInPanel({
   async function generatePositioning() {
     setLoadingPositioning(true);
     try {
-      const resp = await fetch("/api/ai/positioning", {
+      const resp = await fetch("/api/ai?type=positioning", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ processId: p.id, candidateId: c.id, recruiterId }),
@@ -3523,7 +3523,7 @@ function OfferPanel({
   async function generateClosingScript() {
     setLoadingScript(true);
     try {
-      const resp = await fetch("/api/ai/closing-script", {
+      const resp = await fetch("/api/ai?type=closing-script", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ process_id: p.id }),
@@ -3890,7 +3890,7 @@ function InviteRecallBotDialog({
     if (!url.trim()) return;
     setLoading(true);
     try {
-      const res = await fetch("/api/ai/invite-recall-bot", {
+      const res = await fetch("/api/ai?type=invite-recall-bot", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ candidate_id: candidateId, meeting_url: url.trim(), recruiter_id: recruiterId }),
@@ -4233,7 +4233,7 @@ function CvUploadZone({
   async function runExtraction(path: string) {
     setState("extracting");
     try {
-      const resp = await fetch("/api/ai/extract-candidate", {
+      const resp = await fetch("/api/ai?type=extract-candidate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ candidateId, storageKey: path }),
@@ -4243,7 +4243,7 @@ function CvUploadZone({
         const fallback = fallbackStoragePath(path);
         if (fallback) {
           console.warn("[CvUploadZone] runExtraction: primary path failed, retrying with recruiter_id prefix");
-          const resp2 = await fetch("/api/ai/extract-candidate", {
+          const resp2 = await fetch("/api/ai?type=extract-candidate", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ candidateId, storageKey: fallback }),
@@ -4814,7 +4814,7 @@ function RegistrationFormUploadZone({
   async function runExtraction(path: string) {
     setState("extracting");
     try {
-      const resp = await fetch("/api/ai/extract-candidate", {
+      const resp = await fetch("/api/ai?type=extract-candidate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ candidateId, storageKey: path }),
@@ -4824,7 +4824,7 @@ function RegistrationFormUploadZone({
         const fallback = fallbackStoragePath(path);
         if (fallback) {
           console.warn("[RegistrationFormUploadZone] runExtraction: primary path failed, retrying with recruiter_id prefix");
-          const resp2 = await fetch("/api/ai/extract-candidate", {
+          const resp2 = await fetch("/api/ai?type=extract-candidate", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ candidateId, storageKey: fallback }),
@@ -4977,7 +4977,7 @@ function CandidateIntelligenceCard({
   async function refresh() {
     setRefreshing(true);
     try {
-      await fetch("/api/ai/refresh-context", {
+      await fetch("/api/ai?type=refresh-context", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ entity_type: "candidate", entity_id: candidateId }),

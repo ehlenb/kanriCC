@@ -270,7 +270,7 @@ export function LogActivityModal({
     if (context.type === "client" && !isFuture) {
       const logContent = [summary.trim(), notes.trim()].filter(Boolean).join("\n\n");
       if (logContent.length > 20) {
-        void fetch("/api/ai/update-client-strategy", {
+        void fetch("/api/ai?type=update-client-strategy", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

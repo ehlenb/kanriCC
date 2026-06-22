@@ -203,7 +203,7 @@ function InteractionEntry({
   React.useEffect(() => {
     if (i18n.language === "ja" && rawNotes && translatedFor !== "ja" && !translating) {
       setTranslating(true);
-      void fetch("/api/ai/translate", {
+      void fetch("/api/ai?type=translate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: rawNotes, target_lang: "ja" }),

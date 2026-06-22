@@ -32,7 +32,7 @@ function SettingsPage() {
     if (!user?.id) return;
     setLoadingStatus(true);
     try {
-      const resp = await fetch(`/api/oauth/status?recruiter_id=${user.id}`);
+      const resp = await fetch(`/api/oauth?action=status&recruiter_id=${user.id}`);
       const data = (await resp.json()) as OAuthStatus;
       setStatus(data);
     } catch {
@@ -79,7 +79,7 @@ function SettingsPage() {
   async function connectGmail() {
     setConnectingGmail(true);
     try {
-      const resp = await fetch("/api/oauth/gmail-connect");
+      const resp = await fetch("/api/oauth?action=gmail-connect");
       const data = (await resp.json()) as { url?: string; error?: string };
       if (data.error || !data.url) {
         toast.error("Gmail OAuth is not configured on this server.");
@@ -95,7 +95,7 @@ function SettingsPage() {
   async function connectOutlook() {
     setConnectingOutlook(true);
     try {
-      const resp = await fetch("/api/oauth/outlook-connect");
+      const resp = await fetch("/api/oauth?action=outlook-connect");
       const data = (await resp.json()) as { url?: string; error?: string };
       if (data.error || !data.url) {
         toast.error("Outlook OAuth is not configured on this server.");
@@ -112,7 +112,7 @@ function SettingsPage() {
     if (!user?.id) return;
     setDisconnecting(provider);
     try {
-      await fetch("/api/oauth/disconnect", {
+      await fetch("/api/oauth?action=disconnect", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ provider, recruiter_id: user.id }),

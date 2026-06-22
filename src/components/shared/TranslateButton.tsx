@@ -21,7 +21,7 @@ export function TranslateButton({ text, onTranslated, className }: Props) {
     if (!text?.trim() || done) return;
     setLoading(true);
     try {
-      const res = await fetch("/api/ai/translate", {
+      const res = await fetch("/api/ai?type=translate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text, target_lang: targetLang }),

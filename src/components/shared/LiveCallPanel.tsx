@@ -83,7 +83,7 @@ export function LiveCallPanel({
     }
     setPolishing(true);
     try {
-      const resp = await fetch("/api/ai/polish-call-notes", {
+      const resp = await fetch("/api/ai?type=polish-call-notes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ raw_notes: notes, candidate_name: personName }),

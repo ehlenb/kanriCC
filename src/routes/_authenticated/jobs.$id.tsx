@@ -362,7 +362,7 @@ function RejectionFlagBanner({
   async function runDiagnosis() {
     setLoading(true);
     try {
-      const res = await fetch("/api/ai/client-rejection-diagnosis", {
+      const res = await fetch("/api/ai?type=client-rejection-diagnosis", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ requisition_id: requisitionId }),
@@ -906,7 +906,7 @@ function MatchCandidatesPanel({
     staleTime: 30_000,
     retry: 1,
     queryFn: async (): Promise<MatchResult[]> => {
-      const resp = await fetch("/api/ai/match-candidates", {
+      const resp = await fetch("/api/ai?type=match-candidates", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ requisition_id: requisitionId, recruiter_id: recruiterId }),

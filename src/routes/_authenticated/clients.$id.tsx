@@ -577,7 +577,7 @@ function ClientDetail() {
   async function generateSnapshot() {
     setLoadingSnapshot(true);
     try {
-      const resp = await fetch("/api/ai/client-snapshot", {
+      const resp = await fetch("/api/ai?type=client-snapshot", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ clientId: id, recruiterId: user!.id }),
@@ -602,7 +602,7 @@ function ClientDetail() {
   async function generateMeetingPrep() {
     setDraftLoading(true);
     try {
-      const resp = await fetch("/api/ai/client-meeting-prep", {
+      const resp = await fetch("/api/ai?type=client-meeting-prep", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ clientId: id, recruiterId: user!.id }),
@@ -632,7 +632,7 @@ function ClientDetail() {
     if (draftType === "hr_intro") {
       setDraftLoading(true);
       try {
-        const resp = await fetch("/api/ai/client-draft", {
+        const resp = await fetch("/api/ai?type=client-draft", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ draftType, clientId: id, recruiterId: user!.id }),
@@ -654,7 +654,7 @@ function ClientDetail() {
 
     setDraftLoading(true);
     try {
-      const resp = await fetch("/api/ai/client-draft", {
+      const resp = await fetch("/api/ai?type=client-draft", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1847,7 +1847,7 @@ function JobMatchPanel({
     setMatches(null);
     setDraftStates({});
     try {
-      const resp = await fetch("/api/ai/advanced-search", {
+      const resp = await fetch("/api/ai?type=advanced-search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1900,7 +1900,7 @@ function JobMatchPanel({
   async function draftMessage(candidateId: string) {
     setDraftStates((prev) => ({ ...prev, [candidateId]: { loading: true, text: null } }));
     try {
-      const resp = await fetch("/api/ai/job-spec-message", {
+      const resp = await fetch("/api/ai?type=job-spec-message", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -2151,7 +2151,7 @@ function SpecListPanel({
   async function rankCalls() {
     setRankingLoading(true);
     try {
-      const resp = await fetch("/api/ai/call-priority", {
+      const resp = await fetch("/api/ai?type=call-priority", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ candidate_ids: list.candidate_ids, requisition_id: requisitionId }),
@@ -2169,7 +2169,7 @@ function SpecListPanel({
   async function draftMessage(candidateId: string) {
     setDraftStates((prev) => ({ ...prev, [candidateId]: { loading: true, text: null } }));
     try {
-      const resp = await fetch("/api/ai/job-spec-message", {
+      const resp = await fetch("/api/ai?type=job-spec-message", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ candidate_id: candidateId, requisition_id: requisitionId, recruiter_id: recruiterId }),
@@ -2359,7 +2359,7 @@ function JobDetailPanel({
     setCvSendLoading(true);
     setCvSendDraft(null);
     try {
-      const resp = await fetch("/api/ai/batch-cv-send", {
+      const resp = await fetch("/api/ai?type=batch-cv-send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ candidate_ids: [...selectedIds], requisition_id: req.id }),
@@ -2380,7 +2380,7 @@ function JobDetailPanel({
   async function draftBuyInMessage(candidateId: string) {
     setBuyInDrafts((prev) => ({ ...prev, [candidateId]: { loading: true, text: null } }));
     try {
-      const resp = await fetch("/api/ai/job-spec-message", {
+      const resp = await fetch("/api/ai?type=job-spec-message", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ candidate_id: candidateId, requisition_id: req.id, recruiter_id: recruiterId }),
@@ -3250,7 +3250,7 @@ function JobsTab({
       if (extractedText.length > 50) {
         setExtracting(true);
         try {
-          const resp = await fetch("/api/ai/extract-req-fields", {
+          const resp = await fetch("/api/ai?type=extract-req-fields", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ jd_text: extractedText }),
@@ -3280,7 +3280,7 @@ function JobsTab({
     if (!form.title.trim()) { toast.error("Enter a role title first."); return; }
     setGeneratingContext(true);
     try {
-      const resp = await fetch("/api/ai/req-strategic-context", {
+      const resp = await fetch("/api/ai?type=req-strategic-context", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ clientId, title: form.title.trim(), whyRoleOpened: form.why_role_opened.trim(), isBackfill: false }),
@@ -3655,7 +3655,7 @@ function ClientEnrichCard({
     try {
       const body: Record<string, string> = { company_name: companyName };
       if (url.trim()) body.url = url.trim();
-      const resp = await fetch("/api/ai/enrich-client", {
+      const resp = await fetch("/api/ai?type=enrich-client", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -3682,7 +3682,7 @@ function ClientEnrichCard({
 
       let merged = enrichPreview.strategy_notes;
       if (existing) {
-        const resp = await fetch("/api/ai/merge-strategy-notes", {
+        const resp = await fetch("/api/ai?type=merge-strategy-notes", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ existing, incoming: enrichPreview.strategy_notes }),
@@ -3715,7 +3715,7 @@ function ClientEnrichCard({
     setChatLoading(true);
     setChatAnswer(null);
     try {
-      const resp = await fetch("/api/ai/chat-enrich-client", {
+      const resp = await fetch("/api/ai?type=chat-enrich-client", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ company_name: companyName, url: url.trim() || undefined, question: question.trim() }),
@@ -3899,7 +3899,7 @@ function EditableContractTab({ client: c, clientId }: { client: ClientRecord; cl
       let extractedFields: { fee_pct?: number; started_at?: string } = {};
       setExtracting(true);
       try {
-        const resp = await fetch("/api/ai/extract-contract", {
+        const resp = await fetch("/api/ai?type=extract-contract", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(extractBody),
@@ -4147,7 +4147,7 @@ function ClientIntelligenceCard({
   async function refresh() {
     setRefreshing(true);
     try {
-      const resp = await fetch("/api/ai/refresh-context", {
+      const resp = await fetch("/api/ai?type=refresh-context", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ entity_type: "client", entity_id: clientId }),
