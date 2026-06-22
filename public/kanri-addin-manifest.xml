@@ -7,17 +7,17 @@
   xsi:type="MailApp">
 
   <Id>f47ac10b-58cc-4372-a567-0e02b2c3d479</Id>
-  <Version>1.0.1</Version>
+  <Version>1.0.2</Version>
   <ProviderName>Kanri</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
   <DisplayName DefaultValue="Kanri"/>
   <Description DefaultValue="Log emails to Kanri activity timelines with one click."/>
-  <IconUrl DefaultValue="https://kanri.vercel.app/favicon.svg"/>
-  <HighResolutionIconUrl DefaultValue="https://kanri.vercel.app/favicon.svg"/>
-  <SupportUrl DefaultValue="https://kanri.vercel.app"/>
+  <IconUrl DefaultValue="https://kanri-cc.vercel.app/favicon.svg"/>
+  <HighResolutionIconUrl DefaultValue="https://kanri-cc.vercel.app/favicon.svg"/>
+  <SupportUrl DefaultValue="https://kanri-cc.vercel.app"/>
 
   <AppDomains>
-    <AppDomain>kanri.vercel.app</AppDomain>
+    <AppDomain>kanri-cc.vercel.app</AppDomain>
   </AppDomains>
 
   <Hosts>
@@ -33,7 +33,7 @@
   <FormSettings>
     <Form xsi:type="ItemRead">
       <DesktopSettings>
-        <SourceLocation DefaultValue="https://kanri.vercel.app/addin/taskpane"/>
+        <SourceLocation DefaultValue="https://kanri-cc.vercel.app/addin/taskpane"/>
         <RequestedHeight>250</RequestedHeight>
       </DesktopSettings>
     </Form>
@@ -86,12 +86,12 @@
 
     <Resources>
       <bt:Images>
-        <bt:Image id="Icon.16" DefaultValue="https://kanri.vercel.app/favicon.svg"/>
-        <bt:Image id="Icon.32" DefaultValue="https://kanri.vercel.app/favicon.svg"/>
-        <bt:Image id="Icon.80" DefaultValue="https://kanri.vercel.app/favicon.svg"/>
+        <bt:Image id="Icon.16" DefaultValue="https://kanri-cc.vercel.app/favicon.svg"/>
+        <bt:Image id="Icon.32" DefaultValue="https://kanri-cc.vercel.app/favicon.svg"/>
+        <bt:Image id="Icon.80" DefaultValue="https://kanri-cc.vercel.app/favicon.svg"/>
       </bt:Images>
       <bt:Urls>
-        <bt:Url id="Taskpane.Url" DefaultValue="https://kanri.vercel.app/addin/taskpane"/>
+        <bt:Url id="Taskpane.Url" DefaultValue="https://kanri-cc.vercel.app/addin/taskpane"/>
       </bt:Urls>
       <bt:ShortStrings>
         <bt:String id="Group.Label" DefaultValue="Kanri"/>
