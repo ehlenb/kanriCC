@@ -7,7 +7,7 @@
     "dev:ui": "vite dev",
     "dev:api": "tsx watch scripts/dev-api.ts",
     "server": "vercel dev",
-    "build": "vite build",
+    "build": "vite build && mkdir -p dist/addin && cp dist/index.html dist/addin/taskpane.html",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit"
   },
