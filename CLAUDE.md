@@ -870,6 +870,27 @@ Active development resumed June 2026. All sessions below are committed and pushe
 - New `/api/ai/translate` endpoint for on-demand text translation (Claude-backed)
 - `ja.json` terminology: 現状況 (status), 情報提供元 (source), 直近の連絡先 (last touch)
 
+**Feature 1 — Email send from AI drafts — Gmail + Outlook OAuth (committed 2026-06-21)**
+- Migration 029: `recruiter_oauth_tokens` table — `(recruiter_id, provider)` unique; AES-256-CBC encrypted refresh token; team-scoped RLS
+- `api/oauth/gmail-connect.ts` — returns Google OAuth2 URL (client secret stays server-side)
+- `api/oauth/gmail-exchange.ts` — exchanges auth code for tokens, fetches connected email via userinfo, stores encrypted refresh token; also exports `encryptToken` / `decryptToken` used by outlook-exchange and send-email
+- `api/oauth/outlook-connect.ts` + `outlook-exchange.ts` — Microsoft Graph OAuth equivalent
+- `api/oauth/status.ts` — returns `{ gmail: { email } | null, outlook: { email } | null }` for a recruiter
+- `api/oauth/disconnect.ts` — deletes token row
+- `api/send-email.ts` — refreshes access token, sends via Gmail API or Microsoft Graph; auto-logs `interaction_type="email"` to interactions with full body as `full_notes`
+- `src/components/shared/SendEmailDialog.tsx` — reusable dialog with editable To/Subject; body read-only (edit draft first); shows "Connect Gmail or Outlook in Settings" toast on missing provider
+- `/settings` route — connect/disconnect Gmail + Outlook; handles OAuth callback code via URL search params; shows connected account email
+- Settings added to sidebar nav (IconSettings)
+- `SubmissionPackagePanel`: Send button alongside Copy on submission email section; accepts `candidateId` + `clientId` props for interaction logging
+- Send buttons on: rejection email, spec email, job spec messages (JobMatchPanel + SpecListPanel), batch CV send (JobDetailPanel)
+- Locales: `nav.settings`, `common.send`, `common.sendEmail` added to EN + JA
+
+**Setup required before Send works:**
+1. Google Cloud Console: create OAuth app, enable Gmail API, set redirect URI to `{base}/settings`, add `GMAIL_CLIENT_ID` + `GMAIL_CLIENT_SECRET` to `.env`
+2. Azure: register app, add Mail.Send + User.Read scopes, set redirect URI, add `OUTLOOK_CLIENT_ID` + `OUTLOOK_CLIENT_SECRET` to `.env`
+3. Optional: `OAUTH_REDIRECT_BASE` (default: `http://localhost:5173`) and `OAUTH_ENCRYPTION_KEY` (32-char string; falls back to dev key if unset)
+4. Apply migration 029 to Supabase: `supabase db push`
+
 ---
 
 ### Roadmap — next up (workflow sprint)
