@@ -20,6 +20,7 @@ type Props = {
   defaultTo?: string;
   defaultSubject?: string;
   body: string;
+  bodyEditable?: boolean;
   candidateId?: string;
   clientId?: string;
   interactionType?: string;
@@ -32,6 +33,7 @@ export function SendEmailDialog({
   defaultTo = "",
   defaultSubject = "",
   body,
+  bodyEditable = false,
   candidateId,
   clientId,
   interactionType,
@@ -40,6 +42,7 @@ export function SendEmailDialog({
   const { user } = useAuth();
   const [to, setTo] = useState(defaultTo);
   const [subject, setSubject] = useState(defaultSubject);
+  const [editableBody, setEditableBody] = useState(body);
   const [sending, setSending] = useState(false);
 
   // Sync defaults when dialog opens with new values
@@ -48,6 +51,7 @@ export function SendEmailDialog({
     setLastBody(body);
     setTo(defaultTo);
     setSubject(defaultSubject);
+    setEditableBody(body);
   }
 
   async function handleSend() {
@@ -69,7 +73,7 @@ export function SendEmailDialog({
           recruiter_id: user.id,
           to: to.trim(),
           subject: subject.trim(),
-          body,
+          body: bodyEditable ? editableBody : body,
           candidate_id: candidateId,
           client_id: clientId,
           interaction_type: interactionType,
@@ -123,15 +127,19 @@ export function SendEmailDialog({
           <div>
             <Label className="label block mb-1">Body</Label>
             <Textarea
-              value={body}
-              readOnly
+              value={bodyEditable ? editableBody : body}
+              readOnly={!bodyEditable}
+              onChange={bodyEditable ? (e) => setEditableBody(e.target.value) : undefined}
               rows={10}
               className="text-[12px] font-sans resize-none"
-              style={{ background: "var(--color-ink-05)", color: "var(--color-ink-60)" }}
+              style={bodyEditable ? undefined : { background: "var(--color-ink-05)", color: "var(--color-ink-60)" }}
+              placeholder={bodyEditable ? "Write your email here…" : undefined}
             />
-            <p className="text-[11px] mt-1" style={{ color: "var(--color-ink-30)" }}>
-              Edit the draft before opening this dialog to adjust the body.
-            </p>
+            {!bodyEditable && (
+              <p className="text-[11px] mt-1" style={{ color: "var(--color-ink-30)" }}>
+                Edit the draft before opening this dialog to adjust the body.
+              </p>
+            )}
           </div>
         </div>
 

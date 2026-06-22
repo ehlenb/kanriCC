@@ -110,7 +110,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { recruiter_id, to, subject, body, candidate_id, client_id, interaction_type } =
     req.body as SendPayload;
 
-  if (!recruiter_id || !to || !subject || !body) {
+  if (!recruiter_id || !to || !subject) {
     return res.json({ error: "Missing required fields" });
   }
 

@@ -4201,6 +4201,7 @@ function CandidateTimelineTab({
         defaultTo={email ?? ""}
         defaultSubject="Job Opportunity"
         body=""
+        bodyEditable
         candidateId={candidateId}
         interactionType="job spec sent"
         onSent={() => {
