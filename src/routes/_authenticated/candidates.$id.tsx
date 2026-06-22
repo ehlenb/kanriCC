@@ -53,11 +53,16 @@ import {
   IconUpload,
   IconX,
   IconTrash,
+  IconCopy,
+  IconSend,
+  IconVideo,
+  IconRobot,
 } from "@tabler/icons-react";
 import { TranscriptPanel } from "@/components/candidate/TranscriptPanel";
 import { SubmissionPackagePanel } from "@/components/candidate/SubmissionPackagePanel";
 import { ActivityTimeline } from "@/components/shared/ActivityTimeline";
 import { LogActivityModal } from "@/components/shared/LogActivityModal";
+import { SendEmailDialog } from "@/components/shared/SendEmailDialog";
 
 export const Route = createFileRoute("/_authenticated/candidates/$id")({
   component: CandidateProfile,
@@ -2817,6 +2822,7 @@ function InterviewPanel({
   const [loadingRejection, setLoadingRejection] = useState(false);
   const [rejectionEmail, setRejectionEmail] = useState<string | null>(null);
   const [closingProcess, setClosingProcess] = useState(false);
+  const [sendDialog, setSendDialog] = useState<{ body: string; to: string; subject: string; candidateId?: string } | null>(null);
   const stageChange = useStageChange(c.id, { candidateName: c.full_name });
 
   const ccmMatch = /^CCM(\d+)$/.exec(p.stage);
@@ -3092,6 +3098,22 @@ function InterviewPanel({
             className="w-full p-3 text-[13px] leading-relaxed resize-y outline-none"
             style={{ background: "#fcebeb", border: "0.5px solid rgba(163,45,45,0.25)", color: "var(--color-ink)" }}
           />
+          <div className="flex gap-2 mt-1.5">
+            <button
+              className="ab flex items-center gap-1"
+              style={{ fontSize: 11, padding: "3px 8px" }}
+              onClick={() => { void navigator.clipboard.writeText(rejectionEmail); toast.success("Copied."); }}
+            >
+              <IconCopy size={10} /> Copy
+            </button>
+            <button
+              className="btn btn-accent btn-sm flex items-center gap-1"
+              style={{ fontSize: 11, padding: "3px 8px" }}
+              onClick={() => setSendDialog({ body: rejectionEmail, to: c.email ?? "", subject: `Update from ${p.requisitions?.clients?.company_name ?? "us"}`, candidateId: c.id })}
+            >
+              <IconSend size={10} /> Send
+            </button>
+          </div>
         </div>
       )}
 
@@ -3166,9 +3188,25 @@ function InterviewPanel({
             value={specEmail.email}
             onChange={(e) => setSpecEmail((prev) => prev ? { ...prev, email: e.target.value } : prev)}
             rows={8}
-            className="w-full  p-3 text-[13px] leading-relaxed resize-y outline-none mb-2"
+            className="w-full  p-3 text-[13px] leading-relaxed resize-y outline-none"
             style={{ background: "var(--color-indigo-light)", border: "0.5px solid rgba(24,95,165,0.3)", color: "var(--color-ink)" }}
           />
+          <div className="flex gap-2 mt-1.5 mb-2">
+            <button
+              className="ab flex items-center gap-1"
+              style={{ fontSize: 11, padding: "3px 8px" }}
+              onClick={() => { void navigator.clipboard.writeText(specEmail.email); toast.success("Copied."); }}
+            >
+              <IconCopy size={10} /> Copy
+            </button>
+            <button
+              className="btn btn-accent btn-sm flex items-center gap-1"
+              style={{ fontSize: 11, padding: "3px 8px" }}
+              onClick={() => setSendDialog({ body: specEmail.email, to: c.email ?? "", subject: p.requisitions?.title ?? "Opportunity", candidateId: c.id })}
+            >
+              <IconSend size={10} /> Send
+            </button>
+          </div>
           <p className="sl mb-1.5">Talking points (if calling)</p>
           <div className="space-y-1">
             {specEmail.talking_points.map((pt, i) => (
@@ -3212,7 +3250,21 @@ function InterviewPanel({
         <SubmissionPackagePanel
           pkg={submissionPackage}
           candidateName={c.full_name}
+          candidateId={c.id}
+          clientId={p.requisitions?.clients?.id}
           onClose={() => setSubmissionPackage(null)}
+        />
+      )}
+
+      {/* Send email dialog */}
+      {sendDialog && (
+        <SendEmailDialog
+          open
+          onClose={() => setSendDialog(null)}
+          defaultTo={sendDialog.to}
+          defaultSubject={sendDialog.subject}
+          body={sendDialog.body}
+          candidateId={sendDialog.candidateId}
         />
       )}
     </div>
@@ -3812,6 +3864,137 @@ function AddToProcessModal({
   );
 }
 
+// ─── Recall.ai invite dialog ──────────────────────────────────────────────────
+
+function InviteRecallBotDialog({
+  open,
+  onClose,
+  candidateId,
+  recruiterId,
+  onInvited,
+}: {
+  open: boolean;
+  onClose: () => void;
+  candidateId: string;
+  recruiterId: string;
+  onInvited: () => void;
+}) {
+  const [url, setUrl] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function handleInvite() {
+    if (!url.trim()) return;
+    setLoading(true);
+    try {
+      const res = await fetch("/api/ai/invite-recall-bot", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ candidate_id: candidateId, meeting_url: url.trim(), recruiter_id: recruiterId }),
+      });
+      const json = (await res.json()) as { data?: { bot_id: string }; error?: string };
+      if (json.error) {
+        toast.error(json.error);
+      } else {
+        toast.success("Note-taker invited. It will join the call automatically.");
+        setUrl("");
+        onInvited();
+        onClose();
+      }
+    } catch {
+      toast.error("Could not invite note-taker. Try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Invite note-taker</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 py-2">
+          <p className="text-[13px]" style={{ color: "var(--color-ink-60)" }}>
+            Paste your Zoom, Google Meet, or Teams link. A bot will join and transcribe the call, then post a summary here automatically.
+          </p>
+          <div>
+            <label className="label block mb-1">Meeting URL</label>
+            <Input
+              placeholder="https://zoom.us/j/... or meet.google.com/..."
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") void handleInvite(); }}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <button className="btn btn-ghost btn-sm" onClick={onClose}>Cancel</button>
+          <button
+            className="btn btn-primary btn-sm"
+            onClick={() => void handleInvite()}
+            disabled={!url.trim() || loading}
+          >
+            {loading ? "Inviting..." : "Invite note-taker"}
+          </button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── active bot status banner ─────────────────────────────────────────────────
+
+type BotSession = {
+  id: string;
+  bot_id: string;
+  status: string;
+  meeting_url: string;
+  created_at: string;
+};
+
+function ActiveBotBanner({ candidateId }: { candidateId: string }) {
+  const { data: sessions } = useQuery<BotSession[]>({
+    queryKey: ["recall-bot-sessions", candidateId],
+    queryFn: async () => {
+      // @ts-expect-error — recall_bot_sessions not yet in generated types; run `supabase gen types` after migration 030 is applied
+      const { data } = await supabase
+        .from("recall_bot_sessions")
+        .select("id, bot_id, status, meeting_url, created_at")
+        .eq("candidate_id", candidateId)
+        .in("status", ["invited", "in_progress"])
+        .order("created_at", { ascending: false });
+      return (data ?? []) as unknown as BotSession[];
+    },
+    staleTime: 30_000,
+    retry: 1,
+  });
+
+  if (!sessions || sessions.length === 0) return null;
+
+  const bot = sessions[0];
+  const label =
+    bot.status === "in_progress"
+      ? "Note-taker is live on the call"
+      : "Note-taker invited · joining shortly";
+
+  return (
+    <div
+      className="flex items-center gap-2 px-3 py-2 text-[12px]"
+      style={{
+        background: "var(--color-indigo-light)",
+        color: "var(--color-indigo)",
+        border: "0.5px solid var(--color-indigo)",
+      }}
+    >
+      <IconRobot size={14} />
+      <span>{label}</span>
+      <span className="font-mono text-[11px] ml-auto" style={{ color: "var(--color-ink-30)" }}>
+        {new Date(bot.created_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+      </span>
+    </div>
+  );
+}
+
 // ─── candidate timeline tab ───────────────────────────────────────────────────
 
 function CandidateTimelineTab({
@@ -3827,12 +4010,16 @@ function CandidateTimelineTab({
   const queryClient = useQueryClient();
   const [showLogActivity, setShowLogActivity] = useState(false);
   const [showTranscript, setShowTranscript] = useState(false);
+  const [showInviteBot, setShowInviteBot] = useState(false);
 
   const totalCount = interactions.length;
   const upcomingCount = interactions.filter((i) => i.is_future).length;
 
   return (
     <div className="space-y-3">
+      {/* Active bot status */}
+      <ActiveBotBanner candidateId={candidateId} />
+
       {/* Action bar */}
       <div className="flex items-center justify-between">
         <p className="text-[12px]" style={{ color: "var(--color-ink-30)" }}>
@@ -3846,6 +4033,13 @@ function CandidateTimelineTab({
           >
             <IconPlus size={12} />
             {t('candidateDetail.actions.logActivity')}
+          </button>
+          <button
+            className="ab flex items-center gap-1"
+            onClick={() => setShowInviteBot(true)}
+          >
+            <IconVideo size={12} />
+            Invite note-taker
           </button>
           <button
             className="ab flex items-center gap-1"
@@ -3864,6 +4058,16 @@ function CandidateTimelineTab({
           void queryClient.invalidateQueries({ queryKey: ["candidate-profile", candidateId] });
         }}
         context={{ type: "candidate", id: candidateId }}
+      />
+
+      <InviteRecallBotDialog
+        open={showInviteBot}
+        onClose={() => setShowInviteBot(false)}
+        candidateId={candidateId}
+        recruiterId={recruiterId}
+        onInvited={() => {
+          void queryClient.invalidateQueries({ queryKey: ["recall-bot-sessions", candidateId] });
+        }}
       />
 
       {showTranscript && (

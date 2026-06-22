@@ -847,6 +847,13 @@ Active development resumed June 2026. All sessions below are committed and pushe
 - Gap 5 — Call priority + batch CV send: `/api/ai/call-priority` ranks candidates by `"call"` vs `"email"` with one-line reason; `/api/ai/batch-cv-send` generates multi-candidate introduction email in flowing prose (no bullets); both endpoints read candidate pitch/personality notes and requisition context; never read `notes_internal` or `notes_presentation`
 - Gap 6 — Pipeline UX: `PipelineProgressStrip` (6 nodes: Specs Sent · Buy-In · CV Sent · Interview · Offer · Placed) renders at top of every process panel; `stageMilestoneToast()` fires stage-specific coaching text (Buy-In through Placed, with 6s/10s hold for Offer/Placed); spring-physics `.stage-advance` CSS animation on active node when stage advances; `@keyframes stageAdvance` in `src/styles.css`
 
+**Recall.ai call auto-logging — Feature 2 of workflow sprint (committed 2026-06-21)**
+- `supabase/migrations/030_recall_bot_sessions.sql`: new table — `id`, `bot_id`, `candidate_id`, `recruiter_id`, `team_id`, `meeting_url`, `status` (invited/in_progress/done/failed), `created_at`; team-scoped RLS
+- `api/ai/invite-recall-bot.ts`: creates a Recall.ai bot for a given meeting URL; requires `RECALL_API_KEY` + `APP_URL` in `.env`; stores session in `recall_bot_sessions`
+- `api/webhooks/recall.ts`: receives Recall.ai transcript webhooks; maps `bot.joining_call` → `in_progress`, fatal errors → `failed`, `bot.transcription_complete` → formats via Claude haiku + inserts into `interactions` as `interaction_type="note"` + marks session `done`
+- `candidates.$id` Timeline tab: "Invite note-taker" button opens `InviteRecallBotDialog` (meeting URL input); `ActiveBotBanner` shows indigo status strip when a session is `invited` or `in_progress`; "Paste transcript" stays as manual fallback
+- Note: run `supabase gen types` after migration 030 is applied to remove the `@ts-expect-error` on the `recall_bot_sessions` query
+
 **i18n — full EN/JP toggle (committed 2026-06-21)**
 - `react-i18next` + `i18next` wired into `src/main.tsx`; language stored in localStorage
 - `src/i18n.ts` singleton; `src/locales/en.json` + `src/locales/ja.json` for all UI strings
@@ -872,13 +879,8 @@ Kanri already writes the emails. This makes them sendable.
 - Sent emails auto-log to `interactions` table as `interaction_type: "email"` with full body as `full_notes`
 - Settings page (`/settings`) — connect/disconnect Gmail and Outlook
 
-#### Feature 2: Call auto-logging via Recall.ai
-Auto-join calls, transcribe, summarise, and post to interactions — no manual logging.
-- Recall.ai integration: "Invite note-taker" button in candidate timeline takes a meeting URL, sends bot via Recall.ai API
-- `recall_bot_sessions` table (migration 030) — tracks active bots (bot_id, candidate_id, meeting_url, status)
-- `api/webhooks/recall.ts` — receives transcript webhook, runs through `api/ai/format-interview-notes.ts`, inserts into `interactions`
-- Existing "Paste transcript" path stays as manual fallback
-- Bot status shown inline in upcoming event card ("Note-taker invited")
+#### Feature 2: Call auto-logging via Recall.ai ✓ DONE (2026-06-21)
+See session log above.
 
 #### Feature 3a: Outreach sequences — schema + API
 - `outreach_sequences` table: id, name, steps (JSONB array of {channel, delay_days, intent}), created_by
