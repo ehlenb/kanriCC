@@ -13,6 +13,7 @@ import {
   IconBriefcase,
   IconLogout,
   IconX,
+  IconSettings,
 } from "@tabler/icons-react";
 import { Component, useEffect } from "react";
 import type { ReactNode } from "react";
@@ -149,6 +150,7 @@ function Sidebar({
     { to: "/candidates", icon: IconUsers, label: t("nav.candidates") },
     { to: "/clients", icon: IconBuilding, label: t("nav.clients") },
     { to: "/jobs", icon: IconBriefcase, label: t("nav.jobs") },
+    { to: "/settings", icon: IconSettings, label: t("nav.settings") },
   ];
 
   return (

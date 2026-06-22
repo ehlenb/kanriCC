@@ -5,7 +5,8 @@
     "clients": "クライアント",
     "jobs": "求人",
     "advancedSearch": "詳細検索",
-    "signOut": "サインアウト"
+    "signOut": "サインアウト",
+    "settings": "設定"
   },
   "lang": {
     "toggle": "English",
@@ -64,7 +65,9 @@
     "hide": "非表示",
     "active": "積極的",
     "passive": "消極的",
-    "unknown": "不明"
+    "unknown": "不明",
+    "send": "送信",
+    "sendEmail": "メール送信"
   },
   "dashboard": {
     "title": "おはようございます",

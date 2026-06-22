@@ -5,7 +5,8 @@
     "clients": "Clients",
     "jobs": "Jobs",
     "advancedSearch": "Advanced Search",
-    "signOut": "Sign out"
+    "signOut": "Sign out",
+    "settings": "Settings"
   },
   "lang": {
     "toggle": "日本語",
@@ -64,7 +65,9 @@
     "hide": "Hide",
     "active": "Active",
     "passive": "Passive",
-    "unknown": "Unknown"
+    "unknown": "Unknown",
+    "send": "Send",
+    "sendEmail": "Send email"
   },
   "dashboard": {
     "title": "Good morning",

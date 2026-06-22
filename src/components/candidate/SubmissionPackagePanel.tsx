@@ -3,21 +3,27 @@ import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { IconFileText } from "@tabler/icons-react";
+import { IconFileText, IconSend } from "@tabler/icons-react";
 import type { SubmissionPackage, ProfileContent } from "@/integrations/supabase/types";
+import { SendEmailDialog } from "@/components/shared/SendEmailDialog";
 
 export function SubmissionPackagePanel({
   pkg,
   candidateName,
+  candidateId,
+  clientId,
   onClose,
 }: {
   pkg: SubmissionPackage;
   candidateName: string;
+  candidateId?: string;
+  clientId?: string;
   onClose: () => void;
 }) {
   const [emailBody, setEmailBody] = useState(pkg.email.body);
   const [emailSubject, setEmailSubject] = useState(pkg.email.subject);
   const [downloading, setDownloading] = useState(false);
+  const [sendOpen, setSendOpen] = useState(false);
 
   async function downloadPdf() {
     setDownloading(true);
@@ -96,13 +102,22 @@ export function SubmissionPackagePanel({
           <div>
             <div className="flex items-center justify-between mb-1">
               <Label className="text-xs">Email body</Label>
-              <button
-                className="text-[11px] underline underline-offset-2"
-                style={{ color: "#185fa5" }}
-                onClick={() => { void navigator.clipboard.writeText(emailBody); toast.success("Email copied."); }}
-              >
-                Copy
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  className="text-[11px] underline underline-offset-2"
+                  style={{ color: "#185fa5" }}
+                  onClick={() => { void navigator.clipboard.writeText(emailBody); toast.success("Email copied."); }}
+                >
+                  Copy
+                </button>
+                <button
+                  className="btn btn-accent btn-sm flex items-center gap-1"
+                  style={{ fontSize: 11, padding: "2px 8px" }}
+                  onClick={() => setSendOpen(true)}
+                >
+                  <IconSend size={10} /> Send
+                </button>
+              </div>
             </div>
             <Textarea
               value={emailBody}
@@ -115,6 +130,15 @@ export function SubmissionPackagePanel({
 
       <ProfileSection label="B — English profile" content={pkg.englishContent} />
       <ProfileSection label="C — Japanese profile" content={pkg.japaneseContent} />
+
+      <SendEmailDialog
+        open={sendOpen}
+        onClose={() => setSendOpen(false)}
+        defaultSubject={emailSubject}
+        body={emailBody}
+        candidateId={candidateId}
+        clientId={clientId}
+      />
     </div>
   );
 }
