@@ -60,6 +60,7 @@ import {
 } from "@tabler/icons-react";
 import { TranscriptPanel } from "@/components/candidate/TranscriptPanel";
 import { SubmissionPackagePanel } from "@/components/candidate/SubmissionPackagePanel";
+import { SequencePanel, SequenceStatusWidget } from "@/components/candidate/SequencePanel";
 import { ActivityTimeline } from "@/components/shared/ActivityTimeline";
 import { LogActivityModal } from "@/components/shared/LogActivityModal";
 import { SendEmailDialog } from "@/components/shared/SendEmailDialog";
@@ -470,6 +471,7 @@ function CandidateProfile() {
               {lastContact}
             </span>
           </div>
+          <SequenceStatusWidget candidateId={c.id} />
         </div>
         <button
           onClick={() => setDeleteOpen(true)}
@@ -509,6 +511,7 @@ function CandidateProfile() {
         <CandidateTimelineTab
           candidateId={id}
           recruiterId={user!.id}
+          teamId={c.team_id}
           interactions={interactions}
         />
       )}
@@ -541,6 +544,8 @@ function CandidateProfile() {
 
 // ─── registration page ────────────────────────────────────────────────────────
 
+type EnrichResult = { email: string | null; phone: string | null; source: "apollo" | "hunter" | "none" };
+
 function RegistrationPage({
   candidateId,
   candidate: c,
@@ -549,13 +554,69 @@ function RegistrationPage({
   candidate: Candidate;
 }) {
   const { t } = useTranslation();
+  const qc = useQueryClient();
   const [cvExtracted, setCvExtracted] = useState<ExtractedCandidate | null>(null);
   const [regExtracted, setRegExtracted] = useState<ExtractedCandidate | null>(null);
   const [reviewOpen, setReviewOpen] = useState(false);
+  const [enrichResult, setEnrichResult] = useState<EnrichResult | null>(null);
+  const [enrichLoading, setEnrichLoading] = useState(false);
+  const autoEnrichFired = useRef(false);
+
+  async function runEnrich() {
+    if (!c.full_name || !c.current_company) {
+      toast.error("Add candidate name and company before enriching.");
+      return;
+    }
+    setEnrichLoading(true);
+    setEnrichResult(null);
+    try {
+      const resp = await fetch("/api/ai/enrich-contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: c.full_name, company: c.current_company, type: "candidate" }),
+      });
+      const json = await resp.json() as { data?: EnrichResult; error?: string };
+      if (json.data) {
+        if (json.data.source === "none" || (!json.data.email && !json.data.phone)) {
+          toast.error("No contact details found for this person.");
+        } else {
+          setEnrichResult(json.data);
+        }
+      } else {
+        toast.error("Enrichment failed. Try again.");
+      }
+    } catch {
+      toast.error("Enrichment failed. Try again.");
+    }
+    setEnrichLoading(false);
+  }
+
+  async function applyEnrichResult() {
+    if (!enrichResult) return;
+    const patch: { email?: string; phone?: string } = {};
+    if (enrichResult.email && !c.email) patch.email = enrichResult.email;
+    if (enrichResult.phone && !c.phone) patch.phone = enrichResult.phone;
+    if (Object.keys(patch).length === 0) {
+      setEnrichResult(null);
+      return;
+    }
+    await supabase.from("candidates").update(patch).eq("id", candidateId);
+    void qc.invalidateQueries({ queryKey: ["candidates", candidateId] });
+    toast.success("Contact details saved.");
+    setEnrichResult(null);
+  }
 
   function handleExtracted(source: "cv" | "reg", data: ExtractedCandidate) {
-    if (source === "cv") setCvExtracted(data);
-    else setRegExtracted(data);
+    if (source === "cv") {
+      setCvExtracted(data);
+      // Auto-enrich if CV didn't provide an email and candidate has no email yet
+      if (!c.email && !autoEnrichFired.current && c.full_name && c.current_company) {
+        autoEnrichFired.current = true;
+        void runEnrich();
+      }
+    } else {
+      setRegExtracted(data);
+    }
     setReviewOpen(true);
   }
 
@@ -597,12 +658,53 @@ function RegistrationPage({
 
       {/* Auto-populated contact details */}
       <Card>
-        <div className="flex items-center gap-1.5 mb-3">
-          <SectionLabel className="mb-0">{t('candidateDetail.sections.candidateDetails')}</SectionLabel>
-          <span className="text-[11px] px-1.5 py-0.5 " style={{ background: "var(--color-indigo-light)", color: "var(--color-indigo)" }}>
-            auto-populated from form
-          </span>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-1.5">
+            <SectionLabel className="mb-0">{t('candidateDetail.sections.candidateDetails')}</SectionLabel>
+            <span className="text-[11px] px-1.5 py-0.5 " style={{ background: "var(--color-indigo-light)", color: "var(--color-indigo)" }}>
+              auto-populated from form
+            </span>
+          </div>
+          <button
+            className="btn btn-outline btn-sm flex items-center gap-1"
+            onClick={() => void runEnrich()}
+            disabled={enrichLoading}
+          >
+            <IconSparkles size={11} />
+            {enrichLoading ? "Searching…" : "Enrich"}
+          </button>
         </div>
+
+        {/* Enrichment confirm banner */}
+        {enrichResult && (
+          <div
+            className="flex items-start justify-between gap-3 px-3 py-2 mb-3 text-[12px]"
+            style={{ background: "var(--color-moss-light)", color: "var(--color-moss)", border: "0.5px solid var(--color-moss)" }}
+          >
+            <span>
+              Found{enrichResult.email ? ` ${enrichResult.email}` : ""}
+              {enrichResult.email && enrichResult.phone ? " ·" : ""}
+              {enrichResult.phone ? ` ${enrichResult.phone}` : ""}{" "}
+              via {enrichResult.source === "apollo" ? "Apollo" : "Hunter"} — save?
+            </span>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                className="flex items-center gap-0.5 font-medium"
+                onClick={() => void applyEnrichResult()}
+              >
+                <IconCheck size={12} /> Accept
+              </button>
+              <button
+                className="flex items-center gap-0.5"
+                style={{ color: "var(--color-ink-60)" }}
+                onClick={() => setEnrichResult(null)}
+              >
+                <IconX size={12} /> Dismiss
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="space-y-1">
           <RegistrationField label={t('candidateDetail.fields.fullName')} fieldKey="full_name" value={c.full_name} candidateId={candidateId} />
           <RegistrationField label={t('candidateDetail.fields.fullNameJapanese')} fieldKey="full_name_japanese" value={c.full_name_japanese} candidateId={candidateId} />
@@ -4000,10 +4102,12 @@ function ActiveBotBanner({ candidateId }: { candidateId: string }) {
 function CandidateTimelineTab({
   candidateId,
   recruiterId,
+  teamId,
   interactions,
 }: {
   candidateId: string;
   recruiterId: string;
+  teamId: string;
   interactions: CandidateInteraction[];
 }) {
   const { t } = useTranslation();
@@ -4011,6 +4115,7 @@ function CandidateTimelineTab({
   const [showLogActivity, setShowLogActivity] = useState(false);
   const [showTranscript, setShowTranscript] = useState(false);
   const [showInviteBot, setShowInviteBot] = useState(false);
+  const [showSequencePanel, setShowSequencePanel] = useState(false);
 
   const totalCount = interactions.length;
   const upcomingCount = interactions.filter((i) => i.is_future).length;
@@ -4027,6 +4132,13 @@ function CandidateTimelineTab({
           {upcomingCount > 0 ? `, ${upcomingCount} upcoming` : ""}
         </p>
         <div className="flex items-center gap-2">
+          <button
+            className="ab flex items-center gap-1"
+            onClick={() => { setShowSequencePanel((v) => !v); setShowTranscript(false); }}
+          >
+            <IconBolt size={12} />
+            Start sequence
+          </button>
           <button
             className="ab flex items-center gap-1"
             onClick={() => setShowLogActivity(true)}
@@ -4069,6 +4181,15 @@ function CandidateTimelineTab({
           void queryClient.invalidateQueries({ queryKey: ["recall-bot-sessions", candidateId] });
         }}
       />
+
+      {showSequencePanel && (
+        <SequencePanel
+          candidateId={candidateId}
+          recruiterId={recruiterId}
+          teamId={teamId}
+          onClose={() => setShowSequencePanel(false)}
+        />
+      )}
 
       {showTranscript && (
         <TranscriptPanel

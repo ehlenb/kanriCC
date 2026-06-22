@@ -48,9 +48,11 @@ import {
   IconChevronRight,
   IconList,
   IconTrash,
+  IconSend,
 } from "@tabler/icons-react";
 import { ActivityTimeline } from "@/components/shared/ActivityTimeline";
 import { LogActivityModal } from "@/components/shared/LogActivityModal";
+import { SendEmailDialog } from "@/components/shared/SendEmailDialog";
 
 export const Route = createFileRoute("/_authenticated/clients/$id")({
   component: ClientDetail,
@@ -907,6 +909,7 @@ function ClientDetail() {
           <ContactsCard
             contacts={contacts}
             clientId={id}
+            companyName={c.company_name}
             interactions={interactions}
             onAdd={() => setAddContactOpen(true)}
             onLogActivity={(contactId) => {
@@ -1306,6 +1309,7 @@ const ROLE_BADGE: Record<ContactRole, { label: string; style: React.CSSPropertie
 function ContactsCard({
   contacts,
   clientId,
+  companyName,
   interactions,
   onAdd,
   onLogActivity,
@@ -1313,6 +1317,7 @@ function ContactsCard({
 }: {
   contacts: Contact[];
   clientId: string;
+  companyName: string;
   interactions?: Interaction[];
   onAdd: () => void;
   onLogActivity?: (contactId: string, contactName: string) => void;
@@ -1324,6 +1329,44 @@ function ContactsCard({
   const [editingNote, setEditingNote] = useState<{ contactId: string; value: string } | null>(null);
   const [editingContactId, setEditingContactId] = useState<string | null>(null);
   const [editContactForm, setEditContactForm] = useState<{ name: string; title: string; role: ContactRole }>({ name: "", title: "", role: "other" });
+  const [enrichingId, setEnrichingId] = useState<string | null>(null);
+  const [enrichResults, setEnrichResults] = useState<Record<string, { email: string | null; phone: string | null; source: string }>>({});
+
+  async function runContactEnrich(contact: Contact, companyName: string) {
+    setEnrichingId(contact.id);
+    try {
+      const resp = await fetch("/api/ai/enrich-contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: contact.name, company: companyName, type: "contact" }),
+      });
+      const json = await resp.json() as { data?: { email: string | null; phone: string | null; source: string }; error?: string };
+      if (json.data && json.data.source !== "none" && (json.data.email || json.data.phone)) {
+        setEnrichResults((prev) => ({ ...prev, [contact.id]: json.data! }));
+      } else {
+        toast.error("No contact details found for this person.");
+      }
+    } catch {
+      toast.error("Enrichment failed. Try again.");
+    }
+    setEnrichingId(null);
+  }
+
+  async function applyContactEnrich(contact: Contact) {
+    const result = enrichResults[contact.id];
+    if (!result) return;
+    const patch: { email?: string; phone?: string } = {};
+    if (result.email && !contact.email) patch.email = result.email;
+    if (result.phone && !contact.phone) patch.phone = result.phone;
+    if (Object.keys(patch).length === 0) {
+      setEnrichResults((prev) => { const n = { ...prev }; delete n[contact.id]; return n; });
+      return;
+    }
+    await supabase.from("client_contacts").update(patch).eq("id", contact.id);
+    void qc.invalidateQueries({ queryKey: ["client", clientId] });
+    toast.success("Contact details saved.");
+    setEnrichResults((prev) => { const n = { ...prev }; delete n[contact.id]; return n; });
+  }
 
   function toggleExpand(id: string) {
     setExpandedIds((prev) => {
@@ -1461,7 +1504,16 @@ function ContactsCard({
                         </div>
                       </div>
                     ) : (
-                      <div className="flex justify-end">
+                      <div className="flex justify-end gap-3">
+                        <button
+                          className="text-[11px] flex items-center gap-0.5"
+                          style={{ color: "var(--color-ink-30)" }}
+                          disabled={enrichingId === contact.id}
+                          onClick={() => void runContactEnrich(contact, companyName)}
+                        >
+                          <IconSparkles size={10} />
+                          {enrichingId === contact.id ? "Searching…" : "Enrich"}
+                        </button>
                         <button
                           className="text-[11px]"
                           style={{ color: "var(--color-ink-30)" }}
@@ -1469,6 +1521,36 @@ function ContactsCard({
                         >
                           Edit contact
                         </button>
+                      </div>
+                    )}
+
+                    {/* Enrichment confirm banner */}
+                    {enrichResults[contact.id] && (
+                      <div
+                        className="flex items-start justify-between gap-3 px-3 py-2 text-[12px]"
+                        style={{ background: "var(--color-moss-light)", color: "var(--color-moss)", border: "0.5px solid var(--color-moss)" }}
+                      >
+                        <span>
+                          Found{enrichResults[contact.id].email ? ` ${enrichResults[contact.id].email}` : ""}
+                          {enrichResults[contact.id].email && enrichResults[contact.id].phone ? " ·" : ""}
+                          {enrichResults[contact.id].phone ? ` ${enrichResults[contact.id].phone}` : ""}{" "}
+                          via {enrichResults[contact.id].source === "apollo" ? "Apollo" : "Hunter"} — save?
+                        </span>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            className="flex items-center gap-0.5 font-medium"
+                            onClick={() => void applyContactEnrich(contact)}
+                          >
+                            <IconCheck size={12} /> Accept
+                          </button>
+                          <button
+                            className="flex items-center gap-0.5"
+                            style={{ color: "var(--color-ink-60)" }}
+                            onClick={() => setEnrichResults((prev) => { const n = { ...prev }; delete n[contact.id]; return n; })}
+                          >
+                            <IconX size={12} /> Dismiss
+                          </button>
+                        </div>
                       </div>
                     )}
 
@@ -1800,11 +1882,13 @@ function JobMatchPanel({
   existingListId?: string | null;
   onSaveList: (candidateIds: string[]) => Promise<void>;
 }) {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [matches, setMatches] = useState<MatchCandidate[] | null>(null);
   const [draftStates, setDraftStates] = useState<Record<string, { loading: boolean; text: string | null }>>({});
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(!!existingListId);
+  const [sendDialog, setSendDialog] = useState<{ body: string; to: string; subject: string; candidateId?: string } | null>(null);
 
   useEffect(() => {
     void runSearch();
@@ -2046,6 +2130,14 @@ function JobMatchPanel({
                     {t('common.copy')}
                   </button>
                   <button
+                    className="btn btn-accent btn-sm flex items-center gap-1"
+                    style={{ fontSize: 11, padding: "3px 8px" }}
+                    onClick={() => setSendDialog({ body: draft.text ?? "", to: "", subject: "Opportunity for you", candidateId: m.candidate_id })}
+                  >
+                    <IconSend size={10} />
+                    {t('common.send') ?? "Send"}
+                  </button>
+                  <button
                     className="ab flex items-center gap-1"
                     style={{ fontSize: 11, padding: "3px 8px" }}
                     onClick={() => void draftMessage(m.candidate_id)}
@@ -2069,6 +2161,17 @@ function JobMatchPanel({
           </div>
         );
       })}
+      {sendDialog && (
+        <SendEmailDialog
+          open
+          onClose={() => setSendDialog(null)}
+          defaultTo={sendDialog.to}
+          defaultSubject={sendDialog.subject}
+          body={sendDialog.body}
+          candidateId={sendDialog.candidateId}
+          clientId={clientId}
+        />
+      )}
     </div>
   );
 }
@@ -2107,6 +2210,7 @@ function SpecListPanel({
   const [draftStates, setDraftStates] = useState<Record<string, { loading: boolean; text: string | null }>>({});
   const [callRankings, setCallRankings] = useState<CallRanking[] | null>(null);
   const [rankingLoading, setRankingLoading] = useState(false);
+  const [sendDialog, setSendDialog] = useState<{ body: string; to: string; subject: string; candidateId?: string } | null>(null);
 
   useEffect(() => {
     if (list.candidate_ids.length === 0) { setCandidates([]); return; }
@@ -2261,6 +2365,13 @@ function SpecListPanel({
                         <IconCopy size={10} /> {t('common.copy')}
                       </button>
                       <button
+                        className="btn btn-accent btn-sm flex items-center gap-1"
+                        style={{ fontSize: 11, padding: "3px 8px" }}
+                        onClick={() => setSendDialog({ body: draft.text ?? "", to: "", subject: "Opportunity for you", candidateId: c.id })}
+                      >
+                        <IconSend size={10} /> {t('common.send') ?? "Send"}
+                      </button>
+                      <button
                         className="ab flex items-center gap-1"
                         style={{ fontSize: 11, padding: "3px 8px" }}
                         onClick={() => void draftMessage(c.id)}
@@ -2286,6 +2397,16 @@ function SpecListPanel({
           })()}
         </div>
       )}
+      {sendDialog && (
+        <SendEmailDialog
+          open
+          onClose={() => setSendDialog(null)}
+          defaultTo={sendDialog.to}
+          defaultSubject={sendDialog.subject}
+          body={sendDialog.body}
+          candidateId={sendDialog.candidateId}
+        />
+      )}
     </div>
   );
 }
@@ -2298,12 +2419,14 @@ function JobDetailPanel({
   interactions,
   onSaveNotes,
   recruiterId,
+  clientId,
 }: {
   req: ReqWithPipeline;
   contacts: Contact[];
   interactions: Interaction[];
   onSaveNotes: (reqId: string, notes: string) => void;
   recruiterId: string;
+  clientId: string;
 }) {
   const { t } = useTranslation();
   const hm = contacts.find((c) => c.id === req.hiring_manager_id);
@@ -2312,6 +2435,7 @@ function JobDetailPanel({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [cvSendDraft, setCvSendDraft] = useState<{ subject: string; body: string } | null>(null);
   const [cvSendLoading, setCvSendLoading] = useState(false);
+  const [sendDialog, setSendDialog] = useState<{ body: string; to: string; subject: string; candidateId?: string; clientId?: string } | null>(null);
 
   const buyInProcesses = req.processes.filter((p) => p.stage === "Buy-In" && p.candidates);
 
@@ -2509,6 +2633,13 @@ function JobDetailPanel({
                           <IconCopy size={10} /> {t('common.copy')}
                         </button>
                         <button
+                          className="btn btn-accent btn-sm flex items-center gap-1"
+                          style={{ fontSize: 11, padding: "3px 8px" }}
+                          onClick={() => setSendDialog({ body: draft.text ?? "", to: "", subject: req.title, candidateId: cand.id })}
+                        >
+                          <IconSend size={10} /> {t('common.send') ?? "Send"}
+                        </button>
+                        <button
                           className="ab flex items-center gap-1"
                           style={{ fontSize: 11, padding: "3px 8px" }}
                           onClick={() => void draftBuyInMessage(cand.id)}
@@ -2576,6 +2707,12 @@ function JobDetailPanel({
                 <IconCopy size={11} /> {t('common.copy')} email
               </button>
               <button
+                className="btn btn-accent btn-sm flex items-center gap-1"
+                onClick={() => setSendDialog({ body: cvSendDraft.body, to: hm?.email ?? "", subject: cvSendDraft.subject, clientId })}
+              >
+                <IconSend size={11} /> {t('common.send') ?? "Send"}
+              </button>
+              <button
                 className="btn btn-ghost btn-sm flex items-center gap-1"
                 onClick={() => void prepareCvSend()}
                 disabled={cvSendLoading}
@@ -2602,6 +2739,18 @@ function JobDetailPanel({
           />
         )}
       </div>
+
+      {sendDialog && (
+        <SendEmailDialog
+          open
+          onClose={() => setSendDialog(null)}
+          defaultTo={sendDialog.to}
+          defaultSubject={sendDialog.subject}
+          body={sendDialog.body}
+          candidateId={sendDialog.candidateId}
+          clientId={sendDialog.clientId}
+        />
+      )}
     </div>
   );
 }
@@ -3406,7 +3555,7 @@ function JobsTab({
           {selectedReqId && (() => {
             const req = openReqs.find((r) => r.id === selectedReqId);
             return req ? (
-              <JobDetailPanel req={req} contacts={contacts} interactions={interactions} onSaveNotes={handleSaveReqNotes} recruiterId={recruiterId} />
+              <JobDetailPanel req={req} contacts={contacts} interactions={interactions} onSaveNotes={handleSaveReqNotes} recruiterId={recruiterId} clientId={clientId} />
             ) : null;
           })()}
           {activeSpecReqId && (() => {
