@@ -1140,6 +1140,108 @@ export type Database = {
         }
         Relationships: []
       }
+      recall_bot_sessions: {
+        Row: {
+          id: string
+          bot_id: string
+          candidate_id: string
+          meeting_url: string
+          status: string
+          recruiter_id: string
+          team_id: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          bot_id: string
+          candidate_id: string
+          meeting_url: string
+          status?: string
+          recruiter_id: string
+          team_id: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          bot_id?: string
+          candidate_id?: string
+          meeting_url?: string
+          status?: string
+          recruiter_id?: string
+          team_id?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      outreach_sequences: {
+        Row: {
+          id: string
+          name: string
+          steps: Json
+          created_by: string | null
+          team_id: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          steps?: Json
+          created_by?: string | null
+          team_id?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          steps?: Json
+          created_by?: string | null
+          team_id?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      outreach_enrollments: {
+        Row: {
+          id: string
+          sequence_id: string | null
+          candidate_id: string | null
+          current_step: number
+          next_send_at: string | null
+          status: string
+          created_by: string | null
+          team_id: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          sequence_id?: string | null
+          candidate_id?: string | null
+          current_step?: number
+          next_send_at?: string | null
+          status?: string
+          created_by?: string | null
+          team_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          sequence_id?: string | null
+          candidate_id?: string | null
+          current_step?: number
+          next_send_at?: string | null
+          status?: string
+          created_by?: string | null
+          team_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

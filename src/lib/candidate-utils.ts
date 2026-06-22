@@ -83,3 +83,50 @@ export function todayFormatted(): string {
     year: "numeric",
   });
 }
+
+// Japan calendar blackout ranges — do not schedule outreach during these periods
+const JAPAN_BLACKOUTS: Array<{ month: number; startDay: number; endDay: number }> = [
+  { month: 4, startDay: 29, endDay: 30 }, // Golden Week start (Apr)
+  { month: 5, startDay: 1,  endDay: 6  }, // Golden Week (May 1–6)
+  { month: 8, startDay: 13, endDay: 16 }, // Obon
+  { month: 12, startDay: 28, endDay: 31 }, // Year-end
+  { month: 1, startDay: 1,  endDay: 4  }, // New Year
+];
+
+function isBlackout(d: Date): boolean {
+  const m = d.getMonth() + 1; // 1-indexed
+  const day = d.getDate();
+  return JAPAN_BLACKOUTS.some(
+    (r) => r.month === m && day >= r.startDay && day <= r.endDay
+  );
+}
+
+// Advance date forward to the next business day that falls outside a blackout period
+function advanceToWorkday(d: Date): Date {
+  const result = new Date(d);
+  while (result.getDay() === 0 || result.getDay() === 6 || isBlackout(result)) {
+    result.setDate(result.getDate() + 1);
+  }
+  return result;
+}
+
+/**
+ * Compute the next send date from `from`, adding `delayDays` business days and
+ * skipping Japan calendar blackouts (Golden Week, Obon, year-end/new-year).
+ */
+export function nextSendAt(from: Date, delayDays: number): Date {
+  let result = advanceToWorkday(new Date(from));
+  let remaining = delayDays;
+  while (remaining > 0) {
+    result.setDate(result.getDate() + 1);
+    result = advanceToWorkday(result);
+    remaining--;
+  }
+  return result;
+}
+
+/** True if the current month is a bonus season month (Jan–Mar, Jun–Jul) */
+export function isBonusSeason(): boolean {
+  const m = new Date().getMonth() + 1;
+  return [1, 2, 3, 6, 7].includes(m);
+}
