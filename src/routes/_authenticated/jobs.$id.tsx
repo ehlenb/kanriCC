@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { BLANK_CANDIDATE_SEARCH } from "@/routes/_authenticated/candidates";
@@ -16,6 +17,8 @@ import {
   IconChevronLeft,
   IconAlertTriangle,
   IconX,
+  IconChevronDown,
+  IconChevronUp,
 } from "@tabler/icons-react";
 
 export const Route = createFileRoute("/_authenticated/jobs/$id")({
@@ -112,6 +115,26 @@ function useConditions(requisitionId: string) {
   });
 }
 
+function useRejectionCount(requisitionId: string) {
+  return useQuery({
+    queryKey: ["req_rejections", requisitionId],
+    staleTime: 30_000,
+    retry: 1,
+    queryFn: async (): Promise<number> => {
+      const { data, error } = await supabase
+        .from("processes")
+        .select("id, stage, cv_sent_at, ccm_outcome")
+        .eq("requisition_id", requisitionId);
+      if (error) throw error;
+      return (data ?? []).filter((p) => {
+        if (p.stage === "Closed lost" && p.cv_sent_at) return true;
+        if (p.ccm_outcome === "fail") return true;
+        return false;
+      }).length;
+    },
+  });
+}
+
 function useProcesses(requisitionId: string) {
   return useQuery({
     queryKey: ["req_processes", requisitionId],
@@ -145,10 +168,12 @@ function JobDetail() {
   const { user } = useAuth();
   const recruiterId = user!.id;
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const req = useRequisition(id);
   const conditions = useConditions(id);
   const processes = useProcesses(id);
+  const rejectionCount = useRejectionCount(id);
 
   const [showMatch, setShowMatch] = useState(false);
 
@@ -195,7 +220,7 @@ function JobDetail() {
         onClick={() => void navigate({ to: "/jobs" })}
       >
         <IconChevronLeft size={13} />
-        Jobs
+        {t('nav.jobs')}
       </button>
 
       {/* Header */}
@@ -216,7 +241,7 @@ function JobDetail() {
                 className="text-[11px] font-medium px-2 py-0.5 "
                 style={{ background: "var(--color-ink-10)", color: "var(--color-ink-30)" }}
               >
-                Closed
+                {t('common.closed')}
               </span>
             )}
           </div>
@@ -233,9 +258,14 @@ function JobDetail() {
 
         <button className="ab" onClick={() => setShowMatch((v) => !v)}>
           <IconSparkles size={13} />
-          {showMatch ? "Hide matches" : "Match candidates"}
+          {showMatch ? t('jobs.detail.hideMatches') : t('jobs.detail.matchCandidates')}
         </button>
       </div>
+
+      {/* Rejection flag banner */}
+      {(rejectionCount.data ?? 0) >= 2 && (
+        <RejectionFlagBanner requisitionId={id} rejectionCount={rejectionCount.data!} />
+      )}
 
       {/* Match panel — full width when open */}
       {showMatch && (
@@ -258,7 +288,7 @@ function JobDetail() {
           <Card>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <SectionLabel>Salary range</SectionLabel>
+                <SectionLabel>{t('jobs.detail.salaryRange')}</SectionLabel>
                 <p className="text-[13px] font-medium">
                   {formatYen(r.salary_min)} – {formatYen(r.salary_max)}
                 </p>
@@ -269,9 +299,9 @@ function JobDetail() {
                 )}
               </div>
               <div>
-                <SectionLabel>Interview process</SectionLabel>
+                <SectionLabel>{t('jobs.detail.interviewProcess')}</SectionLabel>
                 <p className="text-[13px]">
-                  {r.interview_steps ? `${r.interview_steps} round${r.interview_steps !== 1 ? "s" : ""}` : "—"}
+                  {r.interview_steps ? `${r.interview_steps} ${r.interview_steps !== 1 ? t('jobs.detail.rounds') : t('jobs.detail.round')}` : "—"}
                 </p>
                 {r.interview_notes && (
                   <p className="text-[12px] mt-0.5 leading-snug" style={{ color: "var(--color-ink-60)" }}>
@@ -299,6 +329,168 @@ function JobDetail() {
           />
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── Rejection flag banner ────────────────────────────────────────────────────
+
+type DiagnosisResult = {
+  path: string;
+  headline: string;
+  diagnosis: string;
+  suggested_action: string;
+  conversation_guides: { data_driven: string; relationship_first: string };
+  cvs_sent: number;
+  rejections: number;
+  error?: string;
+};
+
+function RejectionFlagBanner({
+  requisitionId,
+  rejectionCount,
+}: {
+  requisitionId: string;
+  rejectionCount: number;
+}) {
+  const { t } = useTranslation();
+  const [expanded, setExpanded] = useState(false);
+  const [diagnosis, setDiagnosis] = useState<DiagnosisResult | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [guide, setGuide] = useState<"data_driven" | "relationship_first">("data_driven");
+
+  async function runDiagnosis() {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/ai/client-rejection-diagnosis", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ requisition_id: requisitionId }),
+      });
+      const data = await res.json() as DiagnosisResult;
+      setDiagnosis(data);
+      setExpanded(true);
+    } catch {
+      toast.error("Could not run rejection diagnosis. Try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div
+      className="mb-5 border-l-2"
+      style={{
+        background: "var(--color-gold-light)",
+        borderColor: "var(--color-gold)",
+        padding: "12px 16px",
+      }}
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start gap-2">
+          <IconAlertTriangle size={15} style={{ color: "var(--color-gold)", marginTop: 1, flexShrink: 0 }} />
+          <div>
+            <p className="text-[13px] font-medium" style={{ color: "var(--color-ink)" }}>
+              {rejectionCount} confirmed rejections on this role
+            </p>
+            {!diagnosis && (
+              <p className="text-[12px] mt-0.5" style={{ color: "var(--color-ink-60)" }}>
+                Run a diagnosis to see whether this is an off-spec sourcing issue or a client expectation gap.
+              </p>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {!diagnosis && (
+            <button
+              className="btn btn-outline btn-sm"
+              onClick={() => void runDiagnosis()}
+              disabled={loading}
+            >
+              {loading ? t('jobs.detail.analysing') : t('jobs.detail.runDiagnosis')}
+            </button>
+          )}
+          {diagnosis && (
+            <button
+              className="flex items-center gap-1 text-[12px]"
+              style={{ color: "var(--color-ink-60)" }}
+              onClick={() => setExpanded((v) => !v)}
+            >
+              {expanded ? <IconChevronUp size={13} /> : <IconChevronDown size={13} />}
+              {expanded ? t('common.collapse') : t('common.show')}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {diagnosis && !diagnosis.error && expanded && (
+        <div className="mt-4 space-y-3">
+          <div
+            className="text-[11px] font-mono uppercase tracking-widest px-2 py-0.5 inline-block"
+            style={{
+              background: diagnosis.path === "off_spec" ? "var(--color-indigo-light)" : "var(--color-vermillion-light)",
+              color: diagnosis.path === "off_spec" ? "var(--color-indigo)" : "var(--color-vermillion)",
+            }}
+          >
+            {diagnosis.path === "off_spec" ? t('jobs.detail.offSpec') : t('jobs.detail.expectationGap')}
+          </div>
+
+          <p className="text-[13px] font-medium" style={{ color: "var(--color-ink)" }}>
+            {diagnosis.headline}
+          </p>
+
+          <p className="text-[13px] leading-relaxed" style={{ color: "var(--color-ink-60)" }}>
+            {diagnosis.diagnosis}
+          </p>
+
+          <div
+            className="text-[12px] px-3 py-2 border-l"
+            style={{ borderColor: "var(--color-gold)", background: "var(--color-white)" }}
+          >
+            <span className="font-medium" style={{ color: "var(--color-ink)" }}>{t('jobs.detail.nextStep')}: </span>
+            <span style={{ color: "var(--color-ink-60)" }}>{diagnosis.suggested_action}</span>
+          </div>
+
+          <div>
+            <p className="text-[11px] font-mono uppercase tracking-widest mb-2" style={{ color: "var(--color-ink-30)" }}>
+              {t('jobs.detail.conversationGuide')}
+            </p>
+            <div className="flex gap-2 mb-3">
+              <button
+                className={`text-[12px] px-3 py-1 border ${guide === "data_driven" ? "border-[color:var(--color-ink)]" : "border-[color:var(--color-ink-15)]"}`}
+                style={{ color: guide === "data_driven" ? "var(--color-ink)" : "var(--color-ink-60)" }}
+                onClick={() => setGuide("data_driven")}
+              >
+                {t('jobs.detail.dataDriven')}
+              </button>
+              <button
+                className={`text-[12px] px-3 py-1 border ${guide === "relationship_first" ? "border-[color:var(--color-ink)]" : "border-[color:var(--color-ink-15)]"}`}
+                style={{ color: guide === "relationship_first" ? "var(--color-ink)" : "var(--color-ink-60)" }}
+                onClick={() => setGuide("relationship_first")}
+              >
+                {t('jobs.detail.relationshipFirst')}
+              </button>
+            </div>
+            <textarea
+              className="w-full text-[13px] leading-relaxed resize-none"
+              style={{
+                background: "var(--color-white)",
+                border: "1px solid var(--color-ink-15)",
+                color: "var(--color-ink)",
+                padding: "10px 12px",
+                minHeight: 80,
+              }}
+              defaultValue={
+                guide === "data_driven"
+                  ? diagnosis.conversation_guides.data_driven
+                  : diagnosis.conversation_guides.relationship_first
+              }
+              key={guide}
+              readOnly={false}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -363,6 +555,7 @@ function StrategicContextCard({
   requisitionId: string;
   value: string | null;
 }) {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [text, setText] = useState(value ?? "");
   const saved = useRef(value ?? "");
@@ -390,7 +583,7 @@ function StrategicContextCard({
 
   return (
     <Card>
-      <SectionLabel className="mb-2">Strategic context</SectionLabel>
+      <SectionLabel className="mb-2">{t('jobs.detail.strategicContext')}</SectionLabel>
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
@@ -417,6 +610,7 @@ function ConditionsCard({
   conditions: Condition[];
   isLoading: boolean;
 }) {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [mustInput, setMustInput] = useState("");
   const [flexInput, setFlexInput] = useState("");
@@ -478,7 +672,7 @@ function ConditionsCard({
           {/* Must-haves column */}
           <div>
             <p className="text-[11px] font-semibold mb-2 uppercase tracking-[0.04em]" style={{ color: "var(--color-moss)" }}>
-              Must-haves
+              {t('jobs.detail.mustHave')}
             </p>
 
             {mustHave.length === 0 && (
@@ -530,7 +724,7 @@ function ConditionsCard({
           {/* Flexible on column */}
           <div>
             <p className="text-[11px] font-semibold mb-2 uppercase tracking-[0.04em]" style={{ color: "var(--color-gold)" }}>
-              Flexible on
+              {t('jobs.detail.niceToHave')}
             </p>
 
             {flexible.length === 0 && (

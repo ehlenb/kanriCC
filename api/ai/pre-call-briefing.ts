@@ -46,7 +46,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       supabase
         .from("candidates")
         .select(
-          "full_name, current_company, current_title, japanese_level, english_level, candidate_status, notice_period_months, current_total, expected_total_min, expected_total_max, base_is_priority, base_minimum, notes_interview, notes_personality, notes_pitch, notes_closing, ai_context",
+          "full_name, current_company, current_title, japanese_level, english_level, candidate_status, notice_period_months, current_total, expected_total_min, expected_total_max, base_is_priority, base_minimum, notes_interview, notes_personality, notes_pitch, notes_closing, ai_context, comp_notes",
         )
         .eq("id", resolvedEntityId)
         .single(),
@@ -99,6 +99,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       notes_pitch: string | null;
       notes_closing: string | null;
       ai_context: string | null;
+      comp_notes: string | null;
     };
 
     // Optional: load process context if provided
@@ -158,6 +159,7 @@ ${(recentInteractions ?? []).map((i: { interaction_type: string; interacted_at: 
 ${c.notes_pitch ? `Pitch notes: ${c.notes_pitch.slice(0, 200)}` : ""}
 ${c.notes_personality ? `Personality: ${c.notes_personality.slice(0, 200)}` : ""}
 ${c.notes_closing ? `Closing intelligence: ${c.notes_closing.slice(0, 200)}` : ""}
+${c.comp_notes ? `Compensation context: ${c.comp_notes.slice(0, 200)}` : ""}
 ${processContext}
 `.trim();
 
@@ -177,8 +179,13 @@ Use markdown: **bold** for headers and key phrases, • for bullets. Short, clea
 **Watch-outs**
 [Active risks only — competing interviews, blockers, compensation risks. **Bold** the key phrase. Omit this section entirely if there are no active risks.]
 
+**Bonus timing** (include ONLY if notes mention a bonus cycle or waiting on a bonus payout)
+[One sentence: when the bonus lands and what that means for timing. E.g. "Mentioned waiting on December bonus — earliest realistic start is January." Omit this section entirely if nothing in the notes indicates bonus timing.]
+
 **Suggested opening**
 [One natural opening sentence or question. Not a script — a starting point.]
+
+Bonus timing instruction: Scan the registration interview notes, compensation context, and recent activity for any mention of a bonus cycle, bonus payout date, or candidate saying they want to wait. Japan recruiter context: most professionals receive bonuses in June and December. If the candidate mentioned a specific month or season, surface it here so the recruiter doesn't push for urgency at the wrong time.
 
 NEVER use: straightforward, genuinely, honestly, leverage (as a verb), utilize. No em dashes.`,
       messages: [{ role: "user", content: prompt }],

@@ -35,7 +35,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     supabase
       .from("candidates")
       .select(
-        "full_name, current_company, current_title, japanese_level, english_level, current_total, expected_total_min, expected_total_max, base_is_priority, base_minimum, notes_interview",
+        "full_name, current_company, current_title, japanese_level, english_level, current_total, expected_total_min, expected_total_max, base_is_priority, base_minimum, notes_interview, comp_notes",
       )
       .eq("id", candidateId)
       .single(),
@@ -102,6 +102,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     base_is_priority: boolean;
     base_minimum: number | null;
     notes_interview: string | null;
+    comp_notes: string | null;
   };
   const c = candidate as CandidateData;
 
@@ -117,6 +118,8 @@ Base priority: ${c.base_is_priority ? `Yes — minimum ${formatYen(c.base_minimu
 
 ${c.notes_interview ? `REGISTRATION INTERVIEW NOTES (base knowledge — may be superseded by recent activity below):
 ${c.notes_interview}` : ""}
+
+${c.comp_notes ? `Compensation context (recruiter notes): ${c.comp_notes}` : ""}
 
 ${(motivations ?? []).length > 0 ? `Ranked motivations (explicitly recorded):
 ${(motivations ?? []).map((m: { rank: number; motivation_text: string }) => `${m.rank}. ${m.motivation_text}`).join("\n")}` : ""}
@@ -160,6 +163,7 @@ Japan market context to apply where relevant:
 - Domestic-to-foreign concerns: use client's Japan tenure and Japanese team percentage to address stability fears.
 - Seniority frustration: if motivation includes merit-based advancement, contrast with the client's performance culture.
 - Counteroffer risk: if at offer stage, apply the 60–80% / 90% statistics.
+- Bonus timing: if notes or comp context mention a bonus cycle or waiting on a payout (June and December are standard in Japan), factor this into talking point framing — do not push urgency if the candidate is waiting on a bonus. Acknowledge the timing and frame around the right next step.
 
 Respond ONLY with valid JSON, no markdown, no explanation:
 {"points": [{"label": "...", "body": "..."}, {"label": "...", "body": "..."}, {"label": "...", "body": "..."}]}`,

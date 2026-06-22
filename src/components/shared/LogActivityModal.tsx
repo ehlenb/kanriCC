@@ -8,6 +8,7 @@
 
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import i18n from "@/i18n";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
@@ -59,40 +60,56 @@ const ALL_TYPES = [
   "other",
 ] as const;
 
-// UI display types — "candidate_call" / "client_call" are virtual values that
-// both persist as interaction_type="call" with the appropriate primary_party.
+// UI display types — "candidate_call" / "client_call" / "candidate_meeting" /
+// "client_meeting" are virtual values that persist as interaction_type="call"
+// or "meeting" with the appropriate primary_party.
 const CANDIDATE_TYPES: readonly string[] = [
-  "candidate_call", "client_call", "email", "note", "meeting",
+  "candidate_call", "client_call", "candidate_meeting", "client_meeting",
+  "email", "note",
   "ccm1", "ccm2", "ccm3", "ccm4", "ccm5", "ccm6",
   "job spec sent", "linkedin message", "other",
 ];
 const CLIENT_TYPES: readonly string[] = [
-  "client_call", "candidate_call", "email", "note", "meeting", "other",
+  "client_call", "candidate_call", "client_meeting", "candidate_meeting",
+  "email", "note", "other",
 ];
 
 /** Human-readable label for an interaction type in a given context. */
 export function interactionTypeLabel(type: string, primaryParty?: string | null): string {
-  if (type === "candidate_call") return "Candidate Call";
-  if (type === "client_call") return "Client Call";
+  const t = (k: string) => i18n.t(k);
+
+  if (type === "candidate_call") return t("activity.types.candidateCall");
+  if (type === "client_call") return t("activity.types.clientCall");
+  if (type === "candidate_meeting") return t("activity.types.candidateMeeting");
+  if (type === "client_meeting") return t("activity.types.clientMeeting");
   if (type === "call") {
-    if (primaryParty === "candidate") return "Candidate Call";
-    if (primaryParty === "client") return "Client Call";
-    return "Call";
+    if (primaryParty === "candidate") return t("activity.types.candidateCall");
+    if (primaryParty === "client") return t("activity.types.clientCall");
+    return t("activity.types.call");
+  }
+  if (type === "meeting") {
+    if (primaryParty === "candidate") return t("activity.types.candidateMeeting");
+    if (primaryParty === "client") return t("activity.types.clientMeeting");
+    return t("activity.types.meeting");
   }
   if (/^ccm\d+$/i.test(type)) return type.toUpperCase();
+  const key = `activity.types.${type.replace(/ /g, "_").replace(/-/g, "_")}`;
+  const translated = t(key);
+  if (translated !== key) return translated;
   return type.charAt(0).toUpperCase() + type.slice(1).replace(/-/g, " ");
 }
 
 /** Map a display type to the DB interaction_type. */
 function toDbType(displayType: string): string {
   if (displayType === "candidate_call" || displayType === "client_call") return "call";
+  if (displayType === "candidate_meeting" || displayType === "client_meeting") return "meeting";
   return displayType;
 }
 
 /** Derive primary_party from a display type. */
 function toPrimaryParty(displayType: string, fallback: "candidate" | "client"): "candidate" | "client" {
-  if (displayType === "candidate_call") return "candidate";
-  if (displayType === "client_call") return "client";
+  if (displayType === "candidate_call" || displayType === "candidate_meeting") return "candidate";
+  if (displayType === "client_call" || displayType === "client_meeting") return "client";
   return fallback;
 }
 
@@ -246,6 +263,24 @@ export function LogActivityModal({
     toast.success(isFuture ? "Upcoming event saved." : "Activity logged.");
     onSaved();
     onClose();
+
+    // Auto-update client strategy notes in the background for client interactions
+    // with substantive content. The endpoint judges whether the log is strategically
+    // useful before updating — logistical notes ("sent calendar invite") are ignored.
+    if (context.type === "client" && !isFuture) {
+      const logContent = [summary.trim(), notes.trim()].filter(Boolean).join("\n\n");
+      if (logContent.length > 20) {
+        void fetch("/api/ai/update-client-strategy", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            client_id: context.id,
+            interaction_summary: summary.trim() || null,
+            interaction_notes: notes.trim() || null,
+          }),
+        });
+      }
+    }
   }
 
   const contacts =
@@ -407,7 +442,7 @@ export function LogActivityModal({
           {/* ── Client context: contact selector shown for client calls ── */}
           {context.type === "client" && (
             <>
-              {type === "client_call" && contacts.length > 0 && (
+              {(type === "client_call" || type === "client_meeting") && contacts.length > 0 && (
                 <div className="space-y-1.5">
                   <Label className="text-[12px]">Contact (optional)</Label>
                   <Select

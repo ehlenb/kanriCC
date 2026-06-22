@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { formatYen, isCcmStage } from "@/lib/candidate-utils";
@@ -79,6 +80,7 @@ function urgencyOrder(u: string | null): number {
 // ─── component ───────────────────────────────────────────────────────────────
 
 function JobsDashboard() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const recruiterId = user!.id;
   const { data: allJobs = [], isLoading } = useJobs(recruiterId);
@@ -115,7 +117,7 @@ function JobsDashboard() {
       {/* Header row */}
       <div className="flex items-end justify-between mb-5">
         <div>
-          <h1 className="text-xl font-medium mb-0.5">Jobs</h1>
+          <h1 className="text-xl font-medium mb-0.5">{t('jobs.title')}</h1>
           <p className="text-[13px]" style={{ color: "#5f5e5a" }}>
             All open and recently closed requisitions
           </p>
@@ -128,7 +130,7 @@ function JobsDashboard() {
             style={{ background: "#eaf3de", border: "0.5px solid #c0dd97" }}
           >
             <p className="text-[11px] font-medium uppercase tracking-[0.04em] mb-0.5" style={{ color: "#3b6d11" }}>
-              Pipeline forecast
+              {t('jobs.revenue')}
             </p>
             <p className="text-[22px] font-medium leading-none" style={{ color: "#27500a" }}>
               {formatYen(forecastTotal)}
@@ -157,14 +159,14 @@ function JobsDashboard() {
       </div>
 
       {/* Open jobs */}
-      <Section label={`Open jobs${openJobs.length ? ` · ${openJobs.length}` : ""}`}>
+      <Section label={`${t('jobs.openRoles')}${openJobs.length ? ` · ${openJobs.length}` : ""}`}>
         {isLoading ? (
           <div className="space-y-2">
             {[0, 1, 2].map((i) => <Skeleton key={i} className="h-20 w-full " />)}
           </div>
         ) : openJobs.length === 0 ? (
           <EmptyState
-            message={search ? "No open jobs match your search." : "No open jobs yet."}
+            message={search ? "No open jobs match your search." : t('jobs.noOpenRoles')}
             sub={search ? undefined : "Open a client and add a job to get started."}
           />
         ) : (
@@ -218,6 +220,7 @@ function Section({
 // ─── job row ─────────────────────────────────────────────────────────────────
 
 function JobRow({ job: j }: { job: Job }) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
 
   const active = j.processes.filter((p) => !["Placed", "Closed lost"].includes(p.stage));
@@ -230,10 +233,10 @@ function JobRow({ job: j }: { job: Job }) {
   const fee = expectedFee(j);
 
   const urgencyPill: Record<string, { label: string; bg: string; color: string }> = {
-    critical: { label: "Critical", bg: "#fcebeb", color: "#a32d2d" },
-    high:     { label: "High",     bg: "#faeeda", color: "#633806" },
-    normal:   { label: "Normal",   bg: "#f5f5f3", color: "#888780" },
-    low:      { label: "Low",      bg: "#f5f5f3", color: "#888780" },
+    critical: { label: t('jobs.urgency.critical'), bg: "#fcebeb", color: "#a32d2d" },
+    high:     { label: t('jobs.urgency.high'),     bg: "#faeeda", color: "#633806" },
+    normal:   { label: t('jobs.urgency.normal'),   bg: "#f5f5f3", color: "#888780" },
+    low:      { label: t('jobs.urgency.low'),      bg: "#f5f5f3", color: "#888780" },
   };
   const urgency = urgencyPill[j.urgency ?? "normal"] ?? urgencyPill.normal;
 

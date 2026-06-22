@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
@@ -46,6 +47,7 @@ import {
   IconChevronDown,
   IconChevronRight,
   IconList,
+  IconTrash,
 } from "@tabler/icons-react";
 import { ActivityTimeline } from "@/components/shared/ActivityTimeline";
 import { LogActivityModal } from "@/components/shared/LogActivityModal";
@@ -75,6 +77,7 @@ type ClientRecord = {
   contract_url: string | null;
   ai_context: string | null;
   ai_context_updated_at: string | null;
+  website: string | null;
 };
 
 type Contact = {
@@ -96,6 +99,8 @@ type PipelineProcess = {
   stage: string;
   coverage_type: string;
   updated_at: string;
+  cv_sent_at: string | null;
+  ccm_outcome: string | null;
   candidates: { id: string; full_name: string; full_name_japanese: string | null; current_title: string | null } | null;
 };
 
@@ -152,12 +157,14 @@ type MatchCandidate = AiMatchResult & {
 // ─── action item type ─────────────────────────────────────────────────────────
 
 type ActionPriority = "urgent" | "warning" | "info" | "nudge";
+type CtaAction = "follow_up" | "prep" | "closing" | "scheduling" | "report" | "hr_intro" | "log_call" | "source_more" | "view_req" | "prep_meeting";
 type ActionItem = {
   id: string;
   priority: ActionPriority;
   title: string;
   body: string;
   cta: string;
+  ctaAction: CtaAction;
   /** Process context — set on triggers that relate to a specific candidate/process */
   processId?: string;
   candidateId?: string;
@@ -182,7 +189,7 @@ function useClientDetail(id: string) {
         supabase
           .from("clients")
           .select(
-            "id, company_name, logo_url, is_active, status, fee_pct, started_at, years_in_japan, japan_team_size, japan_team_japanese_pct, employee_japanese_pct, japan_role_in_group, kk_entity, strategy_notes, contract_signed, contract_url, ai_context, ai_context_updated_at",
+            "id, company_name, logo_url, is_active, status, fee_pct, started_at, years_in_japan, japan_team_size, japan_team_japanese_pct, employee_japanese_pct, japan_role_in_group, kk_entity, strategy_notes, contract_signed, contract_url, ai_context, ai_context_updated_at, website",
           )
           .eq("id", id)
           .single(),
@@ -197,7 +204,7 @@ function useClientDetail(id: string) {
             `id, title, salary_min, salary_max, salary_stretch, salary_range_text, location, urgency_date, is_open, is_backfill,
              interview_rounds, hiring_manager_id, why_role_opened, strategic_context, recruiter_notes,
              processes (
-               id, stage, coverage_type, updated_at,
+               id, stage, coverage_type, updated_at, cv_sent_at, ccm_outcome,
                candidates ( id, full_name, full_name_japanese, current_title )
              )`,
           )
@@ -229,6 +236,7 @@ function computeActions(
   reqs: ReqWithPipeline[],
   contacts: Contact[],
   interactions: Interaction[],
+  t: (key: string, opts?: Record<string, unknown>) => string,
 ): ActionItem[] {
   const now = Date.now();
   const daysSince = (iso: string) =>
@@ -251,9 +259,10 @@ function computeActions(
         items.push({
           id: `cvfb-${p.id}`,
           priority: "urgent",
-          title: "Awaiting client feedback on CV",
-          body: `${p.candidates?.full_name ?? "Candidate"} submitted for ${p.reqTitle} — ${d} days with no response.`,
-          cta: "Draft follow-up ↗",
+          title: t("clients.recommendations.cvFeedback.title"),
+          body: t("clients.recommendations.cvFeedback.body", { name: p.candidates?.full_name ?? t("clients.recommendations.candidate"), role: p.reqTitle, days: d }),
+          cta: t("clients.recommendations.cvFeedback.cta"),
+          ctaAction: "follow_up",
           processId: p.id,
           candidateId: p.candidates?.id,
           reqId: p.reqId,
@@ -270,9 +279,10 @@ function computeActions(
         items.push({
           id: `intfb-${p.id}`,
           priority: "urgent",
-          title: "Post-interview feedback outstanding",
-          body: `${p.candidates?.full_name ?? "Candidate"} completed ${p.stage} for ${p.reqTitle}. Request feedback before the candidate cools.`,
-          cta: "Draft follow-up ↗",
+          title: t("clients.recommendations.interviewFeedback.title"),
+          body: t("clients.recommendations.interviewFeedback.body", { name: p.candidates?.full_name ?? t("clients.recommendations.candidate"), stage: p.stage, role: p.reqTitle }),
+          cta: t("clients.recommendations.interviewFeedback.cta"),
+          ctaAction: "follow_up",
           processId: p.id,
           candidateId: p.candidates?.id,
           reqId: p.reqId,
@@ -289,9 +299,10 @@ function computeActions(
         items.push({
           id: `offer-${p.id}`,
           priority: "urgent",
-          title: "Offer stage — no update",
-          body: `${p.candidates?.full_name ?? "Candidate"} has been at offer for ${p.reqTitle} for ${d} days without a logged update.`,
-          cta: "Closing script ↗",
+          title: t("clients.recommendations.offerNoUpdate.title"),
+          body: t("clients.recommendations.offerNoUpdate.body", { name: p.candidates?.full_name ?? t("clients.recommendations.candidate"), role: p.reqTitle, days: d }),
+          cta: t("clients.recommendations.offerNoUpdate.cta"),
+          ctaAction: "closing",
           processId: p.id,
           candidateId: p.candidates?.id,
           reqId: p.reqId,
@@ -306,9 +317,10 @@ function computeActions(
       items.push({
         id: `buyin-${p.id}`,
         priority: "warning",
-        title: "Submit before another firm does",
-        body: `${p.candidates?.full_name ?? "Candidate"} has given buy-in for ${p.reqTitle}. Draft the report now.`,
-        cta: "Draft report ↗",
+        title: t("clients.recommendations.submitFirst.title"),
+        body: t("clients.recommendations.submitFirst.body", { name: p.candidates?.full_name ?? t("clients.recommendations.candidate"), role: p.reqTitle }),
+        cta: t("clients.recommendations.submitFirst.cta"),
+        ctaAction: "report",
         processId: p.id,
         candidateId: p.candidates?.id,
         reqId: p.reqId,
@@ -326,9 +338,10 @@ function computeActions(
         items.push({
           id: `empty-${r.id}`,
           priority: "warning",
-          title: "No pipeline for open role",
-          body: `${r.title} has no active candidates. Source before the client asks for an update.`,
-          cta: "Source more ↗",
+          title: t("clients.recommendations.noPipeline.title"),
+          body: t("clients.recommendations.noPipeline.body", { role: r.title }),
+          cta: t("clients.recommendations.noPipeline.cta"),
+          ctaAction: "source_more",
           reqId: r.id,
         });
       }
@@ -345,9 +358,10 @@ function computeActions(
         items.push({
           id: `thin-${r.id}`,
           priority: "info",
-          title: "Thin pipeline",
-          body: `${r.title} has only ${submitted.length} candidate${submitted.length === 1 ? "" : "s"} in the pipeline. Add more to reduce single-candidate risk.`,
-          cta: "View req ↗",
+          title: t("clients.recommendations.thinPipeline.title"),
+          body: t(`clients.recommendations.thinPipeline.body_${submitted.length === 1 ? "one" : "other"}`, { role: r.title, count: submitted.length }),
+          cta: t("clients.recommendations.thinPipeline.cta"),
+          ctaAction: "view_req",
           reqId: r.id,
         });
       }
@@ -362,9 +376,10 @@ function computeActions(
         items.push({
           id: `prep-${p.id}`,
           priority: "warning",
-          title: "Interview approaching — prep candidate",
-          body: `${p.candidates?.full_name ?? "Candidate"} recently moved to ${p.stage} for ${p.reqTitle}. Send prep notes before they walk in.`,
-          cta: "Draft prep ↗",
+          title: t("clients.recommendations.interviewPrep.title"),
+          body: t("clients.recommendations.interviewPrep.body", { name: p.candidates?.full_name ?? t("clients.recommendations.candidate"), stage: p.stage, role: p.reqTitle }),
+          cta: t("clients.recommendations.interviewPrep.cta"),
+          ctaAction: "prep",
           processId: p.id,
           candidateId: p.candidates?.id,
           reqId: p.reqId,
@@ -381,9 +396,10 @@ function computeActions(
         items.push({
           id: `sched-${p.id}`,
           priority: "info",
-          title: "Next round not scheduled",
-          body: `${p.candidates?.full_name ?? "Candidate"} has been at ${p.stage} for ${p.reqTitle} for ${d} days without a next-round date logged.`,
-          cta: "Draft scheduling message ↗",
+          title: t("clients.recommendations.nextRound.title"),
+          body: t("clients.recommendations.nextRound.body", { name: p.candidates?.full_name ?? t("clients.recommendations.candidate"), stage: p.stage, role: p.reqTitle, days: d }),
+          cta: t("clients.recommendations.nextRound.cta"),
+          ctaAction: "scheduling",
           processId: p.id,
           candidateId: p.candidates?.id,
           reqId: p.reqId,
@@ -400,9 +416,10 @@ function computeActions(
         items.push({
           id: `preclose-${p.id}`,
           priority: "info",
-          title: "Pre-close not yet logged",
-          body: `${p.candidates?.full_name ?? "Candidate"} just reached offer stage for ${p.reqTitle}. Log a pre-close conversation before the client makes direct contact.`,
-          cta: "Closing script ↗",
+          title: t("clients.recommendations.preClose.title"),
+          body: t("clients.recommendations.preClose.body", { name: p.candidates?.full_name ?? t("clients.recommendations.candidate"), role: p.reqTitle }),
+          cta: t("clients.recommendations.preClose.cta"),
+          ctaAction: "closing",
           processId: p.id,
           candidateId: p.candidates?.id,
           reqId: p.reqId,
@@ -417,9 +434,10 @@ function computeActions(
     items.push({
       id: "hr-never-met",
       priority: "nudge",
-      title: "HR contact — no in-person meeting logged",
-      body: `You have not met ${hrContact.name} in person. A brief intro call now makes offers much easier when things get complicated.`,
-      cta: "Schedule intro",
+      title: t("clients.recommendations.hrNeverMet.title"),
+      body: t("clients.recommendations.hrNeverMet.body", { name: hrContact.name }),
+      cta: t("clients.recommendations.hrNeverMet.cta"),
+      ctaAction: "hr_intro",
     });
   }
 
@@ -429,9 +447,10 @@ function computeActions(
     items.push({
       id: "hm-nudge",
       priority: "nudge",
-      title: "Strengthen HM relationship",
-      body: `Your relationship with ${hm.name} is thin. A lunch or informal coffee helps when deals get complicated.`,
-      cta: "Prep meeting ↗",
+      title: t("clients.recommendations.hmNudge.title"),
+      body: t("clients.recommendations.hmNudge.body", { name: hm.name }),
+      cta: t("clients.recommendations.hmNudge.cta"),
+      ctaAction: "prep_meeting",
     });
   }
 
@@ -442,18 +461,20 @@ function computeActions(
       items.push({
         id: "no-contact",
         priority: "nudge",
-        title: "Check in — relationship maintenance",
-        body: `No logged contact with this client in ${d} days. A quick touchpoint keeps the relationship active.`,
-        cta: "Log call",
+        title: t("clients.recommendations.noContact.title"),
+        body: t("clients.recommendations.noContact.body", { days: d }),
+        cta: t("clients.recommendations.noContact.cta"),
+        ctaAction: "log_call",
       });
     }
   } else {
     items.push({
       id: "first-contact",
       priority: "nudge",
-      title: "No interactions logged yet",
-      body: "Log your first interaction with this client to start tracking the relationship.",
-      cta: "Log call",
+      title: t("clients.recommendations.firstContact.title"),
+      body: t("clients.recommendations.firstContact.body"),
+      cta: t("clients.recommendations.firstContact.cta"),
+      ctaAction: "log_call",
     });
   }
 
@@ -466,41 +487,10 @@ function computeActions(
   return items.sort((a, b) => order[a.priority] - order[b.priority]);
 }
 
-// ─── completeness score ───────────────────────────────────────────────────────
-
-function computeCompleteness(
-  c: ClientRecord,
-  contacts: Contact[],
-  reqs: ReqWithPipeline[],
-): { score: number; missing: string[] } {
-  const checks: Array<[boolean, string]> = [
-    [!!c.years_in_japan, "years in Japan"],
-    [!!c.japan_team_size, "team size"],
-    [!!c.japan_team_japanese_pct, "% Japanese nationals"],
-    [!!(c.strategy_notes && c.strategy_notes.length > 50), "strategy notes"],
-    [c.kk_entity !== null && c.kk_entity !== undefined, "KK entity status"],
-    [!!c.japan_role_in_group, "Japan role in group"],
-    [
-      contacts.some((cc) => cc.role === "hiring_manager" && !!cc.notes),
-      "hiring manager notes",
-    ],
-    [contacts.some((cc) => cc.role === "hr_gatekeeper"), "HR gatekeeper contact"],
-    [reqs.some((r) => !!r.why_role_opened), "why role opened"],
-    [
-      reqs.some((r) => !!r.strategic_context && r.strategic_context.length > 80),
-      "strategic context",
-    ],
-  ];
-
-  const populated = checks.filter(([v]) => v);
-  const missing = checks.filter(([v]) => !v).map(([, label]) => label);
-
-  return { score: Math.round((populated.length / checks.length) * 100), missing };
-}
-
 // ─── main component ───────────────────────────────────────────────────────────
 
 function ClientDetail() {
+  const { t } = useTranslation();
   const { id } = Route.useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -522,48 +512,32 @@ function ClientDetail() {
     content: string;
   } | null>(null);
   const [draftLoading, setDraftLoading] = useState(false);
-  const [strategyPreview, setStrategyPreview] = useState<{
-    draft: string;
-    loading: boolean;
-  } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<
+    | null
+    | { type: "client"; label: string }
+    | { type: "contact"; id: string; label: string }
+    | { type: "req"; id: string; label: string }
+  >(null);
 
-  async function handleStrategyNote(item: { summary: string | null; full_notes: string | null }) {
-    setStrategyPreview({ draft: "", loading: true });
-    // Switch to info tab so the preview is visible
-    setClientTab("info");
-    try {
-      const resp = await fetch("/api/ai/update-client-strategy", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          client_id: id,
-          interaction_summary: item.summary,
-          interaction_notes: item.full_notes,
-        }),
-      });
-      const data = (await resp.json()) as { strategy_notes?: string; error?: string };
-      if (data.strategy_notes) {
-        setStrategyPreview({ draft: data.strategy_notes, loading: false });
-      } else {
-        toast.error("Could not update strategy notes. Try again.");
-        setStrategyPreview(null);
-      }
-    } catch {
-      toast.error("Could not update strategy notes. Try again.");
-      setStrategyPreview(null);
-    }
+  async function handleDeleteClient() {
+    await supabase.from("clients").delete().eq("id", id);
+    qc.invalidateQueries({ queryKey: ["clients"] });
+    toast.success("Client deleted.");
+    void navigate({ to: "/clients" });
   }
 
-  async function saveStrategyPreview() {
-    if (!strategyPreview) return;
-    await supabase
-      .from("clients")
-      .update({ strategy_notes: strategyPreview.draft })
-      .eq("id", id);
-    await qc.invalidateQueries({ queryKey: ["client", id] });
-    toast.success("Strategy notes updated.");
-    setStrategyPreview(null);
+  async function handleDeleteContact(contactId: string) {
+    await supabase.from("client_contacts").delete().eq("id", contactId);
+    qc.invalidateQueries({ queryKey: ["client", id] });
+    toast.success("Contact removed.");
   }
+
+  async function handleDeleteReq(reqId: string) {
+    await supabase.from("requisitions").delete().eq("id", reqId);
+    qc.invalidateQueries({ queryKey: ["client", id] });
+    toast.success("Job deleted.");
+  }
+
 
   if (isLoading) {
     return (
@@ -588,8 +562,7 @@ function ClientDetail() {
   const { client: c, contacts, reqs, interactions } = data;
   const openReqs = reqs.filter((r) => r.is_open);
   const closedReqs = reqs.filter((r) => !r.is_open);
-  const completeness = computeCompleteness(c, contacts, reqs);
-  const actions = computeActions(reqs, contacts, interactions);
+  const actions = computeActions(reqs, contacts, interactions, t);
 
   // Stat computations
   const allProcesses = reqs.flatMap((r) => r.processes ?? []);
@@ -642,27 +615,17 @@ function ClientDetail() {
     }
   }
 
-  const DRAFT_TYPE_MAP: Record<string, string> = {
-    "Draft follow-up ↗": "follow_up",
-    "Draft prep ↗": "prep",
-    "Closing script ↗": "closing",
-    "Draft scheduling message ↗": "scheduling",
-    "Draft report ↗": "report",
-    "Schedule intro": "hr_intro",
-  };
-
   async function handleCtaClick(item: ActionItem) {
-    const { cta } = item;
+    const { ctaAction } = item;
 
-    if (cta === "Log call") { setLogInteractionOpen(true); return; }
-    if (cta === "Source more ↗" || cta === "View req ↗") {
+    if (ctaAction === "log_call") { setLogInteractionOpen(true); return; }
+    if (ctaAction === "source_more" || ctaAction === "view_req") {
       toast.info("Requisition view coming in the next build");
       return;
     }
-    if (cta === "Prep meeting ↗") { void generateMeetingPrep(); return; }
+    if (ctaAction === "prep_meeting") { void generateMeetingPrep(); return; }
 
-    const draftType = DRAFT_TYPE_MAP[cta];
-    if (!draftType) return;
+    const draftType = ctaAction;
 
     // hr_intro doesn't need a process
     if (draftType === "hr_intro") {
@@ -702,7 +665,7 @@ function ClientDetail() {
       });
       const json = (await resp.json()) as { content?: string };
       if (json.content) {
-        setDraftModal({ title: cta.replace(" ↗", ""), content: json.content });
+        setDraftModal({ title: item.cta.replace(" ↗", ""), content: json.content });
       }
     } catch {
       toast.error("Failed to generate draft");
@@ -724,7 +687,7 @@ function ClientDetail() {
           style={{ color: "var(--color-ink-30)" }}
         >
           <IconArrowLeft size={14} />
-          Accounts
+          {t('clients.breadcrumb')}
         </button>
         <span style={{ color: "rgba(26,26,24,0.3)" }}>/</span>
         <span className="font-medium">{c.company_name}</span>
@@ -733,7 +696,7 @@ function ClientDetail() {
             className="ml-1 text-[11px] px-1.5 py-0.5 "
             style={{ background: "var(--color-ink-10)", color: "var(--color-ink-30)" }}
           >
-            Inactive
+            {t('clients.inactive')}
           </span>
         )}
       </div>
@@ -746,13 +709,13 @@ function ClientDetail() {
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <span className="text-[12px] font-medium" style={{ color: "var(--color-ink-60)" }}>
-              Client snapshot
+              {t('clients.snapshot.title')}
             </span>
             <span
               className="text-[11px] px-1.5 py-0.5 "
               style={{ background: "var(--color-white)", border: "0.5px solid var(--color-ink-15)" }}
             >
-              ✦ AI generated
+              {t('clients.snapshot.aiGenerated')}
             </span>
           </div>
           {!snapshotData && (
@@ -762,7 +725,7 @@ function ClientDetail() {
               disabled={loadingSnapshot}
             >
               <IconSparkles size={11} />
-              {loadingSnapshot ? "Generating…" : "Generate snapshot"}
+              {loadingSnapshot ? t('common.generating') : t('clients.snapshot.generateBtn')}
             </button>
           )}
           {snapshotData && (
@@ -772,7 +735,7 @@ function ClientDetail() {
               disabled={loadingSnapshot}
             >
               <IconSparkles size={11} />
-              {loadingSnapshot ? "Regenerating…" : "Refresh"}
+              {loadingSnapshot ? t('common.regenerate') : t('clients.snapshot.refreshBtn')}
             </button>
           )}
         </div>
@@ -781,15 +744,15 @@ function ClientDetail() {
           <div className="grid grid-cols-3 gap-4">
             {/* Col 1: Where things stand */}
             <div>
-              <p className="sl mb-1.5">Where things stand</p>
+              <p className="sl mb-1.5">{t('clients.snapshot.whereThingsStand')}</p>
               <p className="text-[13px] leading-relaxed">{snapshotData.whereThingsStand}</p>
             </div>
             {/* Col 2: Active in process */}
             <div>
-              <p className="sl mb-1.5">Active in process</p>
+              <p className="sl mb-1.5">{t('clients.snapshot.activeInProcess')}</p>
               {activePipeline.length === 0 ? (
                 <p className="text-[13px]" style={{ color: "var(--color-ink-30)" }}>
-                  No active candidates with this client.
+                  {t('clients.snapshot.noCandidates')}
                 </p>
               ) : (
                 activePipeline.slice(0, 5).map((p) => (
@@ -805,7 +768,7 @@ function ClientDetail() {
             </div>
             {/* Col 3: Watch out */}
             <div>
-              <p className="sl mb-1.5">Watch out</p>
+              <p className="sl mb-1.5">{t('clients.snapshot.watchOut')}</p>
               <p className="text-[13px] leading-relaxed" style={{ color: "var(--color-danger)" }}>
                 {snapshotData.watchOut}
               </p>
@@ -813,7 +776,7 @@ function ClientDetail() {
           </div>
         ) : (
           <p className="text-[13px]" style={{ color: "var(--color-ink-30)" }}>
-            Generate a snapshot to see where things stand, who is active, and what to watch for today.
+            {t('clients.snapshot.placeholder')}
           </p>
         )}
       </div>
@@ -825,11 +788,11 @@ function ClientDetail() {
       >
         {(
           [
-            { key: "timeline",  label: "Timeline" },
-            { key: "info",      label: "Client info" },
-            { key: "contacts",  label: "Contacts" },
-            { key: "jobs",      label: "Jobs" },
-            { key: "contract",  label: "Contract" },
+            { key: "timeline",  label: t('clients.tabs.timeline') },
+            { key: "info",      label: t('clients.tabs.clientInfo') },
+            { key: "contacts",  label: t('clients.tabs.contacts') },
+            { key: "jobs",      label: t('clients.tabs.jobs') },
+            { key: "contract",  label: t('clients.tabs.contract') },
           ] as const
         ).map(({ key, label }) => (
           <button
@@ -855,12 +818,12 @@ function ClientDetail() {
           <div className="space-y-3">
             {/* Timeline header with Log Activity button */}
             <div className="flex items-center justify-between">
-              <p className="label">Activity</p>
+              <p className="label">{t('clients.activity')}</p>
               <button
                 className="ab flex items-center gap-1"
                 onClick={() => setLogInteractionOpen(true)}
               >
-                <IconPlus size={11} /> Log activity
+                <IconPlus size={11} /> {t('activity.logActivity')}
               </button>
             </div>
             <ActivityTimeline
@@ -868,7 +831,6 @@ function ClientDetail() {
               perspective="client"
               emptyMessage="No interactions logged yet."
               emptySubMessage="Use Log activity to record calls, emails, and meetings with this client."
-              onStrategyNote={(item) => void handleStrategyNote(item)}
             />
           </div>
           <div className="space-y-3">
@@ -901,9 +863,9 @@ function ClientDetail() {
           <div className="space-y-3">
             <CompanyHeaderCard
               client={c}
-              completeness={completeness}
               stats={{ cvsSent, interviews, placements, feedbackOverdue }}
               openReqsCount={openReqs.length}
+              onDelete={() => setDeleteTarget({ type: "client", label: c.company_name })}
               onSaveStrategy={(notes) => {
                 void supabase
                   .from("clients")
@@ -913,58 +875,7 @@ function ClientDetail() {
               }}
             />
 
-            {/* ── Strategy notes preview (from timeline entry) ── */}
-            {strategyPreview && (
-              <div
-                className="p-4 space-y-3"
-                style={{ background: "var(--color-white)", border: "1.5px solid var(--color-indigo)" }}
-              >
-                <div className="flex items-center justify-between">
-                  <p className="label" style={{ color: "var(--color-indigo)" }}>AI — Updated strategy notes</p>
-                  <button
-                    className="text-[11px]"
-                    style={{ color: "var(--color-ink-30)" }}
-                    onClick={() => setStrategyPreview(null)}
-                  >
-                    Discard
-                  </button>
-                </div>
-                {strategyPreview.loading ? (
-                  <p className="text-[12px]" style={{ color: "var(--color-ink-60)" }}>Synthesising…</p>
-                ) : (
-                  <>
-                    <textarea
-                      className="w-full text-[13px] leading-relaxed resize-none"
-                      style={{
-                        border: "0.5px solid var(--color-ink-15)",
-                        padding: "10px 12px",
-                        background: "var(--color-ink-05)",
-                        color: "var(--color-ink)",
-                        minHeight: 140,
-                      }}
-                      value={strategyPreview.draft}
-                      onChange={(e) => setStrategyPreview({ ...strategyPreview, draft: e.target.value })}
-                    />
-                    <div className="flex gap-2">
-                      <button
-                        className="btn btn-primary btn-sm"
-                        onClick={() => void saveStrategyPreview()}
-                      >
-                        Save to strategy notes
-                      </button>
-                      <button
-                        className="btn btn-ghost btn-sm"
-                        onClick={() => setStrategyPreview(null)}
-                      >
-                        Discard
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-
-            <ClientEnrichCard clientId={id} companyName={c.company_name} />
+            <ClientEnrichCard clientId={id} companyName={c.company_name} clientUrl={c.website} />
             <ClientIntelligenceCard
               clientId={id}
               aiContext={c.ai_context}
@@ -1002,6 +913,9 @@ function ClientDetail() {
               setLogForContactId(contactId);
               setLogInteractionOpen(true);
             }}
+            onDeleteContact={(contactId, name) =>
+              setDeleteTarget({ type: "contact", id: contactId, label: name })
+            }
           />
         </div>
       )}
@@ -1016,6 +930,7 @@ function ClientDetail() {
             closedReqs={closedReqs}
             contacts={contacts}
             interactions={interactions}
+            onDeleteReq={(reqId, title) => setDeleteTarget({ type: "req", id: reqId, label: title })}
           />
         </div>
       )}
@@ -1051,7 +966,58 @@ function ClientDetail() {
         draft={draftModal}
         onClose={() => setDraftModal(null)}
       />
+      <ConfirmDeleteDialog
+        open={deleteTarget !== null}
+        label={deleteTarget?.label ?? ""}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={async () => {
+          if (!deleteTarget) return;
+          if (deleteTarget.type === "client") await handleDeleteClient();
+          else if (deleteTarget.type === "contact") await handleDeleteContact(deleteTarget.id);
+          else if (deleteTarget.type === "req") await handleDeleteReq(deleteTarget.id);
+          setDeleteTarget(null);
+        }}
+      />
     </div>
+  );
+}
+
+// ─── confirm delete dialog ────────────────────────────────────────────────────
+
+function ConfirmDeleteDialog({
+  open,
+  label,
+  onCancel,
+  onConfirm,
+}: {
+  open: boolean;
+  label: string;
+  onCancel: () => void;
+  onConfirm: () => void | Promise<void>;
+}) {
+  const { t } = useTranslation();
+  const [busy, setBusy] = useState(false);
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onCancel()}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Delete record</DialogTitle>
+        </DialogHeader>
+        <p className="text-[13px]" style={{ color: "var(--color-ink-60)" }}>
+          Permanently delete <strong style={{ color: "var(--color-ink)" }}>{label}</strong>? This cannot be undone.
+        </p>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onCancel} disabled={busy}>{t('common.cancel')}</Button>
+          <Button
+            disabled={busy}
+            onClick={async () => { setBusy(true); await onConfirm(); setBusy(false); }}
+            style={{ background: "var(--color-danger)", color: "#fff", border: "none" }}
+          >
+            {busy ? "Deleting…" : t('common.delete')}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -1083,17 +1049,18 @@ function SL({ children }: { children: React.ReactNode }) {
 
 function CompanyHeaderCard({
   client: c,
-  completeness,
   stats,
   openReqsCount,
   onSaveStrategy,
+  onDelete,
 }: {
   client: ClientRecord;
-  completeness: { score: number; missing: string[] };
   stats: { cvsSent: number; interviews: number; placements: number; feedbackOverdue: number };
   openReqsCount: number;
   onSaveStrategy: (notes: string) => void;
+  onDelete?: () => void;
 }) {
+  const { t } = useTranslation();
   const [editingStrategy, setEditingStrategy] = useState(false);
   const [strategyDraft, setStrategyDraft] = useState(c.strategy_notes ?? "");
 
@@ -1148,15 +1115,21 @@ function CompanyHeaderCard({
             )}
           </div>
         </div>
-        <button
-          className="ab shrink-0"
-          onClick={() => {
-            // Navigate to edit — handled by parent; for now open edit via strategy section
-            setEditingStrategy(true);
-          }}
-        >
-          <IconPencil size={11} /> Edit
-        </button>
+        <div className="flex items-center gap-1 shrink-0">
+          <button className="ab" onClick={() => setEditingStrategy(true)}>
+            <IconPencil size={11} /> {t('common.edit')}
+          </button>
+          {onDelete && (
+            <button
+              className="ab"
+              onClick={onDelete}
+              style={{ color: "var(--color-danger)" }}
+              title="Delete client"
+            >
+              <IconTrash size={11} />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Stat boxes */}
@@ -1193,41 +1166,9 @@ function CompanyHeaderCard({
         ))}
       </div>
 
-      {/* Completeness bar */}
-      <div
-        className="flex items-center gap-2 px-3 py-2 mb-3"
-        style={{ background: "var(--color-indigo-light)" }}
-      >
-        <IconFileText size={14} style={{ color: "var(--color-indigo)" }} />
-        <div className="flex-1 min-w-0">
-          <p className="text-[12px]" style={{ color: "var(--color-indigo)" }}>
-            Client intel — {completeness.score}% complete
-            {completeness.missing.length > 0 && (
-              <span className="ml-1">
-                · Missing: {completeness.missing.slice(0, 3).join(", ")}
-                {completeness.missing.length > 3 && ` +${completeness.missing.length - 3} more`}
-              </span>
-            )}
-          </p>
-        </div>
-        <div className="comp-bar shrink-0" style={{ width: 72, height: 4, background: "#b5d4f4", borderRadius: 2, overflow: "hidden" }}>
-          <div
-            style={{
-              width: `${completeness.score}%`,
-              height: "100%",
-              background: "var(--color-indigo)",
-              borderRadius: 2,
-            }}
-          />
-        </div>
-        <span className="text-[11px] font-medium shrink-0" style={{ color: "var(--color-indigo)" }}>
-          {completeness.score}%
-        </span>
-      </div>
-
       {/* Strategy notes (inline editable) */}
       <div>
-        <SL>Strategy notes</SL>
+        <SL>{t('clients.sections.strategyNotes')}</SL>
         {editingStrategy ? (
           <textarea
             autoFocus
@@ -1368,13 +1309,16 @@ function ContactsCard({
   interactions,
   onAdd,
   onLogActivity,
+  onDeleteContact,
 }: {
   contacts: Contact[];
   clientId: string;
   interactions?: Interaction[];
   onAdd: () => void;
   onLogActivity?: (contactId: string, contactName: string) => void;
+  onDeleteContact?: (id: string, name: string) => void;
 }) {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [editingNote, setEditingNote] = useState<{ contactId: string; value: string } | null>(null);
@@ -1416,15 +1360,15 @@ function ContactsCard({
   return (
     <Card>
       <div className="flex items-center justify-between mb-3">
-        <SL>Contacts</SL>
+        <SL>{t('clients.tabs.contacts')}</SL>
         <button className="ab" onClick={onAdd}>
-          <IconPlus size={11} /> Add
+          <IconPlus size={11} /> {t('common.add')}
         </button>
       </div>
 
       {contacts.length === 0 ? (
         <p className="text-[13px]" style={{ color: "var(--color-ink-30)" }}>
-          No contacts added. Add your hiring manager and HR gatekeeper first.
+          {t('clients.contacts.noContacts')}
         </p>
       ) : (
         <div>
@@ -1465,6 +1409,17 @@ function ContactsCard({
                   >
                     {badge.label}
                   </span>
+                  {onDeleteContact && (
+                    <span
+                      role="button"
+                      onClick={(e) => { e.stopPropagation(); onDeleteContact(contact.id, contact.name); }}
+                      className="shrink-0 p-1"
+                      style={{ color: "var(--color-ink-30)" }}
+                      title="Delete contact"
+                    >
+                      <IconTrash size={12} />
+                    </span>
+                  )}
                 </button>
 
                 {/* Expanded detail */}
@@ -1501,8 +1456,8 @@ function ContactsCard({
                           <option value="other">Other</option>
                         </select>
                         <div className="flex items-center gap-2">
-                          <button className="btn btn-primary btn-sm" onClick={() => void saveContactFields()}>Save</button>
-                          <button className="btn btn-ghost btn-sm" onClick={() => setEditingContactId(null)}>Cancel</button>
+                          <button className="btn btn-primary btn-sm" onClick={() => void saveContactFields()}>{t('common.save')}</button>
+                          <button className="btn btn-ghost btn-sm" onClick={() => setEditingContactId(null)}>{t('common.cancel')}</button>
                         </div>
                       </div>
                     ) : (
@@ -1590,7 +1545,7 @@ function ContactsCard({
                           className="ab"
                           onClick={() => onLogActivity(contact.id, contact.name)}
                         >
-                          <IconPlus size={10} /> Log activity
+                          <IconPlus size={10} /> {t('activity.logActivity')}
                         </button>
                       </div>
                     )}
@@ -1628,6 +1583,7 @@ function OpenRequisitionsCard({
   specListByReq,
   activeSpecReqId,
   onViewSpecList,
+  onDeleteReq,
 }: {
   reqs: ReqWithPipeline[];
   closedReqs: ReqWithPipeline[];
@@ -1641,13 +1597,15 @@ function OpenRequisitionsCard({
   specListByReq?: Map<string, SpecList>;
   activeSpecReqId?: string | null;
   onViewSpecList?: (reqId: string) => void;
+  onDeleteReq?: (id: string, title: string) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <Card>
       {showHeader && (
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <SL>Open jobs</SL>
+            <SL>{t('clients.sections.openJobs')}</SL>
             {reqs.length > 0 && (
               <span className="text-[11px] px-1.5 py-0.5  -mt-2" style={{ background: "var(--color-moss-light)", color: "var(--color-moss)" }}>
                 {reqs.length}
@@ -1660,7 +1618,7 @@ function OpenRequisitionsCard({
 
       {reqs.length === 0 && (
         <p className="text-[13px]" style={{ color: "var(--color-ink-30)" }}>
-          No open jobs. Add one to start building the pipeline.
+          {t('clients.jobs.noOpenJobs')}
         </p>
       )}
 
@@ -1673,6 +1631,9 @@ function OpenRequisitionsCard({
         const inInterview = active.filter((p) => /^CCM\d+$/.test(p.stage));
         const cvsSent = active.filter((p) => !["Specs Sent", "Buy-In"].includes(p.stage));
         const buyIn = active.filter((p) => p.stage === "Buy-In");
+        const confirmedRejections = (r.processes ?? []).filter(
+          (p) => (p.stage === "Closed lost" && p.cv_sent_at) || p.ccm_outcome === "fail",
+        ).length;
 
         return (
           <div
@@ -1688,13 +1649,24 @@ function OpenRequisitionsCard({
 
             {/* Content */}
             <div className="flex-1 min-w-0">
-              <button
-                className="text-[13px] font-medium mb-0.5 text-left hover:underline"
-                style={{ color: selectedReqId === r.id ? "var(--color-vermillion)" : "var(--color-ink)" }}
-                onClick={() => onSelectReq?.(r.id)}
-              >
-                {r.title}
-              </button>
+              <div className="flex items-center gap-2 mb-0.5">
+                <button
+                  className="text-[13px] font-medium text-left hover:underline"
+                  style={{ color: selectedReqId === r.id ? "var(--color-vermillion)" : "var(--color-ink)" }}
+                  onClick={() => onSelectReq?.(r.id)}
+                >
+                  {r.title}
+                </button>
+                {onDeleteReq && (
+                  <button
+                    onClick={() => onDeleteReq(r.id, r.title)}
+                    style={{ color: "var(--color-ink-30)" }}
+                    title="Delete job"
+                  >
+                    <IconTrash size={12} />
+                  </button>
+                )}
+              </div>
               <p className="text-[12px] mb-1.5" style={{ color: "var(--color-ink-60)" }}>
                 {[
                   r.salary_range_text
@@ -1715,27 +1687,32 @@ function OpenRequisitionsCard({
               <div className="flex items-center gap-1 flex-wrap">
                 {inInterview.length > 0 && (
                   <PipelineBadge style={{ background: "var(--color-indigo-light)", color: "var(--color-indigo)" }}>
-                    {inInterview.length} in interview
+                    {inInterview.length} {t('clients.jobs.inInterview')}
                   </PipelineBadge>
                 )}
                 {atOffer.length > 0 && (
                   <PipelineBadge style={{ background: "#fff3e0", color: "var(--color-gold)", borderColor: "#ef9f27" }}>
-                    {atOffer.length} at offer
+                    {atOffer.length} {t('clients.jobs.atOffer')}
                   </PipelineBadge>
                 )}
                 {cvsSent.length > 0 && inInterview.length === 0 && (
                   <PipelineBadge style={{ background: "var(--color-ink-10)", color: "var(--color-ink-30)" }}>
-                    {cvsSent.length} CV sent
+                    {cvsSent.length} {t('clients.jobs.cvSent')}
                   </PipelineBadge>
                 )}
                 {buyIn.length > 0 && (
                   <PipelineBadge style={{ background: "var(--color-gold-light)", color: "var(--color-gold)" }}>
-                    {buyIn.length} buy-in secured
+                    {buyIn.length} {t('clients.jobs.buyInSecured')}
                   </PipelineBadge>
                 )}
                 {active.length === 0 && (
                   <PipelineBadge style={{ background: "var(--color-ink-10)", color: "var(--color-ink-30)" }}>
-                    No pipeline
+                    {t('clients.jobs.noPipeline')}
+                  </PipelineBadge>
+                )}
+                {confirmedRejections >= 2 && (
+                  <PipelineBadge style={{ background: "var(--color-gold-light)", color: "var(--color-gold)", border: "1px solid var(--color-gold)" }}>
+                    ⚑ {confirmedRejections} {t('clients.jobs.rejections')}
                   </PipelineBadge>
                 )}
                 <PipelineBadge
@@ -1745,7 +1722,7 @@ function OpenRequisitionsCard({
                       : { background: "var(--color-moss-light)", color: "var(--color-moss)" }
                   }
                 >
-                  {r.is_backfill ? "Backfill" : "Net-new"}
+                  {r.is_backfill ? t('clients.jobs.backfill') : t('clients.jobs.netNew')}
                 </PipelineBadge>
               </div>
 
@@ -1763,7 +1740,7 @@ function OpenRequisitionsCard({
                       onClick={() => onFindMatches(r.id)}
                     >
                       <IconSearch size={11} />
-                      {activeMatchReqId === r.id ? "Hide matches" : "Find matches"}
+                      {activeMatchReqId === r.id ? "Hide matches" : t('clients.actions.findMatches')}
                     </button>
                   )}
                   {specListByReq?.has(r.id) && onViewSpecList && (
@@ -1778,7 +1755,7 @@ function OpenRequisitionsCard({
                       onClick={() => onViewSpecList(r.id)}
                     >
                       <IconList size={11} />
-                      {activeSpecReqId === r.id ? "Hide spec list" : `Spec list (${specListByReq.get(r.id)!.candidate_ids.length})`}
+                      {activeSpecReqId === r.id ? "Hide spec list" : `${t('clients.actions.viewSpecList')} (${specListByReq.get(r.id)!.candidate_ids.length})`}
                     </button>
                   )}
                 </div>
@@ -1984,7 +1961,7 @@ function JobMatchPanel({
             disabled={saving}
           >
             <IconPlus size={10} />
-            {saving ? "Saving…" : "Save as spec list"}
+            {saving ? "Saving…" : t('clients.actions.saveSpecList')}
           </button>
         ) : (
           <span className="text-[11px]" style={{ color: "var(--color-moss)" }}>Spec list saved</span>
@@ -2066,7 +2043,7 @@ function JobMatchPanel({
                     }}
                   >
                     <IconCopy size={10} />
-                    Copy
+                    {t('common.copy')}
                   </button>
                   <button
                     className="ab flex items-center gap-1"
@@ -2074,7 +2051,7 @@ function JobMatchPanel({
                     onClick={() => void draftMessage(m.candidate_id)}
                   >
                     <IconSparkles size={10} />
-                    Regenerate
+                    {t('common.regenerate')}
                   </button>
                 </div>
               </div>
@@ -2125,6 +2102,7 @@ function SpecListPanel({
   recruiterId: string;
   onDelete: (listId: string) => void;
 }) {
+  const { t } = useTranslation();
   const [candidates, setCandidates] = useState<SpecCandidate[] | null>(null);
   const [draftStates, setDraftStates] = useState<Record<string, { loading: boolean; text: string | null }>>({});
   const [callRankings, setCallRankings] = useState<CallRanking[] | null>(null);
@@ -2280,14 +2258,14 @@ function SpecListPanel({
                         style={{ fontSize: 11, padding: "3px 8px" }}
                         onClick={() => { void navigator.clipboard.writeText(draft.text ?? ""); toast.success("Copied."); }}
                       >
-                        <IconCopy size={10} /> Copy
+                        <IconCopy size={10} /> {t('common.copy')}
                       </button>
                       <button
                         className="ab flex items-center gap-1"
                         style={{ fontSize: 11, padding: "3px 8px" }}
                         onClick={() => void draftMessage(c.id)}
                       >
-                        <IconSparkles size={10} /> Regenerate
+                        <IconSparkles size={10} /> {t('common.regenerate')}
                       </button>
                     </div>
                   </div>
@@ -2327,6 +2305,7 @@ function JobDetailPanel({
   onSaveNotes: (reqId: string, notes: string) => void;
   recruiterId: string;
 }) {
+  const { t } = useTranslation();
   const hm = contacts.find((c) => c.id === req.hiring_manager_id);
   const [notesDraft, setNotesDraft] = useState(req.recruiter_notes ?? "");
   const [buyInDrafts, setBuyInDrafts] = useState<Record<string, { loading: boolean; text: string | null }>>({});
@@ -2527,14 +2506,14 @@ function JobDetailPanel({
                           style={{ fontSize: 11, padding: "3px 8px" }}
                           onClick={() => { void navigator.clipboard.writeText(draft.text ?? ""); toast.success("Copied."); }}
                         >
-                          <IconCopy size={10} /> Copy
+                          <IconCopy size={10} /> {t('common.copy')}
                         </button>
                         <button
                           className="ab flex items-center gap-1"
                           style={{ fontSize: 11, padding: "3px 8px" }}
                           onClick={() => void draftBuyInMessage(cand.id)}
                         >
-                          <IconSparkles size={10} /> Regenerate
+                          <IconSparkles size={10} /> {t('common.regenerate')}
                         </button>
                       </div>
                     </div>
@@ -2594,14 +2573,14 @@ function JobDetailPanel({
                   toast.success("Email copied to clipboard.");
                 }}
               >
-                <IconCopy size={11} /> Copy email
+                <IconCopy size={11} /> {t('common.copy')} email
               </button>
               <button
                 className="btn btn-ghost btn-sm flex items-center gap-1"
                 onClick={() => void prepareCvSend()}
                 disabled={cvSendLoading}
               >
-                <IconSparkles size={11} /> Regenerate
+                <IconSparkles size={11} /> {t('common.regenerate')}
               </button>
             </div>
           </div>
@@ -2696,11 +2675,12 @@ function RecommendedActionsPanel({
   onCtaClick: (item: ActionItem) => void;
   draftLoading: boolean;
 }) {
-  const NON_DRAFT_CTAS = new Set(["Source more ↗", "View req ↗"]);
+  const { t } = useTranslation();
+  const NON_DRAFT_ACTIONS = new Set<CtaAction>(["source_more", "view_req"]);
 
   return (
     <Card>
-      <SL>Recommended actions</SL>
+      <SL>{t('clients.sections.recommendedActions')}</SL>
       {actions.length === 0 ? (
         <p className="text-[13px]" style={{ color: "var(--color-ink-30)" }}>
           No action items right now. Good work.
@@ -2709,7 +2689,7 @@ function RecommendedActionsPanel({
         <div className="space-y-2">
           {actions.map((item) => {
             const s = ACTION_STYLE[item.priority];
-            const isNonDraft = NON_DRAFT_CTAS.has(item.cta);
+            const isNonDraft = NON_DRAFT_ACTIONS.has(item.ctaAction);
             return (
               <div
                 key={item.id}
@@ -2735,7 +2715,7 @@ function RecommendedActionsPanel({
                   }}
                   disabled={draftLoading && !isNonDraft}
                   onClick={() => {
-                    if (item.cta === "Log call") onLogCall();
+                    if (item.ctaAction === "log_call") onLogCall();
                     else onCtaClick(item);
                   }}
                 >
@@ -2762,6 +2742,7 @@ function QuickActionsCard({
   onMeetingPrep: () => void;
   draftLoading: boolean;
 }) {
+  const { t } = useTranslation();
   const [showEventMenu, setShowEventMenu] = useState(false);
 
   const btnBase: React.CSSProperties = {
@@ -2771,7 +2752,7 @@ function QuickActionsCard({
 
   return (
     <Card>
-      <SL>Quick actions</SL>
+      <SL>{t('clients.sections.quickActions')}</SL>
       <div className="space-y-1.5">
 
         <button
@@ -2783,7 +2764,7 @@ function QuickActionsCard({
           onMouseLeave={(e) => { e.currentTarget.style.background = "var(--color-white)"; }}
         >
           <IconSparkles size={14} style={{ color: "var(--color-ink-60)" }} />
-          {draftLoading ? "Generating…" : "Prep for client meeting ↗"}
+          {draftLoading ? t('common.generating') : t('clients.quickActions.prepMeeting')}
         </button>
 
         <div className="relative">
@@ -2793,7 +2774,7 @@ function QuickActionsCard({
             style={{ ...btnBase, background: showEventMenu ? "var(--color-ink-10)" : "var(--color-white)" }}
           >
             <IconPhone size={14} style={{ color: "var(--color-ink-60)" }} />
-            Log event
+            {t('clients.quickActions.logEvent')}
             <span className="ml-auto text-[10px]" style={{ color: "var(--color-ink-30)" }}>
               {showEventMenu ? "▴" : "▾"}
             </span>
@@ -2833,6 +2814,7 @@ function QuickActionsCard({
 // ─── japan market context card (editable) ─────────────────────────────────────
 
 function JapanMarketContextCard({ client: c, clientId }: { client: ClientRecord; clientId: string }) {
+  const { t } = useTranslation();
   const qc = useQueryClient();
 
   type EditableField = "years_in_japan" | "japan_team_size" | "japan_team_japanese_pct" | "japan_role_in_group" | "kk_entity";
@@ -2872,7 +2854,7 @@ function JapanMarketContextCard({ client: c, clientId }: { client: ClientRecord;
 
   return (
     <Card>
-      <SL>Japan market context</SL>
+      <SL>{t('clients.sections.japanMarketContext')}</SL>
       <div className="space-y-[2px] mb-3">
         {fields.map(({ field, label, rawValue, displayValue, placeholder }) => {
           const isEditing = editing === field;
@@ -2969,6 +2951,7 @@ function AddContactDialog({
   open: boolean;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [form, setForm] = useState({
     name: "",
@@ -3076,13 +3059,13 @@ function AddContactDialog({
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
+          <Button variant="outline" size="sm" onClick={onClose}>{t('common.cancel')}</Button>
           <Button
             size="sm"
             onClick={() => mutation.mutate()}
             disabled={!form.name.trim() || !form.role || mutation.isPending}
           >
-            {mutation.isPending ? "Saving…" : "Add contact"}
+            {mutation.isPending ? "Saving…" : t('clients.actions.addContact')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -3119,6 +3102,7 @@ function JobsTab({
   closedReqs,
   contacts,
   interactions,
+  onDeleteReq,
 }: {
   clientId: string;
   recruiterId: string;
@@ -3126,7 +3110,9 @@ function JobsTab({
   closedReqs: ReqWithPipeline[];
   contacts: Contact[];
   interactions: Interaction[];
+  onDeleteReq?: (id: string, title: string) => void;
 }) {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const jdInputRef = useRef<HTMLInputElement>(null);
 
@@ -3319,7 +3305,7 @@ function JobsTab({
           </span>
         </div>
         <button className="ab" onClick={() => setShowForm((v) => !v)}>
-          {showForm ? <><IconX size={11} /> Cancel</> : <><IconPlus size={11} /> Add job</>}
+          {showForm ? <><IconX size={11} /> {t('common.cancel')}</> : <><IconPlus size={11} /> {t('clients.jobs.addJob')}</>}
         </button>
       </div>
 
@@ -3338,7 +3324,7 @@ function JobsTab({
             <IconUpload size={14} style={{ color: jdText ? "#3b6d11" : "var(--color-ink-30)", flexShrink: 0 }} />
             <div className="flex-1 min-w-0">
               <p className="text-[12px]" style={{ color: "var(--color-ink-60)" }}>
-                {jdUploading ? "Uploading…" : extracting ? "Extracting fields…" : jdText ? "JD uploaded — fields extracted below" : "Upload job description (PDF or DOCX) — AI will fill what it can"}
+                {jdUploading ? t('common.upload') + "ing…" : extracting ? t('clients.jobs.extracting') : jdText ? "JD uploaded — fields extracted below" : t('clients.jobs.uploadJd')}
               </p>
             </div>
             {jdText && <span className="text-[11px]" style={{ color: "var(--color-moss)" }}>✓</span>}
@@ -3385,7 +3371,7 @@ function JobsTab({
               <Label className="text-xs">Strategic context</Label>
               <button className="ab flex items-center gap-1" onClick={() => void generateStrategicContext()} disabled={generatingContext}>
                 <IconSparkles size={10} />
-                {generatingContext ? "Generating…" : "Generate draft ↗"}
+                {generatingContext ? t('common.generating') : t('common.generate') + " draft ↗"}
               </button>
             </div>
             <Textarea value={form.strategic_context} onChange={(e) => setForm((p) => ({ ...p, strategic_context: e.target.value }))} placeholder="Why this role matters to the business right now" className="min-h-[70px]" />
@@ -3393,9 +3379,9 @@ function JobsTab({
 
           <div className="flex items-center gap-2 pt-1">
             <Button size="sm" onClick={() => mutation.mutate()} disabled={!form.title.trim() || mutation.isPending}>
-              {mutation.isPending ? "Saving…" : "Save job"}
+              {mutation.isPending ? "Saving…" : t('clients.jobs.saveJob')}
             </Button>
-            <Button variant="outline" size="sm" onClick={() => setShowForm(false)}>Cancel</Button>
+            <Button variant="outline" size="sm" onClick={() => setShowForm(false)}>{t('common.cancel')}</Button>
           </div>
         </div>
       )}
@@ -3415,6 +3401,7 @@ function JobsTab({
             specListByReq={specListByReq}
             activeSpecReqId={activeSpecReqId}
             onViewSpecList={(reqId) => setActiveSpecReqId((prev) => (prev === reqId ? null : reqId))}
+            onDeleteReq={onDeleteReq}
           />
           {selectedReqId && (() => {
             const req = openReqs.find((r) => r.id === selectedReqId);
@@ -3447,16 +3434,16 @@ function JobsTab({
 
       {openReqs.length === 0 && !showForm && (
         <div className=" px-5 py-12 text-center" style={{ background: "var(--color-white)", border: "0.5px solid var(--color-ink-15)" }}>
-          <p className="text-[13px] font-medium" style={{ color: "var(--color-ink)" }}>No open jobs.</p>
+          <p className="text-[13px] font-medium" style={{ color: "var(--color-ink)" }}>{t('clients.jobs.noOpenJobs')}</p>
           <p className="text-[12px] mt-1" style={{ color: "var(--color-ink-30)" }}>Upload a job description or fill in the form to add one.</p>
         </div>
       )}
 
       {/* Closed jobs — always render section */}
       <div>
-        <p className="text-[11px] font-medium uppercase tracking-[0.04em] mb-2" style={{ color: "var(--color-ink-60)" }}>Closed jobs</p>
+        <p className="text-[11px] font-medium uppercase tracking-[0.04em] mb-2" style={{ color: "var(--color-ink-60)" }}>{t('clients.sections.closedJobs')}</p>
         {closedReqs.length === 0 ? (
-          <p className="text-[13px]" style={{ color: "var(--color-ink-30)" }}>No closed jobs.</p>
+          <p className="text-[13px]" style={{ color: "var(--color-ink-30)" }}>{t('clients.jobs.noClosedJobs')}</p>
         ) : (
           <div className=" overflow-hidden" style={{ background: "var(--color-white)", border: "0.5px solid var(--color-ink-15)" }}>
             {closedReqs.map((r) => (
@@ -3490,6 +3477,7 @@ function DraftModal({
   draft: { title: string; content: string } | null;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [editing, setEditing] = useState(false);
   const [edited, setEdited] = useState("");
   const [copied, setCopied] = useState(false);
@@ -3534,14 +3522,14 @@ function DraftModal({
                 }}
               >
                 <IconEdit size={11} />
-                {editing ? "Preview" : "Edit"}
+                {editing ? "Preview" : t('common.edit')}
               </button>
               <button
                 className="ab flex items-center gap-1"
                 onClick={copy}
               >
                 {copied ? <IconCheck size={11} style={{ color: "var(--color-moss)" }} /> : <IconCopy size={11} />}
-                {copied ? "Copied" : "Copy"}
+                {copied ? t('common.copied') : t('common.copy')}
               </button>
             </div>
           </div>
@@ -3608,126 +3596,206 @@ function F({
 
 // ─── client enrich card (Tavily-powered) ─────────────────────────────────────
 
-type TavilyEnrichResult = {
-  japanTeamSize?: string;
-  japanTeamSizeInt?: number;
-  yearsInJapan?: number;
-  employeeJapanesePct?: number;
-  japanRoleInGroup?: string;
-  strategicPriorities?: string;
-  recentInitiatives?: string;
-  sourceUrls?: string[];
-};
-
-function ClientEnrichCard({ clientId, companyName }: { clientId: string; companyName: string }) {
+function ClientEnrichCard({
+  clientId,
+  companyName,
+  clientUrl,
+}: {
+  clientId: string;
+  companyName: string;
+  clientUrl?: string | null;
+}) {
   const qc = useQueryClient();
   const [expanded, setExpanded] = useState(false);
-  const [url, setUrl] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<TavilyEnrichResult | null>(null);
-  const [applying, setApplying] = useState(false);
 
-  async function enrich() {
-    setLoading(true);
-    setResult(null);
+  // ── URL enrichment ──────────────────────────────────────────────────────────
+  const [url, setUrl] = useState(clientUrl ?? "");
+  const [enrichLoading, setEnrichLoading] = useState(false);
+  const [enrichPreview, setEnrichPreview] = useState<{
+    strategy_notes: string;
+    years_in_japan?: number;
+    japan_team_size?: number;
+  } | null>(null);
+
+  async function runEnrich() {
+    if (!companyName.trim()) return;
+    setEnrichLoading(true);
+    setEnrichPreview(null);
     try {
+      const body: Record<string, string> = { company_name: companyName };
+      if (url.trim()) body.url = url.trim();
       const resp = await fetch("/api/ai/enrich-client", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ client_id: clientId, company_name: companyName, url: url.trim() || undefined }),
+        body: JSON.stringify(body),
       });
-      const data = (await resp.json()) as { enrichment?: TavilyEnrichResult; error?: string };
+      const data = (await resp.json()) as {
+        enrichment?: { strategy_notes: string; years_in_japan?: number; japan_team_size?: number };
+        error?: string;
+      };
       if (data.error) { toast.error(data.error); return; }
-      if (data.enrichment) setResult(data.enrichment);
+      if (data.enrichment) setEnrichPreview(data.enrichment);
     } catch {
-      toast.error("Enrichment failed. Please try again.");
+      toast.error("Enrichment failed. Try again.");
     } finally {
-      setLoading(false);
+      setEnrichLoading(false);
     }
   }
 
-  async function apply() {
-    if (!result) return;
-    setApplying(true);
+  async function applyEnrich() {
+    if (!enrichPreview) return;
+    setEnrichLoading(true);
     try {
-      type ClientPatch = { japan_role_in_group?: string; japan_team_size?: number; employee_japanese_pct?: number; years_in_japan?: number; strategy_notes?: string };
-      const patch: ClientPatch = {};
-      if (result.japanRoleInGroup)       patch.japan_role_in_group = result.japanRoleInGroup;
-      if (result.japanTeamSizeInt != null) patch.japan_team_size = result.japanTeamSizeInt;
-      if (result.employeeJapanesePct != null) patch.employee_japanese_pct = result.employeeJapanesePct;
-      if (result.yearsInJapan != null)   patch.years_in_japan = result.yearsInJapan;
-      if (result.strategicPriorities)    patch.strategy_notes = [result.strategicPriorities, result.recentInitiatives].filter(Boolean).join("\n\n");
-      if (Object.keys(patch).length > 0) {
-        const { error } = await supabase.from("clients").update(patch).eq("id", clientId);
-        if (error) throw error;
+      const { data: current } = await supabase.from("clients").select("strategy_notes").eq("id", clientId).single();
+      const existing = current?.strategy_notes?.trim() ?? "";
+
+      let merged = enrichPreview.strategy_notes;
+      if (existing) {
+        const resp = await fetch("/api/ai/merge-strategy-notes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ existing, incoming: enrichPreview.strategy_notes }),
+        });
+        const data = (await resp.json()) as { merged?: string; error?: string };
+        if (data.merged) merged = data.merged;
       }
+
+      const patch: { strategy_notes: string; years_in_japan?: number; japan_team_size?: number } = { strategy_notes: merged };
+      if (enrichPreview.years_in_japan != null) patch.years_in_japan = enrichPreview.years_in_japan;
+      if (enrichPreview.japan_team_size != null) patch.japan_team_size = enrichPreview.japan_team_size;
+
+      const { error } = await supabase.from("clients").update(patch).eq("id", clientId);
+      if (error) { toast.error("Failed to save. Try again."); return; }
       void qc.invalidateQueries({ queryKey: ["client", clientId] });
-      toast.success("Company profile updated from enrichment.");
-      setResult(null);
-      setExpanded(false);
-    } catch {
-      toast.error("Failed to apply enrichment.");
+      toast.success("Strategy notes updated.");
+      setEnrichPreview(null);
     } finally {
-      setApplying(false);
+      setEnrichLoading(false);
     }
   }
 
-  const previewRows: Array<{ label: string; value: string | null }> = result ? [
-    { label: "Japan role in group",   value: result.japanRoleInGroup ?? null },
-    { label: "Team size in Japan",    value: result.japanTeamSize ?? null },
-    { label: "% Japanese staff",      value: result.employeeJapanesePct != null ? `${result.employeeJapanesePct}%` : null },
-    { label: "Years in Japan",        value: result.yearsInJapan != null ? `${result.yearsInJapan} years` : null },
-    { label: "Strategic priorities",  value: result.strategicPriorities ?? null },
-    { label: "Recent initiatives",    value: result.recentInitiatives ?? null },
-  ] : [];
+  // ── Chat enrichment ─────────────────────────────────────────────────────────
+  const [question, setQuestion] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatAnswer, setChatAnswer] = useState<string | null>(null);
+
+  async function askQuestion() {
+    if (!question.trim()) return;
+    setChatLoading(true);
+    setChatAnswer(null);
+    try {
+      const resp = await fetch("/api/ai/chat-enrich-client", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ company_name: companyName, url: url.trim() || undefined, question: question.trim() }),
+      });
+      const data = (await resp.json()) as { answer?: string; error?: string };
+      if (data.error) { toast.error(data.error); return; }
+      if (data.answer) setChatAnswer(data.answer);
+    } catch {
+      toast.error("Search failed. Try again.");
+    } finally {
+      setChatLoading(false);
+    }
+  }
+
+  async function appendToNotes() {
+    if (!chatAnswer) return;
+    const { data: current } = await supabase.from("clients").select("strategy_notes").eq("id", clientId).single();
+    const existing = current?.strategy_notes ?? "";
+    const updated = existing ? `${existing}\n\n${chatAnswer}` : chatAnswer;
+    const { error } = await supabase.from("clients").update({ strategy_notes: updated }).eq("id", clientId);
+    if (error) { toast.error("Failed to save. Try again."); return; }
+    void qc.invalidateQueries({ queryKey: ["client", clientId] });
+    toast.success("Added to strategy notes.");
+    setChatAnswer(null);
+    setQuestion("");
+  }
 
   return (
-    <div className=" overflow-hidden" style={{ background: "var(--color-white)", border: "0.5px solid var(--color-ink-15)" }}>
+    <div style={{ background: "var(--color-white)", border: "0.5px solid var(--color-ink-15)" }}>
       <button className="w-full flex items-center gap-2 px-4 py-3 text-left" onClick={() => setExpanded((v) => !v)}>
-        <IconSparkles size={13} style={{ color: "var(--color-ink-30)" }} />
-        <span className="flex-1 text-[12px]" style={{ color: "var(--color-ink-60)" }}>Enrich company profile with web search</span>
+        <IconSparkles size={13} style={{ color: "var(--color-vermillion)" }} />
+        <span className="flex-1 text-[12px] font-medium" style={{ color: "var(--color-ink)" }}>Company intelligence</span>
         <span className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>{expanded ? "▴" : "▾"}</span>
       </button>
+
       {expanded && (
-        <div className="px-4 pb-4">
-          <p className="text-[11px] mb-2" style={{ color: "var(--color-ink-30)" }}>
-            Search uses <strong>{companyName}</strong> as the company name. Add the company URL for more accurate results.
-          </p>
-          <Input
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            placeholder="Company website URL (optional)"
-            className="mb-2 text-xs h-8"
-          />
-          <button className="ab" onClick={() => void enrich()} disabled={loading}>
-            <IconSparkles size={11} />
-            {loading ? "Searching…" : "Search and enrich"}
-          </button>
-          {result && (
-            <div className="mt-3  p-3" style={{ background: "var(--color-ink-10)" }}>
-              <p className="sl mb-2">Enrichment results — review before applying</p>
-              <div className="space-y-1.5 mb-3">
-                {previewRows.filter((r) => r.value != null).map(({ label, value }) => (
-                  <div key={label} className="flex items-start justify-between gap-3">
-                    <span className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>{label}</span>
-                    <span className="text-[12px] font-medium text-right" style={{ maxWidth: 240, color: "var(--color-ink)" }}>{value}</span>
-                  </div>
-                ))}
-                {previewRows.every((r) => r.value == null) && (
-                  <p className="text-[12px]" style={{ color: "var(--color-ink-30)" }}>No data found. Try adding the company URL.</p>
-                )}
-              </div>
-              {result.sourceUrls && result.sourceUrls.length > 0 && (
-                <p className="text-[11px] mb-3" style={{ color: "var(--color-ink-30)" }}>
-                  Sources: {result.sourceUrls.slice(0, 3).map((u) => new URL(u).hostname).join(", ")}
-                </p>
-              )}
-              <div className="flex gap-2">
-                <button className="ab" onClick={() => void apply()} disabled={applying}>{applying ? "Applying…" : "Apply to profile"}</button>
-                <button className="text-[11px]" style={{ color: "var(--color-ink-30)" }} onClick={() => setResult(null)}>Discard</button>
-              </div>
+        <div className="px-4 pb-4 space-y-4" style={{ borderTop: "0.5px solid var(--color-ink-15)" }}>
+
+          {/* ── URL enrichment section ── */}
+          <div className="pt-3">
+            <p className="label mb-2">Enrich strategy notes from URL</p>
+            <div className="flex gap-2 mb-2">
+              <Input
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                placeholder="https://softbankrobotics.com/jp"
+                className="text-xs h-8 flex-1"
+              />
+              <button className="ab shrink-0" onClick={() => void runEnrich()} disabled={enrichLoading}>
+                <IconSparkles size={11} />
+                {enrichLoading ? "Generating…" : "Enrich"}
+              </button>
             </div>
-          )}
+            {enrichPreview && (
+              <div className="p-3 space-y-2" style={{ background: "var(--color-ink-10)" }}>
+                <p className="text-[12px] leading-relaxed" style={{ color: "var(--color-ink)" }}>
+                  {enrichPreview.strategy_notes}
+                </p>
+                {(enrichPreview.years_in_japan != null || enrichPreview.japan_team_size != null) && (
+                  <p className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>
+                    {[
+                      enrichPreview.years_in_japan != null && `${enrichPreview.years_in_japan} years in Japan`,
+                      enrichPreview.japan_team_size != null && `~${enrichPreview.japan_team_size} Japan team`,
+                    ].filter(Boolean).join(" · ")}
+                  </p>
+                )}
+                <div className="flex gap-2 pt-1">
+                  <button className="ab" onClick={() => void applyEnrich()}>Save to strategy notes</button>
+                  <button className="text-[11px]" style={{ color: "var(--color-ink-30)" }} onClick={() => setEnrichPreview(null)}>Discard</button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ── Chat enrichment section ── */}
+          <div style={{ borderTop: "0.5px solid var(--color-ink-15)", paddingTop: 14 }}>
+            <p className="label mb-1">Ask a specific question</p>
+            <p className="text-[11px] mb-2" style={{ color: "var(--color-ink-30)" }}>
+              Uses a live web search. Good for specific numbers like headcount, revenue, or recent news.
+            </p>
+            <textarea
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+              placeholder={'e.g. "Find the number of employees in Japan, annual revenue, and any recent growth news."'}
+              rows={2}
+              className="w-full text-[12px] resize-none mb-2 px-2 py-1.5"
+              style={{
+                border: "0.5px solid var(--color-ink-15)",
+                background: "var(--color-ink-05)",
+                outline: "none",
+                color: "var(--color-ink)",
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) void askQuestion();
+              }}
+            />
+            <button className="ab" onClick={() => void askQuestion()} disabled={chatLoading || !question.trim()}>
+              <IconSparkles size={11} />
+              {chatLoading ? "Searching web…" : "Search and answer"}
+            </button>
+            {chatAnswer && (
+              <div className="mt-3 p-3 space-y-2" style={{ background: "var(--color-ink-10)" }}>
+                <p className="text-[12px] leading-relaxed" style={{ color: "var(--color-ink)" }}>{chatAnswer}</p>
+                <div className="flex gap-2 pt-1">
+                  <button className="ab" onClick={() => void appendToNotes()}>Add to strategy notes</button>
+                  <button className="text-[11px]" style={{ color: "var(--color-ink-30)" }} onClick={() => setChatAnswer(null)}>Discard</button>
+                </div>
+              </div>
+            )}
+          </div>
+
         </div>
       )}
     </div>
@@ -3741,6 +3809,7 @@ function ClientEnrichCard({ clientId, companyName }: { clientId: string; company
 // ─── editable contract tab ────────────────────────────────────────────────────
 
 function EditableContractTab({ client: c, clientId }: { client: ClientRecord; clientId: string }) {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const { user } = useAuth();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -3858,7 +3927,7 @@ function EditableContractTab({ client: c, clientId }: { client: ClientRecord; cl
               className="text-[11px] px-2 py-1 shrink-0"
               style={{ background: "var(--color-indigo-light)", color: "var(--color-indigo)", border: "0.5px solid rgba(44,62,107,0.3)" }}
             >
-              {fetchingUrl ? "Opening…" : "View PDF"}
+              {fetchingUrl ? "Opening…" : t('clients.contract.viewContract')}
             </button>
           )}
           <button
@@ -3866,7 +3935,7 @@ function EditableContractTab({ client: c, clientId }: { client: ClientRecord; cl
             className="flex items-center gap-1 px-2 py-1 text-[11px] shrink-0"
             style={{ background: "var(--color-white)", color: "var(--color-ink-60)", border: "0.5px solid var(--color-ink-15)" }}
           >
-            <IconX size={10} /> Remove
+            <IconX size={10} /> {t('clients.contract.removeContract')}
           </button>
         </div>
       )}
@@ -3895,7 +3964,7 @@ function EditableContractTab({ client: c, clientId }: { client: ClientRecord; cl
         <IconUpload size={16} style={{ color: "var(--color-ink-30)", flexShrink: 0 }} />
         <div className="flex-1 min-w-0">
           <p className="text-[13px] font-medium" style={{ color: "var(--color-ink)" }}>
-            {uploading ? "Uploading…" : extracting ? "Extracting fields…" : c.contract_signed ? "Replace contract" : "Upload contract"}
+            {uploading ? "Uploading…" : extracting ? "Extracting fields…" : c.contract_signed ? "Replace contract" : t('clients.contract.uploadContract')}
           </p>
           <p className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>
             PDF — AI will extract fee % and start date
@@ -4047,11 +4116,13 @@ function ClientIntelligenceCard({
   async function refresh() {
     setRefreshing(true);
     try {
-      await fetch("/api/ai/refresh-context", {
+      const resp = await fetch("/api/ai/refresh-context", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ entity_type: "client", entity_id: clientId }),
       });
+      const data = (await resp.json()) as { success?: boolean; error?: string };
+      if (data.error) { toast.error(`Refresh failed: ${data.error}`); return; }
       void qc.invalidateQueries({ queryKey: ["client", clientId] });
       toast.success("Account intelligence refreshed.");
     } catch { toast.error("Refresh failed. Try again."); }

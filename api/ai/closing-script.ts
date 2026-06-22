@@ -19,7 +19,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { data: processData } = await supabase
     .from("processes")
     .select(
-      "stage, offer_amount, offer_date, last_activity_at, candidate_id, requisition_id, candidates ( full_name, ai_context, candidate_motivations ( rank, motivation_text, motivation_type ), candidate_blockers ( theme, detail, is_risk ), competing_interviews ( company_name, stage, is_active ) ), requisitions ( title, salary_min, salary_max, clients ( company_name, ai_context, employee_japanese_pct, years_in_japan ) )",
+      "stage, offer_amount, offer_date, last_activity_at, candidate_id, requisition_id, candidates ( full_name, ai_context, notes_interview, notes_closing, candidate_motivations ( rank, motivation_text, motivation_type ), candidate_blockers ( theme, detail, is_risk ), competing_interviews ( company_name, stage, is_active ) ), requisitions ( title, salary_min, salary_max, clients ( company_name, ai_context, employee_japanese_pct, years_in_japan ) )",
     )
     .eq("id", process_id)
     .single();
@@ -34,6 +34,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     candidates: {
       full_name: string;
       ai_context: string | null;
+      notes_interview: string | null;
+      notes_closing: string | null;
       candidate_motivations: Array<{ rank: number; motivation_text: string; motivation_type: string | null }>;
       candidate_blockers: Array<{ theme: string; detail: string | null; is_risk: boolean }>;
       competing_interviews: Array<{ company_name: string; stage: string | null; is_active: boolean }>;
@@ -67,7 +69,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const prompt = `
 CANDIDATE: ${cand.full_name}
-${cand.ai_context ? `Intelligence summary:\n${cand.ai_context.slice(0, 500)}` : ""}
+${cand.ai_context ? `Intelligence summary:\n${cand.ai_context.slice(0, 400)}` : ""}
+${cand.notes_interview ? `\nRegistration interview notes (primary context for motivations and reasons for moving):\n${cand.notes_interview.slice(0, 800)}` : ""}
+${cand.notes_closing ? `\nClosing intelligence:\n${cand.notes_closing.slice(0, 200)}` : ""}
 
 Motivations (ranked — use this order for key points):
 ${cand.candidate_motivations.map((m) => `${m.rank}. ${m.motivation_type ? `[${m.motivation_type}] ` : ""}${m.motivation_text}`).join("\n")}
@@ -105,7 +109,15 @@ KEY POINTS TO LAND (in this order)
 [3 points sequenced by motivation rank. Bold lead phrase. 2 sentences each. Address the specific company as a match for their ranked motivations.]
 
 COUNTEROFFER DEFENSE
-[Only include if a blocker, active risk, or competing interview suggests this is relevant. Include these statistics naturally — not as recited facts: 60-80% of employees who accept a counteroffer leave within 6 months. 90% leave within 12 months. Omit this section entirely if there is no counteroffer risk.]
+[Always include this section. The candidate is about to resign — a counteroffer is almost certain. The recruiter's job is to prepare them BEFORE it happens, not after.
+
+Frame it around the candidate's specific motivations listed above (use their actual reasons for wanting to move — a salary increase from their current employer does not fix a culture problem, a promotion ceiling, or a desire to work in a more international environment). Do not recite statistics — weave them in naturally if relevant.
+
+Japan-specific insight to apply: About 80% of candidates who were already actively looking and receive a counteroffer reject it anyway, because the underlying reasons they wanted to leave don't change. The money improves; the environment does not.
+
+One key question to surface: "Ask yourself — why did it take a resignation letter to get this offer?" The recruiter should help the candidate answer this for themselves before the moment arrives.
+
+Keep this section to 3–4 sentences maximum. Specific to this candidate's motivations, not generic.]
 
 SUGGESTED CLOSE
 [One question or statement to move them to yes. Not a script — a direction. 1-2 sentences.]

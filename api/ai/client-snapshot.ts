@@ -74,7 +74,7 @@ ${activePipeline.length > 0 ? activePipeline.join("\n") : "No active processes"}
 `.trim();
 
   const message = await anthropic.messages.create({
-    model: "claude-sonnet-4-5-20250929",
+    model: "claude-haiku-4-5-20251001",
     max_tokens: 400,
     system: `You are a recruitment intelligence assistant supporting a boutique agency recruiter in Japan.
 Generate a two-part client snapshot.

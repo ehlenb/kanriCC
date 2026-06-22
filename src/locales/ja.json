@@ -1,0 +1,630 @@
+{
+  "nav": {
+    "dashboard": "ダッシュボード",
+    "candidates": "候補者",
+    "clients": "クライアント",
+    "jobs": "求人",
+    "advancedSearch": "詳細検索",
+    "signOut": "サインアウト"
+  },
+  "lang": {
+    "toggle": "English",
+    "en": "EN",
+    "ja": "JP"
+  },
+  "common": {
+    "save": "保存",
+    "cancel": "キャンセル",
+    "delete": "削除",
+    "edit": "編集",
+    "add": "追加",
+    "close": "閉じる",
+    "back": "戻る",
+    "loading": "読み込み中…",
+    "saving": "保存中…",
+    "noData": "—",
+    "notFound": "見つかりませんでした。",
+    "generate": "生成",
+    "generating": "生成中…",
+    "regenerate": "再生成",
+    "copy": "コピー",
+    "copied": "コピーしました",
+    "upload": "アップロード",
+    "uploading": "アップロード中…",
+    "remove": "削除",
+    "replace": "交換",
+    "view": "表示",
+    "done": "完了",
+    "confirm": "確認",
+    "tryAgain": "もう一度試す",
+    "optional": "任意",
+    "required": "必須",
+    "new": "新規",
+    "open": "オープン",
+    "closed": "クローズ",
+    "search": "検索",
+    "filter": "フィルター",
+    "clear": "クリア",
+    "select": "選択",
+    "none": "なし",
+    "all": "すべて",
+    "yes": "はい",
+    "no": "いいえ",
+    "days": "日",
+    "months": "ヶ月",
+    "ago": "前",
+    "today": "今日",
+    "undo": "元に戻す",
+    "restore": "復元",
+    "snooze": "スヌーズ",
+    "dismiss": "非表示",
+    "expand": "展開",
+    "collapse": "折りたたむ",
+    "show": "表示",
+    "hide": "非表示",
+    "active": "積極的",
+    "passive": "消極的",
+    "unknown": "不明"
+  },
+  "dashboard": {
+    "title": "おはようございます",
+    "subtitle": "本日の優先事項をご確認ください。",
+    "weekResets": "週は毎週日曜日にリセットされます",
+    "priorityActions": "優先アクション",
+    "noPriorityActions": "本日の緊急事項はありません。",
+    "noPriorityActionsHint": "活動を記録した後、再確認してください。",
+    "restoreDismissed": "{{count}}件を復元",
+    "snoozedUntil": "{{date}}までスヌーズ中",
+    "markDone": "完了にする",
+    "aiBreif": "AIブリーフ",
+    "pipeline": "パイプライン",
+    "pipelineRevenue": "パイプライン収益",
+    "pipelineRevenueShow": "パイプライン収益 — 表示",
+    "activePipeline": "アクティブパイプライン",
+    "needsAction": "要対応",
+    "likelyToPlace": "成約見込み",
+    "totalPotentialFees": "想定手数料合計",
+    "flaggedInQueue": "優先キューにフラグ済み",
+    "atOfferStage": "内定ステージ",
+    "hide": "非表示",
+    "metrics": {
+      "specsOut": "求人票送付",
+      "cvsSent": "CV送付",
+      "interviewing": "面接中",
+      "offers": "内定",
+      "placed": "成約",
+      "thisWeek": "今週",
+      "activeNow": "現在アクティブ"
+    },
+    "period": {
+      "week": "今週",
+      "30d": "過去30日",
+      "month": "今月",
+      "quarter": "今四半期",
+      "all": "全期間",
+      "filterBy": "期間でフィルター"
+    },
+    "toast": {
+      "markedDone": "今日は完了としてマーク",
+      "snoozedTomorrow": "明日までスヌーズ",
+      "undo": "元に戻す"
+    },
+    "brief": {
+      "checkinMsg": "チェックインメッセージ",
+      "clientChase": "クライアント追跡ブリーフ",
+      "competingRisk": "競合リスク",
+      "aiInsights": "AIインサイト",
+      "whatNext": "次に何が起きましたか？",
+      "outcomePass": "好意的なフィードバック",
+      "outcomeReject": "候補者不採用",
+      "outcomeNoResponse": "クライアントから返答なし",
+      "nextStep": "次のステップ",
+      "generating": "生成中…",
+      "formatEmail": "メール",
+      "formatLinkedin": "LinkedIn",
+      "formatShortMsg": "短文",
+      "snoozeTooltip": "明日までスヌーズ"
+    },
+    "rules": {
+      "offer": {
+        "reason": "{{client}}へ内定提示済み{{lastContact}}。",
+        "lastContactSuffix": " — 最終連絡 {{days}}日前",
+        "action": "{{name}}さんの承諾タイムラインを確認し、クローズを管理する。"
+      },
+      "competing": {
+        "reason": "{{companies}}で競合中 — {{urgency}}。",
+        "critical": "内定リスク（緊急）",
+        "high": "高リスク",
+        "action": "{{name}}さんに連絡し、モチベーションを確認、{{client}}でのプロセスを守る。"
+      },
+      "ccmFeedback": {
+        "reason": "{{client}}とのCCM{{num}} — フィードバック待ち {{days}}日。",
+        "action": "{{client}}に{{name}}さんのCCM{{num}}フィードバックを確認する。"
+      },
+      "cvSent": {
+        "reason": "{{client}}へCV送付から{{days}}営業日経過 — フィードバック未記録。",
+        "action": "{{client}}に{{name}}さんのCVフィードバックを確認する。"
+      },
+      "buyIn": {
+        "reason": "バイイン待ち — {{days}}日間フォローアップなし。",
+        "action": "CV提出前に{{name}}さんのバイイン状況を確認する。"
+      },
+      "cold": {
+        "reason": "{{days}}日間連絡なし — {{client}}のプロセスが停滞している可能性あり。",
+        "action": "{{name}}さんに再連絡し、まだアクティブか確認する。"
+      }
+    },
+    "detail": {
+      "noSpecs": "この期間に求人票の送付はありません。",
+      "noEntries": "この期間のデータはありません。",
+      "noInterviews": "面接中の候補者はいません。",
+      "noPlacements": "この期間に成約はありません。",
+      "cols": {
+        "candidate": "候補者",
+        "client": "クライアント",
+        "summary": "概要",
+        "date": "日付",
+        "company": "会社",
+        "role": "ポジション",
+        "fee": "手数料",
+        "cvSent": "CV送付日",
+        "offerDate": "内定日"
+      },
+      "showLess": "表示を減らす",
+      "showMore": "あと{{count}}件表示"
+    }
+  },
+  "candidates": {
+    "title": "候補者",
+    "addCandidate": "候補者を追加",
+    "searchPlaceholder": "候補者を検索…",
+    "noResults": "条件に一致する候補者がいません。",
+    "noResultsEmpty": "候補者がいません — 最初の候補者を追加してください。",
+    "noResultsHint": "検索条件またはフィルターを変更してください。",
+    "companyPlaceholder": "会社…",
+    "clearFilters": "フィルターをクリア",
+    "advancedSearch": "詳細検索",
+    "count_one": "{{count}}名",
+    "count_other": "{{count}}名",
+    "filters": {
+      "status": "現状況",
+      "japaneseLevel": "日本語レベル",
+      "englishLevel": "英語レベル",
+      "japaneseLabel": "日本語",
+      "englishLabel": "英語",
+      "source": "情報提供元",
+      "stage": "ステージ",
+      "lastTouch": "直近の連絡先"
+    },
+    "status": {
+      "active": "積極的",
+      "passive": "消極的",
+      "placed": "成約"
+    },
+    "source": {
+      "linkedin": "LinkedIn",
+      "bizreach": "BizReach",
+      "doda": "Doda",
+      "referral": "紹介",
+      "inbound": "インバウンド",
+      "other": "その他"
+    },
+    "lastTouch": {
+      "fresh": "直近",
+      "warm": "ウォーム",
+      "cool": "クール",
+      "cold": "コールド",
+      "2w": "2週間以内",
+      "1m": "1ヶ月以内",
+      "1_3m": "1〜3ヶ月前",
+      "3mPlus": "3ヶ月以上前"
+    },
+    "addForm": {
+      "fullName": "氏名（ローマ字）",
+      "fullNameJapanese": "氏名（日本語）",
+      "currentTitle": "現在の職種",
+      "currentCompany": "現在の会社",
+      "japaneseLevel": "日本語レベル",
+      "englishLevel": "英語レベル",
+      "selectLevel": "レベルを選択",
+      "source": "情報提供元",
+      "selectSource": "情報提供元を選択"
+    }
+  },
+  "candidateDetail": {
+    "tabs": {
+      "timeline": "タイムライン",
+      "notes": "候補者メモ",
+      "intelligence": "候補者インテリジェンス",
+      "registration": "登録情報"
+    },
+    "sections": {
+      "currentEmployment": "現在の雇用",
+      "interviewNotes": "面談メモ",
+      "noticeAndUrgency": "退職予告期間・緊急度",
+      "languageAssessment": "語学力評価",
+      "compensation": "報酬",
+      "recruiterAssessment": "リクルーター評価",
+      "jobHistory": "職歴",
+      "motivations": "転職動機",
+      "blockers": "懸念事項",
+      "competingInterviews": "競合選考",
+      "documents": "書類",
+      "candidateDetails": "候補者情報"
+    },
+    "fields": {
+      "fullName": "氏名（ローマ字）",
+      "fullNameJapanese": "氏名（漢字）",
+      "dateOfBirth": "生年月日",
+      "age": "年齢",
+      "email": "メールアドレス",
+      "phone": "電話番号",
+      "address": "住所",
+      "linkedin": "LinkedIn",
+      "currentCompany": "現在の会社",
+      "currentTitle": "現在の役職",
+      "japaneseLevel": "日本語レベル",
+      "englishLevel": "英語レベル",
+      "noticePeriod": "退職予告期間",
+      "months": "ヶ月",
+      "urgency": "緊急度",
+      "activePassive": "積極的 / 消極的",
+      "currentBase": "現在の基本給",
+      "currentBonus": "現在のボーナス",
+      "currentTotal": "現在の年収",
+      "expectedMin": "希望年収（最低）",
+      "expectedMax": "希望年収（最高）",
+      "basePriority": "基本給優先",
+      "baseMinimum": "基本給最低額",
+      "compNotes": "報酬メモ",
+      "source": "情報提供元"
+    },
+    "actions": {
+      "logActivity": "活動を記録",
+      "pasteTranscript": "会話を貼り付け",
+      "generateBrief": "ブリーフを生成",
+      "editComp": "報酬を編集",
+      "syncFromNotes": "メモから同期",
+      "uploadCv": "CVをアップロード",
+      "uploadRegistration": "登録フォームをアップロード",
+      "extractFields": "フィールドを抽出",
+      "addMotivation": "動機を追加",
+      "addBlocker": "懸念事項を追加",
+      "addRole": "職歴を追加"
+    },
+    "documents": {
+      "englishCv": "英文CV",
+      "shokumukeirekisho": "職務経歴書",
+      "shokumukeirekishoLabel": "職務経歴書",
+      "rirekisho": "履歴書",
+      "rirekishoLabel": "履歴書",
+      "registrationForm": "登録フォーム",
+      "uploadOrDrop": "ファイルをアップロードまたはドラッグ＆ドロップ",
+      "viewDocument": "書類を表示",
+      "replaceDocument": "交換"
+    },
+    "stages": {
+      "specsSent": "求人票送付",
+      "buyIn": "同意取得",
+      "cvSent": "CV送付",
+      "offer": "内定",
+      "placed": "成約",
+      "closedLost": "クローズ（失注）"
+    },
+    "intelligence": {
+      "positioningPoints": "ポジショニングポイント",
+      "generatePositioning": "ポジショニングを生成",
+      "preCallBrief": "通話前ブリーフ",
+      "closingScript": "クロージングスクリプト",
+      "submissionNote": "推薦文",
+      "rejectionEmail": "不採用メール",
+      "interviewPrep": "面接準備",
+      "noProcesses": "この候補者のアクティブなプロセスはありません。",
+      "coverageOwn": "担当",
+      "coverageColleague": "同僚担当",
+      "coverageUncovered": "未担当"
+    },
+    "timeline": {
+      "loggedBy": "記録者",
+      "upcoming": "予定",
+      "past": "過去",
+      "noActivity": "活動の記録がありません。",
+      "noActivityHint": "通話、メール、または面談を記録してタイムラインを開始してください。"
+    },
+    "motivations": {
+      "rank": "第{{n}}位",
+      "noMotivations": "転職動機が記録されていません。",
+      "addFirst": "候補者の転職理由の優先順位を追加してください。"
+    },
+    "blockers": {
+      "activeRisk": "リスクあり",
+      "context": "コンテキスト",
+      "noBlockers": "懸念事項が記録されていません。"
+    },
+    "competing": {
+      "noCompeting": "競合選考が記録されていません。"
+    }
+  },
+  "clients": {
+    "title": "クライアント",
+    "addClient": "クライアントを追加",
+    "searchPlaceholder": "クライアントを検索…",
+    "noResults": "クライアントが見つかりませんでした。",
+    "tabs": {
+      "timeline": "タイムライン",
+      "clientInfo": "クライアント情報",
+      "contacts": "担当者",
+      "jobs": "求人",
+      "contract": "契約"
+    },
+    "sections": {
+      "companyInfo": "会社情報",
+      "japanMarketContext": "日本市場コンテキスト",
+      "strategyNotes": "戦略メモ",
+      "accountIntelligence": "アカウントインテリジェンス",
+      "recommendedActions": "推奨アクション",
+      "quickActions": "クイックアクション",
+      "openJobs": "オープン求人",
+      "closedJobs": "クローズ求人",
+      "contacts": "担当者"
+    },
+    "fields": {
+      "companyName": "会社名",
+      "industry": "業界",
+      "hqCountry": "本社所在国",
+      "kkEntity": "KK法人",
+      "japanTeamSize": "日本チーム規模",
+      "japanRoleInGroup": "グループ内での日本の役割",
+      "yearsInJapan": "日本進出年数",
+      "clientSince": "取引開始",
+      "feePct": "手数料率",
+      "contractSigned": "契約締結済み"
+    },
+    "actions": {
+      "addContact": "担当者を追加",
+      "logActivity": "活動を記録",
+      "enrichClient": "クライアント情報を充実させる",
+      "generateSnapshot": "スナップショットを生成",
+      "meetingPrep": "面談準備",
+      "uploadContract": "契約書をアップロード",
+      "addJob": "求人を追加",
+      "findMatches": "候補者を検索",
+      "saveSpecList": "候補者リストを保存",
+      "viewSpecList": "候補者リストを表示"
+    },
+    "contacts": {
+      "noContacts": "担当者が登録されていません。",
+      "roles": {
+        "hiring_manager": "採用担当マネージャー",
+        "hr_gatekeeper": "人事担当者",
+        "ta_coordinator": "採用コーディネーター",
+        "executive": "エグゼクティブ",
+        "other": "その他"
+      }
+    },
+    "jobs": {
+      "noOpenJobs": "オープン求人はありません。",
+      "noOpenJobsHint": "求人票をアップロードするか、フォームに入力して追加してください。",
+      "noClosedJobs": "クローズ求人はありません。",
+      "addJob": "求人を追加",
+      "saveJob": "求人を保存",
+      "jobTitle": "求人タイトル",
+      "salaryRange": "給与レンジ",
+      "location": "勤務地",
+      "hiringManager": "採用担当マネージャー",
+      "targetClose": "クローズ目標日",
+      "strategicContext": "戦略的コンテキスト",
+      "recruiterNotes": "リクルーターメモ",
+      "uploadJd": "求人票をアップロード",
+      "extracting": "抽出中…",
+      "pipeline": "パイプライン",
+      "inInterview": "面接中",
+      "atOffer": "内定中",
+      "cvSent": "CV送付済み",
+      "buyInSecured": "同意取得済み",
+      "noPipeline": "パイプラインなし",
+      "backfill": "バックフィル",
+      "netNew": "新規",
+      "rejections": "件の不採用"
+    },
+    "contract": {
+      "noContract": "契約書がアップロードされていません。",
+      "uploadContract": "契約書をアップロード",
+      "contractFile": "契約書ファイル",
+      "viewContract": "契約書を表示",
+      "removeContract": "契約書を削除"
+    },
+    "breadcrumb": "アカウント",
+    "inactive": "非アクティブ",
+    "snapshot": {
+      "title": "クライアントスナップショット",
+      "aiGenerated": "✦ AI生成",
+      "generateBtn": "スナップショットを生成",
+      "refreshBtn": "更新",
+      "placeholder": "スナップショットを生成して、現在の状況・アクティブな候補者・本日の注意点を確認してください。",
+      "whereThingsStand": "現状",
+      "activeInProcess": "選考中",
+      "watchOut": "注意事項",
+      "noCandidates": "このクライアントにアクティブな候補者はいません。"
+    },
+    "activity": "活動",
+    "recommendations": {
+      "noItems": "現在アクションは必要ありません。順調です。",
+      "cvFeedback": {
+        "title": "CV フィードバック待ち",
+        "body": "{{name}}さんが{{role}}に応募して{{days}}日経過しましたが、返答がありません。",
+        "cta": "フォローアップを下書き ↗"
+      },
+      "interviewFeedback": {
+        "title": "面接後フィードバック未受領",
+        "body": "{{name}}さんが{{role}}の{{stage}}を完了しました。候補者が冷める前にフィードバックを依頼してください。",
+        "cta": "フォローアップを下書き ↗"
+      },
+      "offerNoUpdate": {
+        "title": "内定ステージ — 更新なし",
+        "body": "{{name}}さんが{{role}}の内定ステージに入ってから{{days}}日間、記録がありません。",
+        "cta": "クロージングスクリプト ↗"
+      },
+      "submitFirst": {
+        "title": "他社より先に提出してください",
+        "body": "{{name}}さんが{{role}}へのCV提出に同意しました。今すぐ推薦文を作成してください。",
+        "cta": "推薦文を下書き ↗"
+      },
+      "noPipeline": {
+        "title": "オープン求人に候補者がいません",
+        "body": "{{role}}にアクティブな候補者がいません。クライアントから問い合わせが来る前に候補者を探してください。",
+        "cta": "候補者を探す ↗"
+      },
+      "thinPipeline": {
+        "title": "パイプラインが薄い",
+        "body_one": "{{role}}の選考候補者は{{count}}名のみです。一候補者依存のリスクを下げるために追加してください。",
+        "body_other": "{{role}}の選考候補者は{{count}}名のみです。一候補者依存のリスクを下げるために追加してください。",
+        "cta": "求人を確認 ↗"
+      },
+      "interviewPrep": {
+        "title": "面接が近づいています — 候補者の準備を",
+        "body": "{{name}}さんが{{role}}の{{stage}}に進みました。面接前に準備資料を送ってください。",
+        "cta": "準備資料を下書き ↗"
+      },
+      "nextRound": {
+        "title": "次の選考が未調整",
+        "body": "{{name}}さんが{{role}}の{{stage}}に入ってから{{days}}日間、次回日程が記録されていません。",
+        "cta": "日程調整メッセージを下書き ↗"
+      },
+      "preClose": {
+        "title": "クロージング前連絡が未記録",
+        "body": "{{name}}さんが{{role}}の内定ステージに到達しました。クライアントが直接連絡する前にクロージング前の会話を記録してください。",
+        "cta": "クロージングスクリプト ↗"
+      },
+      "hrNeverMet": {
+        "title": "HR担当者と対面未実施",
+        "body": "{{name}}さんと対面でお会いしていません。今のうちに簡単な電話を入れておくと、複雑な状況になったときに内定がスムーズになります。",
+        "cta": "顔合わせをスケジュール"
+      },
+      "hmNudge": {
+        "title": "HMとの関係強化",
+        "body": "{{name}}さんとの関係がまだ浅いです。ランチや気軽なコーヒーが、案件が複雑になったときに役立ちます。",
+        "cta": "面談の準備 ↗"
+      },
+      "noContact": {
+        "title": "定期連絡 — 関係維持",
+        "body": "このクライアントとの記録済みのコンタクトが{{days}}日ありません。簡単なタッチポイントで関係を維持してください。",
+        "cta": "通話を記録"
+      },
+      "firstContact": {
+        "title": "まだ活動が記録されていません",
+        "body": "このクライアントとの最初のやり取りを記録して、関係の追跡を始めてください。",
+        "cta": "通話を記録"
+      },
+      "candidate": "候補者"
+    },
+    "quickActions": {
+      "prepMeeting": "クライアント面談の準備 ↗",
+      "logEvent": "活動を記録",
+      "sourceMore": "候補者を探す ↗"
+    }
+  },
+  "jobs": {
+    "title": "求人",
+    "openRoles": "オープンポジション",
+    "noOpenRoles": "オープンポジションはありません。",
+    "pipeline": "パイプライン",
+    "revenue": "収益予測",
+    "urgency": {
+      "critical": "緊急",
+      "high": "高",
+      "normal": "通常",
+      "low": "低"
+    },
+    "detail": {
+      "matchCandidates": "候補者を検索",
+      "hideMatches": "非表示",
+      "salaryRange": "給与レンジ",
+      "interviewProcess": "選考プロセス",
+      "rounds": "回",
+      "round": "回",
+      "conditions": "条件",
+      "mustHave": "必須",
+      "niceToHave": "あれば望ましい",
+      "addCondition": "条件を追加",
+      "strategicContext": "戦略的コンテキスト",
+      "runDiagnosis": "診断を実行",
+      "analysing": "分析中…",
+      "rejectionsBanner": "{{count}}件の不採用が確認されました",
+      "rejectionsBannerHint": "診断を実行して、スペックのミスマッチかクライアント期待値の問題かを確認してください。",
+      "offSpec": "スペック外の候補者",
+      "expectationGap": "クライアント期待値のギャップ",
+      "nextStep": "次のステップ",
+      "conversationGuide": "会話ガイド",
+      "dataDriven": "データドリブン",
+      "relationshipFirst": "関係重視"
+    }
+  },
+  "advancedSearch": {
+    "title": "詳細検索",
+    "searchFor": "この求人に合う候補者を検索",
+    "threshold": "マッチ閾値",
+    "useKeyCriteria": "主要条件のみ使用",
+    "runSearch": "検索を実行",
+    "searching": "検索中…",
+    "noResults": "該当する候補者が見つかりませんでした。",
+    "score": "スコア",
+    "salaryStretch": "給与ストレッチ",
+    "callFirst": "優先コール",
+    "draftMessage": "メッセージ作成",
+    "saveList": "候補者リストとして保存"
+  },
+  "activity": {
+    "types": {
+      "call": "通話",
+      "candidateCall": "候補者への通話",
+      "clientCall": "クライアントへの通話",
+      "email": "メール",
+      "meeting": "面談",
+      "candidateMeeting": "候補者との面談",
+      "clientMeeting": "クライアントとの面談",
+      "note": "メモ",
+      "job_spec_sent": "求人票送付",
+      "jobSpecSent": "求人票送付",
+      "linkedin_message": "LinkedInメッセージ",
+      "linkedinMessage": "LinkedInメッセージ",
+      "other": "その他",
+      "interview_scheduled": "面接予定"
+    },
+    "timeline": {
+      "withContact": "{{name}}と",
+      "candidateChip": "候補者: {{name}}",
+      "candidateSideCall": "候補者側の通話",
+      "clientSideCall": "クライアント側の通話",
+      "noNotes": "メモなし",
+      "addToStrategyNotes": "戦略メモに追加",
+      "loggedBy": "記録者: {{name}}"
+    },
+    "logActivity": "活動を記録",
+    "logCall": "通話を記録",
+    "logEmail": "メールを記録",
+    "logMeeting": "面談を記録",
+    "date": "日付",
+    "summary": "概要",
+    "notes": "詳細メモ",
+    "linkedJob": "関連求人",
+    "linkedCandidate": "関連候補者",
+    "linkedContact": "関連担当者",
+    "primaryParty": "対話相手"
+  },
+  "stages": {
+    "specsSent": "求人票送付",
+    "buyIn": "同意取得",
+    "cvSent": "CV送付",
+    "offer": "内定",
+    "placed": "成約",
+    "closedLost": "クローズ（失注）"
+  },
+  "errors": {
+    "generic": "エラーが発生しました。もう一度お試しください。",
+    "notFound": "見つかりませんでした。",
+    "loadFailed": "データを読み込めませんでした。",
+    "saveFailed": "保存できませんでした。もう一度お試しください。",
+    "aiError": "出力を生成できませんでした。もう一度お試しください。"
+  }
+}

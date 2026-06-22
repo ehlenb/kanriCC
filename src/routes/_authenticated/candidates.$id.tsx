@@ -1,6 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import type { TablesUpdate } from "@/integrations/supabase/types";
@@ -51,6 +52,7 @@ import {
   IconChevronDown,
   IconUpload,
   IconX,
+  IconTrash,
 } from "@tabler/icons-react";
 import { TranscriptPanel } from "@/components/candidate/TranscriptPanel";
 import { SubmissionPackagePanel } from "@/components/candidate/SubmissionPackagePanel";
@@ -100,6 +102,8 @@ type Candidate = {
   notes_closing: string | null;
   notes_internal: string | null;
   cv_url?: string | null;
+  cv_url_jp_shokumu?: string | null;
+  cv_url_jp_rireki?: string | null;
   registration_form_url: string | null;
   address: string | null;
   date_of_birth: string | null;
@@ -355,10 +359,23 @@ function useCandidateProfile(id: string) {
 // ─── component ───────────────────────────────────────────────────────────────
 
 function CandidateProfile() {
+  const { t } = useTranslation();
   const { id } = Route.useParams();
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const qc = useQueryClient();
   const { data, isLoading } = useCandidateProfile(id);
   const [page, setPage] = useState<"timeline" | "notes" | "processes" | "registration">("timeline");
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+
+  async function handleDeleteCandidate() {
+    setDeleteBusy(true);
+    await supabase.from("candidates").delete().eq("id", id);
+    qc.invalidateQueries({ queryKey: ["candidates"] });
+    toast.success("Candidate deleted.");
+    void navigate({ to: "/candidates", search: { name: "", company: "", status: "", japanese_level: "", english_level: "", source: "", last_touch: "" } });
+  }
 
   if (isLoading) {
     return (
@@ -399,6 +416,26 @@ function CandidateProfile() {
         style={{ borderLeft: `3px solid ${headerAccent}` }}
       >
         <div className="flex-1 min-w-0">
+          <Dialog open={deleteOpen} onOpenChange={(o) => !o && setDeleteOpen(false)}>
+            <DialogContent className="sm:max-w-sm">
+              <DialogHeader>
+                <DialogTitle>Delete candidate</DialogTitle>
+              </DialogHeader>
+              <p className="text-[13px]" style={{ color: "var(--color-ink-60)" }}>
+                Permanently delete <strong style={{ color: "var(--color-ink)" }}>{c.full_name}</strong>? This cannot be undone.
+              </p>
+              <DialogFooter>
+                <Button variant="ghost" onClick={() => setDeleteOpen(false)} disabled={deleteBusy}>Cancel</Button>
+                <Button
+                  disabled={deleteBusy}
+                  onClick={() => void handleDeleteCandidate()}
+                  style={{ background: "var(--color-danger)", color: "#fff", border: "none" }}
+                >
+                  {deleteBusy ? "Deleting…" : "Delete"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
           <div className="text-[18px] font-medium font-display leading-snug">
             {c.full_name_japanese
               ? <>{c.full_name_japanese} / {c.full_name}</>
@@ -429,6 +466,14 @@ function CandidateProfile() {
             </span>
           </div>
         </div>
+        <button
+          onClick={() => setDeleteOpen(true)}
+          className="shrink-0 p-1 mt-0.5"
+          style={{ color: "var(--color-ink-30)" }}
+          title="Delete candidate"
+        >
+          <IconTrash size={14} />
+        </button>
       </div>
 
       {/* Page tabs */}
@@ -438,10 +483,10 @@ function CandidateProfile() {
       >
         {(
           [
-            { key: "timeline",     label: "Timeline" },
-            { key: "notes",        label: "Candidate notes" },
-            { key: "processes",    label: "Candidate intelligence" },
-            { key: "registration", label: "Registration" },
+            { key: "timeline",     label: t('candidateDetail.tabs.timeline') },
+            { key: "notes",        label: t('candidateDetail.tabs.notes') },
+            { key: "processes",    label: t('candidateDetail.tabs.intelligence') },
+            { key: "registration", label: t('candidateDetail.tabs.registration') },
           ] as const
         ).map(({ key, label }) => (
           <button
@@ -498,6 +543,7 @@ function RegistrationPage({
   candidateId: string;
   candidate: Candidate;
 }) {
+  const { t } = useTranslation();
   const [cvExtracted, setCvExtracted] = useState<ExtractedCandidate | null>(null);
   const [regExtracted, setRegExtracted] = useState<ExtractedCandidate | null>(null);
   const [reviewOpen, setReviewOpen] = useState(false);
@@ -518,7 +564,7 @@ function RegistrationPage({
         onExtracted={(data) => handleExtracted("reg", data)}
       />
 
-      {/* CV Upload */}
+      {/* CV Upload — English CV, triggers AI extraction */}
       <CvUploadZone
         candidateId={candidateId}
         teamId={c.team_id}
@@ -526,22 +572,40 @@ function RegistrationPage({
         onExtracted={(data) => handleExtracted("cv", data)}
       />
 
+      {/* Japanese documents — storage only, no AI extraction */}
+      <JpDocumentUploadZone
+        candidateId={candidateId}
+        teamId={c.team_id}
+        fieldKey="cv_url_jp_shokumu"
+        label={t('candidateDetail.documents.shokumukeirekisho')}
+        sublabel={t('candidateDetail.documents.shokumukeirekishoLabel')}
+        fileUrl={c.cv_url_jp_shokumu}
+      />
+      <JpDocumentUploadZone
+        candidateId={candidateId}
+        teamId={c.team_id}
+        fieldKey="cv_url_jp_rireki"
+        label={t('candidateDetail.documents.rirekisho')}
+        sublabel={t('candidateDetail.documents.rirekishoLabel')}
+        fileUrl={c.cv_url_jp_rireki}
+      />
+
       {/* Auto-populated contact details */}
       <Card>
         <div className="flex items-center gap-1.5 mb-3">
-          <SectionLabel className="mb-0">Candidate details</SectionLabel>
+          <SectionLabel className="mb-0">{t('candidateDetail.sections.candidateDetails')}</SectionLabel>
           <span className="text-[11px] px-1.5 py-0.5 " style={{ background: "var(--color-indigo-light)", color: "var(--color-indigo)" }}>
             auto-populated from form
           </span>
         </div>
         <div className="space-y-1">
-          <RegistrationField label="Full name (English)" fieldKey="full_name" value={c.full_name} candidateId={candidateId} />
-          <RegistrationField label="Full name (Japanese)" fieldKey="full_name_japanese" value={c.full_name_japanese} candidateId={candidateId} />
+          <RegistrationField label={t('candidateDetail.fields.fullName')} fieldKey="full_name" value={c.full_name} candidateId={candidateId} />
+          <RegistrationField label={t('candidateDetail.fields.fullNameJapanese')} fieldKey="full_name_japanese" value={c.full_name_japanese} candidateId={candidateId} />
           <DobField candidateId={candidateId} dateOfBirth={c.date_of_birth} age={c.age} />
-          <RegistrationField label="Email" fieldKey="email" value={c.email} candidateId={candidateId} inputType="email" placeholder="name@example.com" />
-          <RegistrationField label="Phone" fieldKey="phone" value={c.phone} candidateId={candidateId} placeholder="+81 3 0000 0000" />
-          <RegistrationField label="Address" fieldKey="address" value={c.address} candidateId={candidateId} placeholder="Tokyo, Minato-ku" />
-          <RegistrationField label="LinkedIn" fieldKey="linkedin_url" value={c.linkedin_url} candidateId={candidateId} placeholder="https://linkedin.com/in/…" />
+          <RegistrationField label={t('candidateDetail.fields.email')} fieldKey="email" value={c.email} candidateId={candidateId} inputType="email" placeholder="name@example.com" />
+          <RegistrationField label={t('candidateDetail.fields.phone')} fieldKey="phone" value={c.phone} candidateId={candidateId} placeholder="+81 3 0000 0000" />
+          <RegistrationField label={t('candidateDetail.fields.address')} fieldKey="address" value={c.address} candidateId={candidateId} placeholder="Tokyo, Minato-ku" />
+          <RegistrationField label={t('candidateDetail.fields.linkedin')} fieldKey="linkedin_url" value={c.linkedin_url} candidateId={candidateId} placeholder="https://linkedin.com/in/…" />
         </div>
         <p className="mt-3 text-[11px] flex items-center gap-1" style={{ color: "var(--color-ink-30)" }}>
           <IconInfoCircle size={12} />
@@ -656,6 +720,7 @@ function DobField({
   dateOfBirth: string | null;
   age: number | null;
 }) {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(dateOfBirth ?? "");
@@ -678,7 +743,7 @@ function DobField({
   if (editing) {
     return (
       <div className="flex items-center gap-3 py-1">
-        <span className="text-[12px] w-[150px] shrink-0" style={{ color: "var(--color-ink-30)" }}>Date of birth</span>
+        <span className="text-[12px] w-[150px] shrink-0" style={{ color: "var(--color-ink-30)" }}>{t('candidateDetail.fields.dateOfBirth')}</span>
         <Input
           type="date"
           value={draft}
@@ -700,7 +765,7 @@ function DobField({
       className="flex items-center gap-3 py-1  cursor-pointer group"
       onClick={() => { setDraft(dateOfBirth ?? ""); setEditing(true); }}
     >
-      <span className="text-[12px] w-[150px] shrink-0" style={{ color: "var(--color-ink-30)" }}>Date of birth</span>
+      <span className="text-[12px] w-[150px] shrink-0" style={{ color: "var(--color-ink-30)" }}>{t('candidateDetail.fields.dateOfBirth')}</span>
       <span
         className="text-[13px] flex-1 px-1.5 py-0.5  group-hover:bg-[#f5f5f3] transition-colors"
         style={{ color: displayDob ? "var(--color-ink)" : "var(--color-ink-30)" }}
@@ -1257,6 +1322,7 @@ function NotesTab({
   candidateId: string;
   candidate: Candidate;
 }) {
+  const { t } = useTranslation();
   const qc = useQueryClient();
 
   type CandNotesPatch = Partial<Pick<Candidate,
@@ -1316,7 +1382,7 @@ function NotesTab({
 
       {/* Current Employment */}
       <Card>
-        <SectionLabel>Current employment</SectionLabel>
+        <SectionLabel>{t('candidateDetail.sections.currentEmployment')}</SectionLabel>
         <NoteField
           label="Company"
           value={c.current_company}
@@ -1363,7 +1429,7 @@ function NotesTab({
 
       {/* Notice Period & Urgency */}
       <Card>
-        <SectionLabel>Notice period &amp; urgency</SectionLabel>
+        <SectionLabel>{t('candidateDetail.sections.noticeAndUrgency')}</SectionLabel>
         <NoticeUrgencyFields
           noticePeriod={c.notice_period_months}
           activePassive={c.active_passive}
@@ -1374,7 +1440,7 @@ function NotesTab({
 
       {/* Language Assessment */}
       <Card>
-        <SectionLabel>Language assessment</SectionLabel>
+        <SectionLabel>{t('candidateDetail.sections.languageAssessment')}</SectionLabel>
         <LanguageFields
           japanese={c.japanese_level}
           english={c.english_level}
@@ -1385,7 +1451,7 @@ function NotesTab({
 
       {/* Compensation */}
       <Card>
-        <SectionLabel>Compensation</SectionLabel>
+        <SectionLabel>{t('candidateDetail.sections.compensation')}</SectionLabel>
         <NoteCompensationFields
           candidate={c}
           onSave={(field, value) => void saveField(field, value)}
@@ -1394,7 +1460,7 @@ function NotesTab({
 
       {/* Recruiter Assessment */}
       <Card>
-        <SectionLabel>Recruiter assessment</SectionLabel>
+        <SectionLabel>{t('candidateDetail.sections.recruiterAssessment')}</SectionLabel>
         <NoteField
           label="Presentation &amp; communication"
           value={c.notes_presentation}
@@ -1416,6 +1482,7 @@ function InterviewNotesCard({
   value: string | null | undefined;
   onSave: (v: string | null) => void;
 }) {
+  const { t } = useTranslation();
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [aiResult, setAiResult] = useState<string | null>(null);
@@ -1478,7 +1545,7 @@ function InterviewNotesCard({
   return (
     <Card>
       <div className="flex items-center justify-between mb-2">
-        <SectionLabel>Interview notes</SectionLabel>
+        <SectionLabel>{t('candidateDetail.sections.interviewNotes')}</SectionLabel>
         <button
           className="ab flex items-center gap-1"
           onClick={() => fileRef.current?.click()}
@@ -2736,6 +2803,7 @@ function InterviewPanel({
   blockers: Blocker[];
   recruiterId: string;
 }) {
+  const { t } = useTranslation();
   const [loadingBriefing, setLoadingBriefing] = useState(false);
   const [briefing, setBriefing] = useState<string | null>(null);
   const [loadingPositioning, setLoadingPositioning] = useState(false);
@@ -3028,7 +3096,7 @@ function InterviewPanel({
       )}
 
       {/* Positioning talking points — NFAR blocks */}
-      <SectionLabel>Positioning talking points</SectionLabel>
+      <SectionLabel>{t('candidateDetail.intelligence.positioningPoints')}</SectionLabel>
       {(() => {
         const pts = parsePositioningPoints(positioning);
         if (pts) {
@@ -3755,6 +3823,7 @@ function CandidateTimelineTab({
   recruiterId: string;
   interactions: CandidateInteraction[];
 }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [showLogActivity, setShowLogActivity] = useState(false);
   const [showTranscript, setShowTranscript] = useState(false);
@@ -3776,14 +3845,14 @@ function CandidateTimelineTab({
             onClick={() => setShowLogActivity(true)}
           >
             <IconPlus size={12} />
-            Log activity
+            {t('candidateDetail.actions.logActivity')}
           </button>
           <button
             className="ab flex items-center gap-1"
             onClick={() => { setShowTranscript((v) => !v); }}
           >
             <IconMessage size={12} />
-            {showTranscript ? "Hide transcript" : "Paste transcript"}
+            {showTranscript ? "Hide transcript" : t('candidateDetail.actions.pasteTranscript')}
           </button>
         </div>
       </div>
@@ -4716,6 +4785,7 @@ function CandidateProfileSection({
   roles: Role[];
   competing: CompetingInterview[];
 }) {
+  const { t } = useTranslation();
   type DialogType = "motivation" | "role" | "blocker" | "competing" | "compensation";
   const [openDialog, setOpenDialog] = useState<DialogType | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -4780,9 +4850,9 @@ function CandidateProfileSection({
           {/* Job history */}
           <Card>
             <div className="flex items-center justify-between mb-2">
-              <SectionLabel className="mb-0">Job history</SectionLabel>
+              <SectionLabel className="mb-0">{t('candidateDetail.sections.jobHistory')}</SectionLabel>
               <button className="ab" onClick={() => setOpenDialog("role")}>
-                <IconPlus size={11} /> Add role
+                <IconPlus size={11} /> {t('candidateDetail.actions.addRole')}
               </button>
             </div>
             {roles.length === 0 ? (
@@ -4799,18 +4869,18 @@ function CandidateProfileSection({
           {/* Motivations */}
           <Card>
             <div className="flex items-center justify-between mb-2">
-              <SectionLabel className="mb-0">Top 3 motivations — candidate-ranked</SectionLabel>
+              <SectionLabel className="mb-0">{t('candidateDetail.sections.motivations')}</SectionLabel>
               <button
                 className="ab"
                 onClick={() => setOpenDialog("motivation")}
                 disabled={motivations.length >= 3}
                 title={motivations.length >= 3 ? "All 3 ranks are filled" : undefined}
               >
-                <IconPlus size={11} /> Add
+                <IconPlus size={11} /> {t('candidateDetail.actions.addMotivation')}
               </button>
             </div>
             {motivations.length === 0 ? (
-              <p className="text-[13px]" style={{ color: "var(--color-ink-30)" }}>No motivations recorded yet.</p>
+              <p className="text-[13px]" style={{ color: "var(--color-ink-30)" }}>{t('candidateDetail.motivations.noMotivations')}</p>
             ) : (
               motivations.map((m) => (
                 <div
@@ -4844,9 +4914,9 @@ function CandidateProfileSection({
           {/* Blockers */}
           <Card>
             <div className="flex items-center justify-between mb-2">
-              <SectionLabel className="mb-0">Personal blockers &amp; context</SectionLabel>
+              <SectionLabel className="mb-0">{t('candidateDetail.sections.blockers')}</SectionLabel>
               <button className="ab" onClick={() => setOpenDialog("blocker")}>
-                <IconPlus size={11} /> Add
+                <IconPlus size={11} /> {t('candidateDetail.actions.addBlocker')}
               </button>
             </div>
             {blockers.length === 0 ? (
@@ -4872,7 +4942,7 @@ function CandidateProfileSection({
           {/* Competing interviews */}
           <Card>
             <div className="flex items-center justify-between mb-2">
-              <SectionLabel className="mb-0">Competing interviews &amp; applications — at registration</SectionLabel>
+              <SectionLabel className="mb-0">{t('candidateDetail.sections.competingInterviews')}</SectionLabel>
               <button className="ab" onClick={() => setOpenDialog("competing")}>
                 <IconPlus size={11} /> Add
               </button>
@@ -4951,10 +5021,11 @@ function CompensationCard({
   onSyncFromNotes?: () => void;
   syncing?: boolean;
 }) {
+  const { t } = useTranslation();
   return (
     <Card>
       <div className="flex items-center justify-between mb-2">
-        <SectionLabel className="mb-0">Compensation</SectionLabel>
+        <SectionLabel className="mb-0">{t('candidateDetail.sections.compensation')}</SectionLabel>
         <div className="flex items-center gap-2">
           {onSyncFromNotes && c.notes_template && (
             <button
@@ -4964,11 +5035,11 @@ function CompensationCard({
               title="Extract salary from candidate notes"
             >
               <IconSparkles size={11} />
-              {syncing ? "Syncing…" : "Sync from notes"}
+              {syncing ? "Syncing…" : t('candidateDetail.actions.syncFromNotes')}
             </button>
           )}
           <button className="ab flex items-center gap-1" onClick={onEdit}>
-            <IconPencil size={11} /> Edit
+            <IconPencil size={11} /> {t('candidateDetail.actions.editComp')}
           </button>
         </div>
       </div>
@@ -4997,6 +5068,7 @@ function EditCompensationDialog({
   open: boolean;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   // Inputs use ¥M notation; DB stores raw yen (×1,000,000)
   const toM = (v: number | null) => (v != null ? String(v / 1_000_000) : "");
@@ -5078,6 +5150,127 @@ function EditCompensationDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ─── Japanese document upload zone (storage only, no AI extraction) ───────────
+
+function JpDocumentUploadZone({
+  candidateId,
+  teamId,
+  fieldKey,
+  label,
+  sublabel,
+  fileUrl,
+}: {
+  candidateId: string;
+  teamId: string;
+  fieldKey: "cv_url_jp_shokumu" | "cv_url_jp_rireki";
+  label: string;
+  sublabel: string;
+  fileUrl: string | null | undefined;
+}) {
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const [uploading, setUploading] = useState(false);
+  const [fetchingUrl, setFetchingUrl] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  async function handleFile(file: File) {
+    if (file.type !== "application/pdf") { toast.error("PDF files only."); return; }
+    setUploading(true);
+    try {
+      const path = `${teamId}/${candidateId}/${Date.now()}_${file.name.replace(/\s+/g, "_")}`;
+      const { error: uploadErr } = await supabase.storage.from("resumes").upload(path, file);
+      if (uploadErr) { toast.error(`Upload failed: ${uploadErr.message}`); return; }
+      await supabase.from("candidates").update({ [fieldKey]: path }).eq("id", candidateId);
+      void qc.invalidateQueries({ queryKey: ["candidate-profile", candidateId] });
+      toast.success(`${label} uploaded.`);
+    } catch {
+      toast.error("Upload failed.");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function handleView() {
+    if (!fileUrl) return;
+    setFetchingUrl(true);
+    try {
+      const { data } = await supabase.storage.from("resumes").createSignedUrl(fileUrl, 3600);
+      if (data?.signedUrl) window.open(data.signedUrl, "_blank");
+      else toast.error("Could not generate preview link.");
+    } catch {
+      toast.error("Could not generate preview link.");
+    } finally {
+      setFetchingUrl(false);
+    }
+  }
+
+  async function handleRemove() {
+    await supabase.from("candidates").update({ [fieldKey]: null }).eq("id", candidateId);
+    void qc.invalidateQueries({ queryKey: ["candidate-profile", candidateId] });
+    toast.success(`${label} removed.`);
+  }
+
+  const fileName = fileUrl ? fileUrl.split("/").pop() : null;
+
+  return (
+    <Card>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[13px] font-medium">{label}</p>
+          <p className="text-[11px]" style={{ color: "var(--color-ink-60)" }}>{sublabel}</p>
+          {fileUrl && fileName && (
+            <p className="mt-1 text-[11px] font-mono truncate" style={{ color: "var(--color-moss)" }}>
+              {decodeURIComponent(fileName.replace(/^\d+_/, ""))}
+            </p>
+          )}
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          {fileUrl ? (
+            <>
+              <button
+                className="ab"
+                onClick={handleView}
+                disabled={fetchingUrl}
+              >
+                {fetchingUrl ? "Opening…" : t('common.view')}
+              </button>
+              <button
+                className="ab"
+                onClick={() => inputRef.current?.click()}
+                disabled={uploading}
+              >
+                {uploading ? "Uploading…" : t('candidateDetail.documents.replaceDocument')}
+              </button>
+              <button
+                className="text-[11px] px-2 py-1"
+                style={{ color: "#a32d2d", border: "0.5px solid rgba(163,45,45,0.3)" }}
+                onClick={handleRemove}
+              >
+                {t('common.remove')}
+              </button>
+            </>
+          ) : (
+            <button
+              className="ab"
+              onClick={() => inputRef.current?.click()}
+              disabled={uploading}
+            >
+              {uploading ? "Uploading…" : t('common.upload')}
+            </button>
+          )}
+        </div>
+      </div>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="application/pdf"
+        className="hidden"
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) void handleFile(f); e.target.value = ""; }}
+      />
+    </Card>
   );
 }
 

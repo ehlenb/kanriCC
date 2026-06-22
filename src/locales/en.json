@@ -1,0 +1,630 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "candidates": "Candidates",
+    "clients": "Clients",
+    "jobs": "Jobs",
+    "advancedSearch": "Advanced Search",
+    "signOut": "Sign out"
+  },
+  "lang": {
+    "toggle": "日本語",
+    "en": "EN",
+    "ja": "JP"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "close": "Close",
+    "back": "Back",
+    "loading": "Loading…",
+    "saving": "Saving…",
+    "noData": "—",
+    "notFound": "Not found.",
+    "generate": "Generate",
+    "generating": "Generating…",
+    "regenerate": "Regenerate",
+    "copy": "Copy",
+    "copied": "Copied",
+    "upload": "Upload",
+    "uploading": "Uploading…",
+    "remove": "Remove",
+    "replace": "Replace",
+    "view": "View",
+    "done": "Done",
+    "confirm": "Confirm",
+    "tryAgain": "Try again",
+    "optional": "optional",
+    "required": "required",
+    "new": "New",
+    "open": "Open",
+    "closed": "Closed",
+    "search": "Search",
+    "filter": "Filter",
+    "clear": "Clear",
+    "select": "Select",
+    "none": "None",
+    "all": "All",
+    "yes": "Yes",
+    "no": "No",
+    "days": "days",
+    "months": "months",
+    "ago": "ago",
+    "today": "Today",
+    "undo": "Undo",
+    "restore": "Restore",
+    "snooze": "Snooze",
+    "dismiss": "Dismiss",
+    "expand": "Expand",
+    "collapse": "Collapse",
+    "show": "Show",
+    "hide": "Hide",
+    "active": "Active",
+    "passive": "Passive",
+    "unknown": "Unknown"
+  },
+  "dashboard": {
+    "title": "Good morning",
+    "subtitle": "Here's what needs your attention today.",
+    "weekResets": "Week resets every Sunday",
+    "priorityActions": "Priority actions",
+    "noPriorityActions": "Nothing urgent today.",
+    "noPriorityActionsHint": "Check back after logging some activity.",
+    "restoreDismissed": "Restore {{count}} dismissed",
+    "snoozedUntil": "Snoozed until {{date}}",
+    "markDone": "Mark done",
+    "aiBreif": "AI brief",
+    "pipeline": "Pipeline",
+    "pipelineRevenue": "Pipeline revenue",
+    "pipelineRevenueShow": "Pipeline revenue — show",
+    "activePipeline": "Active pipeline",
+    "needsAction": "Needs action",
+    "likelyToPlace": "Likely to place",
+    "totalPotentialFees": "Total potential fees",
+    "flaggedInQueue": "Flagged in priority queue",
+    "atOfferStage": "At Offer stage",
+    "hide": "hide",
+    "metrics": {
+      "specsOut": "Job Specs Sent",
+      "cvsSent": "CVs Sent",
+      "interviewing": "Interviewing",
+      "offers": "Offers",
+      "placed": "Placed",
+      "thisWeek": "this week",
+      "activeNow": "active now"
+    },
+    "period": {
+      "week": "This Week",
+      "30d": "Last 30 Days",
+      "month": "This Month",
+      "quarter": "This Quarter",
+      "all": "All Time",
+      "filterBy": "Filter by period"
+    },
+    "toast": {
+      "markedDone": "Marked done for today",
+      "snoozedTomorrow": "Snoozed until tomorrow",
+      "undo": "Undo"
+    },
+    "brief": {
+      "checkinMsg": "Check-in message",
+      "clientChase": "Client chase brief",
+      "competingRisk": "Competing risk",
+      "aiInsights": "AI insights",
+      "whatNext": "What happened next?",
+      "outcomePass": "Positive feedback",
+      "outcomeReject": "Candidate rejected",
+      "outcomeNoResponse": "Client not responding",
+      "nextStep": "Next step",
+      "generating": "Generating…",
+      "formatEmail": "Email",
+      "formatLinkedin": "LinkedIn",
+      "formatShortMsg": "Short msg",
+      "snoozeTooltip": "Snooze until tomorrow"
+    },
+    "rules": {
+      "offer": {
+        "reason": "Offer out at {{client}}{{lastContact}}.",
+        "lastContactSuffix": " — last contact {{days}}d ago",
+        "action": "Confirm acceptance timeline and manage the close with {{name}}."
+      },
+      "competing": {
+        "reason": "Competing at {{companies}} — {{urgency}}.",
+        "critical": "critical offer risk",
+        "high": "high risk",
+        "action": "Call {{name}} to assess motivation and defend your process at {{client}}."
+      },
+      "ccmFeedback": {
+        "reason": "CCM{{num}} with {{client}} — feedback pending {{days}}d.",
+        "action": "Chase {{client}} for CCM{{num}} feedback on {{name}}."
+      },
+      "cvSent": {
+        "reason": "CV sent to {{client}} {{days}} business days ago — no feedback recorded.",
+        "action": "Chase {{client}} for CV feedback on {{name}}."
+      },
+      "buyIn": {
+        "reason": "Buy-in pending — no follow-up in {{days}}d.",
+        "action": "Confirm {{name}}'s buy-in status before submitting CV."
+      },
+      "cold": {
+        "reason": "No contact in {{days}}d — process at {{client}} may be going cold.",
+        "action": "Re-engage {{name}} to confirm they are still active."
+      }
+    },
+    "detail": {
+      "noSpecs": "No job specs sent in this period.",
+      "noEntries": "No entries for this period.",
+      "noInterviews": "No active interviews.",
+      "noPlacements": "No placements in this period.",
+      "cols": {
+        "candidate": "Candidate",
+        "client": "Client",
+        "summary": "Summary",
+        "date": "Date",
+        "company": "Company",
+        "role": "Role",
+        "fee": "Fee",
+        "cvSent": "CV Sent",
+        "offerDate": "Offer Date"
+      },
+      "showLess": "Show less",
+      "showMore": "Show {{count}} more"
+    }
+  },
+  "candidates": {
+    "title": "Candidates",
+    "addCandidate": "Add candidate",
+    "searchPlaceholder": "Search candidates…",
+    "noResults": "No candidates match your filters.",
+    "noResultsEmpty": "No candidates yet — add your first candidate to get started.",
+    "noResultsHint": "Try adjusting your search or filters.",
+    "companyPlaceholder": "Company…",
+    "clearFilters": "Clear filters",
+    "advancedSearch": "Advanced Search",
+    "count_one": "{{count}} person",
+    "count_other": "{{count}} people",
+    "filters": {
+      "status": "Status",
+      "japaneseLevel": "Japanese level",
+      "englishLevel": "English level",
+      "japaneseLabel": "Japanese",
+      "englishLabel": "English",
+      "source": "Source",
+      "stage": "Stage",
+      "lastTouch": "Last touch"
+    },
+    "status": {
+      "active": "Active",
+      "passive": "Passive",
+      "placed": "Placed"
+    },
+    "source": {
+      "linkedin": "LinkedIn",
+      "bizreach": "BizReach",
+      "doda": "Doda",
+      "referral": "Referral",
+      "inbound": "Inbound",
+      "other": "Other"
+    },
+    "lastTouch": {
+      "fresh": "Fresh",
+      "warm": "Warm",
+      "cool": "Cool",
+      "cold": "Cold",
+      "2w": "Within 2 weeks",
+      "1m": "Within 1 month",
+      "1_3m": "1–3 months ago",
+      "3mPlus": "3+ months ago"
+    },
+    "addForm": {
+      "fullName": "Full name (romaji)",
+      "fullNameJapanese": "Full name (Japanese)",
+      "currentTitle": "Current title",
+      "currentCompany": "Current company",
+      "japaneseLevel": "Japanese level",
+      "englishLevel": "English level",
+      "selectLevel": "Select level",
+      "source": "Source",
+      "selectSource": "Select source"
+    }
+  },
+  "candidateDetail": {
+    "tabs": {
+      "timeline": "Timeline",
+      "notes": "Candidate notes",
+      "intelligence": "Candidate intelligence",
+      "registration": "Registration"
+    },
+    "sections": {
+      "currentEmployment": "Current employment",
+      "interviewNotes": "Interview notes",
+      "noticeAndUrgency": "Notice period & urgency",
+      "languageAssessment": "Language assessment",
+      "compensation": "Compensation",
+      "recruiterAssessment": "Recruiter assessment",
+      "jobHistory": "Job history",
+      "motivations": "Motivations",
+      "blockers": "Blockers",
+      "competingInterviews": "Competing interviews",
+      "documents": "Documents",
+      "candidateDetails": "Candidate details"
+    },
+    "fields": {
+      "fullName": "Full name",
+      "fullNameJapanese": "Full name (Japanese)",
+      "dateOfBirth": "Date of birth",
+      "age": "Age",
+      "email": "Email",
+      "phone": "Phone",
+      "address": "Address",
+      "linkedin": "LinkedIn",
+      "currentCompany": "Current company",
+      "currentTitle": "Current title",
+      "japaneseLevel": "Japanese level",
+      "englishLevel": "English level",
+      "noticePeriod": "Notice period",
+      "months": "months",
+      "urgency": "Urgency",
+      "activePassive": "Active / Passive",
+      "currentBase": "Current base",
+      "currentBonus": "Current bonus",
+      "currentTotal": "Current total",
+      "expectedMin": "Expected min",
+      "expectedMax": "Expected max",
+      "basePriority": "Base is priority",
+      "baseMinimum": "Base minimum",
+      "compNotes": "Compensation notes",
+      "source": "Source"
+    },
+    "actions": {
+      "logActivity": "Log activity",
+      "pasteTranscript": "Paste transcript",
+      "generateBrief": "Generate brief",
+      "editComp": "Edit compensation",
+      "syncFromNotes": "Sync from notes",
+      "uploadCv": "Upload CV",
+      "uploadRegistration": "Upload registration form",
+      "extractFields": "Extract fields",
+      "addMotivation": "Add motivation",
+      "addBlocker": "Add blocker",
+      "addRole": "Add role"
+    },
+    "documents": {
+      "englishCv": "English CV",
+      "shokumukeirekisho": "職務経歴書",
+      "shokumukeirekishoLabel": "Work history document",
+      "rirekisho": "履歴書",
+      "rirekishoLabel": "Formal resume",
+      "registrationForm": "Registration form",
+      "uploadOrDrop": "Upload or drop file",
+      "viewDocument": "View document",
+      "replaceDocument": "Replace"
+    },
+    "stages": {
+      "specsSent": "Specs Sent",
+      "buyIn": "Buy-In",
+      "cvSent": "CV Sent",
+      "offer": "Offer",
+      "placed": "Placed",
+      "closedLost": "Closed lost"
+    },
+    "intelligence": {
+      "positioningPoints": "Positioning points",
+      "generatePositioning": "Generate positioning",
+      "preCallBrief": "Pre-call brief",
+      "closingScript": "Closing script",
+      "submissionNote": "Submission note",
+      "rejectionEmail": "Rejection email",
+      "interviewPrep": "Interview prep",
+      "noProcesses": "No active processes for this candidate.",
+      "coverageOwn": "Own",
+      "coverageColleague": "Colleague",
+      "coverageUncovered": "Uncovered"
+    },
+    "timeline": {
+      "loggedBy": "Logged by",
+      "upcoming": "Upcoming",
+      "past": "Past",
+      "noActivity": "No activity logged yet.",
+      "noActivityHint": "Log a call, email, or meeting to start the timeline."
+    },
+    "motivations": {
+      "rank": "Rank {{n}}",
+      "noMotivations": "No motivations recorded.",
+      "addFirst": "Add the candidate's top reasons for considering a move."
+    },
+    "blockers": {
+      "activeRisk": "Active risk",
+      "context": "Context",
+      "noBlockers": "No blockers recorded."
+    },
+    "competing": {
+      "noCompeting": "No competing interviews recorded."
+    }
+  },
+  "clients": {
+    "title": "Clients",
+    "addClient": "Add client",
+    "searchPlaceholder": "Search clients…",
+    "noResults": "No clients found.",
+    "tabs": {
+      "timeline": "Timeline",
+      "clientInfo": "Client info",
+      "contacts": "Contacts",
+      "jobs": "Jobs",
+      "contract": "Contract"
+    },
+    "sections": {
+      "companyInfo": "Company info",
+      "japanMarketContext": "Japan market context",
+      "strategyNotes": "Strategy notes",
+      "accountIntelligence": "Account intelligence",
+      "recommendedActions": "Recommended actions",
+      "quickActions": "Quick actions",
+      "openJobs": "Open jobs",
+      "closedJobs": "Closed jobs",
+      "contacts": "Contacts"
+    },
+    "fields": {
+      "companyName": "Company name",
+      "industry": "Industry",
+      "hqCountry": "HQ country",
+      "kkEntity": "KK entity",
+      "japanTeamSize": "Japan team size",
+      "japanRoleInGroup": "Japan role in group",
+      "yearsInJapan": "Years in Japan",
+      "clientSince": "Client since",
+      "feePct": "Fee %",
+      "contractSigned": "Contract signed"
+    },
+    "actions": {
+      "addContact": "Add contact",
+      "logActivity": "Log activity",
+      "enrichClient": "Enrich client",
+      "generateSnapshot": "Generate snapshot",
+      "meetingPrep": "Meeting prep",
+      "uploadContract": "Upload contract",
+      "addJob": "Add job",
+      "findMatches": "Find matches",
+      "saveSpecList": "Save spec list",
+      "viewSpecList": "View spec list"
+    },
+    "contacts": {
+      "noContacts": "No contacts added yet.",
+      "roles": {
+        "hiring_manager": "Hiring manager",
+        "hr_gatekeeper": "HR gatekeeper",
+        "ta_coordinator": "TA coordinator",
+        "executive": "Executive",
+        "other": "Other"
+      }
+    },
+    "jobs": {
+      "noOpenJobs": "No open jobs.",
+      "noOpenJobsHint": "Upload a job description or fill in the form to add one.",
+      "noClosedJobs": "No closed jobs.",
+      "addJob": "Add job",
+      "saveJob": "Save job",
+      "jobTitle": "Job title",
+      "salaryRange": "Salary range",
+      "location": "Location",
+      "hiringManager": "Hiring manager",
+      "targetClose": "Target close date",
+      "strategicContext": "Strategic context",
+      "recruiterNotes": "Recruiter notes",
+      "uploadJd": "Upload job description",
+      "extracting": "Extracting…",
+      "pipeline": "pipeline",
+      "inInterview": "in interview",
+      "atOffer": "at offer",
+      "cvSent": "CV sent",
+      "buyInSecured": "buy-in secured",
+      "noPipeline": "No pipeline",
+      "backfill": "Backfill",
+      "netNew": "Net-new",
+      "rejections": "rejections"
+    },
+    "contract": {
+      "noContract": "No contract uploaded.",
+      "uploadContract": "Upload contract",
+      "contractFile": "Contract file",
+      "viewContract": "View contract",
+      "removeContract": "Remove contract"
+    },
+    "breadcrumb": "Accounts",
+    "inactive": "Inactive",
+    "snapshot": {
+      "title": "Client snapshot",
+      "aiGenerated": "✦ AI generated",
+      "generateBtn": "Generate snapshot",
+      "refreshBtn": "Refresh",
+      "placeholder": "Generate a snapshot to see where things stand, who is active, and what to watch for today.",
+      "whereThingsStand": "Where things stand",
+      "activeInProcess": "Active in process",
+      "watchOut": "Watch out",
+      "noCandidates": "No active candidates with this client."
+    },
+    "activity": "ACTIVITY",
+    "recommendations": {
+      "noItems": "No action items right now. Good work.",
+      "cvFeedback": {
+        "title": "Awaiting client feedback on CV",
+        "body": "{{name}} submitted for {{role}} — {{days}} days with no response.",
+        "cta": "Draft follow-up ↗"
+      },
+      "interviewFeedback": {
+        "title": "Post-interview feedback outstanding",
+        "body": "{{name}} completed {{stage}} for {{role}}. Request feedback before the candidate cools.",
+        "cta": "Draft follow-up ↗"
+      },
+      "offerNoUpdate": {
+        "title": "Offer stage — no update",
+        "body": "{{name}} has been at offer for {{role}} for {{days}} days without a logged update.",
+        "cta": "Closing script ↗"
+      },
+      "submitFirst": {
+        "title": "Submit before another firm does",
+        "body": "{{name}} has given buy-in for {{role}}. Draft the report now.",
+        "cta": "Draft report ↗"
+      },
+      "noPipeline": {
+        "title": "No pipeline for open role",
+        "body": "{{role}} has no active candidates. Source before the client asks for an update.",
+        "cta": "Source more ↗"
+      },
+      "thinPipeline": {
+        "title": "Thin pipeline",
+        "body_one": "{{role}} has only {{count}} candidate in the pipeline. Add more to reduce single-candidate risk.",
+        "body_other": "{{role}} has only {{count}} candidates in the pipeline. Add more to reduce single-candidate risk.",
+        "cta": "View req ↗"
+      },
+      "interviewPrep": {
+        "title": "Interview approaching — prep candidate",
+        "body": "{{name}} recently moved to {{stage}} for {{role}}. Send prep notes before they walk in.",
+        "cta": "Draft prep ↗"
+      },
+      "nextRound": {
+        "title": "Next round not scheduled",
+        "body": "{{name}} has been at {{stage}} for {{role}} for {{days}} days without a next-round date logged.",
+        "cta": "Draft scheduling message ↗"
+      },
+      "preClose": {
+        "title": "Pre-close not yet logged",
+        "body": "{{name}} just reached offer stage for {{role}}. Log a pre-close conversation before the client makes direct contact.",
+        "cta": "Closing script ↗"
+      },
+      "hrNeverMet": {
+        "title": "HR contact — no in-person meeting logged",
+        "body": "You have not met {{name}} in person. A brief intro call now makes offers much easier when things get complicated.",
+        "cta": "Schedule intro"
+      },
+      "hmNudge": {
+        "title": "Strengthen HM relationship",
+        "body": "Your relationship with {{name}} is thin. A lunch or informal coffee helps when deals get complicated.",
+        "cta": "Prep meeting ↗"
+      },
+      "noContact": {
+        "title": "Check in — relationship maintenance",
+        "body": "No logged contact with this client in {{days}} days. A quick touchpoint keeps the relationship active.",
+        "cta": "Log call"
+      },
+      "firstContact": {
+        "title": "No interactions logged yet",
+        "body": "Log your first interaction with this client to start tracking the relationship.",
+        "cta": "Log call"
+      },
+      "candidate": "Candidate"
+    },
+    "quickActions": {
+      "prepMeeting": "Prep for client meeting ↗",
+      "logEvent": "Log event",
+      "sourceMore": "Source more ↗"
+    }
+  },
+  "jobs": {
+    "title": "Jobs",
+    "openRoles": "Open roles",
+    "noOpenRoles": "No open roles.",
+    "pipeline": "Pipeline",
+    "revenue": "Revenue forecast",
+    "urgency": {
+      "critical": "Critical",
+      "high": "High",
+      "normal": "Normal",
+      "low": "Low"
+    },
+    "detail": {
+      "matchCandidates": "Match candidates",
+      "hideMatches": "Hide matches",
+      "salaryRange": "Salary range",
+      "interviewProcess": "Interview process",
+      "rounds": "rounds",
+      "round": "round",
+      "conditions": "Conditions",
+      "mustHave": "Must-have",
+      "niceToHave": "Nice-to-have",
+      "addCondition": "Add condition",
+      "strategicContext": "Strategic context",
+      "runDiagnosis": "Run diagnosis",
+      "analysing": "Analysing…",
+      "rejectionsBanner": "{{count}} confirmed rejections on this role",
+      "rejectionsBannerHint": "Run a diagnosis to see whether this is an off-spec sourcing issue or a client expectation gap.",
+      "offSpec": "Off-spec sourcing",
+      "expectationGap": "Client expectation gap",
+      "nextStep": "Next step",
+      "conversationGuide": "Conversation guide",
+      "dataDriven": "Data-driven",
+      "relationshipFirst": "Relationship-first"
+    }
+  },
+  "advancedSearch": {
+    "title": "Advanced search",
+    "searchFor": "Search for candidates matching this role",
+    "threshold": "Match threshold",
+    "useKeyCriteria": "Use key criteria only",
+    "runSearch": "Run search",
+    "searching": "Searching…",
+    "noResults": "No matches found.",
+    "score": "Score",
+    "salaryStretch": "Salary stretch",
+    "callFirst": "Call first",
+    "draftMessage": "Draft message",
+    "saveList": "Save as spec list"
+  },
+  "activity": {
+    "types": {
+      "call": "Call",
+      "candidateCall": "Candidate Call",
+      "clientCall": "Client Call",
+      "email": "Email",
+      "meeting": "Meeting",
+      "candidateMeeting": "Candidate Meeting",
+      "clientMeeting": "Client Meeting",
+      "note": "Note",
+      "job_spec_sent": "Job spec sent",
+      "jobSpecSent": "Job spec sent",
+      "linkedin_message": "LinkedIn message",
+      "linkedinMessage": "LinkedIn message",
+      "other": "Other",
+      "interview_scheduled": "Interview scheduled"
+    },
+    "timeline": {
+      "withContact": "with {{name}}",
+      "candidateChip": "candidate: {{name}}",
+      "candidateSideCall": "candidate-side call",
+      "clientSideCall": "client-side call",
+      "noNotes": "No notes recorded.",
+      "addToStrategyNotes": "Add to strategy notes",
+      "loggedBy": "Logged by {{name}}"
+    },
+    "logActivity": "Log activity",
+    "logCall": "Log call",
+    "logEmail": "Log email",
+    "logMeeting": "Log meeting",
+    "date": "Date",
+    "summary": "Summary",
+    "notes": "Notes",
+    "linkedJob": "Linked job",
+    "linkedCandidate": "Linked candidate",
+    "linkedContact": "Linked contact",
+    "primaryParty": "Spoke with"
+  },
+  "stages": {
+    "specsSent": "Specs Sent",
+    "buyIn": "Buy-In",
+    "cvSent": "CV Sent",
+    "offer": "Offer",
+    "placed": "Placed",
+    "closedLost": "Closed lost"
+  },
+  "errors": {
+    "generic": "Something went wrong. Please try again.",
+    "notFound": "Not found.",
+    "loadFailed": "Could not load data.",
+    "saveFailed": "Could not save. Try again.",
+    "aiError": "Could not generate output. Try again."
+  }
+}

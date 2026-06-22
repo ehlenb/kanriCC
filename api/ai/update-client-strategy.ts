@@ -35,44 +35,59 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const companyName = (client as { company_name: string; strategy_notes: string | null }).company_name;
 
   const prompt = existing
-    ? `You are a recruiting intelligence system. A recruiter has just logged new notes from a client meeting with ${companyName}. Incorporate this new information into the existing strategy notes and return an updated, consolidated brief.
+    ? `You are a recruiting intelligence system maintaining a live strategy brief for ${companyName}, a client of a Japan bilingual recruitment agency.
+
+A recruiter just logged new activity. Your job: decide if it contains anything strategically useful, then act.
 
 EXISTING STRATEGY NOTES:
 ${existing}
 
-NEW MEETING INTEL:
+NEW ACTIVITY LOG:
 ${newIntel}
 
 Rules:
-- Preserve all accurate information from the existing notes
-- Add, update, or refine based on the new intel — do not repeat the same point twice
-- Write as a living brief, not a chronological log. No bullet point for each meeting.
-- Cover: hiring needs, company culture context, how to position candidates to this client, relationship notes, key contacts and their preferences, any objections or sensitivities
-- Plain English. Short sentences. Non-native speakers will read this.
-- Maximum 300 words
+- First, judge whether the new log adds anything strategically useful. Examples of useful: hiring preferences, cultural fit signals, interviewer feedback, what impresses this client, relationship dynamics, objections, urgency changes, candidate prep tips. Examples of not useful: "sent calendar invite", "left voicemail", "forwarded CV".
+- If nothing is strategically useful, return the existing notes exactly as-is. No changes.
+- If something is useful, incorporate it. Do not repeat information already in the notes. Update or refine where the new intel supersedes old.
+- The output is an exec-style one-pager: concise, dense, recruiter-facing. Covers: what this client values in candidates, how to pitch them, relationship context, key contacts and their preferences, hiring patterns, any prep tips for candidates going to interview.
+- Plain English. Short sentences. 200-300 words maximum.
 - Do not use: straightforward, genuinely, honestly, leverage (as a verb), utilize. No em dashes.
-- Return only the updated strategy notes text. No preamble, no headings, no labels.`
-    : `You are a recruiting intelligence system. A recruiter has just logged notes from their first meeting with ${companyName}. Write initial strategy notes for this client account.
+- Return only the strategy notes text. No preamble, no explanation, no labels.`
+    : `You are a recruiting intelligence system. A recruiter has just logged their first activity with ${companyName}, a client of a Japan bilingual recruitment agency.
 
-MEETING NOTES:
+NEW ACTIVITY LOG:
 ${newIntel}
 
 Rules:
-- Synthesize into a useful brief a recruiter can reference before future conversations
-- Cover what was learned: hiring needs, company culture, how to position candidates, any relationship context
-- Plain English. Short sentences.
-- Maximum 200 words
+- If the log contains anything strategically useful about this client, write initial strategy notes.
+- If the log is purely logistical ("sent calendar invite", "left voicemail"), return exactly: UNCHANGED
+- Useful strategy notes cover: what this client values in candidates, how to pitch them, relationship context, any candidate prep tips.
+- Plain English. Short sentences. 150-200 words maximum.
 - Do not use: straightforward, genuinely, honestly, leverage (as a verb), utilize. No em dashes.
-- Return only the strategy notes text. No preamble, no headings, no labels.`;
+- Return only the strategy notes text. No preamble, no explanation, no labels.`;
 
   const message = await anthropic.messages.create({
-    model: "claude-sonnet-4-5-20250929",
+    model: "claude-haiku-4-5-20251001",
     max_tokens: 600,
     messages: [{ role: "user", content: prompt }],
   });
 
   const text = message.content[0]?.type === "text" ? message.content[0].text.trim() : "";
   if (!text) return res.status(200).json({ error: "Could not update strategy notes. Try again." });
+
+  // Model signalled nothing useful to add
+  if (text === "UNCHANGED") return res.status(200).json({ unchanged: true });
+
+  // Save directly — no preview step
+  const { error: saveError } = await supabase
+    .from("clients")
+    .update({ strategy_notes: text })
+    .eq("id", client_id);
+
+  if (saveError) {
+    console.error("[update-client-strategy] save error:", saveError.message);
+    return res.status(200).json({ error: "Failed to save strategy notes." });
+  }
 
   return res.status(200).json({ strategy_notes: text });
 }

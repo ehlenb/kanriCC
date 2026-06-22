@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
@@ -54,6 +55,7 @@ type AgendaItem = {
   client_id?: string;
   candidate_id?: string;
   competing?: { company_name: string; stage: string | null }[];
+  placement_milestone?: "day_1" | "two_week" | "one_month" | "three_month" | "long_term";
 };
 
 type MetricKey = "specs" | "cvs" | "interviewing" | "offers" | "placed";
@@ -82,13 +84,7 @@ type ProcessRow = {
 
 // ─── period helpers ───────────────────────────────────────────────────────────
 
-const PERIOD_OPTIONS: { value: Period; label: string }[] = [
-  { value: "week",    label: "This Week" },
-  { value: "30d",     label: "Last 30 Days" },
-  { value: "month",   label: "This Month" },
-  { value: "quarter", label: "This Quarter" },
-  { value: "all",     label: "All Time" },
-];
+// Period options are built inside the component using t() so they react to language changes
 
 function getWeekStart(): Date {
   const d = new Date();
@@ -118,6 +114,19 @@ function formatFee(jpy: number | null): string {
   return `¥${(jpy / 1_000_000).toFixed(1)}M`;
 }
 
+function businessDaysSince(iso: string): number {
+  const start = new Date(iso);
+  const now = new Date();
+  let count = 0;
+  const cursor = new Date(start);
+  while (cursor < now) {
+    cursor.setDate(cursor.getDate() + 1);
+    const day = cursor.getDay();
+    if (day !== 0 && day !== 6) count++;
+  }
+  return count;
+}
+
 function formatDate(iso: string | null): string {
   if (!iso) return "—";
   return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
@@ -141,8 +150,9 @@ function compUrgency(
 // ─── priority actions hook (rule-based, no AI call) ───────────────────────────
 
 function usePriorityActions(recruiterId: string) {
+  const { t, i18n } = useTranslation();
   return useQuery({
-    queryKey: ["priority-actions", recruiterId],
+    queryKey: ["priority-actions", recruiterId, i18n.language],
     staleTime: 30_000,
     retry: 1,
     queryFn: async (): Promise<AgendaItem[]> => {
@@ -206,8 +216,8 @@ function usePriorityActions(recruiterId: string) {
             entity_type: "candidate", entity_id: candidateId,
             entity_name: candidateName, process_id: proc.id, stage: proc.stage,
             candidate_id: candidateId, client_id: clientId,
-            reason: `Offer out at ${clientName}${daysSinceTouch < 999 ? ` — last contact ${daysSinceTouch}d ago` : ""}.`,
-            suggested_action: `Confirm acceptance timeline and manage the close with ${firstName}.`,
+            reason: t("dashboard.rules.offer.reason", { client: clientName, lastContact: daysSinceTouch < 999 ? t("dashboard.rules.offer.lastContactSuffix", { days: daysSinceTouch }) : "" }),
+            suggested_action: t("dashboard.rules.offer.action", { name: firstName }),
             action_type: "pre_call", priority_rank: 1,
           });
         }
@@ -224,8 +234,8 @@ function usePriorityActions(recruiterId: string) {
               entity_type: "candidate", entity_id: candidateId,
               entity_name: candidateName, process_id: proc.id, stage: proc.stage,
               candidate_id: candidateId, client_id: clientId,
-              reason: `Competing at ${compList} — ${urgency === "critical" ? "critical offer risk" : "high risk"}.`,
-              suggested_action: `Call ${firstName} to assess motivation and defend your process at ${clientName}.`,
+              reason: t("dashboard.rules.competing.reason", { companies: compList, urgency: urgency === "critical" ? t("dashboard.rules.competing.critical") : t("dashboard.rules.competing.high") }),
+              suggested_action: t("dashboard.rules.competing.action", { name: firstName, client: clientName }),
               action_type: "competing_risk",
               priority_rank: urgency === "critical" ? 2 : 7,
               competing,
@@ -240,24 +250,22 @@ function usePriorityActions(recruiterId: string) {
             entity_type: "candidate", entity_id: candidateId,
             entity_name: candidateName, process_id: proc.id, stage: proc.stage,
             candidate_id: candidateId, client_id: clientId,
-            reason: `CCM${ccmNum} with ${clientName} — feedback pending ${daysSinceTouch}d.`,
-            suggested_action: `Chase ${clientName} for CCM${ccmNum} feedback on ${firstName}.`,
+            reason: t("dashboard.rules.ccmFeedback.reason", { num: ccmNum, client: clientName, days: daysSinceTouch }),
+            suggested_action: t("dashboard.rules.ccmFeedback.action", { client: clientName, num: ccmNum, name: firstName }),
             action_type: "ccm_feedback", priority_rank: 10,
           });
         }
 
-        // Rule 4: CV Sent > 5 days with no response
+        // Rule 4: CV Sent > 3 business days with no response
         if (proc.stage === "CV Sent" && proc.cv_sent_at) {
-          const daysSinceCv = Math.floor(
-            (now.getTime() - new Date(proc.cv_sent_at).getTime()) / 86_400_000
-          );
-          if (daysSinceCv >= 5) {
+          const bizDaysSinceCv = businessDaysSince(proc.cv_sent_at);
+          if (bizDaysSinceCv >= 3) {
             actions.push({
               entity_type: "candidate", entity_id: candidateId,
               entity_name: candidateName, process_id: proc.id, stage: proc.stage,
               candidate_id: candidateId, client_id: clientId,
-              reason: `CV sent to ${clientName} ${daysSinceCv}d ago — no feedback recorded.`,
-              suggested_action: `Chase ${clientName} for CV feedback on ${firstName}.`,
+              reason: t("dashboard.rules.cvSent.reason", { client: clientName, days: bizDaysSinceCv }),
+              suggested_action: t("dashboard.rules.cvSent.action", { client: clientName, name: firstName }),
               action_type: "follow_up", priority_rank: 20,
             });
           }
@@ -269,8 +277,8 @@ function usePriorityActions(recruiterId: string) {
             entity_type: "candidate", entity_id: candidateId,
             entity_name: candidateName, process_id: proc.id, stage: proc.stage,
             candidate_id: candidateId, client_id: clientId,
-            reason: `Buy-in pending — no follow-up in ${daysSinceTouch}d.`,
-            suggested_action: `Confirm ${firstName}'s buy-in status before submitting CV.`,
+            reason: t("dashboard.rules.buyIn.reason", { days: daysSinceTouch }),
+            suggested_action: t("dashboard.rules.buyIn.action", { name: firstName }),
             action_type: "pre_call", priority_rank: 30,
           });
         }
@@ -285,8 +293,8 @@ function usePriorityActions(recruiterId: string) {
             entity_type: "candidate", entity_id: candidateId,
             entity_name: candidateName, process_id: proc.id, stage: proc.stage,
             candidate_id: candidateId, client_id: clientId,
-            reason: `No contact in ${daysSinceTouch}d — process at ${clientName} may be going cold.`,
-            suggested_action: `Re-engage ${firstName} to confirm they are still active.`,
+            reason: t("dashboard.rules.cold.reason", { days: daysSinceTouch, client: clientName }),
+            suggested_action: t("dashboard.rules.cold.action", { name: firstName }),
             action_type: "pre_call", priority_rank: 40,
           });
         }
@@ -489,7 +497,107 @@ function usePlacedDetail(recruiterId: string, from: string | null, enabled: bool
 
 // ─── dashboard component ──────────────────────────────────────────────────────
 
+// ─── pipeline revenue hook ───────────────────────────────────────────────────
+
+type PipelineRevenue = {
+  totalPipeline: number;
+  needsAction: number;
+  likelyToPlace: number;
+};
+
+function usePipelineRevenue(recruiterId: string, flaggedIds: Set<string>) {
+  return useQuery({
+    queryKey: ["pipeline-revenue", recruiterId],
+    queryFn: async (): Promise<PipelineRevenue> => {
+      const { data: processes } = await supabase
+        .from("processes")
+        .select("id, stage, requisition_id, requisitions ( salary_min, salary_max, clients ( fee_pct ) )")
+        .eq("owner_recruiter_id", recruiterId)
+        .not("stage", "in", '("Placed","Closed lost")');
+
+      let totalPipeline = 0;
+      let needsAction = 0;
+      let likelyToPlace = 0;
+
+      for (const raw of processes ?? []) {
+        const proc = raw as {
+          id: string;
+          stage: string;
+          requisitions: {
+            salary_min: number | null;
+            salary_max: number | null;
+            clients: { fee_pct: number | null } | null;
+          } | null;
+        };
+        const salaryMid = ((proc.requisitions?.salary_min ?? 0) + (proc.requisitions?.salary_max ?? 0)) / 2;
+        const feePct = (proc.requisitions?.clients?.fee_pct ?? 0) / 100;
+        const fee = salaryMid * feePct;
+        if (fee <= 0) continue;
+
+        totalPipeline += fee;
+        if (flaggedIds.has(proc.id)) needsAction += fee;
+        if (proc.stage === "Offer") likelyToPlace += fee;
+      }
+
+      return { totalPipeline, needsAction, likelyToPlace };
+    },
+    staleTime: 30_000,
+    retry: 1,
+    enabled: !!recruiterId,
+  });
+}
+
+function PipelineRevenueStrip({ revenue }: { revenue: PipelineRevenue | undefined }) {
+  const { t } = useTranslation();
+  const [collapsed, setCollapsed] = useState(false);
+  const formatFee = (n: number) =>
+    n >= 1_000_000 ? `¥${(n / 1_000_000).toFixed(1)}M` : n > 0 ? `¥${Math.round(n / 1000)}K` : "—";
+
+  if (collapsed) {
+    return (
+      <button
+        onClick={() => setCollapsed(false)}
+        className="w-full text-left px-4 py-2 text-[11px] font-mono tracking-[0.08em] uppercase"
+        style={{ border: "0.5px solid var(--color-ink-15)", color: "var(--color-ink-30)", outline: "none" }}
+      >
+        {t("dashboard.pipelineRevenueShow")}
+      </button>
+    );
+  }
+
+  const tiles = [
+    { label: t("dashboard.activePipeline"), value: formatFee(revenue?.totalPipeline ?? 0), sublabel: t("dashboard.totalPotentialFees"), color: "var(--color-ink)" },
+    { label: t("dashboard.needsAction"),    value: formatFee(revenue?.needsAction ?? 0),   sublabel: t("dashboard.flaggedInQueue"),      color: "var(--color-gold)" },
+    { label: t("dashboard.likelyToPlace"), value: formatFee(revenue?.likelyToPlace ?? 0), sublabel: t("dashboard.atOfferStage"),         color: "var(--color-moss)" },
+  ];
+
+  return (
+    <div style={{ border: "0.5px solid var(--color-ink-15)" }}>
+      <div className="flex items-center justify-between px-4 py-2" style={{ background: "var(--color-ink-10)", borderBottom: "0.5px solid var(--color-ink-15)" }}>
+        <span className="font-mono text-[10px] tracking-[0.1em] uppercase" style={{ color: "var(--color-ink-30)" }}>{t('dashboard.pipelineRevenue')}</span>
+        <button onClick={() => setCollapsed(true)} className="font-mono text-[10px] tracking-[0.06em]" style={{ color: "var(--color-ink-30)", outline: "none" }}>{t("dashboard.hide")}</button>
+      </div>
+      <div className="grid grid-cols-3">
+        {tiles.map((tile, i) => (
+          <div
+            key={tile.label}
+            className="px-5 py-4"
+            style={{ borderRight: i < 2 ? "0.5px solid var(--color-ink-15)" : "none" }}
+          >
+            <span className="text-2xl font-display font-semibold leading-none" style={{ color: tile.color }}>
+              {revenue ? tile.value : "—"}
+            </span>
+            <p className="mt-1.5 text-[12px] font-medium">{tile.label}</p>
+            <p className="mt-0.5 font-mono text-[10px] tracking-[0.08em] uppercase" style={{ color: "var(--color-ink-30)" }}>{tile.sublabel}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function Dashboard() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const recruiterId = user!.id;
   const navigate = useNavigate();
@@ -508,6 +616,13 @@ function Dashboard() {
     }
   }, [priorityActions.data]);
 
+  // Set of flagged process_ids for revenue strip "needs action" calculation
+  const flaggedProcessIds = React.useMemo(
+    () => new Set((priorityActions.data ?? []).map((i) => i.process_id).filter(Boolean) as string[]),
+    [priorityActions.data],
+  );
+  const pipelineRevenue = usePipelineRevenue(recruiterId, flaggedProcessIds);
+
   function handleRestore() {
     localStorage.removeItem("kanri_done_today");
     localStorage.removeItem("kanri_snoozed");
@@ -521,9 +636,9 @@ function Dashboard() {
     markDoneToday(entityId);
     setAgendaItems((prev) => prev.filter((i) => i.entity_id !== entityId));
     if (removed) {
-      toast("Marked done for today", {
+      toast(t("dashboard.toast.markedDone"), {
         action: {
-          label: "Undo",
+          label: t("dashboard.toast.undo"),
           onClick: () => {
             const d = getDoneToday();
             delete d[entityId];
@@ -545,9 +660,9 @@ function Dashboard() {
     snoozeUntil(entityId, tomorrow.toISOString().slice(0, 10));
     setAgendaItems((prev) => prev.filter((i) => i.entity_id !== entityId));
     if (removed) {
-      toast("Snoozed until tomorrow", {
+      toast(t("dashboard.toast.snoozedTomorrow"), {
         action: {
-          label: "Undo",
+          label: t("dashboard.toast.undo"),
           onClick: () => {
             const d = getSnoozed();
             delete d[entityId];
@@ -564,21 +679,29 @@ function Dashboard() {
   }
   const m = metrics.data;
 
+  const PERIOD_OPTIONS: { value: Period; label: string }[] = [
+    { value: "week",    label: t("dashboard.period.week") },
+    { value: "30d",     label: t("dashboard.period.30d") },
+    { value: "month",   label: t("dashboard.period.month") },
+    { value: "quarter", label: t("dashboard.period.quarter") },
+    { value: "all",     label: t("dashboard.period.all") },
+  ];
+
   const METRIC_CONFIG: {
     key: MetricKey;
     label: string;
     value: number | string;
     sublabel: string;
   }[] = [
-    { key: "specs",        label: "Job Specs Sent",  value: m?.specs        ?? "—", sublabel: "this week" },
-    { key: "cvs",          label: "CVs Sent",         value: m?.cvs          ?? "—", sublabel: "this week" },
-    { key: "interviewing", label: "Interviewing",     value: m?.interviewing ?? "—", sublabel: "active now" },
-    { key: "offers",       label: "Offers",           value: m?.offers       ?? "—", sublabel: "active now" },
+    { key: "specs",        label: t("dashboard.metrics.specsOut"),     value: m?.specs        ?? "—", sublabel: t("dashboard.metrics.thisWeek") },
+    { key: "cvs",          label: t("dashboard.metrics.cvsSent"),      value: m?.cvs          ?? "—", sublabel: t("dashboard.metrics.thisWeek") },
+    { key: "interviewing", label: t("dashboard.metrics.interviewing"), value: m?.interviewing ?? "—", sublabel: t("dashboard.metrics.activeNow") },
+    { key: "offers",       label: t("dashboard.metrics.offers"),       value: m?.offers       ?? "—", sublabel: t("dashboard.metrics.activeNow") },
     {
       key: "placed",
-      label: "Placed",
+      label: t("dashboard.metrics.placed"),
       value: m ? (m.placedFee > 0 ? formatFee(m.placedFee) : m.placedCount) : "—",
-      sublabel: "this week",
+      sublabel: t("dashboard.metrics.thisWeek"),
     },
   ];
 
@@ -594,7 +717,7 @@ function Dashboard() {
       <div>
         <h1 className="text-xl font-medium mb-0.5 font-display">{greetingByHour()}</h1>
         <p className="text-[13px]" style={{ color: "var(--color-ink-60)" }}>
-          {todayFormatted()}&nbsp;&middot;&nbsp;Week resets every Sunday
+          {todayFormatted()}&nbsp;&middot;&nbsp;{t("dashboard.weekResets")}
         </p>
       </div>
 
@@ -653,6 +776,9 @@ function Dashboard() {
         )}
       </div>
 
+      {/* Pipeline revenue strip */}
+      <PipelineRevenueStrip revenue={pipelineRevenue.data} />
+
       {/* Priority actions */}
       <PrioritySection
         items={agendaItems}
@@ -696,6 +822,14 @@ function DetailPanel({
   onPeriodChange: (p: Period) => void;
   onNavigate: (candidateId: string) => void;
 }) {
+  const { t } = useTranslation();
+  const PERIOD_OPTIONS: { value: Period; label: string }[] = [
+    { value: "week",    label: t("dashboard.period.week") },
+    { value: "30d",     label: t("dashboard.period.30d") },
+    { value: "month",   label: t("dashboard.period.month") },
+    { value: "quarter", label: t("dashboard.period.quarter") },
+    { value: "all",     label: t("dashboard.period.all") },
+  ];
   const from = fromTimestamp(period);
   const fromDate = fromDateStr(period);
 
@@ -720,7 +854,7 @@ function DetailPanel({
         style={{ background: "var(--color-ink-10)", borderBottom: "0.5px solid var(--color-ink-15)" }}
       >
         <span className="font-mono text-[10px] tracking-[0.1em] uppercase" style={{ color: "var(--color-ink-30)" }}>
-          Filter by period
+          {t("dashboard.period.filterBy")}
         </span>
         <div className="flex gap-1">
           {PERIOD_OPTIONS.map((opt) => (
@@ -751,13 +885,13 @@ function DetailPanel({
             <SpecsTable items={specs.data ?? []} />
           )}
           {metric === "cvs" && (
-            <ProcessTable items={cvs.data ?? []} dateCol="cv_sent_at" dateLabel="CV Sent" onNavigate={onNavigate} />
+            <ProcessTable items={cvs.data ?? []} dateCol="cv_sent_at" dateLabel={t("dashboard.detail.cols.cvSent")} onNavigate={onNavigate} />
           )}
           {metric === "interviewing" && (
             <InterviewingTable items={interviewing.data ?? []} onNavigate={onNavigate} />
           )}
           {metric === "offers" && (
-            <ProcessTable items={offers.data ?? []} dateCol="offer_date" dateLabel="Offer Date" onNavigate={onNavigate} />
+            <ProcessTable items={offers.data ?? []} dateCol="offer_date" dateLabel={t("dashboard.detail.cols.offerDate")} onNavigate={onNavigate} />
           )}
           {metric === "placed" && (
             <PlacedTable items={placed.data ?? []} onNavigate={onNavigate} />
@@ -798,10 +932,11 @@ function TableHeader({ cols }: { cols: string[] }) {
 }
 
 function SpecsTable({ items }: { items: SpecItem[] }) {
-  if (!items.length) return <EmptyRow message="No job specs sent in this period." />;
+  const { t } = useTranslation();
+  if (!items.length) return <EmptyRow message={t("dashboard.detail.noSpecs")} />;
   return (
     <div>
-      <TableHeader cols={["Candidate", "Client", "Summary", "Date"]} />
+      <TableHeader cols={[t("dashboard.detail.cols.candidate"), t("dashboard.detail.cols.client"), t("dashboard.detail.cols.summary"), t("dashboard.detail.cols.date")]} />
       {items.map((item) => (
         <div
           key={item.id}
@@ -834,10 +969,11 @@ function ProcessTable({
   dateLabel: string;
   onNavigate: (id: string) => void;
 }) {
-  if (!items.length) return <EmptyRow message="No entries for this period." />;
+  const { t } = useTranslation();
+  if (!items.length) return <EmptyRow message={t("dashboard.detail.noEntries")} />;
   return (
     <div>
-      <TableHeader cols={["Candidate", "Company", "Role", dateLabel]} />
+      <TableHeader cols={[t("dashboard.detail.cols.candidate"), t("dashboard.detail.cols.company"), t("dashboard.detail.cols.role"), dateLabel]} />
       {items.map((item) => (
         <button
           key={item.id}
@@ -862,7 +998,8 @@ function ProcessTable({
 }
 
 function InterviewingTable({ items, onNavigate }: { items: ProcessRow[]; onNavigate: (id: string) => void }) {
-  if (!items.length) return <EmptyRow message="No active interviews." />;
+  const { t } = useTranslation();
+  if (!items.length) return <EmptyRow message={t("dashboard.detail.noInterviews")} />;
 
   // Group by stage
   const stages = [...new Set(items.map((i) => i.stage))].sort((a, b) => {
@@ -885,7 +1022,7 @@ function InterviewingTable({ items, onNavigate }: { items: ProcessRow[]; onNavig
                 borderBottom: "0.5px solid var(--color-ink-15)",
               }}
             >
-              {stage} — {stageItems.length} candidate{stageItems.length !== 1 ? "s" : ""}
+              {stage} — {t("candidates.count", { count: stageItems.length })}
             </div>
             {stageItems.map((item) => (
               <button
@@ -910,13 +1047,14 @@ function InterviewingTable({ items, onNavigate }: { items: ProcessRow[]; onNavig
 }
 
 function PlacedTable({ items, onNavigate }: { items: ProcessRow[]; onNavigate: (id: string) => void }) {
-  if (!items.length) return <EmptyRow message="No placements in this period." />;
+  const { t } = useTranslation();
+  if (!items.length) return <EmptyRow message={t("dashboard.detail.noPlacements")} />;
 
   const totalFee = items.reduce((sum, i) => sum + (i.placed_fee_jpy ?? 0), 0);
 
   return (
     <div>
-      <TableHeader cols={["Candidate", "Company", "Role", "Date", "Fee"]} />
+      <TableHeader cols={[t("dashboard.detail.cols.candidate"), t("dashboard.detail.cols.company"), t("dashboard.detail.cols.role"), t("dashboard.detail.cols.date"), t("dashboard.detail.cols.fee")]} />
       {items.map((item) => (
         <button
           key={item.id}
@@ -1014,6 +1152,7 @@ function BriefContent({
   onChange: (t: string) => void;
 }) {
   const [editing, setEditing] = React.useState(false);
+  const { t } = useTranslation();
 
   return (
     <div className="px-5 py-4">
@@ -1042,15 +1181,53 @@ function BriefContent({
         </div>
       )}
       {!editing && (
-        <button
-          onClick={() => setEditing(true)}
-          className="mt-3 font-mono text-[10px] underline"
-          style={{ color: "var(--color-ink-30)", outline: "none" }}
-        >
-          Edit
-        </button>
+        <div className="mt-3 flex items-center gap-3">
+          <button
+            onClick={() => setEditing(true)}
+            className="font-mono text-[10px] underline"
+            style={{ color: "var(--color-ink-30)", outline: "none" }}
+          >
+            {t("common.edit")}
+          </button>
+          <TranslateButtonInline text={text} onTranslated={onChange} />
+        </div>
       )}
     </div>
+  );
+}
+
+function TranslateButtonInline({ text, onTranslated }: { text: string; onTranslated: (t: string) => void }) {
+  const { i18n } = useTranslation();
+  const [loading, setLoading] = React.useState(false);
+  const [done, setDone] = React.useState(false);
+  const targetLang = i18n.language === "ja" ? "ja" : "en";
+  const label = i18n.language === "ja" ? "翻訳" : "Translate";
+  const doneLabel = i18n.language === "ja" ? "翻訳済み" : "Translated";
+
+  async function handle() {
+    if (!text?.trim() || done) return;
+    setLoading(true);
+    try {
+      const res = await fetch("/api/ai/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, target_lang: targetLang }),
+      });
+      const data = await res.json() as { translated?: string };
+      if (data.translated) { onTranslated(data.translated); setDone(true); }
+    } catch { /* silent */ }
+    finally { setLoading(false); }
+  }
+
+  return (
+    <button
+      onClick={() => void handle()}
+      disabled={loading || done}
+      className="font-mono text-[10px]"
+      style={{ color: done ? "var(--color-moss)" : "var(--color-indigo)", opacity: loading ? 0.5 : 1, outline: "none" }}
+    >
+      {loading ? "…" : done ? doneLabel : label}
+    </button>
   );
 }
 
@@ -1075,9 +1252,11 @@ function PrioritySection({
   onRestore: () => void;
   recruiterId: string;
 }) {
+  const { t } = useTranslation();
   const VISIBLE_COUNT = 5;
   const visible = showAll ? items : items.slice(0, VISIBLE_COUNT);
   const [briefs, setBriefs] = useState<Record<string, BriefState>>({});
+  const [checkinFormat, setCheckinFormat] = useState<"email" | "linkedin" | "short">("email");
 
   async function getChainStep(briefKey: string, processId: string, scenario: "pass" | "reject" | "no_response") {
     setBriefs((prev) => ({ ...prev, [briefKey]: { ...prev[briefKey], chainLoading: true, chainText: null, chainType: scenario } }));
@@ -1096,13 +1275,24 @@ function PrioritySection({
     }
   }
 
-  async function getAiBrief(item: AgendaItem) {
+  async function getAiBrief(item: AgendaItem, format?: "email" | "linkedin" | "short") {
     const key = `${item.action_type}-${item.process_id ?? item.entity_id}`;
     // Close all other open briefs — only one at a time
     setBriefs({ [key]: { loading: true, text: null } });
     try {
       let resp: Response;
-      if (item.action_type === "competing_risk") {
+      if (item.placement_milestone && item.process_id) {
+        const fmt = format ?? checkinFormat;
+        resp = await fetch("/api/ai/placed-checkin-message", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            process_id: item.process_id,
+            milestone: item.placement_milestone,
+            format: fmt,
+          }),
+        });
+      } else if (item.action_type === "competing_risk") {
         resp = await fetch("/api/ai/competing-brief", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -1157,7 +1347,7 @@ function PrioritySection({
         >
           <div className="flex items-center gap-2">
             <span className="font-mono text-[10px] tracking-[0.1em] uppercase" style={{ color: "var(--color-ink-30)" }}>
-              Priority actions
+              {t('dashboard.priorityActions')}
             </span>
             {!isLoading && items.length > 0 && (
               <span
@@ -1171,11 +1361,11 @@ function PrioritySection({
           {!isLoading && items.length === 0 && (
             <div className="flex items-center gap-3">
               <span className="text-[12px]" style={{ color: "var(--color-ink-30)" }}>
-                All clear — nothing urgent right now.
+                {t('dashboard.noPriorityActions')}
               </span>
               {Object.keys(getDoneToday()).length > 0 && (
                 <button onClick={onRestore} className="text-[11px] underline" style={{ color: "var(--color-ink-60)" }}>
-                  Restore {Object.keys(getDoneToday()).length} dismissed
+                  {t('dashboard.restoreDismissed', { count: Object.keys(getDoneToday()).length })}
                 </button>
               )}
             </div>
@@ -1284,7 +1474,7 @@ function PrioritySection({
                       <IconBellOff size={12} style={{ color: "var(--color-ink-30)" }} />
                     </button>
                     <div className="pointer-events-none absolute right-full top-1/2 -translate-y-1/2 mr-2 hidden group-hover/tip:flex items-center z-50">
-                      <span className="whitespace-nowrap font-mono text-[10px] px-2 py-1" style={{ background: "var(--color-ink)", color: "var(--color-white)", letterSpacing: "0.05em" }}>Snooze until tomorrow</span>
+                      <span className="whitespace-nowrap font-mono text-[10px] px-2 py-1" style={{ background: "var(--color-ink)", color: "var(--color-white)", letterSpacing: "0.05em" }}>{t("dashboard.brief.snoozeTooltip")}</span>
                       <span style={{ borderLeft: "4px solid var(--color-ink)", borderTop: "4px solid transparent", borderBottom: "4px solid transparent" }} />
                     </div>
                   </div>
@@ -1301,7 +1491,7 @@ function PrioritySection({
             className="w-full py-2 text-center text-[11px] font-medium transition-colors hover:bg-[--color-ink-10]"
             style={{ color: "var(--color-ink-60)", borderTop: "0.5px solid var(--color-ink-15)", outline: "none" }}
           >
-            {showAll ? "Show less" : `Show ${items.length - VISIBLE_COUNT} more`}
+            {showAll ? t("dashboard.detail.showLess") : t("dashboard.detail.showMore", { count: items.length - VISIBLE_COUNT })}
           </button>
         )}
       </div>
@@ -1311,22 +1501,49 @@ function PrioritySection({
         <div className="flex flex-col min-w-0" style={{ flex: "1 1 58%" }}>
           {/* Panel header */}
           <div
-            className="flex items-center justify-between px-5 py-3 shrink-0"
+            className="shrink-0"
             style={{ background: "var(--color-ink-10)", borderBottom: "0.5px solid var(--color-ink-15)" }}
           >
-            <div className="flex items-center gap-2 min-w-0">
-              <IconSparkles size={12} style={{ color: "var(--color-indigo)", flexShrink: 0 }} />
-              <span className="font-mono text-[10px] tracking-[0.1em] uppercase truncate" style={{ color: "var(--color-indigo)" }}>
-                {activeBriefItem?.action_type === "ccm_feedback"
-                  ? `Client chase brief · ${activeBriefItem.entity_name}`
-                  : activeBriefItem?.action_type === "competing_risk"
-                  ? `Competing risk · ${activeBriefItem.entity_name}`
-                  : `AI insights · ${activeBriefItem?.entity_name ?? ""}`}
-              </span>
+            <div className="flex items-center justify-between px-5 py-3">
+              <div className="flex items-center gap-2 min-w-0">
+                <IconSparkles size={12} style={{ color: "var(--color-indigo)", flexShrink: 0 }} />
+                <span className="font-mono text-[10px] tracking-[0.1em] uppercase truncate" style={{ color: "var(--color-indigo)" }}>
+                  {activeBriefItem?.placement_milestone
+                    ? `${t("dashboard.brief.checkinMsg")} · ${activeBriefItem.entity_name}`
+                    : activeBriefItem?.action_type === "ccm_feedback"
+                    ? `${t("dashboard.brief.clientChase")} · ${activeBriefItem.entity_name}`
+                    : activeBriefItem?.action_type === "competing_risk"
+                    ? `${t("dashboard.brief.competingRisk")} · ${activeBriefItem.entity_name}`
+                    : `${t("dashboard.brief.aiInsights")} · ${activeBriefItem?.entity_name ?? ""}`}
+                </span>
+              </div>
+              <button onClick={() => setBriefs({})} style={{ color: "var(--color-ink-30)", outline: "none", flexShrink: 0 }}>
+                <IconX size={13} />
+              </button>
             </div>
-            <button onClick={() => setBriefs({})} style={{ color: "var(--color-ink-30)", outline: "none", flexShrink: 0 }}>
-              <IconX size={13} />
-            </button>
+            {/* Format selector for placement check-in messages */}
+            {activeBriefItem?.placement_milestone && (
+              <div className="flex px-5 pb-3 gap-1.5">
+                {(["email", "linkedin", "short"] as const).map((fmt) => (
+                  <button
+                    key={fmt}
+                    onClick={() => {
+                      setCheckinFormat(fmt);
+                      void getAiBrief(activeBriefItem, fmt);
+                    }}
+                    className="font-mono text-[9px] tracking-[0.08em] uppercase px-2.5 py-1"
+                    style={{
+                      background: checkinFormat === fmt ? "var(--color-indigo)" : "transparent",
+                      color: checkinFormat === fmt ? "var(--color-white)" : "var(--color-ink-60)",
+                      border: checkinFormat === fmt ? "none" : "0.5px solid var(--color-ink-15)",
+                      outline: "none",
+                    }}
+                  >
+                    {fmt === "email" ? t("dashboard.brief.formatEmail") : fmt === "linkedin" ? t("dashboard.brief.formatLinkedin") : t("dashboard.brief.formatShortMsg")}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Loading state */}
@@ -1353,15 +1570,15 @@ function PrioritySection({
                 <div style={{ borderTop: "1px solid var(--color-ink-15)" }}>
                   <div className="px-5 pt-3 pb-2 flex items-center gap-2">
                     <span className="font-mono text-[10px] tracking-[0.1em] uppercase" style={{ color: "var(--color-ink-30)" }}>
-                      What happened next?
+                      {t("dashboard.brief.whatNext")}
                     </span>
                   </div>
                   <div className="flex" style={{ borderTop: "0.5px solid var(--color-ink-15)" }}>
                     {(
                       [
-                        { scenario: "pass" as const, label: "Positive feedback", color: "var(--color-moss)", bg: "var(--color-moss-light)" },
-                        { scenario: "reject" as const, label: "Candidate rejected", color: "var(--color-vermillion)", bg: "var(--color-vermillion-light)" },
-                        { scenario: "no_response" as const, label: "Client not responding", color: "var(--color-gold)", bg: "var(--color-gold-light)" },
+                        { scenario: "pass" as const, label: t("dashboard.brief.outcomePass"), color: "var(--color-moss)", bg: "var(--color-moss-light)" },
+                        { scenario: "reject" as const, label: t("dashboard.brief.outcomeReject"), color: "var(--color-vermillion)", bg: "var(--color-vermillion-light)" },
+                        { scenario: "no_response" as const, label: t("dashboard.brief.outcomeNoResponse"), color: "var(--color-gold)", bg: "var(--color-gold-light)" },
                       ] as const
                     ).map(({ scenario, label, color, bg }) => (
                       <button
@@ -1377,7 +1594,7 @@ function PrioritySection({
                           opacity: activeBrief.chainLoading && activeBrief.chainType !== scenario ? 0.4 : 1,
                         }}
                       >
-                        {activeBrief.chainLoading && activeBrief.chainType === scenario ? "Generating…" : label}
+                        {activeBrief.chainLoading && activeBrief.chainType === scenario ? t("dashboard.brief.generating") : label}
                       </button>
                     ))}
                   </div>
@@ -1386,7 +1603,7 @@ function PrioritySection({
                     <div style={{ borderTop: "0.5px solid var(--color-ink-15)" }}>
                       <BriefContent
                         text={activeBrief.chainText}
-                        label="Next step"
+                        label={t("dashboard.brief.nextStep")}
                         onChange={(t) => setBriefs((prev) => ({ ...prev, [activeBriefKey!]: { ...prev[activeBriefKey!], chainText: t } }))}
                       />
                     </div>

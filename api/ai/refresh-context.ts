@@ -163,7 +163,7 @@ async function refreshClient(entityId: string, triggeredById?: string) {
     supabase
       .from("clients")
       .select(
-        "recruiter_id, company_name, industry, hq_country, japan_team_size, japan_role_in_group, years_in_japan, employee_japanese_pct, strategy_notes, status, contract_signed",
+        "recruiter_id, company_name, japan_team_size, japan_role_in_group, years_in_japan, employee_japanese_pct, strategy_notes, is_active, contract_signed, kk_entity",
       )
       .eq("id", entityId)
       .single(),
@@ -184,15 +184,14 @@ async function refreshClient(entityId: string, triggeredById?: string) {
   const cl = client as {
     recruiter_id: string;
     company_name: string;
-    industry: string | null;
-    hq_country: string | null;
-    japan_team_size: string | null;
+    japan_team_size: number | null;
     japan_role_in_group: string | null;
     years_in_japan: number | null;
     employee_japanese_pct: number | null;
     strategy_notes: string | null;
-    status: string;
+    is_active: boolean;
     contract_signed: boolean;
+    kk_entity: string | null;
   };
 
   const now = Date.now();
@@ -216,11 +215,10 @@ async function refreshClient(entityId: string, triggeredById?: string) {
   });
 
   const prompt = `
-Company: ${cl.company_name} (${cl.status})
-Industry: ${cl.industry ?? "—"} | HQ: ${cl.hq_country ?? "—"}
+Company: ${cl.company_name} (${cl.is_active ? "active" : "inactive"})
 Japan team: ${cl.japan_team_size ?? "—"} | Role in group: ${cl.japan_role_in_group ?? "—"}
 Years in Japan: ${cl.years_in_japan ?? "—"} | Japanese team %: ${cl.employee_japanese_pct != null ? `${cl.employee_japanese_pct}%` : "—"}
-Contract signed: ${cl.contract_signed ? "Yes" : "No"}
+KK entity: ${cl.kk_entity ?? "—"} | Contract signed: ${cl.contract_signed ? "Yes" : "No"}
 
 Contacts:
 ${(contacts ?? []).map((c: { name: string; title: string | null; role: string; relationship_score: number | null; is_primary: boolean }) => `- ${c.name}, ${c.title ?? c.role}${c.is_primary ? " (primary)" : ""}${c.relationship_score ? ` — relationship ${c.relationship_score}/5` : ""}`).join("\n")}

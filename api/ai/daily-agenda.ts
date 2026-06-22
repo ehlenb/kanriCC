@@ -96,6 +96,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     priority_rank: number;
     flag_reason: string;
     client_id?: string;
+    placement_milestone?: "day_1" | "two_week" | "one_month" | "three_month" | "long_term";
   };
 
   const flagged: AgendaItem[] = [];
@@ -381,20 +382,37 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const daysSinceStart = Math.floor((nowMs - startMs) / 86400000);
     const lastTouch = daysSince(p.last_activity_at ?? p.candidates?.last_interaction_at ?? null);
 
-    // Check if we're past a cadence milestone and haven't checked in recently
-    const milestones = [
-      { days: 14, label: "2-week" },
-      { days: 30, label: "1-month" },
-      { days: 90, label: "3-month" },
+    const name = p.candidates?.full_name ?? "Unknown";
+    const firstName = name.split(" ")[0];
+    const clientName = p.requisitions?.clients?.company_name ?? "";
+    const roleTitle = p.requisitions?.title ?? "";
+    const context = clientName ? ` at ${clientName}${roleTitle ? ` — ${roleTitle}` : ""}` : "";
+
+    // Day 1: fire on the candidate's start date (0–1 days) — first-day congratulation
+    if (daysSinceStart <= 1) {
+      flagged.push({
+        entity_type: "candidate",
+        entity_id: p.candidate_id,
+        entity_name: name,
+        process_id: p.id,
+        stage: p.stage,
+        priority_rank: 3,
+        flag_reason: `Today is ${firstName}'s first day${context}. Send a warm congratulation message — this is the start of the long-term relationship.`,
+        placement_milestone: "day_1",
+      });
+      continue;
+    }
+
+    // Guarantee milestones: 2-week, 1-month, 3-month
+    const milestones: Array<{ days: number; label: string; message: string; milestoneKey: "two_week" | "one_month" | "three_month" }> = [
+      { days: 14, label: "2-week", message: "Check in to make sure they've settled in well.", milestoneKey: "two_week" },
+      { days: 30, label: "1-month", message: "One month in — check how they're finding the role and team.", milestoneKey: "one_month" },
+      { days: 90, label: "3-month", message: "End of guarantee window — mark the milestone and stay warm.", milestoneKey: "three_month" },
     ];
 
+    let milestoneFlagged = false;
     for (const milestone of milestones) {
       if (daysSinceStart >= milestone.days && daysSinceStart < milestone.days + 14 && lastTouch >= 7) {
-        const name = p.candidates?.full_name ?? "Unknown";
-        const clientName = p.requisitions?.clients?.company_name ?? "";
-        const roleTitle = p.requisitions?.title ?? "";
-        const context = clientName ? ` at ${clientName}${roleTitle ? ` — ${roleTitle}` : ""}` : "";
-
         flagged.push({
           entity_type: "candidate",
           entity_id: p.candidate_id,
@@ -402,10 +420,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           process_id: p.id,
           stage: p.stage,
           priority_rank: 50,
-          flag_reason: `Placed${context} — ${milestone.label} check-in due. Started ${daysSinceStart} days ago. Last contact ${lastTouch} days ago. Check in to protect the placement guarantee.`,
+          flag_reason: `Placed${context} — ${milestone.label} check-in due. ${milestone.message} Started ${daysSinceStart} days ago, last contact ${lastTouch} days ago.`,
+          placement_milestone: milestone.milestoneKey,
         });
-        break; // Only flag once per process
+        milestoneFlagged = true;
+        break;
       }
+    }
+
+    // Long-term relationship: 18–24 month window with no recent contact
+    // Most placed candidates re-enter the market around this point — be their first call
+    const monthsSinceStart = daysSinceStart / 30;
+    const inReentryWindow = monthsSinceStart >= 18 && monthsSinceStart <= 30;
+    if (!milestoneFlagged && inReentryWindow && lastTouch > 60) {
+      flagged.push({
+        entity_type: "candidate",
+        entity_id: p.candidate_id,
+        entity_name: name,
+        process_id: p.id,
+        stage: p.stage,
+        priority_rank: 60,
+        flag_reason: `${firstName}-san placed ${Math.round(monthsSinceStart)} months ago${context}. Last contact ${lastTouch} days ago. Most professionals consider a move again around this point — a casual catch-up keeps you top of mind.`,
+        placement_milestone: "long_term",
+      });
     }
   }
 
@@ -482,7 +519,9 @@ Priority context:
 - Buy-in confirmed, CV not sent: every day you wait is a day the candidate cools
 - CV sent with no client response at 3 business days: chase the client, not tomorrow
 - Buy-in not confirmed at 7 days: re-engage or close the process
-- Placed candidates at milestone check-ins: protecting the guarantee is protecting the fee
+- Placed candidates on their first day: a warm congratulation is the start of a long-term relationship — suggest a brief, personal message
+- Placed candidates at milestone check-ins (2-week, 1-month, 3-month): protecting the guarantee is protecting the fee
+- Placed candidates at the 18-24 month mark with no recent touch: this is the natural window when professionals in Japan start quietly considering a move. A casual catch-up now keeps the recruiter top of mind without any pressure or agenda
 - Stale client relationships: open reqs with no contact go cold fast in Japan
 
 Return valid JSON only. No markdown fences. No commentary.
@@ -522,6 +561,7 @@ NEVER use: straightforward, genuinely, honestly, leverage (as a verb), utilize. 
         suggested_action: ai?.suggested_action ?? "Follow up today.",
         action_type: ai?.action_type ?? "open_process",
         priority_rank: item.priority_rank,
+        placement_milestone: item.placement_milestone,
       };
     });
 
@@ -537,6 +577,7 @@ NEVER use: straightforward, genuinely, honestly, leverage (as a verb), utilize. 
       suggested_action: "Follow up today.",
       action_type: "open_process",
       priority_rank: item.priority_rank,
+      placement_milestone: item.placement_milestone,
     }));
     return res.status(200).json({ agenda });
   }

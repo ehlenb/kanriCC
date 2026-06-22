@@ -18,6 +18,8 @@ import { Component, useEffect } from "react";
 import type { ReactNode } from "react";
 import { initials } from "@/lib/candidate-utils";
 import { BLANK_CANDIDATE_SEARCH } from "@/routes/_authenticated/candidates";
+import { useTranslation } from "react-i18next";
+import { setLanguage, getLanguage } from "@/i18n";
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
   constructor(props: { children: ReactNode }) {
@@ -100,12 +102,35 @@ function AuthedShell() {
   );
 }
 
-const navItems = [
-  { to: "/dashboard", icon: IconLayoutDashboard, label: "Dashboard" },
-  { to: "/candidates", icon: IconUsers, label: "Candidates" },
-  { to: "/clients", icon: IconBuilding, label: "Clients" },
-  { to: "/jobs", icon: IconBriefcase, label: "Jobs" },
-];
+function LanguageToggle() {
+  const { i18n } = useTranslation();
+  const current = getLanguage();
+
+  function toggle() {
+    setLanguage(current === "en" ? "ja" : "en");
+  }
+
+  return (
+    <button
+      onClick={toggle}
+      className="flex w-full items-center gap-2 px-3 py-2 text-xs transition-colors"
+      style={{ color: "var(--color-ink-60)" }}
+      title={current === "en" ? "Switch to Japanese" : "Switch to English"}
+    >
+      <span
+        className="font-mono text-[10px] px-1.5 py-0.5"
+        style={{
+          background: "var(--color-ink-10)",
+          color: "var(--color-ink)",
+          letterSpacing: "0.05em",
+        }}
+      >
+        {i18n.language === "ja" ? "JP" : "EN"}
+      </span>
+      <span>{i18n.language === "ja" ? "English" : "日本語"}</span>
+    </button>
+  );
+}
 
 function Sidebar({
   onSignOut,
@@ -116,7 +141,15 @@ function Sidebar({
 }) {
   const loc = useLocation();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const isAdvancedSearch = loc.pathname === "/advanced-search";
+
+  const navItems = [
+    { to: "/dashboard", icon: IconLayoutDashboard, label: t("nav.dashboard") },
+    { to: "/candidates", icon: IconUsers, label: t("nav.candidates") },
+    { to: "/clients", icon: IconBuilding, label: t("nav.clients") },
+    { to: "/jobs", icon: IconBriefcase, label: t("nav.jobs") },
+  ];
 
   return (
     <aside
@@ -142,11 +175,9 @@ function Sidebar({
           return (
             <Link key={to} to={to}>
               <div
-                className="flex items-center gap-2.5  px-3 py-2 text-sm transition-colors"
+                className="flex items-center gap-2.5 px-3 py-2 text-sm transition-colors"
                 style={{
-                  background: active
-                    ? "rgba(26,26,24,0.07)"
-                    : "transparent",
+                  background: active ? "rgba(26,26,24,0.07)" : "transparent",
                   color: active ? "var(--color-ink)" : "var(--color-ink-60)",
                   fontWeight: active ? 500 : 400,
                 }}
@@ -158,22 +189,22 @@ function Sidebar({
           );
         })}
 
-        {/* Temporary Advanced Search entry — only shown when on that route */}
+        {/* Advanced Search entry — only shown when on that route */}
         {isAdvancedSearch && (
           <div
-            className="flex items-center justify-between  px-3 py-2 text-sm"
+            className="flex items-center justify-between px-3 py-2 text-sm"
             style={{
               background: "rgba(26,26,24,0.07)",
               color: "var(--color-ink)",
             }}
           >
-            <span style={{ fontStyle: "italic", fontWeight: 400 }}>Advanced Search</span>
+            <span style={{ fontStyle: "italic", fontWeight: 400 }}>{t("nav.advancedSearch")}</span>
             <button
               onClick={() =>
                 navigate({ to: "/candidates", search: BLANK_CANDIDATE_SEARCH })
               }
               className="ml-1 transition-colors hover:bg-black/10"
-              title="Close Advanced Search"
+              title={t("common.close")}
             >
               <IconX size={12} />
             </button>
@@ -181,12 +212,12 @@ function Sidebar({
         )}
       </nav>
 
-      {/* User */}
+      {/* User + language toggle */}
       <div
         className="p-3"
         style={{ borderTop: "0.5px solid rgba(26,26,24,0.12)" }}
       >
-        <div className="flex items-center gap-2  px-2 py-2 mb-1">
+        <div className="flex items-center gap-2 px-2 py-2 mb-1">
           <div
             className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-medium"
             style={{ background: "var(--color-ink-10)", color: "var(--color-ink)" }}
@@ -197,13 +228,14 @@ function Sidebar({
             {email}
           </p>
         </div>
+        <LanguageToggle />
         <button
           onClick={onSignOut}
-          className="flex w-full items-center gap-2  px-3 py-2 text-xs transition-colors hover:bg-surface-2"
+          className="flex w-full items-center gap-2 px-3 py-2 text-xs transition-colors hover:bg-surface-2"
           style={{ color: "var(--color-ink-60)" }}
         >
           <IconLogout size={14} />
-          Sign out
+          {t("nav.signOut")}
         </button>
       </div>
     </aside>

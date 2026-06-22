@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -953,6 +954,7 @@ function CenterPanel({
   isLoading: boolean;
 }) {
   const showAiScore = candidates.some((c) => c.aiScore !== undefined);
+  const { t } = useTranslation();
 
   return (
     <div>
@@ -970,7 +972,7 @@ function CenterPanel({
             onClick={onSaveList}
           >
             <IconDeviceFloppy size={13} />
-            Save list
+            {t('advancedSearch.saveList')}
           </button>
         )}
       </div>
@@ -1204,6 +1206,7 @@ function RightPanel({
   onMergeLists: () => void;
   onLoadList: (list: SavedList) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="space-y-4">
       {/* AI Search section */}
@@ -1234,7 +1237,7 @@ function RightPanel({
 
           <div>
             <div className="flex items-center justify-between mb-1">
-              <span className="text-[11px]" style={{ color: "var(--color-ink-60)" }}>Match threshold</span>
+              <span className="text-[11px]" style={{ color: "var(--color-ink-60)" }}>{t('advancedSearch.threshold')}</span>
               <span className="text-[11px] font-medium" style={{ color: "var(--color-ink)" }}>{threshold}%</span>
             </div>
             <input
@@ -1266,9 +1269,9 @@ function RightPanel({
             disabled={aiRunning || !selectedReqId}
           >
             {aiRunning ? (
-              <><IconLoader2 size={13} className="animate-spin" /> Searching…</>
+              <><IconLoader2 size={13} className="animate-spin" /> {t('advancedSearch.searching')}</>
             ) : (
-              <><IconSparkles size={13} /> Run AI Search</>
+              <><IconSparkles size={13} /> {t('advancedSearch.runSearch')}</>
             )}
           </button>
         </div>

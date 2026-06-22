@@ -6,6 +6,8 @@
  * pages can use it without type gymnastics.
  */
 
+import React from "react";
+import { useTranslation } from "react-i18next";
 import {
   IconPhone,
   IconMail,
@@ -13,7 +15,6 @@ import {
   IconFileText,
   IconMessage,
   IconClipboard,
-  IconArrowRight,
 } from "@tabler/icons-react";
 import { interactionTypeLabel } from "@/components/shared/LogActivityModal";
 
@@ -165,21 +166,49 @@ function UpcomingEntry({ item }: { item: TimelineInteraction }) {
 function InteractionEntry({
   item,
   perspective,
-  onStrategyNote,
 }: {
   item: TimelineInteraction;
   perspective: "candidate" | "client";
-  onStrategyNote?: (item: TimelineInteraction) => void;
 }) {
+  const { t, i18n } = useTranslation();
   const type = item.interaction_type;
   const Icon = iconFor(type);
   const col = colorFor(type);
-  const notes = item.full_notes || item.summary;
+  const rawNotes = item.full_notes || item.summary;
+  const [displayNotes, setDisplayNotes] = React.useState<string | null>(rawNotes);
+  const [translatedFor, setTranslatedFor] = React.useState<string | null>(null);
+  const [translating, setTranslating] = React.useState(false);
+
+  // Auto-translate notes when language is Japanese
+  React.useEffect(() => {
+    if (i18n.language === "ja" && rawNotes && translatedFor !== "ja" && !translating) {
+      setTranslating(true);
+      void fetch("/api/ai/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: rawNotes, target_lang: "ja" }),
+      })
+        .then((r) => r.json())
+        .then((d: { translated?: string }) => {
+          if (d.translated) { setDisplayNotes(d.translated); setTranslatedFor("ja"); }
+        })
+        .catch(() => { /* silent — show original */ })
+        .finally(() => setTranslating(false));
+    }
+    if (i18n.language === "en" && translatedFor === "ja") {
+      setDisplayNotes(rawNotes);
+      setTranslatedFor(null);
+    }
+  }, [i18n.language]);
 
   // Build a clear "with / re:" context line
   const contactName = item.client_contacts?.name;
   const candidateName = item.candidates?.full_name;
   const clientName = item.clients?.company_name;
+
+  function contactSan(name: string) {
+    return name.split(" ")[1] ? `${name.split(" ")[1]}-san` : name;
+  }
 
   return (
     <div
@@ -207,56 +236,39 @@ function InteractionEntry({
             (perspective === "candidate" && item.primary_party === "client") ||
             (perspective === "client" && item.primary_party === "candidate")) && (
             <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
-              {/* Client perspective: show candidate clearly as "candidate" */}
               {perspective === "client" && candidateName && (
                 <Chip bg="var(--color-moss-light)" fg="var(--color-moss)">
-                  candidate: {candidateName.split(" ")[1] ? `${candidateName.split(" ")[1]}-san` : candidateName}
+                  {t("activity.timeline.candidateChip", { name: contactSan(candidateName) })}
                 </Chip>
               )}
-              {/* Candidate perspective: show client name */}
               {perspective === "candidate" && clientName && (
                 <Chip bg="var(--color-indigo-light)" fg="var(--color-indigo)">
                   {clientName}
                 </Chip>
               )}
-              {/* Contact: "with Shimada-san" */}
               {contactName && (
                 <Chip bg="var(--color-ink-10)" fg="var(--color-ink-60)">
-                  with {contactName.split(" ")[1] ? `${contactName.split(" ")[1]}-san` : contactName}
+                  {t("activity.timeline.withContact", { name: contactSan(contactName) })}
                 </Chip>
               )}
-              {/* Primary party — only show when cross-linked */}
               {perspective === "candidate" && item.primary_party === "client" && clientName && (
-                <Chip bg="var(--color-gold-light)" fg="var(--color-gold)">client-side call</Chip>
+                <Chip bg="var(--color-gold-light)" fg="var(--color-gold)">{t("activity.timeline.clientSideCall")}</Chip>
               )}
               {perspective === "client" && item.primary_party === "candidate" && candidateName && (
-                <Chip bg="var(--color-moss-light)" fg="var(--color-moss)">candidate-side call</Chip>
+                <Chip bg="var(--color-moss-light)" fg="var(--color-moss)">{t("activity.timeline.candidateSideCall")}</Chip>
               )}
             </div>
           )}
 
           {/* Notes */}
-          {notes ? (
-            <p className="text-[12px] leading-relaxed" style={{ color: "var(--color-ink-60)" }}>
-              {notes}
+          {displayNotes ? (
+            <p className="text-[12px] leading-relaxed" style={{ color: translating ? "var(--color-ink-30)" : "var(--color-ink-60)" }}>
+              {displayNotes}
             </p>
           ) : (
-            <p className="text-[12px]" style={{ color: "var(--color-ink-30)" }}>No notes recorded.</p>
+            <p className="text-[12px]" style={{ color: "var(--color-ink-30)" }}>{t("activity.timeline.noNotes")}</p>
           )}
 
-          {/* Strategy notes button — client perspective only */}
-          {perspective === "client" && onStrategyNote && (notes) && (
-            <div className="mt-2 pt-2" style={{ borderTop: "0.5px solid var(--color-ink-15)" }}>
-              <button
-                className="flex items-center gap-1 text-[11px]"
-                style={{ color: "var(--color-indigo)" }}
-                onClick={() => onStrategyNote(item)}
-              >
-                <IconArrowRight size={12} />
-                Add to strategy notes
-              </button>
-            </div>
-          )}
         </div>
       </div>
     </div>
@@ -271,7 +283,6 @@ export function ActivityTimeline({
   perspective,
   emptyMessage = "No activity recorded yet.",
   emptySubMessage,
-  onStrategyNote,
 }: {
   interactions: TimelineInteraction[];
   /** When set, only interactions with this contact_id are shown. */
@@ -279,8 +290,6 @@ export function ActivityTimeline({
   perspective: "candidate" | "client";
   emptyMessage?: string;
   emptySubMessage?: string;
-  /** Client perspective only — called when recruiter clicks "Add to strategy notes" on an entry. */
-  onStrategyNote?: (item: TimelineInteraction) => void;
 }) {
   const filtered = filterContactId
     ? interactions.filter((i) => i.contact_id === filterContactId)
@@ -330,7 +339,6 @@ export function ActivityTimeline({
             key={`i-${item.id}`}
             item={item}
             perspective={perspective}
-            onStrategyNote={onStrategyNote}
           />
         ))}
       </div>

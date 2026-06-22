@@ -111,7 +111,7 @@ ${r.jd_text ? `JD excerpt:\n${r.jd_text.slice(0, 800)}` : ""}
 `.trim();
 
   const message = await anthropic.messages.create({
-    model: "claude-sonnet-4-5-20250929",
+    model: "claude-haiku-4-5-20251001",
     max_tokens: 800,
     system: `You are writing a candidate outreach email and talking points for a recruiter in Japan. The recruiter will send this to the candidate to pitch a role before buy-in is secured.
 

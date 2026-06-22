@@ -55,7 +55,7 @@ ${c.notes_interview ? `Registration notes (for context on candidate's situation)
 `.trim();
 
   const message = await anthropic.messages.create({
-    model: "claude-sonnet-4-5-20250929",
+    model: "claude-haiku-4-5-20251001",
     max_tokens: 500,
     system: `You are writing a rejection email on behalf of a recruiter in Japan.
 

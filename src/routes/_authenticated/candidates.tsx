@@ -6,6 +6,7 @@ import {
   useNavigate,
 } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -109,6 +110,7 @@ const LAST_TOUCH_OPTIONS = [
 ];
 
 function CandidatesLayout() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const qc = useQueryClient();
   const loc = useLocation();
@@ -179,6 +181,14 @@ function CandidatesLayout() {
     },
   });
 
+  const translatedStatusOptions = STATUS_OPTIONS.map((o) => ({ ...o, label: t(`candidates.status.${o.value}`) }));
+  const translatedSourceOptions = SOURCE_OPTIONS.map((o) => ({ ...o, label: t(`candidates.source.${o.value}`) }));
+  const LAST_TOUCH_KEY: Record<string, string> = { "2w": "2w", "1m": "1m", "1_3m": "1_3m", "3m_plus": "3mPlus" };
+  const translatedLastTouchOptions = LAST_TOUCH_OPTIONS.map((o) => ({
+    ...o,
+    label: t(`candidates.lastTouch.${LAST_TOUCH_KEY[o.value] ?? o.value}`, { defaultValue: o.label }),
+  }));
+
   const hasFilters = search.name || search.company || search.status || search.japanese_level || search.english_level || search.source || search.last_touch;
 
   const activeId = loc.pathname.split("/candidates/")[1];
@@ -209,7 +219,7 @@ function CandidatesLayout() {
           style={{ borderBottom: "0.5px solid var(--color-ink-15)" }}
         >
           <div className="flex items-center justify-between mb-3">
-            <h1 className="text-base font-semibold font-display">Candidates</h1>
+            <h1 className="text-base font-semibold font-display">{t('candidates.title')}</h1>
             <Button
               size="sm"
               variant="ghost"
@@ -230,7 +240,7 @@ function CandidatesLayout() {
               value={nameInput}
               onChange={(e) => handleTextInput("name", e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") updateSearch({ name: nameInput }); }}
-              placeholder="Search by name…"
+              placeholder={t('candidates.searchPlaceholder')}
               className="h-9 pl-8 text-[13px]"
             />
           </div>
@@ -241,39 +251,39 @@ function CandidatesLayout() {
               value={companyInput}
               onChange={(e) => handleTextInput("company", e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") updateSearch({ company: companyInput }); }}
-              placeholder="Company…"
+              placeholder={t('candidates.companyPlaceholder')}
               className="h-8 text-[12px]"
             />
             <div className="grid grid-cols-2 gap-1.5">
               <FilterSelect
                 value={search.status}
-                placeholder="Status"
-                options={STATUS_OPTIONS}
+                placeholder={t('candidates.filters.status')}
+                options={translatedStatusOptions}
                 onChange={(v) => updateSearch({ status: v })}
               />
               <FilterSelect
                 value={search.source}
-                placeholder="Source"
-                options={SOURCE_OPTIONS}
+                placeholder={t('candidates.filters.source')}
+                options={translatedSourceOptions}
                 onChange={(v) => updateSearch({ source: v })}
               />
             </div>
             <LanguageFilter
-              label="Japanese"
+              label={t('candidates.filters.japaneseLabel')}
               value={search.japanese_level}
               levels={JAPANESE_LEVELS}
               onChange={(v) => updateSearch({ japanese_level: v })}
             />
             <LanguageFilter
-              label="English"
+              label={t('candidates.filters.englishLabel')}
               value={search.english_level}
               levels={JAPANESE_LEVELS}
               onChange={(v) => updateSearch({ english_level: v })}
             />
             <FilterSelect
               value={search.last_touch}
-              placeholder="Last touch"
-              options={LAST_TOUCH_OPTIONS}
+              placeholder={t('candidates.filters.lastTouch')}
+              options={translatedLastTouchOptions}
               onChange={(v) => updateSearch({ last_touch: v })}
             />
             {hasFilters && (
@@ -286,7 +296,7 @@ function CandidatesLayout() {
                   updateSearch({ name: "", company: "", status: "", japanese_level: "", english_level: "", source: "", last_touch: "" });
                 }}
               >
-                Clear filters
+                {t('candidates.clearFilters')}
               </button>
             )}
           </div>
@@ -298,28 +308,28 @@ function CandidatesLayout() {
             onClick={() => void navigate({ to: "/advanced-search" as never })}
           >
             <IconAdjustmentsHorizontal size={13} />
-            Advanced Search
+            {t('candidates.advancedSearch')}
           </button>
 
           <p
             className="mt-2 text-[11px] uppercase tracking-wider"
             style={{ color: "var(--color-ink-30)" }}
           >
-            {candidates.length} {candidates.length === 1 ? "person" : "people"}
+            {t('candidates.count', { count: candidates.length })}
           </p>
         </div>
 
         <div className="flex-1 overflow-y-auto">
           {isLoading ? (
             <div className="p-5 text-sm" style={{ color: "var(--color-ink-30)" }}>
-              Loading…
+              {t('common.loading')}
             </div>
           ) : candidates.length === 0 ? (
             <div className="px-5 py-10 text-center">
               <p className="text-[13px] font-medium" style={{ color: "var(--color-ink)" }}>
                 {hasFilters
-                  ? "No candidates match your filters."
-                  : "No candidates yet — add your first candidate to get started."}
+                  ? t('candidates.noResults')
+                  : t('candidates.noResultsEmpty')}
               </p>
               {hasFilters ? (
                 <button
@@ -331,12 +341,12 @@ function CandidatesLayout() {
                     updateSearch(BLANK_CANDIDATE_SEARCH);
                   }}
                 >
-                  Clear filters
+                  {t('candidates.clearFilters')}
                 </button>
               ) : (
                 <Button variant="outline" size="sm" className="mt-3" onClick={() => setOpenNew(true)}>
                   <IconPlus size={14} className="mr-1" />
-                  Add candidate
+                  {t('candidates.addCandidate')}
                 </Button>
               )}
             </div>
@@ -360,9 +370,9 @@ function CandidatesLayout() {
                 { background: "var(--color-ink-10)", color: "var(--color-ink-60)" };
 
               const badgeLabel =
-                c.candidate_status === "active"  ? "Active" :
-                c.candidate_status === "placed"  ? "Placed" :
-                c.candidate_status === "passive" ? "Passive" :
+                c.candidate_status === "active"  ? t('candidates.status.active') :
+                c.candidate_status === "placed"  ? t('candidates.status.placed') :
+                c.candidate_status === "passive" ? t('candidates.status.passive') :
                 null;
 
               const metaParts = [
@@ -589,6 +599,7 @@ function NewCandidateDialog({
     english_level: "",
   });
   const [busy, setBusy] = useState(false);
+  const { t } = useTranslation();
 
   async function save() {
     if (!form.full_name.trim()) return;
@@ -630,10 +641,10 @@ function NewCandidateDialog({
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Add a candidate</DialogTitle>
+          <DialogTitle>{t('candidates.addCandidate')}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3 pt-1">
-          <Field label="Full name (romaji)" required>
+          <Field label={t('candidates.addForm.fullName')} required>
             <Input
               value={form.full_name}
               onChange={(e) => set("full_name")(e.target.value)}
@@ -641,7 +652,7 @@ function NewCandidateDialog({
               autoFocus
             />
           </Field>
-          <Field label="Full name (Japanese)">
+          <Field label={t('candidates.addForm.fullNameJapanese')}>
             <Input
               value={form.full_name_japanese}
               onChange={(e) => set("full_name_japanese")(e.target.value)}
@@ -649,14 +660,14 @@ function NewCandidateDialog({
             />
           </Field>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Current title">
+            <Field label={t('candidates.addForm.currentTitle')}>
               <Input
                 value={form.current_title}
                 onChange={(e) => set("current_title")(e.target.value)}
                 placeholder="Robotics Engineer"
               />
             </Field>
-            <Field label="Current company">
+            <Field label={t('candidates.addForm.currentCompany')}>
               <Input
                 value={form.current_company}
                 onChange={(e) => set("current_company")(e.target.value)}
@@ -665,10 +676,10 @@ function NewCandidateDialog({
             </Field>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Japanese level">
+            <Field label={t('candidates.addForm.japaneseLevel')}>
               <Select value={form.japanese_level} onValueChange={set("japanese_level")}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select level" />
+                  <SelectValue placeholder={t('candidates.addForm.selectLevel')} />
                 </SelectTrigger>
                 <SelectContent>
                   {LANGUAGE_LEVELS.map((l) => (
@@ -677,10 +688,10 @@ function NewCandidateDialog({
                 </SelectContent>
               </Select>
             </Field>
-            <Field label="English level">
+            <Field label={t('candidates.addForm.englishLevel')}>
               <Select value={form.english_level} onValueChange={set("english_level")}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select level" />
+                  <SelectValue placeholder={t('candidates.addForm.selectLevel')} />
                 </SelectTrigger>
                 <SelectContent>
                   {LANGUAGE_LEVELS.map((l) => (
@@ -693,13 +704,13 @@ function NewCandidateDialog({
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button
             onClick={save}
             disabled={busy || !form.full_name.trim()}
           >
-            Save candidate
+            {t('candidates.addCandidate')}
           </Button>
         </DialogFooter>
       </DialogContent>

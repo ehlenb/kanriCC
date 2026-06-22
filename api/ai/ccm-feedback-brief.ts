@@ -124,7 +124,7 @@ ${candidateActivityText}
 `.trim();
 
   const message = await anthropic.messages.create({
-    model: "claude-sonnet-4-5-20250929",
+    model: "claude-haiku-4-5-20251001",
     max_tokens: 600,
     system: `You are writing a call brief for a recruiter who is about to call ${clientName} to chase ${stage} feedback on ${candidateName}. This is a client-facing call, not a candidate call.
 

@@ -6,6 +6,7 @@ import {
   useNavigate,
 } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,7 +21,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { IconSearch, IconPlus } from "@tabler/icons-react";
+import { IconSearch, IconPlus, IconSparkles } from "@tabler/icons-react";
 import { initials } from "@/lib/candidate-utils";
 
 export const Route = createFileRoute("/_authenticated/clients")({
@@ -37,6 +38,7 @@ type ClientListItem = {
 };
 
 function ClientsLayout() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const qc = useQueryClient();
   const loc = useLocation();
@@ -92,7 +94,7 @@ function ClientsLayout() {
           style={{ borderBottom: "0.5px solid rgba(26,26,24,0.12)" }}
         >
           <div className="flex items-center justify-between mb-3">
-            <h1 className="text-base font-semibold">Clients</h1>
+            <h1 className="text-base font-semibold">{t('clients.title')}</h1>
             <Button
               size="sm"
               variant="ghost"
@@ -112,7 +114,7 @@ function ClientsLayout() {
             <Input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Search by company name"
+              placeholder={t('clients.searchPlaceholder')}
               className="h-9 pl-8 text-[13px]"
             />
           </div>
@@ -121,12 +123,12 @@ function ClientsLayout() {
         <div className="flex-1 overflow-y-auto">
           {isLoading ? (
             <div className="p-5 text-sm" style={{ color: "#888780" }}>
-              Loading…
+              {t('common.loading')}
             </div>
           ) : filtered.length === 0 ? (
             <div className="px-5 py-10 text-center">
               <p className="text-sm font-medium">
-                {clients.length > 0 ? "No matches." : "No clients yet."}
+                {clients.length > 0 ? t('clients.noResults') : "No clients yet."}
               </p>
               {clients.length === 0 && (
                 <Button
@@ -136,7 +138,7 @@ function ClientsLayout() {
                   onClick={() => setOpenNew(true)}
                 >
                   <IconPlus size={14} className="mr-1" />
-                  Add client
+                  {t('clients.addClient')}
                 </Button>
               )}
             </div>
@@ -213,14 +215,15 @@ function NewClientDialog({
   onCreated: (id: string) => void;
   recruiterId: string;
 }) {
-  const [form, setForm] = useState({
-    company_name: "",
-    website: "",
-    hiring_manager_name: "",
-  });
+  const [form, setForm] = useState({ company_name: "", website: "", hiring_manager_name: "" });
   const [busy, setBusy] = useState(false);
+  const [kanriSaving, setKanriSaving] = useState(false);
 
-  async function save() {
+  function resetForm() {
+    setForm({ company_name: "", website: "", hiring_manager_name: "" });
+  }
+
+  async function saveBasic() {
     if (!form.company_name.trim()) return;
     setBusy(true);
     const { data, error } = await supabase
@@ -229,78 +232,120 @@ function NewClientDialog({
         recruiter_id: recruiterId,
         company_name: form.company_name.trim(),
         website: form.website.trim() || null,
-        hiring_manager_name: form.hiring_manager_name || null,
+        hiring_manager_name: form.hiring_manager_name.trim() || null,
       })
       .select("id")
       .single();
     setBusy(false);
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
-    setForm({
-      company_name: "",
-      website: "",
-      hiring_manager_name: "",
-    });
+    if (error) { toast.error(error.message); return; }
+    resetForm();
     onCreated(data.id);
   }
 
+  async function saveWithKanri() {
+    if (!form.company_name.trim()) return;
+    setKanriSaving(true);
+    try {
+      // Fetch enrichment first
+      const body: Record<string, string> = { company_name: form.company_name.trim() };
+      if (form.website.trim()) body.url = form.website.trim();
+      const enrichRes = await fetch("/api/ai/enrich-client", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const enrichJson = await enrichRes.json() as {
+        enrichment?: { strategy_notes?: string; years_in_japan?: number; japan_team_size?: number };
+        error?: string;
+      };
+
+      const enrichment = enrichJson.enrichment;
+      const { data, error } = await supabase
+        .from("clients")
+        .insert({
+          recruiter_id: recruiterId,
+          company_name: form.company_name.trim(),
+          website: form.website.trim() || null,
+          hiring_manager_name: form.hiring_manager_name.trim() || null,
+          strategy_notes: enrichment?.strategy_notes ?? null,
+          years_in_japan: enrichment?.years_in_japan ?? null,
+          japan_team_size: enrichment?.japan_team_size ?? null,
+        })
+        .select("id")
+        .single();
+
+      if (error) { toast.error(error.message); setKanriSaving(false); return; }
+      resetForm();
+      onCreated(data.id);
+    } catch {
+      toast.error("Intelligence search failed. Client was not saved.");
+      setKanriSaving(false);
+    }
+  }
+
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Add a client</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-3 pt-1">
-          <Field label="Company name" required>
-            <Input
-              value={form.company_name}
-              onChange={(e) => setForm({ ...form, company_name: e.target.value })}
-              placeholder="e.g. TechCorp Japan"
-              autoFocus
-            />
-          </Field>
-          <Field label="Company website">
-            <Input
-              value={form.website}
-              onChange={(e) => setForm({ ...form, website: e.target.value })}
-              placeholder="e.g. https://techgiant.co.jp"
-            />
-          </Field>
-          <Field label="Hiring manager name">
-            <Input
-              value={form.hiring_manager_name}
-              onChange={(e) => setForm({ ...form, hiring_manager_name: e.target.value })}
-              placeholder="e.g. Yamada Taro"
-            />
-          </Field>
-        </div>
-        <DialogFooter>
-          <Button variant="ghost" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button
-            onClick={save}
-            disabled={busy || !form.company_name.trim()}
-          >
-            Save client
-          </Button>
-        </DialogFooter>
+    <Dialog open={open} onOpenChange={(o) => { if (!o && !kanriSaving) onClose(); }}>
+      <DialogContent className="sm:max-w-md overflow-hidden">
+        {kanriSaving ? (
+          <KanriLoadingScreen />
+        ) : (
+          <>
+            <DialogHeader>
+              <DialogTitle>Add a client</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 pt-1">
+              <Field label="Company name" required>
+                <Input
+                  value={form.company_name}
+                  onChange={(e) => setForm((f) => ({ ...f, company_name: e.target.value }))}
+                  placeholder="e.g. Softbank Robotics Japan"
+                  autoFocus
+                />
+              </Field>
+              <Field label="Website or URL">
+                <Input
+                  value={form.website}
+                  onChange={(e) => setForm((f) => ({ ...f, website: e.target.value }))}
+                  placeholder="e.g. https://softbankrobotics.com/jp"
+                />
+              </Field>
+              <Field label="Hiring manager name">
+                <Input
+                  value={form.hiring_manager_name}
+                  onChange={(e) => setForm((f) => ({ ...f, hiring_manager_name: e.target.value }))}
+                  placeholder="e.g. Yamada Taro"
+                />
+              </Field>
+            </div>
+            <DialogFooter className="flex-col gap-2 sm:flex-row sm:gap-2 pt-2">
+              <Button variant="ghost" onClick={onClose} className="sm:mr-auto">
+                Cancel
+              </Button>
+              <Button
+                variant="outline"
+                onClick={saveBasic}
+                disabled={busy || !form.company_name.trim()}
+              >
+                Save client
+              </Button>
+              <Button
+                onClick={saveWithKanri}
+                disabled={busy || !form.company_name.trim()}
+                className="gap-1.5"
+                style={{ background: "#c94f2a", color: "#fff", border: "none" }}
+              >
+                <IconSparkles size={14} />
+                Kanri Save
+              </Button>
+            </DialogFooter>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );
 }
 
-function Field({
-  label,
-  required,
-  children,
-}: {
-  label: string;
-  required?: boolean;
-  children: React.ReactNode;
-}) {
+function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
       <Label className="text-xs">
@@ -309,5 +354,61 @@ function Field({
       </Label>
       {children}
     </div>
+  );
+}
+
+function KanriLoadingScreen() {
+  return (
+    <>
+      <style>{`
+        @keyframes kanri-ink {
+          0%   { clip-path: inset(100% 0 0 0); opacity: 0.9; }
+          15%  { opacity: 1; }
+          70%  { clip-path: inset(0% 0 0 0); }
+          85%  { clip-path: inset(0% 0 0 0); opacity: 1; }
+          100% { clip-path: inset(100% 0 0 0); opacity: 0.9; }
+        }
+      `}</style>
+      <div
+        className="flex flex-col items-center justify-center py-10 gap-6"
+        style={{ minHeight: 260 }}
+      >
+        <div className="relative select-none" style={{ lineHeight: 1 }}>
+          {/* Ghost layer */}
+          <span
+            style={{
+              fontFamily: "'Shippori Mincho', serif",
+              fontSize: 96,
+              color: "rgba(26,26,24,0.07)",
+              display: "block",
+            }}
+          >
+            管理
+          </span>
+          {/* Ink fill layer */}
+          <span
+            style={{
+              fontFamily: "'Shippori Mincho', serif",
+              fontSize: 96,
+              color: "rgba(26,26,24,0.82)",
+              position: "absolute",
+              inset: 0,
+              display: "block",
+              animation: "kanri-ink 3.2s ease-in-out infinite",
+            }}
+          >
+            管理
+          </span>
+        </div>
+        <div className="text-center space-y-1">
+          <p className="text-sm font-medium" style={{ color: "#1a1a18" }}>
+            Gathering company intelligence
+          </p>
+          <p className="text-xs" style={{ color: "#888780" }}>
+            Searching the web for Japan operations, team size, and strategy…
+          </p>
+        </div>
+      </div>
+    </>
   );
 }
