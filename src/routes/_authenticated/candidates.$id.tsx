@@ -341,7 +341,7 @@ function useCandidateProfile(id: string) {
           .order("updated_at", { ascending: false }),
         supabase
           .from("interactions")
-          .select("id, interaction_type, summary, full_notes, interacted_at, scheduled_at, is_future, client_id, contact_id, primary_party, clients(id, company_name), client_contacts(id, name)")
+          .select("id, recruiter_id, interaction_type, summary, full_notes, interacted_at, scheduled_at, is_future, client_id, contact_id, primary_party, clients(id, company_name), client_contacts(id, name)")
           .eq("candidate_id", id)
           .order("interacted_at", { ascending: false })
           .limit(50),
@@ -4131,6 +4131,10 @@ function CandidateTimelineTab({
       <ActivityTimeline
         interactions={interactions}
         perspective="candidate"
+        currentUserId={recruiterId}
+        onDeleted={() => {
+          void queryClient.invalidateQueries({ queryKey: ["candidate-profile", candidateId] });
+        }}
         emptyMessage="No activity recorded yet."
         emptySubMessage="Interactions linked to this candidate and their active processes will appear here."
       />

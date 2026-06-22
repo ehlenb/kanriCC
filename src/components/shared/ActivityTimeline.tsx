@@ -8,6 +8,7 @@
 
 import React from "react";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 import {
   IconPhone,
   IconMail,
@@ -15,13 +16,16 @@ import {
   IconFileText,
   IconMessage,
   IconClipboard,
+  IconX,
 } from "@tabler/icons-react";
+import { supabase } from "@/integrations/supabase/client";
 import { interactionTypeLabel } from "@/components/shared/LogActivityModal";
 
 // ─── exported types ───────────────────────────────────────────────────────────
 
 export type TimelineInteraction = {
   id: string;
+  recruiter_id?: string | null;
   interaction_type: string;
   summary: string | null;
   full_notes: string | null;
@@ -166,9 +170,13 @@ function UpcomingEntry({ item }: { item: TimelineInteraction }) {
 function InteractionEntry({
   item,
   perspective,
+  currentUserId,
+  onDeleted,
 }: {
   item: TimelineInteraction;
   perspective: "candidate" | "client";
+  currentUserId?: string;
+  onDeleted?: (id: string) => void;
 }) {
   const { t, i18n } = useTranslation();
   const type = item.interaction_type;
@@ -178,6 +186,18 @@ function InteractionEntry({
   const [displayNotes, setDisplayNotes] = React.useState<string | null>(rawNotes);
   const [translatedFor, setTranslatedFor] = React.useState<string | null>(null);
   const [translating, setTranslating] = React.useState(false);
+  const [deleting, setDeleting] = React.useState(false);
+
+  const canDelete = !!currentUserId && item.recruiter_id === currentUserId;
+
+  async function handleDelete() {
+    if (!canDelete) return;
+    setDeleting(true);
+    const { error } = await supabase.from("interactions").delete().eq("id", item.id);
+    setDeleting(false);
+    if (error) { toast.error("Could not delete activity."); return; }
+    onDeleted?.(item.id);
+  }
 
   // Auto-translate notes when language is Japanese
   React.useEffect(() => {
@@ -212,9 +232,20 @@ function InteractionEntry({
 
   return (
     <div
-      className="p-[14px_18px]"
+      className="relative p-[14px_18px]"
       style={{ background: "var(--color-white)", border: "0.5px solid var(--color-ink-15)" }}
     >
+      {canDelete && (
+        <button
+          onClick={() => void handleDelete()}
+          disabled={deleting}
+          className="absolute top-2 right-2 p-1"
+          style={{ color: "var(--color-ink-30)" }}
+          title="Delete"
+        >
+          <IconX size={12} />
+        </button>
+      )}
       <div className="flex items-start gap-3">
         <div
           className="flex h-8 w-8 shrink-0 items-center justify-center mt-0.5"
@@ -281,13 +312,16 @@ export function ActivityTimeline({
   interactions,
   filterContactId,
   perspective,
+  currentUserId,
+  onDeleted,
   emptyMessage = "No activity recorded yet.",
   emptySubMessage,
 }: {
   interactions: TimelineInteraction[];
-  /** When set, only interactions with this contact_id are shown. */
   filterContactId?: string;
   perspective: "candidate" | "client";
+  currentUserId?: string;
+  onDeleted?: (id: string) => void;
   emptyMessage?: string;
   emptySubMessage?: string;
 }) {
@@ -339,6 +373,8 @@ export function ActivityTimeline({
             key={`i-${item.id}`}
             item={item}
             perspective={perspective}
+            currentUserId={currentUserId}
+            onDeleted={onDeleted}
           />
         ))}
       </div>

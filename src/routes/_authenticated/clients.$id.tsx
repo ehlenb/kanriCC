@@ -51,7 +51,6 @@ import {
 } from "@tabler/icons-react";
 import { ActivityTimeline } from "@/components/shared/ActivityTimeline";
 import { LogActivityModal } from "@/components/shared/LogActivityModal";
-import { SendEmailDialog } from "@/components/shared/SendEmailDialog";
 import { LiveCallPanel } from "@/components/shared/LiveCallPanel";
 
 export const Route = createFileRoute("/_authenticated/clients/$id")({
@@ -215,7 +214,7 @@ function useClientDetail(id: string) {
         supabase
           .from("interactions")
           .select(
-            "id, interaction_type, summary, full_notes, interacted_at, candidate_id, contact_id, requisition_id, primary_party, candidates(id, full_name), client_contacts(id, name)",
+            "id, recruiter_id, interaction_type, summary, full_notes, interacted_at, candidate_id, contact_id, requisition_id, primary_party, candidates(id, full_name), client_contacts(id, name)",
           )
           .eq("client_id", id)
           .order("interacted_at", { ascending: false })
@@ -831,6 +830,8 @@ function ClientDetail() {
             <ActivityTimeline
               interactions={interactions}
               perspective="client"
+              currentUserId={user!.id}
+              onDeleted={() => void qc.invalidateQueries({ queryKey: ["client", id] })}
               emptyMessage="No interactions logged yet."
               emptySubMessage="Use Log activity to record calls, emails, and meetings with this client."
             />
@@ -918,6 +919,7 @@ function ClientDetail() {
             onDeleteContact={(contactId, name) =>
               setDeleteTarget({ type: "contact", id: contactId, label: name })
             }
+            currentUserId={user!.id}
           />
         </div>
       )}
@@ -1312,6 +1314,7 @@ function ContactsCard({
   onAdd,
   onLogActivity,
   onDeleteContact,
+  currentUserId,
 }: {
   contacts: Contact[];
   clientId: string;
@@ -1319,6 +1322,7 @@ function ContactsCard({
   onAdd: () => void;
   onLogActivity?: (contactId: string, contactName: string) => void;
   onDeleteContact?: (id: string, name: string) => void;
+  currentUserId?: string;
 }) {
   const { t } = useTranslation();
   const qc = useQueryClient();
@@ -1568,6 +1572,8 @@ function ContactsCard({
                       interactions={interactions ?? []}
                       filterContactId={contact.id}
                       perspective="client"
+                      currentUserId={currentUserId}
+                      onDeleted={() => void qc.invalidateQueries({ queryKey: ["client", clientId] })}
                       emptyMessage="No interactions for this contact yet."
                     />
                   </div>
