@@ -53,6 +53,7 @@ import {
 import { ActivityTimeline } from "@/components/shared/ActivityTimeline";
 import { LogActivityModal } from "@/components/shared/LogActivityModal";
 import { SendEmailDialog } from "@/components/shared/SendEmailDialog";
+import { LiveCallPanel } from "@/components/shared/LiveCallPanel";
 
 export const Route = createFileRoute("/_authenticated/clients/$id")({
   component: ClientDetail,
@@ -1331,6 +1332,7 @@ function ContactsCard({
   const [editContactForm, setEditContactForm] = useState<{ name: string; title: string; role: ContactRole }>({ name: "", title: "", role: "other" });
   const [enrichingId, setEnrichingId] = useState<string | null>(null);
   const [enrichResults, setEnrichResults] = useState<Record<string, { email: string | null; phone: string | null; source: string }>>({});
+  const [callContact, setCallContact] = useState<Contact | null>(null);
 
   async function runContactEnrich(contact: Contact, companyName: string) {
     setEnrichingId(contact.id);
@@ -1505,6 +1507,16 @@ function ContactsCard({
                       </div>
                     ) : (
                       <div className="flex justify-end gap-3">
+                        {contact.phone && (
+                          <button
+                            className="text-[11px] flex items-center gap-0.5"
+                            style={{ color: "var(--color-ink-30)" }}
+                            onClick={() => setCallContact(contact)}
+                          >
+                            <IconPhone size={10} />
+                            Call
+                          </button>
+                        )}
                         <button
                           className="text-[11px] flex items-center gap-0.5"
                           style={{ color: "var(--color-ink-30)" }}
@@ -1646,6 +1658,18 @@ function ContactsCard({
           })}
         </div>
       )}
+
+      <LiveCallPanel
+        open={!!callContact}
+        onClose={() => setCallContact(null)}
+        phone={callContact?.phone}
+        personName={callContact?.name}
+        clientId={clientId}
+        contactId={callContact?.id}
+        onSaved={() => {
+          void qc.invalidateQueries({ queryKey: ["client", clientId] });
+        }}
+      />
     </Card>
   );
 }

@@ -22,6 +22,7 @@ type Props = {
   body: string;
   candidateId?: string;
   clientId?: string;
+  interactionType?: string;
   onSent?: () => void;
 };
 
@@ -33,6 +34,7 @@ export function SendEmailDialog({
   body,
   candidateId,
   clientId,
+  interactionType,
   onSent,
 }: Props) {
   const { user } = useAuth();
@@ -70,6 +72,7 @@ export function SendEmailDialog({
           body,
           candidate_id: candidateId,
           client_id: clientId,
+          interaction_type: interactionType,
         }),
       });
       const json = (await resp.json()) as { ok?: boolean; error?: string };

@@ -9,6 +9,7 @@ type SendPayload = {
   body: string;
   candidate_id?: string;
   client_id?: string;
+  interaction_type?: string;
 };
 
 async function refreshGmailToken(refreshToken: string): Promise<string> {
@@ -106,7 +107,7 @@ async function sendViaOutlook(accessToken: string, to: string, subject: string, 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") return res.json({ error: "Method not allowed" });
 
-  const { recruiter_id, to, subject, body, candidate_id, client_id } =
+  const { recruiter_id, to, subject, body, candidate_id, client_id, interaction_type } =
     req.body as SendPayload;
 
   if (!recruiter_id || !to || !subject || !body) {
@@ -148,7 +149,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Log to interactions
   const interactionRow: Record<string, unknown> = {
     recruiter_id,
-    interaction_type: "email",
+    interaction_type: interaction_type ?? "email",
     summary: subject,
     full_notes: body,
     interacted_at: new Date().toISOString(),

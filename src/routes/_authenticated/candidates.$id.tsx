@@ -63,6 +63,7 @@ import { SubmissionPackagePanel } from "@/components/candidate/SubmissionPackage
 import { ActivityTimeline } from "@/components/shared/ActivityTimeline";
 import { LogActivityModal } from "@/components/shared/LogActivityModal";
 import { SendEmailDialog } from "@/components/shared/SendEmailDialog";
+import { LiveCallPanel } from "@/components/shared/LiveCallPanel";
 
 export const Route = createFileRoute("/_authenticated/candidates/$id")({
   component: CandidateProfile,
@@ -510,6 +511,9 @@ function CandidateProfile() {
           candidateId={id}
           recruiterId={user!.id}
           interactions={interactions}
+          phone={c.phone}
+          email={c.email}
+          candidateName={c.full_name}
         />
       )}
       {page === "notes" && (
@@ -4100,16 +4104,24 @@ function CandidateTimelineTab({
   candidateId,
   recruiterId,
   interactions,
+  phone,
+  email,
+  candidateName,
 }: {
   candidateId: string;
   recruiterId: string;
   interactions: CandidateInteraction[];
+  phone?: string | null;
+  email?: string | null;
+  candidateName?: string | null;
 }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [showLogActivity, setShowLogActivity] = useState(false);
   const [showTranscript, setShowTranscript] = useState(false);
   const [showInviteBot, setShowInviteBot] = useState(false);
+  const [showCall, setShowCall] = useState(false);
+  const [showJobSpec, setShowJobSpec] = useState(false);
 
   const totalCount = interactions.length;
   const upcomingCount = interactions.filter((i) => i.is_future).length;
@@ -4126,6 +4138,19 @@ function CandidateTimelineTab({
           {upcomingCount > 0 ? `, ${upcomingCount} upcoming` : ""}
         </p>
         <div className="flex items-center gap-2">
+          <button
+            className="ab flex items-center gap-1"
+            onClick={() => setShowCall(true)}
+          >
+            <IconPhone size={12} />
+            Call
+          </button>
+          <button
+            className="ab flex items-center gap-1"
+            onClick={() => setShowJobSpec(true)}
+          >
+            Job spec
+          </button>
           <button
             className="ab flex items-center gap-1"
             onClick={() => setShowLogActivity(true)}
@@ -4157,6 +4182,30 @@ function CandidateTimelineTab({
           void queryClient.invalidateQueries({ queryKey: ["candidate-profile", candidateId] });
         }}
         context={{ type: "candidate", id: candidateId }}
+      />
+
+      <LiveCallPanel
+        open={showCall}
+        onClose={() => setShowCall(false)}
+        phone={phone}
+        personName={candidateName ?? undefined}
+        candidateId={candidateId}
+        onSaved={() => {
+          void queryClient.invalidateQueries({ queryKey: ["candidate-profile", candidateId] });
+        }}
+      />
+
+      <SendEmailDialog
+        open={showJobSpec}
+        onClose={() => setShowJobSpec(false)}
+        defaultTo={email ?? ""}
+        defaultSubject="Job Opportunity"
+        body=""
+        candidateId={candidateId}
+        interactionType="job spec sent"
+        onSent={() => {
+          void queryClient.invalidateQueries({ queryKey: ["candidate-profile", candidateId] });
+        }}
       />
 
       <InviteRecallBotDialog
