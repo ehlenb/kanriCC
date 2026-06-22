@@ -725,7 +725,7 @@ Do not suggest, scaffold, or partially implement these unless explicitly instruc
 | Feature | Status |
 |---|---|
 | ATS integration (Bullhorn, Vincere, Greenhouse, etc.) | Deferred post-pilot |
-| Email sending from Kanri (Gmail/Outlook) | Deferred — AI drafts are copy/paste only |
+| Email sending from Kanri (Gmail/Outlook) | **In progress** — Gmail/Outlook OAuth + send, Feature 1 of workflow sprint |
 | Calendar sync for interviews | Deferred |
 | LinkedIn / BizReach sourcing automation | Deferred |
 | Autonomous AI follow-ups | Deferred — trust risk too high for MVP |
@@ -847,24 +847,64 @@ Active development resumed June 2026. All sessions below are committed and pushe
 - Gap 5 — Call priority + batch CV send: `/api/ai/call-priority` ranks candidates by `"call"` vs `"email"` with one-line reason; `/api/ai/batch-cv-send` generates multi-candidate introduction email in flowing prose (no bullets); both endpoints read candidate pitch/personality notes and requisition context; never read `notes_internal` or `notes_presentation`
 - Gap 6 — Pipeline UX: `PipelineProgressStrip` (6 nodes: Specs Sent · Buy-In · CV Sent · Interview · Offer · Placed) renders at top of every process panel; `stageMilestoneToast()` fires stage-specific coaching text (Buy-In through Placed, with 6s/10s hold for Offer/Placed); spring-physics `.stage-advance` CSS animation on active node when stage advances; `@keyframes stageAdvance` in `src/styles.css`
 
+**i18n — full EN/JP toggle (committed 2026-06-21)**
+- `react-i18next` + `i18next` wired into `src/main.tsx`; language stored in localStorage
+- `src/i18n.ts` singleton; `src/locales/en.json` + `src/locales/ja.json` for all UI strings
+- `LanguageToggle` component in authenticated layout header
+- All routes translated: dashboard priority rules + brief panel, candidate filters/count/add form, client pages, jobs pages, advanced search
+- `ActivityTimeline`: chip strings, empty states, "Add to strategy notes" all via `t()`; auto-translates interaction notes to JP on language switch via `/api/ai/translate`; resets to original on switch back
+- `LogActivityModal`: `interactionTypeLabel` uses `i18n` singleton for all type labels
+- New `/api/ai/translate` endpoint for on-demand text translation (Claude-backed)
+- `ja.json` terminology: 現状況 (status), 情報提供元 (source), 直近の連絡先 (last touch)
+
 ---
 
-### Roadmap — recommended sequence
+### Roadmap — next up (workflow sprint)
 
-#### Phase 1: Day-in-the-life audit (do first)
-Go through a full recruiter workflow end-to-end before building anything new. This surfaces UX gaps, missing fields, and broken assumptions that seed data and integrations would otherwise hide. Sequence:
-1. Create a new client → add contacts → upload contract
-2. Create a job requisition
-3. Source / add a candidate → fill registration form → upload CV
-4. Run advanced search against the job → shortlist
-5. Log buy-in call → advance to CV Sent → log CCM1 → mark pass → advance to CCM2
-6. Check dashboard priority actions after each step
-7. Log a competing interview → observe dashboard surfacing it
-8. Advance to Offer → Placed
+Four features to match Spott's table-stakes + add Kanri's intelligence layer on top. Each is a separate session.
 
-Document every friction point. Each one becomes a fix before seeding.
+#### Feature 1: Email send from AI drafts (Gmail + Outlook OAuth)
+Kanri already writes the emails. This makes them sendable.
+- Gmail OAuth (Google OAuth2) + Outlook OAuth (Microsoft Graph) — recruiter connects mailbox once in Settings
+- `recruiter_oauth_tokens` table (migration 029) — stores encrypted refresh tokens per recruiter
+- `api/send-email.ts` — sends via Gmail API or Microsoft Graph using stored token
+- "Send" button added alongside "Copy" on all AI draft components (pre-call brief, rejection email, batch CV send, submission note, job spec message)
+- Sent emails auto-log to `interactions` table as `interaction_type: "email"` with full body as `full_notes`
+- Settings page (`/settings`) — connect/disconnect Gmail and Outlook
 
-#### Phase 2: Seed data (after Phase 1 fixes land)
+#### Feature 2: Call auto-logging via Recall.ai
+Auto-join calls, transcribe, summarise, and post to interactions — no manual logging.
+- Recall.ai integration: "Invite note-taker" button in candidate timeline takes a meeting URL, sends bot via Recall.ai API
+- `recall_bot_sessions` table (migration 030) — tracks active bots (bot_id, candidate_id, meeting_url, status)
+- `api/webhooks/recall.ts` — receives transcript webhook, runs through `api/ai/format-interview-notes.ts`, inserts into `interactions`
+- Existing "Paste transcript" path stays as manual fallback
+- Bot status shown inline in upcoming event card ("Note-taker invited")
+
+#### Feature 3a: Outreach sequences — schema + API
+- `outreach_sequences` table: id, name, steps (JSONB array of {channel, delay_days, intent}), created_by
+- `outreach_enrollments` table: sequence_id, candidate_id, current_step, next_send_at, status, created_by
+- Japan timing helper: `nextSendAt(from, delayDays)` — skips Golden Week, Obon, year-end, respects bonus season
+- `api/ai/sequence-step-draft.ts` — given candidate_id + step intent, generates Japan-aware message draft
+- Migration 031
+
+#### Feature 3b: Outreach sequences — UI
+- Sequence builder in candidate detail Timeline tab — select template, review AI-drafted steps, edit, enroll
+- Sequence status widget in candidate header: "Step 2 of 3 · sends Thu 25 Jun"
+- Dashboard rule 7: surface candidates whose next sequence step is due today
+- Depends on Feature 1 (email send) for actual delivery
+
+#### Feature 4: Auto-enrichment (Apollo.io + Hunter.io)
+- Apollo.io API (primary, best Japan coverage) + Hunter.io (fallback)
+- `api/ai/enrich-contact.ts` — given name + company, returns email + phone via waterfall
+- "Enrich" button on candidate Registration tab and client Contacts card
+- Auto-triggers on new candidate creation if email is missing
+- Results shown as suggestions (same pattern as ExtractionReviewModal) — recruiter confirms before saving
+
+---
+
+### Roadmap — seed data (after workflow sprint)
+
+#### Phase 2: Seed data
 Generate realistic demo data via Supabase SQL seed scripts:
 - ~20 clients (mix of gaishikei, domestic, PE-backed)
 - ~150 candidates (varied stages, Japanese/English names, real-feeling notes_pitch + notes_interview)
