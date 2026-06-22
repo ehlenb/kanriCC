@@ -291,14 +291,41 @@ function InteractionEntry({
             </div>
           )}
 
-          {/* Notes */}
-          {displayNotes ? (
-            <p className="text-[12px] leading-relaxed" style={{ color: translating ? "var(--color-ink-30)" : "var(--color-ink-60)" }}>
-              {displayNotes}
-            </p>
-          ) : (
-            <p className="text-[12px]" style={{ color: "var(--color-ink-30)" }}>{t("activity.timeline.noNotes")}</p>
-          )}
+          {/* Notes — detect Outlook link prefix */}
+          {(() => {
+            const OUTLOOK_PREFIX = "View in Outlook: ";
+            let outlookUrl: string | null = null;
+            let notes = displayNotes;
+            if (notes?.startsWith(OUTLOOK_PREFIX)) {
+              const firstLineEnd = notes.indexOf("\n");
+              outlookUrl = firstLineEnd > -1
+                ? notes.slice(OUTLOOK_PREFIX.length, firstLineEnd).trim()
+                : notes.slice(OUTLOOK_PREFIX.length).trim();
+              notes = firstLineEnd > -1 ? notes.slice(firstLineEnd + 1).trim() || null : null;
+            }
+            return (
+              <>
+                {outlookUrl && (
+                  <a
+                    href={outlookUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[11px] inline-flex items-center gap-1 mb-1.5 underline underline-offset-2"
+                    style={{ color: "var(--color-indigo)" }}
+                  >
+                    <IconMail size={11} /> View in Outlook
+                  </a>
+                )}
+                {notes ? (
+                  <p className="text-[12px] leading-relaxed" style={{ color: translating ? "var(--color-ink-30)" : "var(--color-ink-60)" }}>
+                    {notes}
+                  </p>
+                ) : !outlookUrl ? (
+                  <p className="text-[12px]" style={{ color: "var(--color-ink-30)" }}>{t("activity.timeline.noNotes")}</p>
+                ) : null}
+              </>
+            );
+          })()}
 
         </div>
       </div>
