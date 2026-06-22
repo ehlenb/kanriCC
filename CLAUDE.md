@@ -854,12 +854,6 @@ Active development resumed June 2026. All sessions below are committed and pushe
 - `candidates.$id` Timeline tab: "Invite note-taker" button opens `InviteRecallBotDialog` (meeting URL input); `ActiveBotBanner` shows indigo status strip when a session is `invited` or `in_progress`; "Paste transcript" stays as manual fallback
 - Note: run `supabase gen types` after migration 030 is applied to remove the `@ts-expect-error` on the `recall_bot_sessions` query
 
-**Feature 4 — auto-enrichment via Apollo + Hunter (committed 2026-06-21)**
-- `api/ai/enrich-contact.ts`: POST `{ name, company, type }`; tries Apollo.io People Match first (APOLLO_API_KEY), falls back to Hunter.io Email Finder (HUNTER_API_KEY); returns `{ email, phone, source }`; always HTTP 200 with error in body
-- APOLLO_API_KEY and HUNTER_API_KEY added to .env (server-side only, blank placeholder — recruiter must supply keys)
-- `candidates.$id` Registration tab: "Enrich" button in the Candidate Details card header; shows green confirm banner with found email/phone + source (Apollo/Hunter); Accept applies non-overwriting patch to DB; Dismiss clears banner; auto-triggers on CV extraction when candidate has no email
-- `clients.$id` Contacts card: "Enrich" button per contact in expanded row (next to Edit contact); same confirm/dismiss banner; `companyName` prop threaded through from ClientDetail; no silent overwriting of existing values
-
 **i18n — full EN/JP toggle (committed 2026-06-21)**
 - `react-i18next` + `i18next` wired into `src/main.tsx`; language stored in localStorage
 - `src/i18n.ts` singleton; `src/locales/en.json` + `src/locales/ja.json` for all UI strings
