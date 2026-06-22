@@ -300,35 +300,6 @@ function usePriorityActions(recruiterId: string) {
         }
       }
 
-      // Rule 7: Outreach sequence step due today
-      const todayEnd = new Date(now);
-      todayEnd.setHours(23, 59, 59, 999);
-      const { data: dueEnrollments } = await supabase
-        .from("outreach_enrollments")
-        .select("id, candidate_id, current_step, next_send_at, outreach_sequences(name, steps), candidates(full_name)")
-        .eq("created_by", recruiterId)
-        .eq("status", "active")
-        .lte("next_send_at", todayEnd.toISOString());
-
-      for (const enr of (dueEnrollments ?? [])) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const enrAny = enr as any;
-        const candName = (Array.isArray(enrAny.candidates) ? enrAny.candidates[0] : enrAny.candidates)?.full_name ?? "—";
-        const seqName = (Array.isArray(enrAny.outreach_sequences) ? enrAny.outreach_sequences[0] : enrAny.outreach_sequences)?.name ?? "Sequence";
-        const candidateId = enrAny.candidate_id as string;
-        const firstName = candName.split(" ")[0] as string;
-        actions.push({
-          entity_type: "candidate",
-          entity_id: candidateId,
-          entity_name: candName,
-          candidate_id: candidateId,
-          reason: `Outreach step due today — ${seqName}`,
-          suggested_action: `Send the next message to ${firstName} in the "${seqName}" sequence.`,
-          action_type: "sequence_step",
-          priority_rank: 15,
-        });
-      }
-
       // Sort by priority rank ascending (lower = more urgent)
       actions.sort((a, b) => a.priority_rank - b.priority_rank);
       return actions;

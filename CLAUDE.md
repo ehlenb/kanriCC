@@ -870,19 +870,6 @@ Active development resumed June 2026. All sessions below are committed and pushe
 - New `/api/ai/translate` endpoint for on-demand text translation (Claude-backed)
 - `ja.json` terminology: 現状況 (status), 情報提供元 (source), 直近の連絡先 (last touch)
 
-**Feature 3a + 3b — Outreach sequences (committed 2026-06-21)**
-- `supabase/migrations/031_outreach_sequences.sql`: two new tables — `outreach_sequences` (id, name, steps JSONB, created_by, team_id) and `outreach_enrollments` (id, sequence_id, candidate_id, current_step, next_send_at timestamptz, status, created_by, team_id); both team-scoped RLS; indexes on candidate_id, next_send_at, status
-- `src/lib/candidate-utils.ts`: `nextSendAt(from, delayDays)` — advances N business days while skipping Japan blackouts (Golden Week Apr 29–May 6, Obon Aug 13–16, year-end Dec 28–Jan 4); `isBonusSeason()` — returns true Jan–Mar / Jun–Jul
-- `api/ai/sequence-step-draft.ts`: POST `{ candidate_id, intent, channel }` — reads candidate profile, pitch notes, interview notes, recent interactions; outputs Japan-aware draft with warm tone; suppresses urgency framing in bonus season; never reads `notes_internal` or `notes_presentation`
-- `src/components/candidate/SequencePanel.tsx`: self-contained component with three exports:
-  - `SequenceStatusWidget` — shown in candidate header when enrollment is active; "Step N of M · sends Thu 25 Jun" with cancel button
-  - `SequencePanel` — template picker (3 presets: Initial outreach / Re-engagement / Offer follow-up) → step review with per-step AI draft + editable textarea → Enroll button saves sequence + enrollment to DB
-  - `SequenceDueCard` — card used by dashboard for due steps; generate draft → copy → mark sent/complete
-- `candidates.$id` Timeline tab: "Start sequence" button (IconBolt) toggles SequencePanel; `teamId` prop threaded through from parent; `SequenceStatusWidget` added below "Last contact" line in candidate header
-- `dashboard.tsx` rule 7: queries `outreach_enrollments` where `created_by = recruiterId`, `status = active`, `next_send_at <= today`; surfaces each due step at priority_rank 15 (between CCM feedback and CV Sent rules)
-- Supabase types: `outreach_sequences`, `outreach_enrollments`, and `recall_bot_sessions` rows added manually to `src/integrations/supabase/types.ts` (run `supabase gen types` with an access token to replace)
-- Actual sending depends on Feature 1 (email send). For now: due steps surface in dashboard, recruiter clicks candidate → generates draft → copies and sends manually.
-
 **Feature 1 — Email send from AI drafts — Gmail + Outlook OAuth (committed 2026-06-21)**
 - Migration 029: `recruiter_oauth_tokens` table — `(recruiter_id, provider)` unique; AES-256-CBC encrypted refresh token; team-scoped RLS
 - `api/oauth/gmail-connect.ts` — returns Google OAuth2 URL (client secret stays server-side)
@@ -922,8 +909,7 @@ Kanri already writes the emails. This makes them sendable.
 #### Feature 2: Call auto-logging via Recall.ai ✓ DONE (2026-06-21)
 See session log above.
 
-#### Feature 3a + 3b: Outreach sequences ✓ DONE (2026-06-21)
-See session log below.
+#### Feature 3a + 3b: Outreach sequences — removed, not needed
 
 #### Feature 4: Auto-enrichment (Apollo.io + Hunter.io)
 - Apollo.io API (primary, best Japan coverage) + Hunter.io (fallback)

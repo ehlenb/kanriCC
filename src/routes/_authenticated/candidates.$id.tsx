@@ -60,7 +60,6 @@ import {
 } from "@tabler/icons-react";
 import { TranscriptPanel } from "@/components/candidate/TranscriptPanel";
 import { SubmissionPackagePanel } from "@/components/candidate/SubmissionPackagePanel";
-import { SequencePanel, SequenceStatusWidget } from "@/components/candidate/SequencePanel";
 import { ActivityTimeline } from "@/components/shared/ActivityTimeline";
 import { LogActivityModal } from "@/components/shared/LogActivityModal";
 import { SendEmailDialog } from "@/components/shared/SendEmailDialog";
@@ -471,7 +470,6 @@ function CandidateProfile() {
               {lastContact}
             </span>
           </div>
-          <SequenceStatusWidget candidateId={c.id} />
         </div>
         <button
           onClick={() => setDeleteOpen(true)}
@@ -511,7 +509,6 @@ function CandidateProfile() {
         <CandidateTimelineTab
           candidateId={id}
           recruiterId={user!.id}
-          teamId={c.team_id}
           interactions={interactions}
         />
       )}
@@ -4102,12 +4099,10 @@ function ActiveBotBanner({ candidateId }: { candidateId: string }) {
 function CandidateTimelineTab({
   candidateId,
   recruiterId,
-  teamId,
   interactions,
 }: {
   candidateId: string;
   recruiterId: string;
-  teamId: string;
   interactions: CandidateInteraction[];
 }) {
   const { t } = useTranslation();
@@ -4115,7 +4110,6 @@ function CandidateTimelineTab({
   const [showLogActivity, setShowLogActivity] = useState(false);
   const [showTranscript, setShowTranscript] = useState(false);
   const [showInviteBot, setShowInviteBot] = useState(false);
-  const [showSequencePanel, setShowSequencePanel] = useState(false);
 
   const totalCount = interactions.length;
   const upcomingCount = interactions.filter((i) => i.is_future).length;
@@ -4132,13 +4126,6 @@ function CandidateTimelineTab({
           {upcomingCount > 0 ? `, ${upcomingCount} upcoming` : ""}
         </p>
         <div className="flex items-center gap-2">
-          <button
-            className="ab flex items-center gap-1"
-            onClick={() => { setShowSequencePanel((v) => !v); setShowTranscript(false); }}
-          >
-            <IconBolt size={12} />
-            Start sequence
-          </button>
           <button
             className="ab flex items-center gap-1"
             onClick={() => setShowLogActivity(true)}
@@ -4181,15 +4168,6 @@ function CandidateTimelineTab({
           void queryClient.invalidateQueries({ queryKey: ["recall-bot-sessions", candidateId] });
         }}
       />
-
-      {showSequencePanel && (
-        <SequencePanel
-          candidateId={candidateId}
-          recruiterId={recruiterId}
-          teamId={teamId}
-          onClose={() => setShowSequencePanel(false)}
-        />
-      )}
 
       {showTranscript && (
         <TranscriptPanel
