@@ -93,6 +93,7 @@ export function interactionTypeLabel(type: string, primaryParty?: string | null)
     return t("activity.types.meeting");
   }
   if (/^ccm\d+$/i.test(type)) return type.toUpperCase();
+  if (type === "email received") return t("activity.types.email_received");
   const key = `activity.types.${type.replace(/ /g, "_").replace(/-/g, "_")}`;
   const translated = t(key);
   if (translated !== key) return translated;

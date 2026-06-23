@@ -48,20 +48,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (!recruiter) return res.json({ error: "Recruiter not found" });
 
-  // Prepend outlook link to notes so ActivityTimeline can render it
-  const fullNotes = [
-    outlook_web_link ? `View in Outlook: ${outlook_web_link}` : null,
-    body || null,
-  ]
-    .filter(Boolean)
-    .join("\n\n");
+  const fullNotes = outlook_web_link ? `View in Outlook: ${outlook_web_link}` : null;
 
   const { error } = await supabase.from("interactions").insert({
     recruiter_id,
     team_id: recruiter.team_id,
-    interaction_type: "email",
-    summary: `${from_name || from_email}: ${subject}`,
-    full_notes: fullNotes || null,
+    interaction_type: "email received",
+    summary: subject,
+    full_notes: fullNotes,
     interacted_at: sent_at,
     primary_party: candidate_id ? "candidate" : "client",
     candidate_id: candidate_id ?? null,

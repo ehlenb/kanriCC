@@ -60,6 +60,7 @@ const CCM_COLOR = { bg: "var(--color-indigo-light)", fg: "var(--color-indigo)" }
 const ICON: Record<string, React.ElementType> = {
   call:                  IconPhone,
   email:                 IconMail,
+  "email received":      IconMail,
   note:                  IconClipboard,
   meeting:               IconCalendar,
   "interview scheduled": IconCalendar,
@@ -72,6 +73,7 @@ const ICON: Record<string, React.ElementType> = {
 const COLOR: Record<string, { bg: string; fg: string }> = {
   call:                  { bg: "var(--color-indigo-light)", fg: "var(--color-indigo)" },
   email:                 { bg: "var(--color-ink-10)",       fg: "var(--color-ink-60)" },
+  "email received":      { bg: "var(--color-ink-10)",       fg: "var(--color-ink-60)" },
   note:                  { bg: "var(--color-ink-10)",       fg: "var(--color-ink-60)" },
   meeting:               { bg: "var(--color-moss-light)",   fg: "#3b6d11" },
   "interview scheduled": { bg: "var(--color-indigo-light)", fg: "var(--color-indigo)" },
