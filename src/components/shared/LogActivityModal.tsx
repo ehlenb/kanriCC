@@ -172,6 +172,29 @@ export function LogActivityModal({
   const [scheduledTime, setScheduledTime] = useState("10:00");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
+  const [polishing, setPolishing] = useState(false);
+
+  async function polishNotes() {
+    if (!notes.trim()) return;
+    setPolishing(true);
+    try {
+      const res = await fetch("/api/ai/polish-notes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notes: notes.trim() }),
+      });
+      const data = (await res.json()) as { polished?: string; error?: string };
+      if (data.polished) {
+        setNotes(data.polished);
+      } else {
+        toast.error("Could not polish notes. Try again.");
+      }
+    } catch {
+      toast.error("Could not polish notes. Try again.");
+    } finally {
+      setPolishing(false);
+    }
+  }
 
   // Candidate-specific: optional client cross-link
   const [crossClientId, setCrossClientId] = useState<string | null>(null);
@@ -456,7 +479,7 @@ export function LogActivityModal({
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="What happened, what was agreed, what to follow up on…"
-              className="min-h-[120px] text-[13px]"
+              className="min-h-[120px] text-[13px] whitespace-pre-wrap"
               autoFocus
             />
           </div>
@@ -565,6 +588,15 @@ export function LogActivityModal({
         <DialogFooter>
           <Button variant="outline" size="sm" onClick={onClose}>
             Cancel
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void polishNotes()}
+            disabled={polishing || !notes.trim()}
+            title="Let AI clean up your notes without changing the meaning"
+          >
+            {polishing ? "Polishing…" : "✦ Kanri Save"}
           </Button>
           <Button
             size="sm"

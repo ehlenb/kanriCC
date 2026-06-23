@@ -17,6 +17,7 @@ import {
   IconMessage,
   IconClipboard,
   IconX,
+  IconPencil,
 } from "@tabler/icons-react";
 import { supabase } from "@/integrations/supabase/client";
 import { interactionTypeLabel, LogActivityModal } from "@/components/shared/LogActivityModal";
@@ -259,11 +260,13 @@ function InteractionEntry({
   perspective,
   currentUserId,
   onDeleted,
+  onUpdated,
 }: {
   item: TimelineInteraction;
   perspective: "candidate" | "client";
   currentUserId?: string;
   onDeleted?: (id: string) => void;
+  onUpdated?: () => void;
 }) {
   const { t, i18n } = useTranslation();
   const type = item.interaction_type;
@@ -276,6 +279,24 @@ function InteractionEntry({
   const [hidden, setHidden] = React.useState(false);
 
   const canDelete = !!currentUserId;
+  const [editOpen, setEditOpen] = React.useState(false);
+
+  const editContext = perspective === "candidate"
+    ? { type: "candidate" as const, id: item.candidate_id ?? "" }
+    : { type: "client" as const, id: item.client_id ?? "" };
+
+  const editEntry: import("./LogActivityModal").EditableInteraction = {
+    id: item.id,
+    interaction_type: item.interaction_type,
+    primary_party: item.primary_party,
+    interacted_at: item.interacted_at,
+    scheduled_at: item.scheduled_at,
+    is_future: item.is_future,
+    full_notes: item.full_notes,
+    summary: item.summary,
+    client_id: item.client_id,
+    contact_id: item.contact_id,
+  };
 
   function handleDelete() {
     if (!canDelete) return;
@@ -333,20 +354,30 @@ function InteractionEntry({
   if (hidden) return null;
 
   return (
+    <>
     <div
       className="relative p-[14px_18px]"
       style={{ background: "var(--color-white)", border: "0.5px solid var(--color-ink-15)" }}
     >
       {canDelete && (
-        <button
-          onClick={() => void handleDelete()}
-          disabled={false}
-          className="absolute top-2 right-2 p-1"
-          style={{ color: "var(--color-ink-30)" }}
-          title="Delete"
-        >
-          <IconX size={12} />
-        </button>
+        <div className="absolute top-2 right-2 flex items-center gap-0.5">
+          <button
+            onClick={() => setEditOpen(true)}
+            className="p-1"
+            style={{ color: "var(--color-ink-30)" }}
+            title="Edit"
+          >
+            <IconPencil size={12} />
+          </button>
+          <button
+            onClick={() => void handleDelete()}
+            className="p-1"
+            style={{ color: "var(--color-ink-30)" }}
+            title="Delete"
+          >
+            <IconX size={12} />
+          </button>
+        </div>
       )}
       <div className="flex items-start gap-3">
         <div
@@ -419,9 +450,31 @@ function InteractionEntry({
                   </a>
                 )}
                 {notes ? (
-                  <p className="text-[12px] leading-relaxed" style={{ color: translating ? "var(--color-ink-30)" : "var(--color-ink-60)" }}>
-                    {notes}
-                  </p>
+                  <div
+                    className="text-[12px] leading-relaxed space-y-2"
+                    style={{ color: translating ? "var(--color-ink-30)" : "var(--color-ink-60)" }}
+                  >
+                    {notes.split(/\n{1,}/).filter(l => l.trim()).map((line, pi) => {
+                      // Strip leading # characters (h1/h2/h3) and render as bold label
+                      const headingMatch = /^#{1,3}\s+(.+)/.exec(line);
+                      if (headingMatch) {
+                        return (
+                          <p key={pi}>
+                            <strong style={{ color: "var(--color-ink)", fontWeight: 600 }}>{headingMatch[1]}</strong>
+                          </p>
+                        );
+                      }
+                      return (
+                        <p key={pi}>
+                          {line.split(/(\*\*[^*]+\*\*)/).map((chunk, ci) =>
+                            chunk.startsWith("**") && chunk.endsWith("**")
+                              ? <strong key={ci} style={{ color: "var(--color-ink)", fontWeight: 600 }}>{chunk.slice(2, -2)}</strong>
+                              : chunk
+                          )}
+                        </p>
+                      );
+                    })}
+                  </div>
                 ) : !outlookUrl ? (
                   <p className="text-[12px]" style={{ color: "var(--color-ink-30)" }}>{t("activity.timeline.noNotes")}</p>
                 ) : null}
@@ -432,6 +485,17 @@ function InteractionEntry({
         </div>
       </div>
     </div>
+
+    {editOpen && (
+      <LogActivityModal
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        onSaved={() => { setEditOpen(false); onUpdated?.(); }}
+        context={editContext}
+        existingEntry={editEntry}
+      />
+    )}
+    </>
   );
 }
 
@@ -518,6 +582,7 @@ export function ActivityTimeline({
             perspective={perspective}
             currentUserId={currentUserId}
             onDeleted={onDeleted}
+            onUpdated={onUpdated}
           />
         ))}
       </div>
