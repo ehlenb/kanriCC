@@ -190,7 +190,7 @@ function InteractionEntry({
   const [translating, setTranslating] = React.useState(false);
   const [deleting, setDeleting] = React.useState(false);
 
-  const canDelete = !!currentUserId && item.recruiter_id === currentUserId;
+  const canDelete = !!currentUserId;
 
   async function handleDelete() {
     if (!canDelete) return;
