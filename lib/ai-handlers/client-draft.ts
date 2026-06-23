@@ -160,8 +160,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const cand = proc?.candidates;
-  const req = proc?.requisitions;
-  const companyName = req?.clients?.company_name ?? "the client";
+  const requisition = proc?.requisitions;
+  const companyName = requisition?.clients?.company_name ?? "the client";
   const formatYen = (n: number | null) => (n ? `¥${(n / 1_000_000).toFixed(1)}M` : null);
 
   // ── Build prompt + system by type ─────────────────────────────────────────
@@ -180,7 +180,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     prompt = `
 Recruiter is following up with ${hmName} at ${companyName}.
 Candidate: ${cand?.full_name ?? "—"}, ${cand?.current_title ?? "—"} at ${cand?.current_company ?? "—"}
-Role: ${req?.title ?? "—"}
+Role: ${requisition?.title ?? "—"}
 Process stage: ${proc?.stage ?? "—"}
 ${isPostInterview ? "Interview completed — awaiting feedback." : "CV submitted — awaiting feedback."}
 
@@ -194,8 +194,8 @@ Write a follow-up email. Start with the subject line on its own line (Subject: .
     system = `You are writing candidate interview prep notes for a recruiter to share with their candidate before an interview at a foreign firm in Japan. Be specific and practical. The candidate reads this the evening before. ${FORBIDDEN}`;
 
     let structureBlock = "";
-    if (Array.isArray(req?.interview_structure)) {
-      const rounds = req.interview_structure as Array<{ round: number; interviewer: string; focus: string }>;
+    if (Array.isArray(requisition?.interview_structure)) {
+      const rounds = requisition.interview_structure as Array<{ round: number; interviewer: string; focus: string }>;
       structureBlock = rounds
         .map((r) => `Round ${r.round}: meets ${r.interviewer || "—"}. Focus: ${r.focus || "—"}`)
         .join("\n");
@@ -203,11 +203,11 @@ Write a follow-up email. Start with the subject line on its own line (Subject: .
 
     prompt = `
 Candidate: ${cand?.full_name ?? "—"}, ${cand?.current_title ?? "—"}
-Role: ${req?.title ?? "—"} at ${companyName}
+Role: ${requisition?.title ?? "—"} at ${companyName}
 Stage: ${proc?.stage ?? "—"}
-${structureBlock ? `Interview structure:\n${structureBlock}` : `Interview rounds: ${req?.interview_rounds ?? "not specified"}`}
-${req?.hm_priority_beyond_jd ? `HM priority beyond JD: ${req.hm_priority_beyond_jd}` : ""}
-${req?.strategic_context ? `Why this role exists: ${req.strategic_context}` : ""}
+${structureBlock ? `Interview structure:\n${structureBlock}` : `Interview rounds: ${requisition?.interview_rounds ?? "not specified"}`}
+${requisition?.hm_priority_beyond_jd ? `HM priority beyond JD: ${requisition.hm_priority_beyond_jd}` : ""}
+${requisition?.strategic_context ? `Why this role exists: ${requisition.strategic_context}` : ""}
 ${motivations.length > 0 ? `Candidate motivations (do not share directly): ${motivations.map((m) => m.motivation_text).join("; ")}` : ""}
 ${cand?.notes_presentation ? `Communication style: ${cand.notes_presentation}` : ""}
 
@@ -226,7 +226,7 @@ Write structured prep notes covering:
 
     prompt = `
 Candidate: ${cand?.full_name ?? "—"}, currently at ${cand?.current_company ?? "—"}
-Role: ${req?.title ?? "—"} at ${companyName}
+Role: ${requisition?.title ?? "—"} at ${companyName}
 Stage: ${proc?.stage ?? "—"}
 Expected total: ${formatYen(cand?.expected_total_min ?? null)} – ${formatYen(cand?.expected_total_max ?? null)}
 ${motivations.length > 0 ? `Top motivations: ${motivations.map((m) => `${m.rank}. ${m.motivation_text}`).join("; ")}` : ""}
@@ -254,7 +254,7 @@ Write a closing call script with:
     prompt = `
 To: ${schedulingName} at ${companyName}
 Candidate: ${cand?.full_name ?? "—"}
-Role: ${req?.title ?? "—"}
+Role: ${requisition?.title ?? "—"}
 Next step: schedule ${nextRound}
 Current stage: ${proc?.stage ?? "—"}
 
@@ -277,9 +277,9 @@ ${FORBIDDEN}`;
 
     prompt = `
 Candidate: ${cand?.full_name ?? "—"}, ${cand?.current_title ?? "—"} at ${cand?.current_company ?? "—"}
-Target role: ${req?.title ?? "—"} at ${companyName}
+Target role: ${requisition?.title ?? "—"} at ${companyName}
 Expected salary: ${formatYen(cand?.expected_total_min ?? null)} – ${formatYen(cand?.expected_total_max ?? null)}
-${req?.strategic_context ? `Why this role exists: ${req.strategic_context}` : ""}
+${requisition?.strategic_context ? `Why this role exists: ${requisition.strategic_context}` : ""}
 ${motivations.length > 0 ? `Motivations (frame positively — do not expose ranking): ${motivations.map((m) => m.motivation_text).join("; ")}` : ""}
 ${cand?.notes_presentation ? `Presentation style: ${cand.notes_presentation}` : ""}
 `.trim();

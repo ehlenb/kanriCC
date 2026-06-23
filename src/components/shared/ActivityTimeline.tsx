@@ -274,8 +274,8 @@ function InteractionEntry({
   const col = colorFor(type);
   const rawNotes = item.full_notes || item.summary;
   const [displayNotes, setDisplayNotes] = React.useState<string | null>(rawNotes);
-  const [translatedFor, setTranslatedFor] = React.useState<string | null>(null);
   const [translating, setTranslating] = React.useState(false);
+  const inFlightRef = React.useRef(false);
   const [hidden, setHidden] = React.useState(false);
 
   const canDelete = !!currentUserId;
@@ -320,26 +320,23 @@ function InteractionEntry({
     });
   }
 
-  // Auto-translate notes when language is Japanese
+  // Auto-translate notes to current UI language whenever language changes
   React.useEffect(() => {
-    if (i18n.language === "ja" && rawNotes && translatedFor !== "ja" && !translating) {
-      setTranslating(true);
-      void fetch("/api/ai?type=translate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: rawNotes, target_lang: "ja" }),
+    const lang = i18n.language as "en" | "ja";
+    if (!rawNotes || inFlightRef.current) return;
+    inFlightRef.current = true;
+    setTranslating(true);
+    void fetch("/api/ai?type=translate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: rawNotes, target_lang: lang }),
+    })
+      .then((r) => r.json())
+      .then((d: { translated?: string }) => {
+        if (d.translated) setDisplayNotes(d.translated);
       })
-        .then((r) => r.json())
-        .then((d: { translated?: string }) => {
-          if (d.translated) { setDisplayNotes(d.translated); setTranslatedFor("ja"); }
-        })
-        .catch(() => { /* silent — show original */ })
-        .finally(() => setTranslating(false));
-    }
-    if (i18n.language === "en" && translatedFor === "ja") {
-      setDisplayNotes(rawNotes);
-      setTranslatedFor(null);
-    }
+      .catch((e) => { console.error("translate failed", e); })
+      .finally(() => { inFlightRef.current = false; setTranslating(false); });
   }, [i18n.language]);
 
   // Build a clear "with / re:" context line
