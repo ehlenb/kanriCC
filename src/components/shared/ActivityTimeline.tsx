@@ -449,7 +449,7 @@ function InteractionEntry({
                 {notes ? (
                   <div
                     className="text-[12px] leading-relaxed space-y-2"
-                    style={{ color: translating ? "var(--color-ink-30)" : "var(--color-ink-60)" }}
+                    style={{ color: "var(--color-ink-60)" }}
                   >
                     {notes.split(/\n{1,}/).filter(l => l.trim()).map((line, pi) => {
                       // Strip leading # characters (h1/h2/h3) and render as bold label
