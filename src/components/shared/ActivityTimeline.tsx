@@ -255,7 +255,7 @@ function InteractionEntry({
       {canDelete && (
         <button
           onClick={() => void handleDelete()}
-          disabled={deleting}
+          disabled={false}
           className="absolute top-2 right-2 p-1"
           style={{ color: "var(--color-ink-30)" }}
           title="Delete"
