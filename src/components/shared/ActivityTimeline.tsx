@@ -188,18 +188,33 @@ function InteractionEntry({
   const [displayNotes, setDisplayNotes] = React.useState<string | null>(rawNotes);
   const [translatedFor, setTranslatedFor] = React.useState<string | null>(null);
   const [translating, setTranslating] = React.useState(false);
-  const [deleting, setDeleting] = React.useState(false);
+  const [hidden, setHidden] = React.useState(false);
 
   const canDelete = !!currentUserId;
 
-  async function handleDelete() {
+  function handleDelete() {
     if (!canDelete) return;
-    setDeleting(true);
-    const { error } = await supabase.from("interactions").delete().eq("id", item.id);
-    setDeleting(false);
-    if (error) { toast.error("Could not delete activity."); return; }
-    onDeleted?.(item.id);
+    setHidden(true);
+    let undone = false;
+
+    const timeoutId = setTimeout(() => {
+      if (undone) return;
+      void supabase.from("interactions").delete().eq("id", item.id).then(({ error }) => {
+        if (error) { toast.error("Could not delete activity."); setHidden(false); return; }
+        onDeleted?.(item.id);
+      });
+    }, 5000);
+
+    toast("Activity deleted", {
+      duration: 5000,
+      action: {
+        label: "Undo",
+        onClick: () => { undone = true; clearTimeout(timeoutId); setHidden(false); },
+      },
+    });
   }
+
+  if (hidden) return null;
 
   // Auto-translate notes when language is Japanese
   React.useEffect(() => {
