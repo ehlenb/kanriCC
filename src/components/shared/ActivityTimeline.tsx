@@ -214,8 +214,6 @@ function InteractionEntry({
     });
   }
 
-  if (hidden) return null;
-
   // Auto-translate notes when language is Japanese
   React.useEffect(() => {
     if (i18n.language === "ja" && rawNotes && translatedFor !== "ja" && !translating) {
@@ -246,6 +244,8 @@ function InteractionEntry({
   function contactSan(name: string) {
     return name.split(" ")[1] ? `${name.split(" ")[1]}-san` : name;
   }
+
+  if (hidden) return null;
 
   return (
     <div
