@@ -451,7 +451,7 @@ export function LogActivityModal({
 
           {/* Notes — single field */}
           <div className="space-y-1.5">
-            <Label className="text-[12px]">Notes *</Label>
+            <Label className="text-[12px]">Notes</Label>
             <Textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
