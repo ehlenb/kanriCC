@@ -240,10 +240,6 @@ export function LogActivityModal({
   }
 
   async function save() {
-    if (!notes.trim()) {
-      toast.error("Notes are required.");
-      return;
-    }
     // Derive a one-line summary from the first sentence/line of notes
     const summary = notes.trim().split(/[\n.]/)[0].trim().slice(0, 160);
     if (timing === "upcoming" && !scheduledDate) {
@@ -573,7 +569,7 @@ export function LogActivityModal({
           <Button
             size="sm"
             onClick={() => void save()}
-            disabled={saving || !notes.trim()}
+            disabled={saving}
           >
             {saving ? "Saving…" : existingEntry ? "Save changes" : "Log activity"}
           </Button>
