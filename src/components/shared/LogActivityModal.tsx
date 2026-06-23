@@ -120,6 +120,7 @@ function toPrimaryParty(displayType: string, fallback: "candidate" | "client"): 
 export function toDisplayType(dbType: string, primaryParty?: string | null): string {
   if (dbType === "call") return primaryParty === "client" ? "client_call" : "candidate_call";
   if (dbType === "meeting") return primaryParty === "client" ? "client_meeting" : "candidate_meeting";
+  if (dbType === "interview scheduled") return "ccm1";
   return dbType;
 }
 

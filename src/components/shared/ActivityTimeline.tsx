@@ -125,12 +125,15 @@ function Chip({ bg, fg, children }: { bg: string; fg: string; children: React.Re
 
 function UpcomingEntry({
   item,
+  perspective = "candidate",
+  entityId,
   currentUserId,
   onDeleted,
   onUpdated,
 }: {
   item: TimelineInteraction;
   perspective?: "candidate" | "client";
+  entityId?: string;
   currentUserId?: string;
   onDeleted?: (id: string) => void;
   onUpdated?: () => void;
@@ -160,9 +163,9 @@ function UpcomingEntry({
     });
   }
 
-  const editContext: import("./LogActivityModal").LogActivityContext = item.candidate_id
-    ? { type: "candidate", id: item.candidate_id }
-    : { type: "client", id: item.client_id! };
+  const editContext: import("./LogActivityModal").LogActivityContext = perspective === "candidate"
+    ? { type: "candidate", id: entityId ?? item.candidate_id ?? "" }
+    : { type: "client", id: entityId ?? item.client_id ?? "" };
 
   const editEntry: import("./LogActivityModal").EditableInteraction = {
     id: item.id,
@@ -438,6 +441,7 @@ export function ActivityTimeline({
   interactions,
   filterContactId,
   perspective,
+  entityId,
   currentUserId,
   onDeleted,
   onUpdated,
@@ -447,6 +451,7 @@ export function ActivityTimeline({
   interactions: TimelineInteraction[];
   filterContactId?: string;
   perspective: "candidate" | "client";
+  entityId?: string;
   currentUserId?: string;
   onDeleted?: (id: string) => void;
   onUpdated?: () => void;
@@ -496,6 +501,7 @@ export function ActivityTimeline({
               key={`up-${i.id}`}
               item={i}
               perspective={perspective}
+              entityId={entityId}
               currentUserId={currentUserId}
               onDeleted={onDeleted}
               onUpdated={onUpdated ?? (() => onDeleted?.(i.id))}

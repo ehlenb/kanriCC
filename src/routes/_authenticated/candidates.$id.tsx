@@ -4131,6 +4131,7 @@ function CandidateTimelineTab({
       <ActivityTimeline
         interactions={interactions}
         perspective="candidate"
+        entityId={candidateId}
         currentUserId={recruiterId}
         onDeleted={() => {
           void queryClient.invalidateQueries({ queryKey: ["candidate-profile", candidateId] });
