@@ -19,7 +19,7 @@ import {
   IconX,
 } from "@tabler/icons-react";
 import { supabase } from "@/integrations/supabase/client";
-import { interactionTypeLabel } from "@/components/shared/LogActivityModal";
+import { interactionTypeLabel, LogActivityModal } from "@/components/shared/LogActivityModal";
 
 // ─── exported types ───────────────────────────────────────────────────────────
 
@@ -123,49 +123,131 @@ function Chip({ bg, fg, children }: { bg: string; fg: string; children: React.Re
   );
 }
 
-function UpcomingEntry({ item }: { item: TimelineInteraction }) {
+function UpcomingEntry({
+  item,
+  currentUserId,
+  onDeleted,
+  onUpdated,
+}: {
+  item: TimelineInteraction;
+  perspective?: "candidate" | "client";
+  currentUserId?: string;
+  onDeleted?: (id: string) => void;
+  onUpdated?: () => void;
+}) {
   const type = item.interaction_type;
   const Icon = iconFor(type);
   const notes = item.full_notes || item.summary;
+  const [hidden, setHidden] = React.useState(false);
+  const [editOpen, setEditOpen] = React.useState(false);
+
+  const canEdit = !!currentUserId;
+
+  function handleDelete() {
+    if (!canEdit) return;
+    setHidden(true);
+    let undone = false;
+    const timeoutId = setTimeout(() => {
+      if (undone) return;
+      void supabase.from("interactions").delete().eq("id", item.id).then(({ error }) => {
+        if (error) { toast.error("Could not delete activity."); setHidden(false); return; }
+        onDeleted?.(item.id);
+      });
+    }, 5000);
+    toast("Activity deleted", {
+      duration: 5000,
+      action: { label: "Undo", onClick: () => { undone = true; clearTimeout(timeoutId); setHidden(false); } },
+    });
+  }
+
+  const editContext: import("./LogActivityModal").LogActivityContext = item.candidate_id
+    ? { type: "candidate", id: item.candidate_id }
+    : { type: "client", id: item.client_id! };
+
+  const editEntry: import("./LogActivityModal").EditableInteraction = {
+    id: item.id,
+    interaction_type: item.interaction_type,
+    primary_party: item.primary_party,
+    interacted_at: item.interacted_at,
+    scheduled_at: item.scheduled_at,
+    is_future: item.is_future,
+    full_notes: item.full_notes,
+    summary: item.summary,
+    client_id: item.client_id,
+    contact_id: item.contact_id,
+  };
+
+  if (hidden) return null;
 
   return (
-    <div
-      className="p-[14px_18px]"
-      style={{
-        background: "var(--color-white)",
-        border: "0.5px solid var(--color-indigo-light)",
-        borderLeft: "3px solid var(--color-indigo)",
-      }}
-    >
-      <div className="flex items-start gap-3">
-        <div
-          className="flex h-8 w-8 shrink-0 items-center justify-center mt-0.5"
-          style={{ background: "var(--color-indigo-light)" }}
-        >
-          <Icon size={14} style={{ color: "var(--color-indigo)" }} />
-        </div>
-        <div className="flex-1 min-w-0">
-          {/* Type as primary header */}
-          <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <span className="text-[13px] font-semibold">{interactionTypeLabel(type, item.primary_party)}</span>
-            <Chip bg="var(--color-indigo-light)" fg="var(--color-indigo)">Upcoming</Chip>
-            <span className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>
-              {item.scheduled_at ? fmtDateTime(item.scheduled_at) : "Date TBD"}
-            </span>
+    <>
+      <div
+        className="relative p-[14px_18px]"
+        style={{
+          background: "var(--color-white)",
+          border: "0.5px solid var(--color-indigo-light)",
+          borderLeft: "3px solid var(--color-indigo)",
+        }}
+      >
+        {canEdit && (
+          <div className="absolute top-2 right-2 flex items-center gap-1">
+            <button
+              onClick={() => setEditOpen(true)}
+              className="p-1 text-[11px]"
+              style={{ color: "var(--color-ink-30)" }}
+              title="Edit"
+            >
+              Edit
+            </button>
+            <button
+              onClick={handleDelete}
+              className="p-1"
+              style={{ color: "var(--color-ink-30)" }}
+              title="Delete"
+            >
+              <IconX size={12} />
+            </button>
           </div>
-          {notes && (
-            <p className="text-[12px] leading-relaxed whitespace-pre-wrap" style={{ color: "var(--color-ink-60)" }}>
-              {notes}
-            </p>
-          )}
-          {item.clients && (
-            <p className="text-[11px] mt-1" style={{ color: "var(--color-ink-30)" }}>
-              Re: {item.clients.company_name}
-            </p>
-          )}
+        )}
+        <div className="flex items-start gap-3">
+          <div
+            className="flex h-8 w-8 shrink-0 items-center justify-center mt-0.5"
+            style={{ background: "var(--color-indigo-light)" }}
+          >
+            <Icon size={14} style={{ color: "var(--color-indigo)" }} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
+              <span className="text-[13px] font-semibold">{interactionTypeLabel(type, item.primary_party)}</span>
+              <Chip bg="var(--color-indigo-light)" fg="var(--color-indigo)">Upcoming</Chip>
+              <span className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>
+                {item.scheduled_at ? fmtDateTime(item.scheduled_at) : "Date TBD"}
+              </span>
+            </div>
+            {notes && (
+              <p className="text-[12px] leading-relaxed whitespace-pre-wrap" style={{ color: "var(--color-ink-60)" }}>
+                {notes}
+              </p>
+            )}
+            {item.clients && (
+              <p className="text-[11px] mt-1" style={{ color: "var(--color-ink-30)" }}>
+                Re: {item.clients.company_name}
+              </p>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+
+      {editOpen && (
+        <LogActivityModal
+          open={editOpen}
+          onClose={() => setEditOpen(false)}
+          onSaved={() => { setEditOpen(false); onUpdated?.(); }}
+          context={editContext}
+          existingEntry={editEntry}
+        />
+      )}
+    </>
   );
 }
 
@@ -358,6 +440,7 @@ export function ActivityTimeline({
   perspective,
   currentUserId,
   onDeleted,
+  onUpdated,
   emptyMessage = "No activity recorded yet.",
   emptySubMessage,
 }: {
@@ -366,6 +449,7 @@ export function ActivityTimeline({
   perspective: "candidate" | "client";
   currentUserId?: string;
   onDeleted?: (id: string) => void;
+  onUpdated?: () => void;
   emptyMessage?: string;
   emptySubMessage?: string;
 }) {
@@ -407,7 +491,16 @@ export function ActivityTimeline({
       {upcoming.length > 0 && (
         <div className="space-y-1.5">
           <p className="label" style={{ color: "var(--color-indigo)" }}>UPCOMING</p>
-          {upcoming.map((i) => <UpcomingEntry key={`up-${i.id}`} item={i} />)}
+          {upcoming.map((i) => (
+            <UpcomingEntry
+              key={`up-${i.id}`}
+              item={i}
+              perspective={perspective}
+              currentUserId={currentUserId}
+              onDeleted={onDeleted}
+              onUpdated={onUpdated ?? (() => onDeleted?.(i.id))}
+            />
+          ))}
         </div>
       )}
 

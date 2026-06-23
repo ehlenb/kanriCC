@@ -116,18 +116,40 @@ function toPrimaryParty(displayType: string, fallback: "candidate" | "client"): 
 
 // ─── component ────────────────────────────────────────────────────────────────
 
+/** Reverse-map a DB interaction_type + primary_party back to a display type. */
+export function toDisplayType(dbType: string, primaryParty?: string | null): string {
+  if (dbType === "call") return primaryParty === "client" ? "client_call" : "candidate_call";
+  if (dbType === "meeting") return primaryParty === "client" ? "client_meeting" : "candidate_meeting";
+  return dbType;
+}
+
+export type EditableInteraction = {
+  id: string;
+  interaction_type: string;
+  primary_party?: string | null;
+  interacted_at: string;
+  scheduled_at?: string | null;
+  is_future?: boolean;
+  full_notes?: string | null;
+  summary?: string | null;
+  client_id?: string | null;
+  contact_id?: string | null;
+};
+
 export function LogActivityModal({
   open,
   onClose,
   onSaved,
   context,
   initialType,
+  existingEntry,
 }: {
   open: boolean;
   onClose: () => void;
   onSaved: () => void;
   context: LogActivityContext;
   initialType?: string;
+  existingEntry?: EditableInteraction;
 }) {
   const { user } = useAuth();
 
@@ -159,21 +181,38 @@ export function LogActivityModal({
   );
   const [linkedReqId, setLinkedReqId] = useState<string | null>(null);
 
-  // Reset when modal opens
+  // Reset when modal opens — pre-fill from existingEntry when editing
   useEffect(() => {
     if (open) {
-      setTiming("past");
-      setType(defaultType);
-      setDate(new Date().toISOString().split("T")[0]);
-      setScheduledDate(new Date().toISOString().split("T")[0]);
-      setScheduledTime("10:00");
-      setNotes("");
+      if (existingEntry) {
+        const displayType = toDisplayType(existingEntry.interaction_type, existingEntry.primary_party);
+        const isFuture = existingEntry.is_future ?? false;
+        setTiming(isFuture ? "upcoming" : "past");
+        setType(availableTypes.includes(displayType) ? displayType : existingEntry.interaction_type);
+        setDate(existingEntry.interacted_at.split("T")[0]);
+        if (existingEntry.scheduled_at) {
+          const d = new Date(existingEntry.scheduled_at);
+          setScheduledDate(d.toISOString().split("T")[0]);
+          setScheduledTime(d.toTimeString().slice(0, 5));
+        }
+        setNotes(existingEntry.full_notes ?? existingEntry.summary ?? "");
+        setCrossClientId(existingEntry.client_id ?? null);
+        setContactId(existingEntry.contact_id ?? null);
+        setLinkedReqId(null);
+      } else {
+        setTiming("past");
+        setType(defaultType);
+        setDate(new Date().toISOString().split("T")[0]);
+        setScheduledDate(new Date().toISOString().split("T")[0]);
+        setScheduledTime("10:00");
+        setNotes("");
+        setCrossClientId(null);
+        setContactId(
+          context.type === "client" ? (context.initialContactId ?? null) : null
+        );
+        setLinkedReqId(null);
+      }
       setSaving(false);
-      setCrossClientId(null);
-      setContactId(
-        context.type === "client" ? (context.initialContactId ?? null) : null
-      );
-      setLinkedReqId(null);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -225,6 +264,29 @@ export function LogActivityModal({
     const dbType = toDbType(type);
     const derivedCandidateParty = toPrimaryParty(type, "candidate");
     const derivedClientParty = toPrimaryParty(type, "client");
+
+    if (existingEntry) {
+      const patch = {
+        interaction_type: dbType,
+        interacted_at: interactedAt,
+        scheduled_at: scheduledAt,
+        is_future: isFuture,
+        summary: summary.trim(),
+        full_notes: notes.trim() || null,
+        primary_party: context.type === "candidate"
+          ? (crossClientId ? derivedCandidateParty : "candidate")
+          : derivedClientParty,
+        client_id: context.type === "candidate" ? (crossClientId || null) : undefined,
+        contact_id: context.type === "client" ? (contactId || null) : undefined,
+      };
+      const { error } = await supabase.from("interactions").update(patch).eq("id", existingEntry.id);
+      setSaving(false);
+      if (error) { toast.error("Failed to save changes."); return; }
+      toast.success("Activity updated.");
+      onSaved();
+      onClose();
+      return;
+    }
 
     const { error } = await supabase.from("interactions").insert(
       context.type === "candidate"
@@ -296,7 +358,7 @@ export function LogActivityModal({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="font-display text-[16px]">
-            Log activity
+            {existingEntry ? "Edit activity" : "Log activity"}
             {context.name ? (
               <span
                 className="ml-2 text-[13px] font-sans font-normal"
@@ -512,7 +574,7 @@ export function LogActivityModal({
             onClick={() => void save()}
             disabled={saving || !notes.trim()}
           >
-            {saving ? "Saving…" : "Log activity"}
+            {saving ? "Saving…" : existingEntry ? "Save changes" : "Log activity"}
           </Button>
         </DialogFooter>
       </DialogContent>
