@@ -650,6 +650,7 @@ export type Database = {
           contact_id: string | null
           direction: string | null
           full_notes: string | null
+          full_notes_translated: string | null
           id: string
           interacted_at: string
           interaction_type: string
@@ -662,6 +663,7 @@ export type Database = {
           summary: string | null
           team_id: string | null
           transcript_raw: string | null
+          translated_lang: string | null
           triggers_context_refresh: boolean
         }
         Insert: {
@@ -670,6 +672,7 @@ export type Database = {
           contact_id?: string | null
           direction?: string | null
           full_notes?: string | null
+          full_notes_translated?: string | null
           id?: string
           interacted_at?: string
           interaction_type: string
@@ -682,6 +685,7 @@ export type Database = {
           summary?: string | null
           team_id?: string | null
           transcript_raw?: string | null
+          translated_lang?: string | null
           triggers_context_refresh?: boolean
         }
         Update: {
@@ -690,6 +694,7 @@ export type Database = {
           contact_id?: string | null
           direction?: string | null
           full_notes?: string | null
+          full_notes_translated?: string | null
           id?: string
           interacted_at?: string
           interaction_type?: string
@@ -700,6 +705,7 @@ export type Database = {
           requisition_id?: string | null
           scheduled_at?: string | null
           summary?: string | null
+          translated_lang?: string | null
           team_id?: string | null
           transcript_raw?: string | null
           triggers_context_refresh?: boolean

@@ -129,6 +129,8 @@ type Interaction = {
   interaction_type: string;
   summary: string | null;
   full_notes: string | null;
+  full_notes_translated?: string | null;
+  translated_lang?: string | null;
   interacted_at: string;
   candidate_id: string | null;
   contact_id: string | null;
@@ -214,7 +216,7 @@ function useClientDetail(id: string) {
         supabase
           .from("interactions")
           .select(
-            "id, recruiter_id, interaction_type, summary, full_notes, interacted_at, candidate_id, contact_id, requisition_id, primary_party, candidates(id, full_name), client_contacts(id, name)",
+            "id, recruiter_id, interaction_type, summary, full_notes, full_notes_translated, translated_lang, interacted_at, candidate_id, contact_id, requisition_id, primary_party, candidates(id, full_name), client_contacts(id, name)",
           )
           .eq("client_id", id)
           .order("interacted_at", { ascending: false })

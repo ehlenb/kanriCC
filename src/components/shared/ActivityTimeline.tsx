@@ -30,6 +30,8 @@ export type TimelineInteraction = {
   interaction_type: string;
   summary: string | null;
   full_notes: string | null;
+  full_notes_translated?: string | null;
+  translated_lang?: string | null;
   interacted_at: string;
   // upcoming-event fields (candidate side)
   scheduled_at?: string | null;
@@ -273,9 +275,10 @@ function InteractionEntry({
   const Icon = iconFor(type);
   const col = colorFor(type);
   const rawNotes = item.full_notes || item.summary;
-  const [displayNotes, setDisplayNotes] = React.useState<string | null>(rawNotes);
-  const [translating, setTranslating] = React.useState(false);
-  const inFlightRef = React.useRef(false);
+  // Use stored translation when available and matching current language; otherwise show original
+  const displayNotes = (item.translated_lang === i18n.language && item.full_notes_translated)
+    ? item.full_notes_translated
+    : rawNotes;
   const [hidden, setHidden] = React.useState(false);
 
   const canDelete = !!currentUserId;
@@ -319,25 +322,6 @@ function InteractionEntry({
       },
     });
   }
-
-  // Auto-translate notes to current UI language whenever language changes
-  React.useEffect(() => {
-    const lang = i18n.language as "en" | "ja";
-    if (!rawNotes || inFlightRef.current) return;
-    inFlightRef.current = true;
-    setTranslating(true);
-    void fetch("/api/ai?type=translate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: rawNotes, target_lang: lang }),
-    })
-      .then((r) => r.json())
-      .then((d: { translated?: string }) => {
-        if (d.translated) setDisplayNotes(d.translated);
-      })
-      .catch((e) => { console.error("translate failed", e); })
-      .finally(() => { inFlightRef.current = false; setTranslating(false); });
-  }, [i18n.language]);
 
   // Build a clear "with / re:" context line
   const contactName = item.client_contacts?.name;

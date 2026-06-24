@@ -305,10 +305,17 @@ export function LogActivityModal({
       toast.success("Activity updated.");
       onSaved();
       onClose();
+      if (notes.trim()) {
+        void fetch("/api/ai/translate-interaction", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ interaction_id: existingEntry.id, notes: notes.trim(), source_lang: i18n.language }),
+        });
+      }
       return;
     }
 
-    const { error } = await supabase.from("interactions").insert(
+    const { data: inserted, error } = await supabase.from("interactions").insert(
       context.type === "candidate"
         ? {
             candidate_id: context.id,
@@ -335,7 +342,7 @@ export function LogActivityModal({
             primary_party: derivedClientParty,
             requisition_id: linkedReqId || null,
           }
-    );
+    ).select("id");
     setSaving(false);
 
     if (error) {
@@ -344,6 +351,14 @@ export function LogActivityModal({
     }
 
     toast.success(isFuture ? "Upcoming event saved." : "Activity logged.");
+    const newId = inserted?.[0]?.id as string | undefined;
+    if (newId && notes.trim()) {
+      void fetch("/api/ai/translate-interaction", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ interaction_id: newId, notes: notes.trim(), source_lang: i18n.language }),
+      });
+    }
     onSaved();
     onClose();
 

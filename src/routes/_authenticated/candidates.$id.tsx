@@ -274,6 +274,8 @@ type CandidateInteraction = {
   interaction_type: string;
   summary: string | null;
   full_notes: string | null;
+  full_notes_translated?: string | null;
+  translated_lang?: string | null;
   interacted_at: string;
   scheduled_at: string | null;
   is_future: boolean;
@@ -341,7 +343,7 @@ function useCandidateProfile(id: string) {
           .order("updated_at", { ascending: false }),
         supabase
           .from("interactions")
-          .select("id, recruiter_id, interaction_type, summary, full_notes, interacted_at, scheduled_at, is_future, client_id, contact_id, primary_party, clients(id, company_name), client_contacts(id, name)")
+          .select("id, recruiter_id, interaction_type, summary, full_notes, full_notes_translated, translated_lang, interacted_at, scheduled_at, is_future, client_id, contact_id, primary_party, clients(id, company_name), client_contacts(id, name)")
           .eq("candidate_id", id)
           .order("interacted_at", { ascending: false })
           .limit(50),
