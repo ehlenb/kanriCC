@@ -151,7 +151,7 @@ ${interactionText || "No interactions logged yet."}
 `.trim();
 
   const message = await anthropic.messages.create({
-    model: "claude-sonnet-4-5-20250929",
+    model: "claude-sonnet-5",
     max_tokens: 700,
     system: `You are preparing a competitive positioning brief for a recruiter. The candidate has active competing interviews. The recruiter needs to call the candidate and reinforce their process at ${clientName || "our client"}.
 

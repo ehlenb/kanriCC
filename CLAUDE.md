@@ -210,7 +210,7 @@ Every `api/ai/*.ts` handler must follow this exact pattern:
 // 2. Initialize Supabase with service role key
 // 3. Fetch all required data from Supabase (explicit column lists only)
 // 4. Build prompt — apply all AI output rules from Section 2
-// 5. Call Claude: model claude-sonnet-4-5-20250929, max_tokens: 1024
+// 5. Call Claude: model claude-sonnet-5 (or claude-haiku-4-5-20251001 for simple extraction/classification), max_tokens: 1024
 // 6. Parse and validate response
 // 7. Return { data: ... } on success, { error: string } on failure
 // Always return HTTP 200 — put error information in the response body, not HTTP status
@@ -227,7 +227,9 @@ Every `api/ai/*.ts` handler must follow this exact pattern:
 
 ## 7. AI Model
 
-All `api/ai/*.ts` handlers use: **`claude-sonnet-4-5-20250929`**
+Reasoning-heavy handlers (positioning, briefings, submission notes, advanced search, etc.) use: **`claude-sonnet-5`**
+
+Simple extraction/classification/translation handlers use: **`claude-haiku-4-5-20251001`** — cheaper and sufficient for these tasks. Don't reach for Sonnet where Haiku already does the job.
 
 This API key only has access to Claude 4+ models. Claude 3 model IDs return 404.
 

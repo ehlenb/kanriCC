@@ -138,7 +138,7 @@ Strategic context: ${req_?.strategic_context ?? "Not specified"}
 `.trim();
 
   const message = await anthropic.messages.create({
-    model: "claude-sonnet-4-5-20250929",
+    model: "claude-sonnet-5",
     max_tokens: 700,
     system: `You are an elite recruiting strategist preparing positioning talking points for a recruiter in Japan.
 

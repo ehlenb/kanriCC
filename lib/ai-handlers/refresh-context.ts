@@ -119,7 +119,7 @@ ${interactionLines.join("\n")}
 `.trim();
 
   const message = await anthropic.messages.create({
-    model: "claude-sonnet-4-5-20250929",
+    model: "claude-sonnet-5",
     max_tokens: 900,
     system: `You are writing an internal recruiter briefing note for a senior recruiter's reference file.
 
@@ -230,7 +230,7 @@ ${interactionLines.join("\n")}
 `.trim();
 
   const message = await anthropic.messages.create({
-    model: "claude-sonnet-4-5-20250929",
+    model: "claude-sonnet-5",
     max_tokens: 900,
     system: `You are writing an internal account briefing note for a senior recruiter's reference file.
 
@@ -323,7 +323,7 @@ ${(interactions ?? []).map((i: { interaction_type: string; summary: string | nul
 `.trim();
 
   const message = await anthropic.messages.create({
-    model: "claude-sonnet-4-5-20250929",
+    model: "claude-sonnet-5",
     max_tokens: 900,
     system: `You are writing an internal requisition briefing note for a senior recruiter's reference file.
 

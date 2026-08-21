@@ -47,7 +47,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (fileType === "pdf" && fileBase64) {
     // PDF — send as native document block; Claude reads it directly
     message = await anthropic.messages.create({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-5",
       max_tokens: 8000,
       system: SYSTEM_PROMPT,
       messages: [
@@ -81,7 +81,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     message = await anthropic.messages.create({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-5",
       max_tokens: 8000,
       system: SYSTEM_PROMPT,
       messages: [
@@ -94,7 +94,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } else {
     // Plain text / paste
     message = await anthropic.messages.create({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-5",
       max_tokens: 8000,
       system: SYSTEM_PROMPT,
       messages: [

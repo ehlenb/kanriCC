@@ -100,7 +100,7 @@ ${primaryContact ? `Interviewer: ${primaryContact.name}${primaryContact.title ? 
 `.trim();
 
   const message = await anthropic.messages.create({
-    model: "claude-sonnet-4-5-20250929",
+    model: "claude-sonnet-5",
     max_tokens: 1500,
     system: `You are preparing interview preparation materials for a recruiter in Japan to share with and use for a candidate going into CCM${ccm_number}.
 

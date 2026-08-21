@@ -501,7 +501,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   ).join("\n\n");
 
   const message = await anthropic.messages.create({
-    model: "claude-sonnet-4-5-20250929",
+    model: "claude-sonnet-5",
     max_tokens: 1800,
     system: `You are a senior recruiter advisor helping a Japan-market agency recruiter prioritize their day.
 

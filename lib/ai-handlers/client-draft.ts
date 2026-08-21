@@ -305,7 +305,7 @@ Write the email. Subject line first, then blank line, then body. Address it to $
   }
 
   const message = await anthropic.messages.create({
-    model: "claude-sonnet-4-5-20250929",
+    model: "claude-sonnet-5",
     max_tokens: maxTokens,
     system,
     messages: [{ role: "user", content: prompt }],

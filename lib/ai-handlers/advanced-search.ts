@@ -166,7 +166,7 @@ ${candidatesSummary}
 `.trim();
 
   const message = await anthropic.messages.create({
-    model: "claude-sonnet-4-5-20250929",
+    model: "claude-sonnet-5",
     max_tokens: 2500,
     system: `You are ranking candidates for an open role at a company in Japan.
 

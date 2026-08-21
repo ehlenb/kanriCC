@@ -164,7 +164,7 @@ ${processContext}
 `.trim();
 
     const message = await anthropic.messages.create({
-      model: "claude-sonnet-4-5-20250929",
+      model: "claude-sonnet-5",
       max_tokens: 700,
       system: `You are preparing a pre-call briefing for a recruiter in Japan. The recruiter reads this in 60 seconds before the call.
 
@@ -260,7 +260,7 @@ ${cl.strategy_notes ? `Strategy notes: ${cl.strategy_notes.slice(0, 300)}` : ""}
 `.trim();
 
   const message = await anthropic.messages.create({
-    model: "claude-sonnet-4-5-20250929",
+    model: "claude-sonnet-5",
     max_tokens: 700,
     system: `You are preparing a pre-call briefing for a recruiter in Japan calling a client. The recruiter reads this in 60 seconds before the call.
 
