@@ -6,8 +6,6 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const TARGET_FIELDS: Record<string, string[]> = {
   clients: [
     "company_name",
-    "industry",
-    "hq_country",
     "kk_entity",
     "japan_team_size",
     "years_in_japan",
@@ -36,7 +34,18 @@ const TARGET_FIELDS: Record<string, string[]> = {
     "expected_total_max",
     "source",
   ],
-  processes: ["candidate_full_name", "requisition_title", "client_company_name", "stage"],
+  processes: ["candidate_full_name", "candidate_email", "requisition_title", "client_company_name", "stage"],
+  interactions: [
+    "candidate_full_name",
+    "candidate_email",
+    "client_company_name",
+    "requisition_title",
+    "interaction_type",
+    "primary_party",
+    "summary",
+    "full_notes",
+    "interacted_at",
+  ],
   contacts: [
     "client_company_name",
     "name",

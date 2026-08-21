@@ -12,6 +12,7 @@ const TABLE_BY_ENTITY: Record<string, string> = {
   requisitions: "requisitions",
   candidates: "candidates",
   processes: "processes",
+  interactions: "interactions",
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {

@@ -9,7 +9,7 @@ const supabase = createClient(
 type Row = Record<string, string | number | boolean | null | undefined>;
 
 type CommitBody = {
-  entity_type?: "clients" | "contacts" | "requisitions" | "candidates" | "processes";
+  entity_type?: "clients" | "contacts" | "requisitions" | "candidates" | "processes" | "interactions";
   recruiter_id?: string;
   team_id?: string;
   source_name?: string;
@@ -17,6 +17,13 @@ type CommitBody = {
 };
 
 const VALID_CONTACT_ROLES = ["hiring_manager", "hr_gatekeeper", "ta_coordinator", "executive", "other"];
+const VALID_CANDIDATE_SOURCES = ["linkedin", "bizreach", "doda", "referral", "inbound", "other"];
+const VALID_INTERACTION_TYPES = [
+  "call", "email", "email received", "meeting", "note",
+  "job spec sent", "linkedin message", "interview scheduled", "cv sent", "other",
+  "ccm1", "ccm2", "ccm3", "ccm4", "ccm5", "ccm6",
+];
+const VALID_PRIMARY_PARTIES = ["candidate", "client"];
 
 async function importClients(rows: Row[], recruiter_id: string, team_id: string) {
   const inserted: string[] = [];
@@ -42,18 +49,17 @@ async function importClients(rows: Row[], recruiter_id: string, team_id: string)
       .from("clients")
       .insert({
         company_name,
-        industry: row.industry || null,
-        hq_country: row.hq_country || null,
-        kk_entity: row.kk_entity ? String(row.kk_entity).toLowerCase() === "true" : null,
+        kk_entity: row.kk_entity ? String(row.kk_entity) : null,
         japan_team_size: row.japan_team_size ? Number(row.japan_team_size) : null,
         years_in_japan: row.years_in_japan ? Number(row.years_in_japan) : null,
         website: row.website || null,
-        owner_recruiter_id: recruiter_id,
+        recruiter_id,
         team_id,
       })
       .select("id")
       .single();
 
+    if (error) console.error("import clients insert error:", error.message);
     if (!error && data) inserted.push(data.id as string);
   }
 
@@ -110,12 +116,13 @@ async function importContacts(rows: Row[], recruiter_id: string, team_id: string
         title: row.title || null,
         email,
         phone: row.phone || null,
-        is_primary_contact: row.is_primary === "true" || row.is_primary === true,
+        is_primary: row.is_primary === "true" || row.is_primary === true,
         recruiter_id,
       })
       .select("id")
       .single();
 
+    if (error) console.error("import contacts insert error:", error.message);
     if (!error && data) inserted.push(data.id as string);
   }
 
@@ -156,12 +163,13 @@ async function importRequisitions(rows: Row[], recruiter_id: string, team_id: st
         is_backfill: row.is_backfill === "true" || row.is_backfill === true,
         urgency_date: row.urgency_date || null,
         is_open: true,
-        owner_recruiter_id: recruiter_id,
+        recruiter_id,
         team_id,
       })
       .select("id")
       .single();
 
+    if (error) console.error("import requisitions insert error:", error.message);
     if (!error && data) inserted.push(data.id as string);
   }
 
@@ -208,13 +216,17 @@ async function importCandidates(rows: Row[], recruiter_id: string, team_id: stri
         current_bonus: row.current_bonus ? Number(row.current_bonus) : null,
         expected_total_min: row.expected_total_min ? Number(row.expected_total_min) : null,
         expected_total_max: row.expected_total_max ? Number(row.expected_total_max) : null,
-        source: row.source || "other",
-        owner_recruiter_id: recruiter_id,
+        source: (() => {
+          const s = String(row.source ?? "").trim().toLowerCase();
+          return VALID_CANDIDATE_SOURCES.includes(s) ? s : "other";
+        })(),
+        recruiter_id,
         team_id,
       })
       .select("id")
       .single();
 
+    if (error) console.error("import candidates insert error:", error.message);
     if (!error && data) inserted.push(data.id as string);
   }
 
@@ -227,6 +239,7 @@ async function importProcesses(rows: Row[], recruiter_id: string, team_id: strin
 
   for (const row of rows) {
     const candidateName = String(row.candidate_full_name ?? "").trim();
+    const candidateEmail = String(row.candidate_email ?? "").trim();
     const reqTitle = String(row.requisition_title ?? "").trim();
     const clientName = String(row.client_company_name ?? "").trim();
     const stage = String(row.stage ?? "Specs Sent").trim();
@@ -235,12 +248,12 @@ async function importProcesses(rows: Row[], recruiter_id: string, team_id: strin
       continue;
     }
 
-    const { data: candidate } = await supabase
-      .from("candidates")
-      .select("id")
-      .eq("team_id", team_id)
-      .ilike("full_name", candidateName)
-      .maybeSingle();
+    let candQuery = supabase.from("candidates").select("id").eq("team_id", team_id);
+    candQuery = candidateEmail
+      ? candQuery.ilike("email", candidateEmail)
+      : candQuery.ilike("full_name", candidateName);
+    const { data: candidateRows } = await candQuery.limit(1);
+    const candidate = candidateRows?.[0] ?? null;
 
     let reqQuery = supabase
       .from("requisitions")
@@ -279,6 +292,107 @@ async function importProcesses(rows: Row[], recruiter_id: string, team_id: strin
       .select("id")
       .single();
 
+    if (error) console.error("import processes insert error:", error.message);
+    if (!error && data) inserted.push(data.id as string);
+  }
+
+  return { inserted, skipped };
+}
+
+async function importInteractions(rows: Row[], recruiter_id: string, team_id: string) {
+  const inserted: string[] = [];
+  let skipped = 0;
+
+  for (const row of rows) {
+    const candidateName = String(row.candidate_full_name ?? "").trim();
+    const candidateEmail = String(row.candidate_email ?? "").trim();
+    const clientName = String(row.client_company_name ?? "").trim();
+    const reqTitle = String(row.requisition_title ?? "").trim();
+    const typeRaw = String(row.interaction_type ?? "").trim().toLowerCase();
+    const interacted_at = String(row.interacted_at ?? "").trim();
+
+    if ((!candidateName && !candidateEmail && !clientName) || !typeRaw || !interacted_at) {
+      skipped++;
+      continue;
+    }
+
+    const interaction_type = VALID_INTERACTION_TYPES.includes(typeRaw) ? typeRaw : "note";
+
+    let candidate_id: string | null = null;
+    if (candidateEmail || candidateName) {
+      let candQuery = supabase.from("candidates").select("id").eq("team_id", team_id);
+      candQuery = candidateEmail
+        ? candQuery.ilike("email", candidateEmail)
+        : candQuery.ilike("full_name", candidateName);
+      const { data: candRows } = await candQuery.limit(1);
+      candidate_id = candRows?.[0]?.id ?? null;
+    }
+
+    let client_id: string | null = null;
+    if (clientName) {
+      const { data: clientRow } = await supabase
+        .from("clients")
+        .select("id")
+        .eq("team_id", team_id)
+        .ilike("company_name", clientName)
+        .maybeSingle();
+      client_id = clientRow?.id ?? null;
+    }
+
+    if (!candidate_id && !client_id) {
+      skipped++;
+      continue;
+    }
+
+    let requisition_id: string | null = null;
+    if (reqTitle && client_id) {
+      const { data: reqRow } = await supabase
+        .from("requisitions")
+        .select("id")
+        .eq("team_id", team_id)
+        .eq("client_id", client_id)
+        .ilike("title", reqTitle)
+        .maybeSingle();
+      requisition_id = reqRow?.id ?? null;
+    }
+
+    let process_id: string | null = null;
+    if (candidate_id && requisition_id) {
+      const { data: procRow } = await supabase
+        .from("processes")
+        .select("id")
+        .eq("candidate_id", candidate_id)
+        .eq("requisition_id", requisition_id)
+        .maybeSingle();
+      process_id = procRow?.id ?? null;
+    }
+
+    const primaryPartyRaw = String(row.primary_party ?? "").trim().toLowerCase();
+    const primary_party = VALID_PRIMARY_PARTIES.includes(primaryPartyRaw)
+      ? primaryPartyRaw
+      : candidate_id
+        ? "candidate"
+        : "client";
+
+    const { data, error } = await supabase
+      .from("interactions")
+      .insert({
+        candidate_id,
+        client_id,
+        requisition_id,
+        process_id,
+        interaction_type,
+        primary_party,
+        summary: row.summary || null,
+        full_notes: row.full_notes || null,
+        interacted_at,
+        recruiter_id,
+        team_id,
+      })
+      .select("id")
+      .single();
+
+    if (error) console.error("import interactions insert error:", error.message);
     if (!error && data) inserted.push(data.id as string);
   }
 
@@ -304,6 +418,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       result = await importCandidates(rows, recruiter_id, team_id);
     else if (entity_type === "processes")
       result = await importProcesses(rows, recruiter_id, team_id);
+    else if (entity_type === "interactions")
+      result = await importInteractions(rows, recruiter_id, team_id);
     else return res.status(400).json({ error: "Unknown entity_type" });
   } catch (err) {
     console.error("import commit error:", err);
