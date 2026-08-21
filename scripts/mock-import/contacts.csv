@@ -1,0 +1,31 @@
+Client,Contact Name,Job Title,Function,Email Address,Mobile,Key Contact?
+Meridian Capital Partners K.K.,Yuki Tanaka,"Director, Talent",Hiring Manager,yuki.tanaka@meridiancapi.example.com,080-1000-2000,TRUE
+Meridian Capital Partners K.K.,Kenji Yamamoto,HR Manager,HR / Talent Acquisition,kenji.yamamoto@meridiancapi.example.com,080-1001-2000,FALSE
+Meridian Capital Partners K.K.,Aiko Sato,General Manager,Executive Sponsor,aiko.sato@meridiancapi.example.com,080-1002-2000,FALSE
+NordicTech Solutions Japan,Takeshi Ito,"Director, Talent",Hiring Manager,takeshi.ito@nordictechso.example.com,080-1003-2001,TRUE
+NordicTech Solutions Japan,Naomi Kobayashi,HR Manager,HR / Talent Acquisition,naomi.kobayashi@nordictechso.example.com,080-1004-2001,FALSE
+NordicTech Solutions Japan,Hiroshi Nakamura,General Manager,Executive Sponsor,hiroshi.nakamura@nordictechso.example.com,080-1005-2001,FALSE
+Blackfriar Consulting Japan,Mei Johnson,"Director, Talent",Hiring Manager,mei.johnson@blackfriarco.example.com,080-1006-2002,TRUE
+Blackfriar Consulting Japan,Daisuke Brown,HR Manager,HR / Talent Acquisition,daisuke.brown@blackfriarco.example.com,080-1007-2002,FALSE
+Blackfriar Consulting Japan,Rina Tanaka,General Manager,Executive Sponsor,rina.tanaka@blackfriarco.example.com,080-1008-2002,FALSE
+Vantage Pharma K.K.,Satoshi Suzuki,"Director, Talent",Hiring Manager,satoshi.suzuki@vantagepharm.example.com,080-1009-2003,TRUE
+Vantage Pharma K.K.,Emma Watanabe,HR Manager,HR / Talent Acquisition,emma.watanabe@vantagepharm.example.com,080-1010-2003,FALSE
+Vantage Pharma K.K.,James Ito,General Manager,Executive Sponsor,james.ito@vantagepharm.example.com,080-1011-2003,FALSE
+"Sterling Global Bank, Tokyo Branch",Sarah Smith,"Director, Talent",Hiring Manager,sarah.smith@sterlingglob.example.com,080-1012-2004,TRUE
+"Sterling Global Bank, Tokyo Branch",David Miller,HR Manager,HR / Talent Acquisition,david.miller@sterlingglob.example.com,080-1013-2004,FALSE
+"Sterling Global Bank, Tokyo Branch",Laura Johnson,General Manager,Executive Sponsor,laura.johnson@sterlingglob.example.com,080-1014-2004,FALSE
+Orion Logistics Japan,Yuki Yamamoto,"Director, Talent",Hiring Manager,yuki.yamamoto@orionlogisti.example.com,080-1015-2005,TRUE
+Orion Logistics Japan,Kenji Sato,HR Manager,HR / Talent Acquisition,kenji.sato@orionlogisti.example.com,080-1016-2005,FALSE
+Orion Logistics Japan,Aiko Suzuki,General Manager,Executive Sponsor,aiko.suzuki@orionlogisti.example.com,080-1017-2005,FALSE
+Halcyon Insurance K.K.,Takeshi Kobayashi,"Director, Talent",Hiring Manager,takeshi.kobayashi@halcyoninsur.example.com,080-1018-2006,TRUE
+Halcyon Insurance K.K.,Naomi Nakamura,HR Manager,HR / Talent Acquisition,naomi.nakamura@halcyoninsur.example.com,080-1019-2006,FALSE
+Halcyon Insurance K.K.,Hiroshi Smith,General Manager,Executive Sponsor,hiroshi.smith@halcyoninsur.example.com,080-1020-2006,FALSE
+Redwood Software Japan,Mei Brown,"Director, Talent",Hiring Manager,mei.brown@redwoodsoftw.example.com,080-1021-2007,TRUE
+Redwood Software Japan,Daisuke Tanaka,HR Manager,HR / Talent Acquisition,daisuke.tanaka@redwoodsoftw.example.com,080-1022-2007,FALSE
+Redwood Software Japan,Rina Yamamoto,General Manager,Executive Sponsor,rina.yamamoto@redwoodsoftw.example.com,080-1023-2007,FALSE
+Ashford Luxury Group Japan,Satoshi Watanabe,"Director, Talent",Hiring Manager,satoshi.watanabe@ashfordluxur.example.com,080-1024-2008,TRUE
+Ashford Luxury Group Japan,Emma Ito,HR Manager,HR / Talent Acquisition,emma.ito@ashfordluxur.example.com,080-1025-2008,FALSE
+Ashford Luxury Group Japan,James Kobayashi,General Manager,Executive Sponsor,james.kobayashi@ashfordluxur.example.com,080-1026-2008,FALSE
+Continental Materials K.K.,Sarah Miller,"Director, Talent",Hiring Manager,sarah.miller@continentalm.example.com,080-1027-2009,TRUE
+Continental Materials K.K.,David Johnson,HR Manager,HR / Talent Acquisition,david.johnson@continentalm.example.com,080-1028-2009,FALSE
+Continental Materials K.K.,Laura Brown,General Manager,Executive Sponsor,laura.brown@continentalm.example.com,080-1029-2009,FALSE

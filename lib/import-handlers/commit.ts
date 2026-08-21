@@ -9,12 +9,14 @@ const supabase = createClient(
 type Row = Record<string, string | number | boolean | null | undefined>;
 
 type CommitBody = {
-  entity_type?: "clients" | "requisitions" | "candidates" | "processes";
+  entity_type?: "clients" | "contacts" | "requisitions" | "candidates" | "processes";
   recruiter_id?: string;
   team_id?: string;
   source_name?: string;
   rows?: Row[];
 };
+
+const VALID_CONTACT_ROLES = ["hiring_manager", "hr_gatekeeper", "ta_coordinator", "executive", "other"];
 
 async function importClients(rows: Row[], recruiter_id: string, team_id: string) {
   const inserted: string[] = [];
@@ -42,12 +44,74 @@ async function importClients(rows: Row[], recruiter_id: string, team_id: string)
         company_name,
         industry: row.industry || null,
         hq_country: row.hq_country || null,
-        kk_entity: row.kk_entity || null,
+        kk_entity: row.kk_entity ? String(row.kk_entity).toLowerCase() === "true" : null,
         japan_team_size: row.japan_team_size ? Number(row.japan_team_size) : null,
         years_in_japan: row.years_in_japan ? Number(row.years_in_japan) : null,
         website: row.website || null,
         owner_recruiter_id: recruiter_id,
         team_id,
+      })
+      .select("id")
+      .single();
+
+    if (!error && data) inserted.push(data.id as string);
+  }
+
+  return { inserted, skipped };
+}
+
+async function importContacts(rows: Row[], recruiter_id: string, team_id: string) {
+  const inserted: string[] = [];
+  let skipped = 0;
+
+  for (const row of rows) {
+    const name = String(row.name ?? "").trim();
+    const clientName = String(row.client_company_name ?? "").trim();
+    if (!name || !clientName) {
+      skipped++;
+      continue;
+    }
+
+    const { data: client } = await supabase
+      .from("clients")
+      .select("id")
+      .eq("team_id", team_id)
+      .ilike("company_name", clientName)
+      .maybeSingle();
+
+    if (!client) {
+      skipped++;
+      continue;
+    }
+
+    const email = row.email ? String(row.email).trim() : null;
+    if (email) {
+      const { data: existing } = await supabase
+        .from("client_contacts")
+        .select("id")
+        .eq("client_id", client.id)
+        .ilike("email", email)
+        .maybeSingle();
+      if (existing) {
+        skipped++;
+        continue;
+      }
+    }
+
+    const roleRaw = String(row.role ?? "other").trim().toLowerCase();
+    const role = VALID_CONTACT_ROLES.includes(roleRaw) ? roleRaw : "other";
+
+    const { data, error } = await supabase
+      .from("client_contacts")
+      .insert({
+        client_id: client.id,
+        name,
+        role,
+        title: row.title || null,
+        email,
+        phone: row.phone || null,
+        is_primary_contact: row.is_primary === "true" || row.is_primary === true,
+        recruiter_id,
       })
       .select("id")
       .single();
@@ -233,6 +297,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let result: { inserted: string[]; skipped: number };
   try {
     if (entity_type === "clients") result = await importClients(rows, recruiter_id, team_id);
+    else if (entity_type === "contacts") result = await importContacts(rows, recruiter_id, team_id);
     else if (entity_type === "requisitions")
       result = await importRequisitions(rows, recruiter_id, team_id);
     else if (entity_type === "candidates")

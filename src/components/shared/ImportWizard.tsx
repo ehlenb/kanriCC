@@ -4,16 +4,17 @@ import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-context";
 import { IconUpload, IconArrowRight, IconCheck, IconTrash } from "@tabler/icons-react";
 
-type EntityType = "clients" | "requisitions" | "candidates" | "processes";
+type EntityType = "clients" | "contacts" | "requisitions" | "candidates" | "processes";
 
 const ENTITY_LABELS: Record<EntityType, string> = {
   clients: "Clients",
+  contacts: "Client contacts",
   requisitions: "Requisitions",
   candidates: "Candidates",
   processes: "Active processes",
 };
 
-const ENTITY_ORDER: EntityType[] = ["clients", "requisitions", "candidates", "processes"];
+const ENTITY_ORDER: EntityType[] = ["clients", "contacts", "requisitions", "candidates", "processes"];
 
 type HistoryRow = {
   id: string;
@@ -187,9 +188,9 @@ export function ImportWizard() {
         <h2 className="font-display text-base">Import data</h2>
       </div>
       <p className="text-[12px] mb-6" style={{ color: "var(--color-ink-60)" }}>
-        Bring your current clients, requisitions, candidates, and active processes in from your
-        existing ATS export (CSV). Import in this order: clients, then requisitions, then
-        candidates, then processes.
+        Bring your current clients, contacts, requisitions, candidates, and active processes in
+        from your existing ATS export (CSV). Import in this order: clients, then contacts, then
+        requisitions, then candidates, then processes.
       </p>
 
       {step === "upload" && (

@@ -37,6 +37,15 @@ const TARGET_FIELDS: Record<string, string[]> = {
     "source",
   ],
   processes: ["candidate_full_name", "requisition_title", "client_company_name", "stage"],
+  contacts: [
+    "client_company_name",
+    "name",
+    "title",
+    "role",
+    "email",
+    "phone",
+    "is_primary",
+  ],
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {

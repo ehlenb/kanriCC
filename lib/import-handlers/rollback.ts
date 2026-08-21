@@ -8,6 +8,7 @@ const supabase = createClient(
 
 const TABLE_BY_ENTITY: Record<string, string> = {
   clients: "clients",
+  contacts: "client_contacts",
   requisitions: "requisitions",
   candidates: "candidates",
   processes: "processes",
