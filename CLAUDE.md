@@ -16,19 +16,21 @@ It is not:
 - A full recruiting ERP
 
 It is:
-- A recruiter intelligence layer that sits above existing ATS systems
+- A recruiter intelligence layer and daily execution command center, built to become the system of record
 - A relationship memory and context reconstruction engine
 - A daily execution command center that tells recruiters what to do and in what order
 - A team visibility layer so recruiters can see what teammates are doing without switching tools
-- Long term goal is to replace ATS systems
+- The goal is to displace incumbent ATS/CRM systems (Vincere, Bullhorn, etc.), not sit on top of them indefinitely
 
-**The core thesis:** Recruiters lose hours every day to cognitive overhead — rebuilding context before every call, manually piecing together pipeline status, and making prioritization decisions with incomplete information. Kanri eliminates that tax without requiring them to abandon their existing ATS.
+**The core thesis:** Recruiters lose hours every day to cognitive overhead — rebuilding context before every call, manually piecing together pipeline status, and making prioritization decisions with incomplete information. Kanri eliminates that tax. Doing that well requires being the place recruiters actually log activity and manage pipeline, not a second dashboard synced to another system of record.
 
 **The product promise:** A recruiter opens Kanri and within 30 seconds knows exactly what requires their attention today, what to say in their next conversation, and what their team has been doing.
 
 **The positioning sentence:** ChatGPT gives answers. Kanri manages recruiting state.
 
-**The MVP positioning:** Kanri is a recruiter intelligence layer and AI operating system that augments existing workflows rather than replacing them. Existing ATS platforms remain the initial source of truth. Kanri becomes the layer that makes recruiters more effective, organized, and informed. The MVP must prove that recruiters gain meaningful operational clarity before asking them to fully migrate systems.
+**The MVP positioning:** Kanri is a recruiter intelligence layer and AI operating system that earns the right to become a firm's system of record by proving operational clarity fast. A pilot customer may keep their existing ATS running during evaluation, but Kanri is not designed as permanent parallel infrastructure — asking a recruiter to log activity in two places is a temporary onboarding cost, not the target end state. The MVP must prove value quickly enough that displacing the incumbent ATS is an easy decision, not a leap of faith.
+
+**Why not "sit on top" long-term:** Early framing described Kanri as a layer above existing ATS systems, with ATS integration deferred post-pilot. In practice, the dashboard, pipeline stage, and activity timeline already function as the actual source of truth for what a recruiter does day-to-day — Vincere/Bullhorn become a stale system nobody updates once Kanri is faster to use. A permanent "sits on top" architecture also implies building and maintaining sync with every customer's ATS indefinitely, which is a harder, more open-ended engineering burden than being the system of record directly. Displacement is the honest end state; the augment framing was an onboarding strategy, not the product's identity.
 
 **The target customer:** Boutique and mid-sized agency recruiting firms. Initial focus on Japan bilingual and gaishikei recruitment (placing bilingual candidates at foreign firms in Japan). Reference companies: Torch (Vincere ATS, 4 consultants), Robert Walters Japan, Hays, Michael Page, RGF.
 
@@ -616,7 +618,7 @@ Process tab colors: `tab-own` (green), `tab-colleague` (grey), `tab-uncovered` (
 - **Dense but not cluttered.** Recruiters manage 50+ active candidates. Information must be compact and scannable.
 - **Opinionated.** The product makes decisions and presents a recommended course of action. It does not list five options and ask the recruiter to choose.
 - **Human-first.** AI output is always a starting point. The recruiter edits, approves, and acts. Never the other way around.
-- **Additive, not disruptive.** Kanri works alongside an existing ATS. It does not demand the recruiter abandon their current tools to get value.
+- **Fast enough to earn the switch.** During a pilot, Kanri works alongside an existing ATS so the recruiter isn't asked to abandon their tools before they've seen value. But this is a transition window, not the target state — the product is designed to become the recruiter's primary system, not a permanent companion to Vincere or Bullhorn.
 
 ### What Should Never Happen in the UX
 
@@ -627,7 +629,7 @@ Process tab colors: `tab-own` (green), `tab-colleague` (grey), `tab-uncovered` (
 - Do not render AI output as static read-only text — it is always editable
 - Do not auto-send anything — all AI drafts are copy/paste in MVP
 - Do not add a section to a page without asking: does the recruiter need this in the next 60 seconds?
-- Do not require double-entry — if the recruiter already does something in their ATS, Kanri should not demand they redo it in Kanri
+- During pilot onboarding, minimize double-entry friction where easy (e.g. CSV import, bulk candidate/client upload) — but do not build permanent bidirectional sync with third-party ATS platforms as a load-bearing feature. Kanri is meant to become the primary place activity gets logged, not a mirror of another system.
 
 ---
 
@@ -726,7 +728,7 @@ Do not suggest, scaffold, or partially implement these unless explicitly instruc
 
 | Feature | Status |
 |---|---|
-| ATS integration (Bullhorn, Vincere, Greenhouse, etc.) | Deferred post-pilot |
+| Bidirectional live sync with third-party ATS (Bullhorn, Vincere, Greenhouse, etc.) | Deferred indefinitely — not the product direction. One-time CSV/bulk import for pilot onboarding is in scope; ongoing two-way sync is not, since Kanri is meant to displace these systems, not maintain parity with them |
 | Email sending from Kanri (Gmail/Outlook) | **In progress** — Gmail/Outlook OAuth + send, Feature 1 of workflow sprint |
 | Calendar sync for interviews | Deferred |
 | LinkedIn / BizReach sourcing automation | Deferred |
