@@ -91,7 +91,7 @@ ${lastInteraction ? `Last interaction: ${new Date(lastInteraction.interacted_at)
 `.trim();
 
   const message = await anthropic.messages.create({
-    model: "claude-sonnet-4-5-20250929",
+    model: "claude-sonnet-5",
     max_tokens: 300,
     system: `You are helping a Japan-based recruiter write a check-in message to a candidate they placed.
 

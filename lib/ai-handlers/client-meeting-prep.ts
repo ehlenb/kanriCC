@@ -165,7 +165,7 @@ ${conditionsText}
 `.trim();
 
   const message = await anthropic.messages.create({
-    model: "claude-sonnet-4-5-20250929",
+    model: "claude-sonnet-5",
     max_tokens: 800,
     system: `You are preparing a pre-meeting brief for a recruiter going into a client meeting in Japan. The recruiter reads this in 90 seconds before the meeting.
 

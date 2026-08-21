@@ -143,7 +143,7 @@ ${rejectionNotes.length > 0 ? rejectionNotes.map((n) => `${n.candidate_name}: ${
 `.trim();
 
   const message = await anthropic.messages.create({
-    model: "claude-sonnet-4-5-20250929",
+    model: "claude-sonnet-5",
     max_tokens: 800,
     system: `You are a senior recruiting advisor diagnosing why a client keeps rejecting candidates on a role.
 

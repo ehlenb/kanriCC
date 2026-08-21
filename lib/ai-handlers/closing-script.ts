@@ -93,7 +93,7 @@ ${req_.clients?.ai_context ? `Client intelligence: ${req_.clients.ai_context.sli
 `.trim();
 
   const message = await anthropic.messages.create({
-    model: "claude-sonnet-4-5-20250929",
+    model: "claude-sonnet-5",
     max_tokens: 1000,
     system: `You are writing a closing call guide for a recruiter in Japan. The candidate is at Offer stage. The recruiter reads this immediately before the closing call.
 

@@ -178,7 +178,7 @@ NEVER use: straightforward, genuinely, honestly, leverage (as a verb), utilize. 
   }
 
   const message = await anthropic.messages.create({
-    model: "claude-sonnet-4-5-20250929",
+    model: "claude-sonnet-5",
     max_tokens: 700,
     system: systemPrompt,
     messages: [{ role: "user", content: userPrompt }],

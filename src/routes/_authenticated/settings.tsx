@@ -3,6 +3,7 @@ import { createFileRoute, useSearch, useNavigate } from "@tanstack/react-router"
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-context";
 import { IconMail, IconBrandGmail, IconCheck, IconX, IconPlugConnected } from "@tabler/icons-react";
+import { ImportWizard } from "@/components/shared/ImportWizard";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   component: SettingsPage,
@@ -250,6 +251,10 @@ function SettingsPage() {
           Kanri stores only a refresh token. Emails are sent from your own account and are visible
           in your Sent folder.
         </p>
+      </div>
+
+      <div className="mt-6">
+        <ImportWizard />
       </div>
     </div>
   );

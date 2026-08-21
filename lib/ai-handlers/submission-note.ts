@@ -252,7 +252,7 @@ Return exactly this JSON structure:
   try {
     const [englishMsg, processData] = await Promise.all([
       anthropic.messages.create({
-        model: "claude-sonnet-4-5-20250929",
+        model: "claude-sonnet-5",
         max_tokens: 2000,
         messages: [{ role: "user", content: englishPrompt }],
       }),
@@ -294,7 +294,7 @@ ${JSON.stringify({
 }, null, 2)}`;
 
     const japaneseMsg = await anthropic.messages.create({
-      model: "claude-sonnet-4-5-20250929",
+      model: "claude-sonnet-5",
       max_tokens: 2000,
       messages: [{ role: "user", content: translationPrompt }],
     });
