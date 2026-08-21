@@ -3753,6 +3753,19 @@ function AddToProcessModal({
         .select("id")
         .single();
       if (error) throw error;
+      if (data?.id) {
+        await supabase.from("interactions").insert({
+          candidate_id: candidateId,
+          requisition_id: req.id,
+          process_id: data.id,
+          recruiter_id: recruiterId,
+          interaction_type: "job spec sent",
+          primary_party: "candidate",
+          summary: "Specs sent",
+          full_notes: `Sent specs for the ${req.title} role at ${req.clients?.company_name ?? "the client"}.`,
+          interacted_at: new Date().toISOString(),
+        });
+      }
       void qc.invalidateQueries({ queryKey: ["candidate-profile", candidateId] });
       void qc.invalidateQueries({ queryKey: ["open-reqs-for-process", recruiterId] });
       toast.success(`${candidateName} added to ${req.clients?.company_name ?? "process"} — ${req.title}`);

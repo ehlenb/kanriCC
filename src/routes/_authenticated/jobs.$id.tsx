@@ -272,6 +272,8 @@ function JobDetail() {
         <MatchCandidatesPanel
           requisitionId={id}
           recruiterId={recruiterId}
+          reqTitle={req.data?.title ?? ""}
+          clientName={req.data?.clients?.company_name ?? "the client"}
           onClose={() => setShowMatch(false)}
         />
       )}
@@ -891,10 +893,14 @@ function PipelinePanel({
 function MatchCandidatesPanel({
   requisitionId,
   recruiterId,
+  reqTitle,
+  clientName,
   onClose,
 }: {
   requisitionId: string;
   recruiterId: string;
+  reqTitle: string;
+  clientName: string;
   onClose: () => void;
 }) {
   const navigate = useNavigate();
@@ -919,14 +925,31 @@ function MatchCandidatesPanel({
 
   const specMutation = useMutation({
     mutationFn: async (candidateId: string) => {
-      const { error } = await supabase.from("processes").insert({
-        candidate_id: candidateId,
-        requisition_id: requisitionId,
-        owner_recruiter_id: recruiterId,
-        stage: "Specs Sent",
-        coverage_type: "own",
-      });
+      const { data, error } = await supabase
+        .from("processes")
+        .insert({
+          candidate_id: candidateId,
+          requisition_id: requisitionId,
+          owner_recruiter_id: recruiterId,
+          stage: "Specs Sent",
+          coverage_type: "own",
+        })
+        .select("id")
+        .single();
       if (error) throw error;
+      if (data?.id) {
+        await supabase.from("interactions").insert({
+          candidate_id: candidateId,
+          requisition_id: requisitionId,
+          process_id: data.id,
+          recruiter_id: recruiterId,
+          interaction_type: "job spec sent",
+          primary_party: "candidate",
+          summary: "Specs sent",
+          full_notes: `Sent specs for the ${reqTitle} role at ${clientName}.`,
+          interacted_at: new Date().toISOString(),
+        });
+      }
       return candidateId;
     },
     onSuccess: (candidateId) => {
