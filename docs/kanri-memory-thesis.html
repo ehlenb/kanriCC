@@ -1,0 +1,1382 @@
+<title>Kanri Memory Thesis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;500;600&family=Shippori+Mincho:wght@500;700&display=swap">
+
+<style>
+  :root {
+    --paper:      #faf8f4;
+    --surface:    #ffffff;
+    --sunken:     #f2efe9;
+    --ink:        #14120f;
+    --ink-70:     #4e4a43;
+    --ink-45:     #86817a;
+    --ink-20:     #cdc8c0;
+    --ink-12:     #e2ded7;
+    --vermillion: #c2482a;
+    --verm-wash:  #f6e4dd;
+    --indigo:     #2c3e6b;
+    --indigo-wash:#dfe4ef;
+    --moss:       #3f5732;
+    --moss-wash:  #e0e8d8;
+    --gold:       #97741a;
+    --gold-wash:  #f2e9d1;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:      #14120f;
+      --surface:    #1b1915;
+      --sunken:     #221f1a;
+      --ink:        #ece7de;
+      --ink-70:     #b0a99e;
+      --ink-45:     #837c72;
+      --ink-20:     #443f38;
+      --ink-12:     #2e2a24;
+      --vermillion: #e2795a;
+      --verm-wash:  #3a221a;
+      --indigo:     #8ea3ce;
+      --indigo-wash:#1e2637;
+      --moss:       #9db888;
+      --moss-wash:  #212a1b;
+      --gold:       #d3ac4c;
+      --gold-wash:  #2e2716;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --paper:      #14120f;
+    --surface:    #1b1915;
+    --sunken:     #221f1a;
+    --ink:        #ece7de;
+    --ink-70:     #b0a99e;
+    --ink-45:     #837c72;
+    --ink-20:     #443f38;
+    --ink-12:     #2e2a24;
+    --vermillion: #e2795a;
+    --verm-wash:  #3a221a;
+    --indigo:     #8ea3ce;
+    --indigo-wash:#1e2637;
+    --moss:       #9db888;
+    --moss-wash:  #212a1b;
+    --gold:       #d3ac4c;
+    --gold-wash:  #2e2716;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 15px;
+    line-height: 1.65;
+    margin: 0;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 0 28px 140px;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  @media (min-width: 1060px) {
+    .wrap { grid-template-columns: 190px minmax(0, 1fr); gap: 56px; padding-left: 36px; padding-right: 36px; }
+  }
+
+  /* ─── nav rail ─────────────────────────────────────────── */
+  nav.toc { display: none; }
+
+  @media (min-width: 1060px) {
+    nav.toc {
+      display: block;
+      grid-column: 1;
+      position: sticky;
+      top: 0;
+      align-self: start;
+      max-height: 100vh;
+      overflow-y: auto;
+      padding: 56px 0 40px;
+      border-right: 1px solid var(--ink-12);
+      margin-right: -28px;
+      padding-right: 20px;
+    }
+    nav.toc ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+    nav.toc a {
+      font-family: "DM Mono", ui-monospace, monospace;
+      font-size: 10.5px;
+      letter-spacing: 0.03em;
+      color: var(--ink-45);
+      text-decoration: none;
+      display: block;
+      padding: 3px 0;
+      line-height: 1.4;
+    }
+    nav.toc a:hover, nav.toc a:focus-visible { color: var(--vermillion); }
+    nav.toc .num { color: var(--ink-20); margin-right: 6px; }
+  }
+
+  main { grid-column: 1; min-width: 0; }
+  @media (min-width: 1060px) { main { grid-column: 2; } }
+
+  /* ─── masthead ─────────────────────────────────────────── */
+  header.mast { padding: 72px 0 0; border-bottom: 2px solid var(--ink); margin-bottom: 0; }
+
+  .kicker {
+    font-family: "DM Mono", ui-monospace, monospace;
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--vermillion);
+    margin: 0 0 22px;
+  }
+
+  h1 {
+    font-family: "Shippori Mincho", Georgia, serif;
+    font-weight: 700;
+    font-size: clamp(38px, 6vw, 62px);
+    line-height: 1.06;
+    letter-spacing: -0.015em;
+    margin: 0 0 20px;
+    text-wrap: balance;
+    max-width: 15ch;
+  }
+
+  .standfirst {
+    font-family: "Shippori Mincho", Georgia, serif;
+    font-size: clamp(17px, 2.2vw, 21px);
+    line-height: 1.5;
+    color: var(--ink-70);
+    max-width: 44ch;
+    margin: 0 0 34px;
+  }
+
+  .mast-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0;
+    border-top: 1px solid var(--ink-12);
+    margin-bottom: 0;
+  }
+  .mast-meta div {
+    padding: 14px 22px 16px 0;
+    margin-right: 22px;
+    border-right: 1px solid var(--ink-12);
+  }
+  .mast-meta div:last-child { border-right: none; }
+  .mast-meta dt {
+    font-family: "DM Mono", ui-monospace, monospace;
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--ink-45);
+    margin: 0 0 5px;
+  }
+  .mast-meta dd {
+    font-family: "DM Mono", ui-monospace, monospace;
+    font-size: 12px;
+    margin: 0;
+    color: var(--ink);
+  }
+
+  /* ─── sections ─────────────────────────────────────────── */
+  section { padding-top: 64px; scroll-margin-top: 20px; }
+
+  h2 {
+    font-family: "Shippori Mincho", Georgia, serif;
+    font-weight: 700;
+    font-size: clamp(24px, 3.4vw, 33px);
+    line-height: 1.16;
+    letter-spacing: -0.01em;
+    margin: 0 0 8px;
+    text-wrap: balance;
+    max-width: 22ch;
+  }
+
+  .sec-num {
+    font-family: "DM Mono", ui-monospace, monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.14em;
+    color: var(--vermillion);
+    display: block;
+    margin-bottom: 12px;
+    padding-top: 18px;
+    border-top: 2px solid var(--ink);
+  }
+
+  h3 {
+    font-family: "Plus Jakarta Sans", sans-serif;
+    font-weight: 600;
+    font-size: 16px;
+    letter-spacing: -0.005em;
+    margin: 36px 0 10px;
+    color: var(--ink);
+  }
+
+  h4 {
+    font-family: "DM Mono", ui-monospace, monospace;
+    font-weight: 500;
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.13em;
+    color: var(--ink-45);
+    margin: 30px 0 10px;
+  }
+
+  p { margin: 0 0 16px; max-width: 68ch; }
+  main > section > p, main > section > ul, main > section > ol { max-width: 68ch; }
+
+  a { color: var(--vermillion); text-decoration: underline; text-underline-offset: 2px; text-decoration-thickness: 1px; }
+  a:focus-visible { outline: 2px solid var(--vermillion); outline-offset: 2px; }
+
+  strong { font-weight: 600; }
+  em { font-style: italic; color: var(--ink-70); }
+
+  ul, ol { margin: 0 0 16px; padding-left: 20px; max-width: 68ch; }
+  li { margin-bottom: 7px; }
+  li::marker { color: var(--ink-45); }
+
+  code, .mono {
+    font-family: "DM Mono", ui-monospace, monospace;
+    font-size: 0.88em;
+    background: var(--sunken);
+    padding: 1px 5px;
+    color: var(--ink-70);
+  }
+
+  /* ─── callouts ─────────────────────────────────────────── */
+  .thesis {
+    border-left: 3px solid var(--vermillion);
+    background: var(--verm-wash);
+    padding: 22px 24px;
+    margin: 28px 0;
+    max-width: 68ch;
+  }
+  .thesis p { margin: 0; font-family: "Shippori Mincho", Georgia, serif; font-size: 17px; line-height: 1.55; }
+  .thesis p + p { margin-top: 12px; }
+
+  .note {
+    border-left: 3px solid var(--ink-20);
+    padding: 4px 0 4px 18px;
+    margin: 22px 0;
+    max-width: 66ch;
+    color: var(--ink-70);
+    font-size: 14px;
+  }
+  .note p { margin: 0; }
+  .note p + p { margin-top: 10px; }
+
+  .verdict {
+    border: 1px solid var(--ink);
+    background: var(--surface);
+    padding: 20px 24px;
+    margin: 26px 0;
+    max-width: 68ch;
+  }
+  .verdict .label {
+    font-family: "DM Mono", ui-monospace, monospace;
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--ink-45);
+    display: block;
+    margin-bottom: 7px;
+  }
+  .verdict .call {
+    font-family: "Shippori Mincho", Georgia, serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--vermillion);
+    margin: 0 0 10px;
+    line-height: 1.2;
+  }
+  .verdict p { margin: 0; font-size: 14px; color: var(--ink-70); }
+
+  /* ─── findings grid ────────────────────────────────────── */
+  .findings { display: grid; gap: 1px; background: var(--ink-12); border: 1px solid var(--ink-12); margin: 24px 0; }
+  @media (min-width: 700px) { .findings { grid-template-columns: 1fr 1fr; } }
+  .finding { background: var(--surface); padding: 18px 20px 20px; }
+  .finding .tag {
+    font-family: "DM Mono", ui-monospace, monospace;
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.13em;
+    margin: 0 0 8px;
+    display: block;
+  }
+  .finding h5 { font-family: "Plus Jakarta Sans", sans-serif; font-weight: 600; font-size: 14.5px; margin: 0 0 7px; line-height: 1.35; }
+  .finding p { font-size: 13.5px; margin: 0; color: var(--ink-70); line-height: 1.55; }
+  .t-good { color: var(--moss); }
+  .t-bad  { color: var(--vermillion); }
+  .t-mid  { color: var(--gold); }
+  .t-info { color: var(--indigo); }
+
+  /* ─── tables ───────────────────────────────────────────── */
+  .scroller { overflow-x: auto; margin: 24px 0; border: 1px solid var(--ink-12); background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--ink-12); vertical-align: top; }
+  thead th {
+    font-family: "DM Mono", ui-monospace, monospace;
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ink-45);
+    font-weight: 500;
+    border-bottom: 1px solid var(--ink);
+    white-space: nowrap;
+    background: var(--surface);
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td.num, th.num { font-family: "DM Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+
+  /* matrix specifics */
+  .matrix table { font-size: 12px; }
+  .matrix th, .matrix td { padding: 7px 9px; }
+  .matrix .name { min-width: 250px; font-weight: 500; }
+  .matrix .id { font-family: "DM Mono", ui-monospace, monospace; color: var(--ink-45); font-size: 11px; }
+  .matrix .tot { font-family: "DM Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; text-align: right; font-weight: 500; border-left: 1px solid var(--ink-12); }
+  .matrix td.s { font-family: "DM Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; text-align: center; color: var(--ink-70); }
+  .matrix td.s.hi { color: var(--ink); font-weight: 500; }
+  .matrix td.s.lo { color: var(--ink-20); }
+  .matrix tbody tr:hover td { background: var(--sunken); }
+
+  .legend {
+    font-family: "DM Mono", ui-monospace, monospace;
+    font-size: 10.5px;
+    color: var(--ink-45);
+    line-height: 1.7;
+    margin: -10px 0 22px;
+    max-width: 78ch;
+  }
+
+  /* ─── ranked lists ─────────────────────────────────────── */
+  .ranked { list-style: none; padding: 0; margin: 24px 0; max-width: none; }
+  .ranked > li {
+    display: grid;
+    grid-template-columns: 42px 1fr;
+    gap: 16px;
+    padding: 20px 0;
+    border-top: 1px solid var(--ink-12);
+    margin: 0;
+  }
+  .ranked > li:first-child { border-top: 1px solid var(--ink); }
+  .rank {
+    font-family: "DM Mono", ui-monospace, monospace;
+    font-size: 11px;
+    color: var(--vermillion);
+    padding-top: 3px;
+    font-variant-numeric: tabular-nums;
+  }
+  .ranked h5 { font-family: "Plus Jakarta Sans", sans-serif; font-weight: 600; font-size: 15.5px; margin: 0 0 8px; line-height: 1.35; }
+  .ranked dl { margin: 10px 0 0; display: grid; gap: 6px; }
+  @media (min-width: 720px) { .ranked dl { grid-template-columns: 118px 1fr; gap: 4px 14px; } }
+  .ranked dt {
+    font-family: "DM Mono", ui-monospace, monospace;
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.11em;
+    color: var(--ink-45);
+    padding-top: 3px;
+  }
+  .ranked dd { margin: 0 0 6px; font-size: 13.5px; color: var(--ink-70); line-height: 1.55; max-width: 60ch; }
+  @media (min-width: 720px) { .ranked dd { margin-bottom: 0; } }
+
+  /* ─── day timeline ─────────────────────────────────────── */
+  .day { margin: 26px 0; border-top: 1px solid var(--ink); }
+  .slot { display: grid; grid-template-columns: 1fr; gap: 4px; padding: 18px 0; border-bottom: 1px solid var(--ink-12); }
+  @media (min-width: 640px) { .slot { grid-template-columns: 84px 1fr; gap: 20px; } }
+  .slot .t {
+    font-family: "DM Mono", ui-monospace, monospace;
+    font-size: 12px;
+    color: var(--vermillion);
+    font-variant-numeric: tabular-nums;
+    padding-top: 2px;
+  }
+  .slot .body p { margin: 0 0 10px; font-size: 14px; max-width: 62ch; }
+  .slot .body p:last-child { margin-bottom: 0; }
+  .slot .body strong { font-weight: 600; }
+
+  /* ─── diff blocks ──────────────────────────────────────── */
+  .diff { border: 1px solid var(--ink-12); background: var(--surface); margin: 20px 0; }
+  .diff .head {
+    font-family: "DM Mono", ui-monospace, monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--ink-12);
+    color: var(--ink-45);
+    background: var(--sunken);
+  }
+  .diff .body { padding: 16px 18px; }
+  .diff .body p { margin: 0 0 12px; font-size: 13.5px; }
+  .diff .body p:last-child { margin: 0; }
+  .diff .body ul { margin-bottom: 0; font-size: 13.5px; }
+
+  .pill {
+    display: inline-block;
+    font-family: "DM Mono", ui-monospace, monospace;
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: 2px 7px;
+    margin-right: 6px;
+    vertical-align: 1px;
+  }
+  .p-add  { background: var(--moss-wash);   color: var(--moss); }
+  .p-fix  { background: var(--gold-wash);   color: var(--gold); }
+  .p-cut  { background: var(--verm-wash);   color: var(--vermillion); }
+  .p-keep { background: var(--indigo-wash); color: var(--indigo); }
+
+  /* ─── sources ──────────────────────────────────────────── */
+  .sources { font-size: 13px; }
+  .sources ol { padding-left: 22px; max-width: 78ch; }
+  .sources li { margin-bottom: 9px; color: var(--ink-70); }
+  .sources a { word-break: break-word; }
+
+  footer.end {
+    margin-top: 80px;
+    padding-top: 22px;
+    border-top: 2px solid var(--ink);
+    font-family: "DM Mono", ui-monospace, monospace;
+    font-size: 10.5px;
+    color: var(--ink-45);
+    letter-spacing: 0.05em;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+
+<div class="wrap">
+
+<nav class="toc" aria-label="Contents">
+  <ol>
+    <li><a href="#s1"><span class="num">01</span>Executive summary</a></li>
+    <li><a href="#s2"><span class="num">02</span>What Kanri does well</a></li>
+    <li><a href="#s3"><span class="num">03</span>What Kanri does poorly</a></li>
+    <li><a href="#s4"><span class="num">04</span>Competitors: strengths</a></li>
+    <li><a href="#s5"><span class="num">05</span>Competitors: gaps</a></li>
+    <li><a href="#s6"><span class="num">06</span>What Japan needs</a></li>
+    <li><a href="#s7"><span class="num">07</span>Biggest unmet needs</a></li>
+    <li><a href="#s8"><span class="num">08</span>34 opportunities</a></li>
+    <li><a href="#s9"><span class="num">09</span>Scoring matrix</a></li>
+    <li><a href="#s10"><span class="num">10</span>Build now</a></li>
+    <li><a href="#s11"><span class="num">11</span>Build next</a></li>
+    <li><a href="#s12"><span class="num">12</span>Moonshots</a></li>
+    <li><a href="#s13"><span class="num">13</span>What not to build</a></li>
+    <li><a href="#s14"><span class="num">14</span>The moat</a></li>
+    <li><a href="#s15"><span class="num">15</span>Architecture direction</a></li>
+    <li><a href="#s16"><span class="num">16</span>The ideal day</a></li>
+    <li><a href="#s17"><span class="num">17</span>CLAUDE.md changes</a></li>
+    <li><a href="#s18"><span class="num">18</span>Implementation order</a></li>
+    <li><a href="#s19"><span class="num">19</span>Start here</a></li>
+    <li><a href="#src"><span class="num">—</span>Sources</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<header class="mast">
+  <p class="kicker">Stage 1 · Discovery, research and strategy · No code written</p>
+  <h1>Kanri already built the moat and forgot to switch it on</h1>
+  <p class="standfirst">Forty AI endpoints is not the product. The reconciled memory underneath them is, and right now two of those forty read it.</p>
+  <dl class="mast-meta">
+    <div><dt>Date</dt><dd>23 Aug 2026</dd></div>
+    <div><dt>Codebase</dt><dd>22,826 LOC · 40 handlers</dd></div>
+    <div><dt>Opportunities</dt><dd>34 scored</dd></div>
+    <div><dt>CLAUDE.md</dt><dd>Significant update</dd></div>
+  </dl>
+</header>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<section id="s1">
+  <span class="sec-num">01 / Executive summary</span>
+  <h2>The finding</h2>
+
+  <p>Kanri has quietly built something no competitor has: a <strong>reconciled entity memory</strong>. The <code>refresh-context</code> handler reads up to thirty interactions per candidate, weights them <span class="mono">CURRENT / RECENT / BACKGROUND</span> by age, and writes a single narrative that resolves contradictions explicitly — <em>"salary expectation updated to X (was Y at registration)."</em> That is not a transcript summary. It is a current-state model of a human relationship, with its own correction history.</p>
+
+  <p>Three things are wrong with it.</p>
+
+  <ol>
+    <li>It is <strong>orphaned</strong>. Two of forty handlers read <code>ai_context</code>. <code>requisitions.ai_context</code> is written by <code>refresh-context</code> and read by nothing at all. Every other handler re-derives context from raw rows, which is slower, dumber, and inconsistent between features.</li>
+    <li>It is <strong>manual</strong>. Refresh is a button. Memory that only updates when someone remembers to press a button is not memory.</li>
+    <li>It has <strong>no outcome dimension</strong>. <code>closed_reason</code>, <code>ccm_outcome</code>, <code>placed_fee_jpy</code>, submission-to-interview conversion are all captured and never read back. The flywheel has no belt on it.</li>
+  </ol>
+
+  <p>Meanwhile the other 38 handlers are one-shot generators — briefings, drafts, scripts, rejection emails. That layer is commoditising fastest. Spott ships weekly on $3.2M with a public roadmap and an MCP server. Bullhorn's Amplify runs ten autonomous digital workers and ranks candidates on 26 years of placement data. Recruiterflow bundles every current and future AI agent into one price. Kanri cannot win a generator arms race and should stop trying to.</p>
+
+  <div class="thesis">
+    <p><strong>The thesis: Kanri remembers. Everything else generates.</strong></p>
+    <p>Japan's boutique agencies are 両手型 — one consultant owning both client and candidate. The named failure mode of that model is 属人化: knowledge trapped in one person's head, and the business stops when they are out. Kanri's memory layer is the literal answer to the defining operational problem of its exact target market, and neither the product nor the positioning currently says so.</p>
+  </div>
+
+  <p>Three numbers frame the opportunity. Japan's white-collar agency market was <strong>¥449 billion in FY2024</strong>, up 12% year on year, across <strong>30,561 agencies of which roughly 70% have ten or fewer staff</strong>. That is about 21,000 firms shaped exactly like Torch. Japanese agencies adopting AI report <strong>1.3–1.8× expansion in per-consultant interview capacity</strong>, with three named targets: resume screening, 面談議事録 (interview minutes), and 推薦文作成 (recommendation-letter writing). Kanri does the first two adequately and does not do the third at all.</p>
+
+  <p>The strategic recommendation is not a feature list. It is a sequencing decision: <strong>stop adding generators, turn on the memory, and start recording outcomes</strong> — because outcome data is the only asset that cannot be backfilled, and every month it is not captured is a month of moat permanently lost.</p>
+</section>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<section id="s2">
+  <span class="sec-num">02 / What Kanri does well</span>
+  <h2>Six genuine strengths</h2>
+
+  <div class="findings">
+    <div class="finding">
+      <span class="tag t-good">Rare</span>
+      <h5>Reconciled entity memory with recency weighting</h5>
+      <p>Competitors store transcripts and summarise them. Kanri resolves conflicting facts across time and states the delta. Spott's Conversation Memory captures more channels; it does not reconcile. This is the single most defensible thing in the codebase.</p>
+    </div>
+    <div class="finding">
+      <span class="tag t-good">Rare</span>
+      <h5>Stage × outcome situational intelligence</h5>
+      <p><code>SituationBanner</code> is keyed on stage <em>and</em> <code>ccm_outcome</code>, and changes both its message and its action buttons. A CCM pass offers interview prep; a fail offers a rejection email and a close button. Most ATS products show a stage badge and stop.</p>
+    </div>
+    <div class="finding">
+      <span class="tag t-good">Strong</span>
+      <h5>Rule-based, explainable prioritisation</h5>
+      <p>Six deterministic rules, each rendering its own reason string. Roughly 85% of recruiters want final authority over AI recommendations, and explainability is the top-cited trust barrier. A visible rule beats a hidden model here, and Kanri chose correctly.</p>
+    </div>
+    <div class="finding">
+      <span class="tag t-good">Strong</span>
+      <h5>Japan domain depth in the prompts, not the marketing</h5>
+      <p>The nine-level Japanese proficiency scale, <code>base_is_priority</code> as a first-class field, ¥M formatting, counteroffer statistics, the domestic-to-foreign objection framework. This is encoded in handler prompts, not a localisation file.</p>
+    </div>
+    <div class="finding">
+      <span class="tag t-good">Strong</span>
+      <h5>Human-in-the-loop by construction</h5>
+      <p>Every output editable, nothing auto-sends, <code>notes_internal</code> and <code>notes_presentation</code> firewalled from AI. Japan's 職業安定法 Art. 5-4 guidance requires exactly this posture: AI drafts, humans decide. Kanri is compliant by accident and should sell it on purpose.</p>
+    </div>
+    <div class="finding">
+      <span class="tag t-good">Rare</span>
+      <h5>Real bilingual operation</h5>
+      <p>Full EN/JA UI plus on-demand translation of individual interaction notes, cached in <code>full_notes_translated</code>. A recruiter thinking in English can read a Japanese colleague's call notes. Almost nothing in this category does this.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<section id="s3">
+  <span class="sec-num">03 / What Kanri does poorly</span>
+  <h2>Twelve honest problems</h2>
+
+  <h3>Structural</h3>
+
+  <div class="findings">
+    <div class="finding">
+      <span class="tag t-bad">Critical</span>
+      <h5>The memory is write-only</h5>
+      <p><code>ai_context</code> is read by <code>client-meeting-prep</code> and <code>spec-email</code>. That is it. <code>requisitions.ai_context</code> has zero readers. The best asset in the product is switched off.</p>
+    </div>
+    <div class="finding">
+      <span class="tag t-bad">Critical</span>
+      <h5>Search cannot answer a recruiter's actual question</h5>
+      <p>Candidate search is <code>ilike</code> on name and company plus six exact-match dropdowns. No full-text over <code>notes_interview</code>, no semantic layer, no pgvector anywhere in the repo. "Who did I speak to about fintech product roles in Kansai?" is unanswerable.</p>
+    </div>
+    <div class="finding">
+      <span class="tag t-bad">Critical</span>
+      <h5>Matching hits a hard wall at scale</h5>
+      <p><code>advanced-search</code> selects every eligible candidate and puts them all in one prompt. <code>max_tokens</code> was already raised 2500→8000 for ~60 candidates. At Torch's real database size this does not degrade — it fails.</p>
+    </div>
+    <div class="finding">
+      <span class="tag t-bad">Critical</span>
+      <h5>No outcome feedback loop</h5>
+      <p><code>closed_reason</code>, <code>ccm_outcome</code>, <code>placed_fee_jpy</code> are captured. One handler reads them, scoped to a single client. Nothing learns across the database. This is Bullhorn's entire marketed advantage and Kanri has the schema for it already.</p>
+    </div>
+    <div class="finding">
+      <span class="tag t-bad">Serious</span>
+      <h5>No task or follow-up object</h5>
+      <p>Dashboard done/snooze lives in <code>localStorage</code>. It does not survive a browser change, is invisible to teammates, has no due date, and cannot represent "call him Tuesday." Recruiters live inside a follow-up queue and Kanri does not have one.</p>
+    </div>
+    <div class="finding">
+      <span class="tag t-bad">Serious</span>
+      <h5>Zero business development surface</h5>
+      <p>A company only exists in Kanri once it is already a client. No prospect object, no lapsed-client detection, no trigger events. Agency revenue is a function of BD, and the product has no place to do it.</p>
+    </div>
+    <div class="finding">
+      <span class="tag t-bad">Serious</span>
+      <h5>Database re-engagement is impossible</h5>
+      <p>20–30% of agency placements come from existing database records, and up to 70% of ATS candidates are never contacted a second time. Kanri has 200 seeded candidates with rich interview notes and no mechanism to resurface any of them.</p>
+    </div>
+    <div class="finding">
+      <span class="tag t-bad">Serious</span>
+      <h5>O(n) engineering for O(n) questions</h5>
+      <p>Forty one-shot handlers, each with its own endpoint, button and prompt. Every new question a recruiter might ask requires a new deploy. Spott shipped an MCP server and an Ask-AI box that answers arbitrary questions over the database.</p>
+    </div>
+  </div>
+
+  <h3>Engineering debt that is now a strategy problem</h3>
+
+  <p><code>candidates.$id.tsx</code> is <strong>5,579 lines</strong>. <code>clients.$id.tsx</code> is <strong>4,309 lines</strong>. Together they are 51% of the frontend. Meanwhile <code>src/hooks/</code>, <code>src/components/dashboard/</code>, <code>src/components/layout/</code>, <code>src/components/candidate/processes/</code> and <code>src/components/candidate/registration/</code> are <strong>empty directories</strong>. CLAUDE.md §15 describes a component architecture that does not exist, and every agent that reads it starts from a false map.</p>
+
+  <p>Three more, briefly. <strong>CLAUDE.md is materially stale</strong> — it documents 19 AI endpoints when there are 40, and omits the import wizard, the Outlook add-in, Tavily enrichment, the entire <code>ai_context</code> system, the <code>jobs/$id</code> route, the test suite, and migrations 019–043. A wrong single-source-of-truth is worse than none, because agents trust it. <strong>Guarantee tracking is dead code</strong> — <code>placement_guarantee_until</code> exists and nothing reads it, while early turnover inside 3–6 months and the resulting refund exposure is a named industry problem in Japan. And <strong>the multi-user promise is unshipped</strong>: CLAUDE.md says the primary value of multi-user is seeing what teammates log, and there is no team feed anywhere in the app.</p>
+</section>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<section id="s4">
+  <span class="sec-num">04 / Competitors: strengths</span>
+  <h2>What the field does well</h2>
+
+  <div class="scroller">
+    <table>
+      <thead>
+        <tr><th>Product</th><th>Real problem solved</th><th>Genuinely impressive</th><th>Their AI bet</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Spott</strong><br><span class="mono">$139–199/user/mo</span></td>
+          <td>Agencies run 6–8 fragmented tools; context is lost between them.</td>
+          <td>Weekly ships, public roadmap at roadmap.spott.io, transparent pricing, ~2-week migration, MCP server for Claude and ChatGPT.</td>
+          <td>Conversation Memory across mail, WhatsApp, LinkedIn, VoIP; explainable matching that shows five reasons; Ask-AI over the whole database.</td>
+        </tr>
+        <tr>
+          <td><strong>Headhunt.AI</strong><br><span class="mono">Japan · credit-based</span></td>
+          <td>Japanese sourcing and scout-mail writing consumes the day.</td>
+          <td>4M+ Japan profiles, 敬語-native bilingual drafting, Class 4 provider registration, published APPI position. Honest that it does not replace the ATS.</td>
+          <td>ESAI 0–100 score with written rationale; near-zero-edit outreach. Claims 3.13% reply vs a 0.3–0.8% templated baseline.</td>
+        </tr>
+        <tr>
+          <td><strong>Bullhorn Amplify</strong></td>
+          <td>Scaling agency output without adding headcount.</td>
+          <td>Search and Match ranks by <em>likelihood of being hired</em> using 26 years of accumulated placement data. That is a genuine data moat.</td>
+          <td>Ten autonomous digital workers, 15+ skills, running 24/7 across sourcing, screening, matching, outreach, fraud and compliance.</td>
+        </tr>
+        <tr>
+          <td><strong>Loxo</strong></td>
+          <td>Sourcing and contact data inside the ATS.</td>
+          <td>1.2B profiles, 800M+ verified emails and mobiles built directly into the workflow.</td>
+          <td>Four AI agents on top of the talent-intelligence graph.</td>
+        </tr>
+        <tr>
+          <td><strong>Recruiterflow</strong></td>
+          <td>Manual follow-up and outreach sequencing.</td>
+          <td>AIRA bundles all current <em>and future</em> agents at one price. Support reputation is the explicit anti-Bullhorn.</td>
+          <td>An intelligence layer running across sourcing, outreach, matching and pipeline rather than discrete features.</td>
+        </tr>
+        <tr>
+          <td><strong>PORTERS</strong><br><span class="mono">Japan incumbent</span></td>
+          <td>Japanese agency back-office and compliance reality.</td>
+          <td>2,800+ implementations, top domestic share. Hiring a PORTERS-experienced consultant is easy — a real switching cost.</td>
+          <td>Bolt-on: PORTERS Assist offers AI-optimised scouting delegation.</td>
+        </tr>
+        <tr>
+          <td><strong>Vincere</strong><br><span class="mono">Torch's incumbent</span></td>
+          <td>All-in-one agency OS with strong pipeline visibility.</td>
+          <td>1,800+ firms; users consistently praise ease of adding and searching candidates, and support quality.</td>
+          <td>Modest. Talent rediscovery and analytics rather than generative depth.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<section id="s5">
+  <span class="sec-num">05 / Competitors: gaps</span>
+  <h2>Where the field is weak</h2>
+
+  <h3>The universal gap: nobody owns what happens after the reply</h3>
+
+  <p>Every well-funded player in this category is optimising the <strong>top of the funnel</strong> — find, rank, contact, sequence, schedule. Headhunt.AI says it outright: its job ends when the candidate replies, and it explicitly does not replace the ATS. Bullhorn's digital workers source, screen, match and outreach. Loxo sells profiles and contact data. Spott is broadest, and even Spott's differentiation is capture-and-unify, not judgment support.</p>
+
+  <p>The part of the job that decides whether an agency makes money — buy-in, submission quality, interview preparation, feedback chasing, offer defence, counteroffer, resignation, placement, guarantee period — is thinly served by all of them. That is exactly the span Kanri's <code>processes</code> table already models, stage by stage.</p>
+
+  <h3>Specific weaknesses</h3>
+
+  <ul>
+    <li><strong>Spott</strong> — limited mobile, no built-in external sourcing database, and a thin independent review base. Strategically: it is horizontal across every agency type in every market, which means it will never carry 推薦文, keigo register, or 両手型 operating assumptions.</li>
+    <li><strong>Headhunt.AI</strong> — no pipeline, no client relationship model, no memory of anything after first contact. Its own performance figures are vendor-published and uncorroborated; treat them as directional. Its recommendation of <em>no post-edit on ~95% of volume</em> is also a philosophical fork away from where Japanese regulation and recruiter trust are heading.</li>
+    <li><strong>Bullhorn</strong> — clunky UX and crashes are the recurring complaint, and ~20% renewal price increases are the single most common trigger for agencies shopping alternatives. Its outcome model is also a black box, which collides directly with the explainability demand.</li>
+    <li><strong>Loxo</strong> — gates its best features behind pricing you cannot see until a sales call.</li>
+    <li><strong>Vincere</strong> — <em>this is Kanri's specific opening at Torch.</em> Applications from Indeed and its own portal do not auto-parse into the ATS, the UI is unclear at a glance, and agencies are leaving over post-acquisition platform drift. The incumbent is actively annoying its own base.</li>
+    <li><strong>PORTERS</strong> — dominant in Japan and generationally behind on AI. It will not build a reconciled memory layer.</li>
+  </ul>
+
+  <div class="note">
+    <p><strong>Commodity functions — do not differentiate here.</strong> AI note-taking, AI email drafting, JD generation, CV reformatting, generic match scores, multi-channel sequences, enrichment waterfalls, contact finding. All of these are bundled into base tiers across the field by 2026. Spending Kanri's engineering on any of them is spending it on parity.</p>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<section id="s6">
+  <span class="sec-num">06 / What Japan needs</span>
+  <h2>Nine things a Japanese boutique needs that a Western ATS will not build</h2>
+
+  <ol>
+    <li><strong>推薦文 (suisenbun).</strong> A formal recommendation letter written by the consultant and submitted with 履歴書 and 職務経歴書 at document-screening stage. It has a conventional five-part structure — greeting, candidate basics, character and achievements with numbers, reason for changing jobs, closing. Japanese industry sources name it as one of the three highest-value AI targets in agency work. Kanri's <code>submission-note</code> produces an English client email. Different artifact, different register, different reader.</li>
+    <li><strong>職務経歴書 formatting.</strong> Agencies routinely rewrite candidate career histories into the standard Japanese format before submission; 添削 (correction) is a headline service at every major agency. Kanri parses CVs and never produces one.</li>
+    <li><strong>属人化 as the named enemy.</strong> Japanese operational writing on 両手型 identifies the failure modes precisely: single-owner dependency, task overload, missed steps. The stated tool requirement for 両手型 is single-screen visibility across jobs, candidates, matches and revenue. Kanri's memory layer is the answer and its positioning never names the problem.</li>
+    <li><strong>Duplicate-submission prevention.</strong> Japanese agency-ops guidance calls visibility into <em>which client has already received this candidate</em> critical infrastructure. Kanri excludes duplicates inside <code>advanced-search</code> and warns nowhere else.</li>
+    <li><strong>The multi-agency clock.</strong> Candidates earning ¥7M+ now register with several agencies simultaneously, so speed and exclusivity decide outcomes. Kanri has <code>competing_interviews</code> and treats it as a risk badge rather than a countdown.</li>
+    <li><strong>内定辞退 defence.</strong> Offer decline runs roughly 15–20% at large firms and above 30% at SMEs, and the most-cited cause is a mismatch between what was described and what the conditions actually are. Offer stage in Kanri is a UI shell.</li>
+    <li><strong>Guarantee-period exposure.</strong> Early turnover inside 3–6 months and the refund obligation that follows is a named industry challenge. Kanri has the column and no behaviour.</li>
+    <li><strong>Keigo register as a control, not a translation.</strong> Headhunt.AI names keigo conjugation errors as the failure mode generic models hit, because they are trained mostly on English. Kanri translates after the fact; it should generate at a chosen register — 敬語 / 丁寧語 / casual — from the start.</li>
+    <li><strong>Regulatory posture as a feature.</strong> The APPI amendment was promulgated 17 July 2026, tightening enforcement with a surcharge regime for serious violations. Combined with 職業安定法 Art. 5-4, the operating rule Japanese counsel gives is explicit: AI produces drafts, humans make decisions. Kanri already works this way. Saying so, in the product and in the pitch, is worth more in Japan than another generator.</li>
+  </ol>
+
+  <div class="note">
+    <p><strong>What not to localise.</strong> Do not build a BizReach or doda scraper. Headhunt.AI holds 4M Japan profiles under a registered 第4号 provider licence; Loxo holds 1.2B globally. Kanri will not win a profile-volume contest, and the APPI surcharge regime makes unlicensed candidate-data accumulation an unattractive place to be creative. Import what the recruiter already lawfully holds; do not acquire.</p>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<section id="s7">
+  <span class="sec-num">07 / Biggest unmet needs</span>
+  <h2>Where recruiter hours actually go</h2>
+
+  <p>The time evidence is consistent across sources even where the exact percentages differ. Recruiters spend somewhere between 30% and 52% of the working week on administration depending on measurement; a UK survey of 748 HR leaders in August 2025 put it at <strong>17.7 hours of admin per vacancy</strong> — more than two working days per hire — of which 3.6 hours is application review, <strong>2.5 hours is interview scheduling</strong>, and 3 hours is processing post-interview notes. Scheduling alone is repeatedly measured as consuming more time than recruiting itself.</p>
+
+  <p>The named tasks are mundane and identical everywhere: copying details into the CRM, cleaning half-complete profiles, checking whether a record already exists, fixing job titles, hunting for mobile numbers, updating notes, parsing CVs, and switching between systems to keep basics current.</p>
+
+  <h3>The five unmet needs, ranked by value per hour recovered</h3>
+
+  <ol>
+    <li><strong>Logging that happens without the recruiter.</strong> Not a note-taker for calls — <em>everything</em>. Email both directions, meetings, and a voice route for the 30 seconds after a phone call. Kanri has an Outlook add-in and Recall.ai already; the gap is coverage and automatic reconciliation into memory.</li>
+    <li><strong>A follow-up queue that survives.</strong> The single highest-frequency recruiter behaviour is "come back to this on Thursday," and Kanri stores that intent in browser localStorage.</li>
+    <li><strong>Retrieval over everything the firm knows.</strong> Not matching — <em>recall</em>. The question is almost never "score these candidates"; it is "who do I already know who fits this, and what did they tell me last time?"</li>
+    <li><strong>Preparation that arrives unrequested.</strong> Kanri's briefings are excellent and require a recruiter to remember to press a button before a call. A brief that lands 30 minutes before a scheduled interaction converts a good feature into an indispensable one.</li>
+    <li><strong>Knowing which client conversation is worth having.</strong> Submit-to-interview below 33% signals a problem and above 40% is a reasonable target; the goal ratio for interview-to-offer is 3:1 to 4:1. Kanri holds every number needed to compute these per client and per hiring manager, and computes none of them.</li>
+  </ol>
+</section>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<section id="s8">
+  <span class="sec-num">08 / 34 opportunities</span>
+  <h2>The full option set</h2>
+
+  <p>Grouped by layer. Scores follow in §09; recommendations in §10–12.</p>
+
+  <h4>Memory and retrieval — the substrate</h4>
+  <ol>
+    <li><strong>Automatic context refresh.</strong> Fire <code>refresh-context</code> from a database trigger on interaction insert, debounced, instead of from a button. Memory becomes a consequence of work rather than a chore.</li>
+    <li><strong>Universal context read.</strong> One shared context loader; every handler reads the reconciled narrative instead of re-deriving from raw rows. Turns 40 inconsistent features into 40 features that know the same things.</li>
+    <li><strong>Semantic and full-text retrieval.</strong> pgvector over <code>notes_interview</code> and <code>ai_context</code>, plus Postgres full-text search. Makes the firm's own knowledge searchable for the first time.</li>
+    <li><strong>Two-stage matching.</strong> Retrieve ~80 candidates by vector and hard filters, then rank with Sonnet. Removes the whole-table-in-a-prompt wall permanently.</li>
+    <li><strong>Ask Kanri.</strong> One agentic endpoint with database tools, replacing the pattern of one endpoint per question.</li>
+  </ol>
+
+  <h4>Outcome learning — the flywheel</h4>
+  <ol start="6">
+    <li><strong>Structured outcome capture.</strong> A required reason taxonomy on every terminal process state: skills, English, Japanese, comp, culture, timing, counteroffer, candidate withdrew, hiring-manager preference.</li>
+    <li><strong>Client and hiring-manager scorecard.</strong> Per-contact conversion and rejection-pattern analysis. <em>"Shimada-san has rejected three of your last four candidates on English level, not skills."</em></li>
+    <li><strong>Interview debrief capture.</strong> Structured post-CCM capture from both sides, feeding both the client scorecard and the candidate's memory.</li>
+    <li><strong>Placement post-mortem.</strong> After every placement <em>and every loss</em>, five lines of what worked, written back to client and candidate memory.</li>
+    <li><strong>Weekly recruiter review.</strong> What moved, what stalled, what you said you would do and did not, conversion against your own baseline rather than an industry average.</li>
+  </ol>
+
+  <h4>Japan-native work</h4>
+  <ol start="11">
+    <li><strong>推薦文 generator.</strong> Proper five-part Japanese recommendation letter in keigo, PREP-structured, built from <code>ai_context</code> plus interview notes plus requisition context. Editable, as always.</li>
+    <li><strong>職務経歴書 builder.</strong> Generate the standard Japanese career-history document from the candidate record and CV, exportable as .docx.</li>
+    <li><strong>Keigo register control.</strong> Explicit 敬語 / 丁寧語 / casual selector plus EN/JA on every generated message, at generation time.</li>
+    <li><strong>Duplicate-submission guard.</strong> A visible warning anywhere a candidate enters a process: already submitted to Client X on this date.</li>
+    <li><strong>Competitive clock.</strong> Turn <code>competing_interviews</code> stage plus date into an estimated decision window. "You have roughly nine days."</li>
+    <li><strong>Handoff pack.</strong> One click: everything about this candidate or account for whoever takes over. The direct 属人化 answer.</li>
+    <li><strong>BizReach and doda import.</strong> Accept exports and pasted profiles from the platforms Japanese recruiters actually use.</li>
+  </ol>
+
+  <h4>Pipeline and revenue defence</h4>
+  <ol start="18">
+    <li><strong>Offer-stage watch.</strong> Countdown, counteroffer risk, resignation-prep checklist, decline-risk flags.</li>
+    <li><strong>Guarantee and fallout tracker.</strong> Surface <code>placement_guarantee_until</code>; check-ins at 1, 3 and 6 months; fallout logged into the client scorecard.</li>
+    <li><strong>Database re-engagement engine.</strong> A weekly list of ten people worth recontacting, ranked by fit × staleness × likely life-event, each with a drafted opener.</li>
+    <li><strong>Job-change detection on your own database.</strong> Your placed candidate is now a hiring manager. The highest-value internal BD signal there is, and Kanri already has the data.</li>
+    <li><strong>Prospect object and BD pipeline.</strong> Target companies before they are clients; lapsed-client detection at nine months without a requisition.</li>
+    <li><strong>External BD trigger detection.</strong> Funding, expansion and executive-hire signals via the existing Tavily integration.</li>
+    <li><strong>Key-criteria spine.</strong> Promote <code>requisition_conditions</code> into the matching spine with must / nice / dealbreaker weights, split by hiring-manager-stated versus inferred.</li>
+  </ol>
+
+  <h4>Labour removal</h4>
+  <ol start="25">
+    <li><strong>Two-way email auto-log.</strong> Extend the Outlook add-in to inbound, add Gmail. Logging stops being a task.</li>
+    <li><strong>Tasks and follow-ups as a real entity.</strong> Due dates, owner, origin (AI-suggested or manual), persistent snooze, team-visible.</li>
+    <li><strong>Pre-meeting brief that fires itself.</strong> Scheduled interaction or calendar event triggers the brief 30 minutes ahead, unasked.</li>
+    <li><strong>Voice capture.</strong> A 30-second post-call voice note becomes a structured interaction. Removes the largest single logging friction.</li>
+    <li><strong>Candidate self-update link.</strong> A tokenised link asking the candidate to confirm comp, availability and status. Kills the "are you still looking?" call.</li>
+    <li><strong>Interview scheduling.</strong> Calendar integration. The single largest measured admin sink, and pure commodity — build last or buy.</li>
+    <li><strong>Client portal.</strong> Shortlist sharing with client feedback captured as structured outcome data.</li>
+  </ol>
+
+  <h4>Trust and enablement</h4>
+  <ol start="32">
+    <li><strong>Explainability panel.</strong> Every AI surface can name the exact records it read. Targets the top trust barrier and the Japanese regulatory posture at once.</li>
+    <li><strong>Team activity feed.</strong> The multi-user value CLAUDE.md promises and the app does not ship.</li>
+    <li><strong>Decompose the two mega-files.</strong> Not a feature. A precondition for everything above it.</li>
+  </ol>
+</section>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<section id="s9">
+  <span class="sec-num">09 / Scoring matrix</span>
+  <h2>All 34, scored on ten axes</h2>
+
+  <p class="legend">
+    <strong>RV</strong> Recruiter value · <strong>LR</strong> Labour removed · <strong>RI</strong> Revenue impact · <strong>DF</strong> Differentiation · <strong>KA</strong> Kanri alignment · <strong>JP</strong> Japan relevance · <strong>TF</strong> Technical feasibility · <strong>DM</strong> Data moat · <strong>AF</strong> Adoption ease (10 = frictionless) · <strong>SI</strong> Strategic importance. All 1–10, higher is better. Total out of 100.
+  </p>
+
+  <div class="scroller matrix">
+    <table>
+      <thead>
+        <tr>
+          <th class="id">#</th><th class="name">Opportunity</th>
+          <th>RV</th><th>LR</th><th>RI</th><th>DF</th><th>KA</th><th>JP</th><th>TF</th><th>DM</th><th>AF</th><th>SI</th>
+          <th class="tot">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td class="id">02</td><td class="name">Universal context read</td><td class="s hi">9</td><td class="s hi">8</td><td class="s">7</td><td class="s hi">9</td><td class="s hi">10</td><td class="s">7</td><td class="s hi">8</td><td class="s hi">9</td><td class="s hi">10</td><td class="s hi">10</td><td class="tot">87</td></tr>
+        <tr><td class="id">11</td><td class="name">推薦文 generator</td><td class="s hi">9</td><td class="s hi">10</td><td class="s hi">8</td><td class="s hi">9</td><td class="s hi">9</td><td class="s hi">10</td><td class="s hi">9</td><td class="s">6</td><td class="s hi">9</td><td class="s hi">8</td><td class="tot">87</td></tr>
+        <tr><td class="id">01</td><td class="name">Automatic context refresh</td><td class="s hi">8</td><td class="s hi">9</td><td class="s">6</td><td class="s hi">8</td><td class="s hi">10</td><td class="s">7</td><td class="s hi">9</td><td class="s hi">9</td><td class="s hi">10</td><td class="s hi">10</td><td class="tot">86</td></tr>
+        <tr><td class="id">03</td><td class="name">Semantic + full-text retrieval</td><td class="s hi">10</td><td class="s hi">9</td><td class="s hi">8</td><td class="s">7</td><td class="s hi">9</td><td class="s hi">8</td><td class="s">7</td><td class="s hi">8</td><td class="s hi">9</td><td class="s hi">10</td><td class="tot">85</td></tr>
+        <tr><td class="id">07</td><td class="name">Client / hiring-manager scorecard</td><td class="s hi">9</td><td class="s lo">5</td><td class="s hi">9</td><td class="s hi">9</td><td class="s hi">10</td><td class="s hi">8</td><td class="s">7</td><td class="s hi">10</td><td class="s hi">9</td><td class="s hi">9</td><td class="tot">85</td></tr>
+        <tr><td class="id">20</td><td class="name">Database re-engagement engine</td><td class="s hi">9</td><td class="s hi">8</td><td class="s hi">10</td><td class="s">7</td><td class="s hi">9</td><td class="s hi">8</td><td class="s">7</td><td class="s hi">9</td><td class="s hi">8</td><td class="s hi">9</td><td class="tot">84</td></tr>
+        <tr><td class="id">21</td><td class="name">Job-change detection (own database)</td><td class="s hi">8</td><td class="s">7</td><td class="s hi">10</td><td class="s hi">8</td><td class="s hi">9</td><td class="s hi">8</td><td class="s">6</td><td class="s hi">9</td><td class="s hi">8</td><td class="s hi">8</td><td class="tot">81</td></tr>
+        <tr><td class="id">18</td><td class="name">Offer-stage watch</td><td class="s hi">9</td><td class="s lo">5</td><td class="s hi">9</td><td class="s">7</td><td class="s hi">9</td><td class="s hi">9</td><td class="s hi">8</td><td class="s">7</td><td class="s hi">9</td><td class="s hi">8</td><td class="tot">80</td></tr>
+        <tr><td class="id">27</td><td class="name">Pre-meeting brief that fires itself</td><td class="s hi">9</td><td class="s">7</td><td class="s">7</td><td class="s hi">8</td><td class="s hi">10</td><td class="s">7</td><td class="s">7</td><td class="s">7</td><td class="s hi">10</td><td class="s hi">8</td><td class="tot">80</td></tr>
+        <tr><td class="id">16</td><td class="name">Handoff pack</td><td class="s">7</td><td class="s hi">8</td><td class="s lo">5</td><td class="s hi">8</td><td class="s hi">9</td><td class="s hi">10</td><td class="s hi">9</td><td class="s">7</td><td class="s hi">9</td><td class="s hi">8</td><td class="tot">80</td></tr>
+        <tr><td class="id">08</td><td class="name">Interview debrief capture</td><td class="s hi">8</td><td class="s lo">5</td><td class="s hi">8</td><td class="s hi">8</td><td class="s hi">9</td><td class="s hi">8</td><td class="s hi">8</td><td class="s hi">10</td><td class="s">7</td><td class="s hi">9</td><td class="tot">80</td></tr>
+        <tr><td class="id">04</td><td class="name">Two-stage matching</td><td class="s hi">9</td><td class="s hi">8</td><td class="s hi">8</td><td class="s">6</td><td class="s hi">9</td><td class="s">7</td><td class="s">7</td><td class="s">7</td><td class="s hi">9</td><td class="s hi">9</td><td class="tot">79</td></tr>
+        <tr><td class="id">24</td><td class="name">Key-criteria spine</td><td class="s hi">8</td><td class="s">6</td><td class="s hi">8</td><td class="s">7</td><td class="s hi">9</td><td class="s hi">8</td><td class="s hi">9</td><td class="s hi">8</td><td class="s hi">8</td><td class="s hi">8</td><td class="tot">79</td></tr>
+        <tr><td class="id">15</td><td class="name">Competitive clock</td><td class="s hi">8</td><td class="s lo">4</td><td class="s hi">8</td><td class="s hi">8</td><td class="s hi">9</td><td class="s hi">10</td><td class="s hi">8</td><td class="s">7</td><td class="s hi">9</td><td class="s">7</td><td class="tot">78</td></tr>
+        <tr><td class="id">06</td><td class="name">Structured outcome capture</td><td class="s">6</td><td class="s lo">3</td><td class="s">7</td><td class="s hi">9</td><td class="s hi">9</td><td class="s hi">8</td><td class="s hi">9</td><td class="s hi">10</td><td class="s">6</td><td class="s hi">10</td><td class="tot">77</td></tr>
+        <tr><td class="id">05</td><td class="name">Ask Kanri (agentic)</td><td class="s hi">9</td><td class="s hi">8</td><td class="s">6</td><td class="s hi">8</td><td class="s hi">9</td><td class="s">7</td><td class="s">6</td><td class="s">7</td><td class="s hi">8</td><td class="s hi">9</td><td class="tot">77</td></tr>
+        <tr><td class="id">25</td><td class="name">Two-way email auto-log</td><td class="s hi">9</td><td class="s hi">10</td><td class="s lo">5</td><td class="s lo">4</td><td class="s hi">9</td><td class="s">7</td><td class="s">6</td><td class="s hi">9</td><td class="s hi">9</td><td class="s hi">9</td><td class="tot">77</td></tr>
+        <tr><td class="id">26</td><td class="name">Tasks and follow-ups entity</td><td class="s hi">10</td><td class="s hi">8</td><td class="s hi">8</td><td class="s lo">3</td><td class="s hi">8</td><td class="s">7</td><td class="s hi">9</td><td class="s">6</td><td class="s hi">8</td><td class="s hi">9</td><td class="tot">76</td></tr>
+        <tr><td class="id">09</td><td class="name">Placement post-mortem</td><td class="s">6</td><td class="s lo">3</td><td class="s">7</td><td class="s hi">9</td><td class="s hi">9</td><td class="s">7</td><td class="s hi">9</td><td class="s hi">10</td><td class="s">6</td><td class="s hi">9</td><td class="tot">75</td></tr>
+        <tr><td class="id">12</td><td class="name">職務経歴書 builder</td><td class="s hi">8</td><td class="s hi">9</td><td class="s">6</td><td class="s hi">8</td><td class="s hi">8</td><td class="s hi">10</td><td class="s">7</td><td class="s lo">4</td><td class="s hi">8</td><td class="s">7</td><td class="tot">75</td></tr>
+        <tr><td class="id">19</td><td class="name">Guarantee and fallout tracker</td><td class="s">6</td><td class="s lo">4</td><td class="s hi">8</td><td class="s">7</td><td class="s hi">8</td><td class="s hi">9</td><td class="s hi">9</td><td class="s hi">8</td><td class="s hi">8</td><td class="s">7</td><td class="tot">74</td></tr>
+        <tr><td class="id">13</td><td class="name">Keigo register control</td><td class="s">7</td><td class="s">6</td><td class="s lo">5</td><td class="s hi">8</td><td class="s hi">8</td><td class="s hi">10</td><td class="s hi">9</td><td class="s lo">4</td><td class="s hi">9</td><td class="s">7</td><td class="tot">73</td></tr>
+        <tr><td class="id">14</td><td class="name">Duplicate-submission guard</td><td class="s">7</td><td class="s lo">5</td><td class="s">6</td><td class="s">6</td><td class="s hi">8</td><td class="s hi">9</td><td class="s hi">10</td><td class="s lo">5</td><td class="s hi">10</td><td class="s">7</td><td class="tot">73</td></tr>
+        <tr><td class="id">32</td><td class="name">Explainability panel</td><td class="s">7</td><td class="s lo">2</td><td class="s lo">4</td><td class="s hi">8</td><td class="s hi">10</td><td class="s hi">10</td><td class="s hi">9</td><td class="s lo">5</td><td class="s hi">10</td><td class="s hi">8</td><td class="tot">73</td></tr>
+        <tr><td class="id">28</td><td class="name">Voice capture</td><td class="s hi">8</td><td class="s hi">10</td><td class="s lo">5</td><td class="s">6</td><td class="s hi">9</td><td class="s">7</td><td class="s">6</td><td class="s hi">8</td><td class="s">7</td><td class="s">7</td><td class="tot">73</td></tr>
+        <tr><td class="id">17</td><td class="name">BizReach / doda import</td><td class="s">7</td><td class="s hi">8</td><td class="s">6</td><td class="s">6</td><td class="s">7</td><td class="s hi">10</td><td class="s">7</td><td class="s">7</td><td class="s">7</td><td class="s">7</td><td class="tot">72</td></tr>
+        <tr><td class="id">10</td><td class="name">Weekly recruiter review</td><td class="s">7</td><td class="s lo">4</td><td class="s">7</td><td class="s">7</td><td class="s hi">8</td><td class="s">7</td><td class="s hi">8</td><td class="s hi">8</td><td class="s hi">8</td><td class="s">7</td><td class="tot">71</td></tr>
+        <tr><td class="id">22</td><td class="name">Prospect object and BD pipeline</td><td class="s hi">8</td><td class="s lo">4</td><td class="s hi">9</td><td class="s lo">5</td><td class="s">7</td><td class="s">7</td><td class="s hi">8</td><td class="s">6</td><td class="s">7</td><td class="s hi">8</td><td class="tot">69</td></tr>
+        <tr><td class="id">23</td><td class="name">External BD trigger detection</td><td class="s">7</td><td class="s">6</td><td class="s hi">9</td><td class="s">7</td><td class="s">7</td><td class="s">6</td><td class="s lo">5</td><td class="s">6</td><td class="s">7</td><td class="s">7</td><td class="tot">67</td></tr>
+        <tr><td class="id">33</td><td class="name">Team activity feed</td><td class="s">7</td><td class="s lo">3</td><td class="s lo">5</td><td class="s lo">5</td><td class="s hi">8</td><td class="s hi">9</td><td class="s hi">9</td><td class="s lo">5</td><td class="s hi">9</td><td class="s">7</td><td class="tot">67</td></tr>
+        <tr><td class="id">29</td><td class="name">Candidate self-update link</td><td class="s">7</td><td class="s hi">9</td><td class="s lo">5</td><td class="s">6</td><td class="s">7</td><td class="s">6</td><td class="s">7</td><td class="s">7</td><td class="s">6</td><td class="s">6</td><td class="tot">66</td></tr>
+        <tr><td class="id">30</td><td class="name">Interview scheduling</td><td class="s hi">8</td><td class="s hi">10</td><td class="s lo">5</td><td class="s lo">2</td><td class="s">7</td><td class="s">7</td><td class="s lo">5</td><td class="s lo">3</td><td class="s">6</td><td class="s">6</td><td class="tot">59</td></tr>
+        <tr><td class="id">31</td><td class="name">Client portal</td><td class="s">6</td><td class="s">6</td><td class="s">6</td><td class="s lo">3</td><td class="s">6</td><td class="s lo">5</td><td class="s lo">5</td><td class="s">7</td><td class="s lo">5</td><td class="s">6</td><td class="tot">55</td></tr>
+        <tr><td class="id">34</td><td class="name">Decompose the two mega-files</td><td class="s lo">2</td><td class="s lo">2</td><td class="s lo">2</td><td class="s lo">1</td><td class="s lo">5</td><td class="s lo">2</td><td class="s">7</td><td class="s lo">2</td><td class="s hi">10</td><td class="s hi">9</td><td class="tot">42</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">
+    <p><strong>On #34's score.</strong> The refactor scores 42 and belongs in the first wave anyway. The rubric measures recruiter-facing value, and enabling work has none by definition. Two files holding 51% of the frontend is a tax charged against every item above it in this table. Judge it on the tax, not the score.</p>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<section id="s10">
+  <span class="sec-num">10 / Build now</span>
+  <h2>Top 10 — build now</h2>
+
+  <ol class="ranked">
+    <li>
+      <span class="rank">01</span>
+      <div>
+        <h5>Turn on the memory: automatic refresh + universal read</h5>
+        <p>Debounced database trigger fires <code>refresh-context</code> on interaction insert. One shared loader gives every handler the reconciled narrative. Requisition context finally gets a reader.</p>
+        <dl>
+          <dt>Why recruiters care</dt><dd>Every brief, every draft, every score becomes consistent and current instead of each feature re-reading raw rows differently.</dd>
+          <dt>Evidence</dt><dd>The primitive already works. The gap is wiring, not invention.</dd>
+          <dt>Competitors</dt><dd>Spott captures more channels but does not reconcile. Nobody else models resolved current state with a correction history.</dd>
+          <dt>Complexity</dt><dd>Low. Trigger, queue, one loader module, 40 call-site edits.</dd>
+          <dt>Moat</dt><dd>Foundational. Every item below compounds off it.</dd>
+        </dl>
+      </div>
+    </li>
+    <li>
+      <span class="rank">02</span>
+      <div>
+        <h5>Semantic + full-text retrieval over the firm's own knowledge</h5>
+        <p>pgvector on <code>notes_interview</code> and <code>ai_context</code>, plus Postgres FTS. Then two-stage matching: retrieve, then rank.</p>
+        <dl>
+          <dt>Why recruiters care</dt><dd>"Who do I already know who fits this?" is the most-asked question in agency work and Kanri currently cannot answer it.</dd>
+          <dt>Evidence</dt><dd>Search is <code>ilike</code> on two columns. <code>advanced-search</code> puts the entire candidate table in one prompt and has already needed a token-limit raise.</dd>
+          <dt>Competitors</dt><dd>Spott shipped database-wide semantic search in April 2026. This is now table stakes, and Kanri fails at it structurally, not cosmetically.</dd>
+          <dt>Complexity</dt><dd>Medium. Embedding backfill, an <code>embeddings</code> table, a retrieval function, rewrite of two handlers.</dd>
+          <dt>Moat</dt><dd>Indirect but essential: without retrieval, accumulated data is inert.</dd>
+        </dl>
+      </div>
+    </li>
+    <li>
+      <span class="rank">03</span>
+      <div>
+        <h5>Structured outcome capture on every terminal state</h5>
+        <p>A required, short reason taxonomy when a process closes, plus captured interview debriefs. Ugly, unglamorous, and the only item here that cannot be added retroactively.</p>
+        <dl>
+          <dt>Why recruiters care</dt><dd>They do not, on day one. On day ninety it is the only reason Kanri knows something ChatGPT does not.</dd>
+          <dt>Evidence</dt><dd>Bullhorn markets ranking on 26 years of placement data as its central advantage. Kanri has the columns and no capture discipline.</dd>
+          <dt>Competitors</dt><dd>Enterprise players have volume. None gives a four-person firm a legible read of its <em>own</em> history.</dd>
+          <dt>Complexity</dt><dd>Low. A constrained field, a modal, a migration.</dd>
+          <dt>Moat</dt><dd>Highest in the document. Every month without it is moat permanently forfeited.</dd>
+        </dl>
+      </div>
+    </li>
+    <li>
+      <span class="rank">04</span>
+      <div>
+        <h5>推薦文 generator</h5>
+        <p>The formal five-part Japanese recommendation letter, in keigo, generated from reconciled memory and requisition context. Editable, as everything is.</p>
+        <dl>
+          <dt>Why recruiters care</dt><dd>It is written for every serious submission, it is genuinely time-consuming, and doing it badly costs document-screening pass rate.</dd>
+          <dt>Evidence</dt><dd>Japanese industry sources name 推薦文作成 as one of three priority AI targets alongside resume screening and interview minutes.</dd>
+          <dt>Competitors</dt><dd>No Western platform will build this. PORTERS could and has not.</dd>
+          <dt>Complexity</dt><dd>Low. One handler, one panel, keigo-tuned prompt.</dd>
+          <dt>Moat</dt><dd>Modest alone; high as proof that Kanri understands Japanese agency work.</dd>
+        </dl>
+      </div>
+    </li>
+    <li>
+      <span class="rank">05</span>
+      <div>
+        <h5>Client and hiring-manager scorecard</h5>
+        <p>Per-contact submit-to-interview and interview-to-offer conversion, plus rejection-reason patterns, computed from #03's data.</p>
+        <dl>
+          <dt>Why recruiters care</dt><dd>It changes behaviour immediately: which client to push, which hiring manager needs a different candidate profile, which account is quietly not worth the hours.</dd>
+          <dt>Evidence</dt><dd>Submit-to-interview under 33% signals a problem; over 40% is the target; interview-to-offer should sit at 3:1 to 4:1. Kanri holds every input and computes none.</dd>
+          <dt>Competitors</dt><dd>Bullhorn does this globally and opaquely. Per-firm and legible beats global and hidden for a boutique.</dd>
+          <dt>Complexity</dt><dd>Medium, and trivial once #03 exists.</dd>
+          <dt>Moat</dt><dd>Very high. Improves monotonically with use and is worthless to a competitor without the same history.</dd>
+        </dl>
+      </div>
+    </li>
+    <li>
+      <span class="rank">06</span>
+      <div>
+        <h5>Tasks and follow-ups as a real entity</h5>
+        <p>Due date, owner, origin, persistent snooze, team-visible. Replaces the localStorage dashboard state entirely.</p>
+        <dl>
+          <dt>Why recruiters care</dt><dd>"Call him Tuesday" is the highest-frequency intention in the job, and Kanri currently forgets it when the browser changes.</dd>
+          <dt>Evidence</dt><dd>Confirmed in the code: <code>kanri_done_today</code> and <code>kanri_snoozed</code> in localStorage.</dd>
+          <dt>Competitors</dt><dd>Everyone has this. It is pure parity — which is precisely why its absence is disqualifying in a bake-off.</dd>
+          <dt>Complexity</dt><dd>Low.</dd>
+          <dt>Moat</dt><dd>None directly. It is the surface every proactive recommendation must land on.</dd>
+        </dl>
+      </div>
+    </li>
+    <li>
+      <span class="rank">07</span>
+      <div>
+        <h5>Database re-engagement engine</h5>
+        <p>Weekly: ten people worth recontacting, ranked by fit × staleness × likely life-event, each with a drafted opener and a one-line reason.</p>
+        <dl>
+          <dt>Why recruiters care</dt><dd>It is the shortest path from existing data to an extra placement, which is worth more than any hour saved.</dd>
+          <dt>Evidence</dt><dd>Systematic rediscovery reportedly yields 20–30% of placements; up to 70% of ATS candidates are never contacted a second time. Recent rejects re-engage at 35–40%.</dd>
+          <dt>Competitors</dt><dd>Talent rediscovery exists as a feature name in Vincere and Loxo. Almost nobody makes it a weekly ritual with a reason attached.</dd>
+          <dt>Complexity</dt><dd>Medium. Depends on #02.</dd>
+          <dt>Moat</dt><dd>High. Quality rises with interview-note depth, which rises with usage.</dd>
+        </dl>
+      </div>
+    </li>
+    <li>
+      <span class="rank">08</span>
+      <div>
+        <h5>Duplicate-submission guard</h5>
+        <p>Visible warning wherever a candidate joins a process: already submitted to Client X on this date, by this person.</p>
+        <dl>
+          <dt>Why recruiters care</dt><dd>Duplicate approaches are embarrassing with clients and damaging with candidates.</dd>
+          <dt>Evidence</dt><dd>Japanese agency-operations guidance names cross-client submission visibility as critical infrastructure for both 両手型 and 片手型 models.</dd>
+          <dt>Competitors</dt><dd>Common in Japanese systems. Absent from Kanri outside the search handler.</dd>
+          <dt>Complexity</dt><dd>Very low. One query, one banner.</dd>
+          <dt>Moat</dt><dd>None. Build it because it is cheap and its absence is conspicuous to a Japanese buyer.</dd>
+        </dl>
+      </div>
+    </li>
+    <li>
+      <span class="rank">09</span>
+      <div>
+        <h5>Explainability panel</h5>
+        <p>Every AI output can show the records it read: these six interactions, this interview note, this requisition context.</p>
+        <dl>
+          <dt>Why recruiters care</dt><dd>Trust converts a feature into a habit. A brief you cannot audit gets read once.</dd>
+          <dt>Evidence</dt><dd>Roughly 85% of recruiters want final authority; explainability is the top-cited barrier to scaling AI in recruiting. In Japan, 職業安定法 Art. 5-4 makes "AI drafts, humans decide" an operating requirement, not a preference.</dd>
+          <dt>Competitors</dt><dd>Spott shows five reasons per match. Bullhorn's model is opaque. This is a live differentiator against the enterprise incumbent.</dd>
+          <dt>Complexity</dt><dd>Low if #01 lands first — the loader already knows what it read.</dd>
+          <dt>Moat</dt><dd>Low technically, high commercially in Japan.</dd>
+        </dl>
+      </div>
+    </li>
+    <li>
+      <span class="rank">10</span>
+      <div>
+        <h5>Decompose the two mega-files</h5>
+        <p>Extract <code>candidates.$id.tsx</code> and <code>clients.$id.tsx</code> into the component and hook directories that already exist and are empty.</p>
+        <dl>
+          <dt>Why recruiters care</dt><dd>They do not. They care that the next nine items ship.</dd>
+          <dt>Evidence</dt><dd>9,888 lines across two files; five empty directories that CLAUDE.md describes as populated.</dd>
+          <dt>Competitors</dt><dd>Not applicable.</dd>
+          <dt>Complexity</dt><dd>Medium and boring. Do it incrementally, alongside the features that touch those files.</dd>
+          <dt>Moat</dt><dd>None. It is the interest payment on everything else.</dd>
+        </dl>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<section id="s11">
+  <span class="sec-num">11 / Build next</span>
+  <h2>Top 10 — build next</h2>
+
+  <div class="scroller">
+    <table>
+      <thead><tr><th>Opportunity</th><th>Why it follows rather than leads</th><th class="num">Score</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Job-change detection on your own database</strong></td><td>Highest revenue score in the set (10). Needs #01 and #03 first so the signal has memory and history to attach to. Your placed candidate becoming a hiring manager is the warmest BD lead that exists.</td><td class="num">81</td></tr>
+        <tr><td><strong>Offer-stage watch</strong></td><td>Directly defends fee revenue against 15–20% offer-decline and the counteroffer trap. Needs the tasks entity to land its reminders on.</td><td class="num">80</td></tr>
+        <tr><td><strong>Pre-meeting brief that fires itself</strong></td><td>Converts existing excellent briefings from pull to push. Needs scheduled-interaction plumbing and a task surface.</td><td class="num">80</td></tr>
+        <tr><td><strong>Handoff pack</strong></td><td>The direct 属人化 answer and a strong demo moment. Nearly free once memory is universal.</td><td class="num">80</td></tr>
+        <tr><td><strong>Interview debrief capture</strong></td><td>Feeds the scorecard. Sequenced after #03 so the taxonomy is settled before the UI is built.</td><td class="num">80</td></tr>
+        <tr><td><strong>Key-criteria spine</strong></td><td><code>requisition_conditions</code> exists and is barely surfaced. Promote it to the spine of matching with must / nice / dealbreaker weights.</td><td class="num">79</td></tr>
+        <tr><td><strong>Competitive clock</strong></td><td>Turns an existing risk badge into a countdown. High Japan relevance given ¥7M+ candidates registering with several agencies at once.</td><td class="num">78</td></tr>
+        <tr><td><strong>Ask Kanri (agentic)</strong></td><td>Collapses future endpoint sprawl, but only useful once retrieval and memory are real. Building it first would produce a chatbot over an <code>ilike</code> query.</td><td class="num">77</td></tr>
+        <tr><td><strong>Two-way email auto-log</strong></td><td>Largest raw labour removal in the set. Sequenced here because inbound sync plus Gmail is genuinely fiddly and the add-in already covers outbound Outlook.</td><td class="num">77</td></tr>
+        <tr><td><strong>Placement post-mortem</strong></td><td>Cheap, and it is what converts outcome rows into narrative memory the next brief can use.</td><td class="num">75</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<section id="s12">
+  <span class="sec-num">12 / Moonshots</span>
+  <h2>Five that would make Kanri a different category</h2>
+
+  <ol class="ranked">
+    <li>
+      <span class="rank">M1</span>
+      <div>
+        <h5>The Agency Brain</h5>
+        <p>Firm-level memory across every recruiter and every year. "What do we know about Rakuten's Japan engineering org?" answered from twelve people's accumulated conversations, not one person's recollection. Every candidate and client memory rolls up into an account-level and market-level narrative that no individual could hold.</p>
+        <p><em>Why it matters:</em> this is the complete answer to 属人化, and it makes a four-person boutique operate with the institutional memory of a forty-person firm. It is also the thing that makes leaving Kanri unthinkable after two years. <em>Risk:</em> requires the memory layer, retrieval, and outcome capture all working first. It is the destination, not a project.</p>
+      </div>
+    </li>
+    <li>
+      <span class="rank">M2</span>
+      <div>
+        <h5>Placement likelihood on your own outcomes</h5>
+        <p>Per-process probability with the reason stated in plain English, trained on this agency's history rather than a global corpus. "62% — your last four placements at this client all had Business-level Japanese or above; this candidate does not."</p>
+        <p><em>Why it matters:</em> Bullhorn's version is a black box over 26 years of everyone's data. Kanri's version would be small, transparent, and about <em>you</em> — which is the version a recruiter actually believes. <em>Risk:</em> needs 12–18 months of outcome capture before the numbers mean anything. Start collecting now regardless.</p>
+      </div>
+    </li>
+    <li>
+      <span class="rank">M3</span>
+      <div>
+        <h5>Kanri as an MCP server</h5>
+        <p>Expose Kanri's memory and retrieval as tools. The recruiter opens Claude or ChatGPT and asks about their pipeline in natural language, with Kanri as the memory backend.</p>
+        <p><em>Why it matters:</em> it sidesteps the assistant arms race entirely. Kanri stops competing on model quality and competes on being the best-organised context in the recruiter's life. Spott shipped an MCP server in April 2026, and Headhunt.AI references MCP — the pattern is establishing. <em>Risk:</em> weakens the case for opening the Kanri UI daily. Ship it after the daily habit is real, not before.</p>
+      </div>
+    </li>
+    <li>
+      <span class="rank">M4</span>
+      <div>
+        <h5>Ambient capture — the recruiter never types into a CRM again</h5>
+        <p>Calls, meetings and email captured automatically, reconciled into entity memory without a logging step. The activity log becomes a read-only consequence of working rather than a chore.</p>
+        <p><em>Why it matters:</em> this is the honest endpoint of "remove the labour between judgment and outcome." It also fixes the data-quality problem at its source — memory is only as good as what got logged. <em>Risk:</em> genuine privacy and consent exposure under APPI. It must be recruiter-controlled, per-channel, and auditable.</p>
+      </div>
+    </li>
+    <li>
+      <span class="rank">M5</span>
+      <div>
+        <h5>Reverse marketing engine</h5>
+        <p>Take the strongest candidate currently available and generate the target-company list, the named contacts, and the pitch — using the agency's own placement history to predict which companies actually hire this profile.</p>
+        <p><em>Why it matters:</em> Japan is candidate-scarce with a job-to-applicant ratio above 1.2, which makes candidate-led business development structurally the right motion and almost nobody tools for it. It also converts Kanri from a system of record into a revenue-generating instrument, which changes what a firm will pay. <em>Risk:</em> needs the prospect object, outcome history and BD signals to exist first.</p>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<section id="s13">
+  <span class="sec-num">13 / What not to build</span>
+  <h2>Deliberate refusals</h2>
+
+  <ul>
+    <li><strong>More AI note-taking.</strong> Recall.ai is wired. Commodity across the field. Do not invest further.</li>
+    <li><strong>Multi-channel outreach sequences.</strong> Correctly removed once already. Stay removed — it is Recruiterflow's core competence and a race Kanri has no reason to enter.</li>
+    <li><strong>An external sourcing database or profile scraping.</strong> Headhunt.AI has 4M Japan profiles under a registered licence; Loxo has 1.2B globally. The APPI surcharge regime, promulgated July 2026, makes unlicensed candidate-data accumulation an actively poor place to be inventive.</li>
+    <li><strong>A generic AI chat assistant with no tools.</strong> Without retrieval it is a worse ChatGPT attached to a smaller database.</li>
+    <li><strong>Generic CV reformatting as a headline feature.</strong> Commodity. The Japan-specific 職務経歴書 is a different product and worth building; "make this CV look nice" is not.</li>
+    <li><strong>Bidirectional ATS sync.</strong> Correctly deferred in CLAUDE.md. Keep it deferred permanently.</li>
+    <li><strong>Analytics dashboards that do not change a decision.</strong> The jobs revenue chip is enough until the scorecard exists.</li>
+    <li><strong>A full candidate portal.</strong> One tokenised self-update link is the 90% version at 5% of the cost.</li>
+    <li><strong>A mobile app.</strong> It is Spott's stated weakness, not Kanri's opportunity. A mobile voice-capture route is worth having; a second full client is not.</li>
+    <li><strong>Any further one-shot AI endpoints.</strong> This should become a rule in CLAUDE.md: a new recruiter question is answered by extending the context layer or the agent tool set, not by adding endpoint number 41.</li>
+  </ul>
+</section>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<section id="s14">
+  <span class="sec-num">14 / The moat</span>
+  <h2>What should become hard to copy</h2>
+
+  <p>Not AI. Four layers, ordered by how hard each is to replicate.</p>
+
+  <ol>
+    <li><strong>Reconciled memory and its correction history.</strong> Competitors store transcripts. Kanri stores resolved current state <em>plus the delta</em> — what changed, when, and against what. Transcripts are a commodity; reconciliation over a two-year relationship is not, and it cannot be reconstructed from an export.</li>
+    <li><strong>The agency's own outcome model.</strong> This firm's conversion, per client, per hiring manager, per candidate archetype, with stated reasons. Bullhorn has scale; Kanri can have <em>legibility</em>. "Shimada-san has rejected three of your last four on English level, not skills" is a sentence a recruiter acts on today. A global model cannot produce it, and a competitor cannot import it.</li>
+    <li><strong>Japanese boutique workflow embedding.</strong> 推薦文, 職務経歴書, keigo register, 両手型 single-screen operation, duplicate-submission visibility, an explicit APPI posture. Global players will not build it because the market is too small; Japanese incumbents will not build the AI layer well. The gap between them is where Kanri lives.</li>
+    <li><strong>The recruiter's own behavioural model.</strong> Which candidates this person calls first, whose judgment calls proved right, which advice they took and what happened. Longest to build, hardest to copy, and it only accrues if decisions are logged as decisions.</li>
+  </ol>
+
+  <div class="thesis">
+    <p><strong>What to build today so the moat exists tomorrow: record decisions and outcomes as first-class objects, not as side effects.</strong></p>
+    <p>Every close gets a structured reason. Every stage advance records a why. Every "call this person first" recommendation records whether the recruiter followed it and what happened next. None of this is glamorous and none of it can be backfilled — which is exactly what makes it a moat rather than a feature.</p>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<section id="s15">
+  <span class="sec-num">15 / Architecture direction</span>
+  <h2>Where the system should go</h2>
+
+  <p>Kanri is currently <strong>a UI over forty prompt templates</strong>. It should become <strong>a memory system with a thin generation layer on top</strong>. Four structural moves.</p>
+
+  <h3>1. A context layer, not a prompt-assembly convention</h3>
+  <p>One module owns "everything known about entity X." Handlers request context; they do not query tables. This makes the memory layer load-bearing, makes explainability free (the loader knows what it read), and turns future context improvements into a single-file change rather than forty.</p>
+
+  <h3>2. A retrieval layer beneath it</h3>
+  <p>pgvector plus Postgres full-text search, exposed as a retrieval function. Matching becomes retrieve-then-rank. Search becomes semantic. Ask-Kanri becomes possible. Without this the accumulating data is inert, and the whole-table-in-a-prompt pattern hard-fails at real database size.</p>
+
+  <h3>3. An event spine</h3>
+  <p>Interactions and stage changes already exist as events. Give them consequences: refresh memory, create tasks, fire briefs, detect signals. Today the app reacts only to clicks. An event spine is what turns Kanri from responsive to anticipatory, which is the entire difference between the current product and the one described in §16.</p>
+
+  <h3>4. Fewer endpoints, more tools</h3>
+  <p>Collapse the generator sprawl toward a small set of composable tools behind one agentic surface, keeping the handful of high-value bespoke generators (positioning, 推薦文, submission note) as dedicated paths. The current trajectory is one endpoint per question, which does not terminate.</p>
+
+  <div class="note">
+    <p><strong>A challenge to the current thesis, for you to rule on.</strong> CLAUDE.md commits hard to displacing the incumbent ATS. The evidence points somewhere slightly softer as an <em>entry</em> strategy: Headhunt.AI explicitly does not replace the ATS and is winning in Japan; PORTERS has 2,800+ Japanese agency customers and a real staffing-supply switching cost; 70% of Japan's 30,561 agencies have ten or fewer people and run on PORTERS or Excel. Displacement is very likely the right end state and I am not arguing against it. But the wedge that gets Kanri into a Japanese boutique may be "make the pipeline data you already have finally useful," not "abandon PORTERS in week one." That is a positioning judgment, not a technical one, and it is yours to make — flagging it rather than assuming it.</p>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<section id="s16">
+  <span class="sec-num">16 / The ideal day</span>
+  <h2>Tuesday, with the memory switched on</h2>
+
+  <div class="day">
+    <div class="slot">
+      <div class="t">08:30</div>
+      <div class="body">
+        <p>Kanri opens on nine items, not a dashboard. Each carries a reason drawn from something real. Item one: <strong>Tanaka-san, Offer, Salesforce Japan.</strong> Below it, in one line: <em>his manager asked to meet him Friday — counteroffer risk. Last conversation Thursday, he said base matters more than total.</em> Kanri knows that because he said it on a call three weeks ago and the memory reconciled it against what he said at registration.</p>
+        <p>Item four is not a candidate. It is <strong>Yamamoto-san at Mercari</strong>, whom the recruiter placed two years ago and who changed title to Engineering Manager last month. Kanri noticed. The suggested action is an intro message, already drafted, referencing the placement.</p>
+      </div>
+    </div>
+    <div class="slot">
+      <div class="t">09:55</div>
+      <div class="body">
+        <p>A brief appears unasked, thirty minutes before a call that is in the calendar. Not a summary of the file — a reconciled position. <em>Since you last spoke: he mentioned his wife's job in Osaka, which contradicts the Tokyo-only preference from registration. His salary expectation rose to ¥16M in June. He has one competing process at CCM2, disclosed 12 days ago, so a decision window opens in roughly a week.</em></p>
+      </div>
+    </div>
+    <div class="slot">
+      <div class="t">10:00</div>
+      <div class="body">
+        <p>The call happens. Nothing is typed. It is captured, transcribed, reconciled into memory, and the salary figure that changed is flagged as changed rather than silently overwritten.</p>
+      </div>
+    </div>
+    <div class="slot">
+      <div class="t">11:20</div>
+      <div class="body">
+        <p>New requisition from an existing client. Instead of a search, a question: <em>who do I already know for this?</em> Kanri returns eleven people ranked with reasons that cite specific conversations, not keyword overlap — including two who were rejected for a different role at a different client eight months ago on grounds that do not apply here. It also flags that one of them was submitted to this client in March, so approaching them again needs a different framing.</p>
+      </div>
+    </div>
+    <div class="slot">
+      <div class="t">13:40</div>
+      <div class="body">
+        <p>Submission time. The 推薦文 is drafted in keigo at the right register, the 職務経歴書 is formatted, the client email names the hiring manager. Below the draft: <strong>Shimada-san has rejected three of your last four candidates on English level rather than skills. This candidate is High Business. Consider addressing it in the first paragraph.</strong> That sentence exists because someone recorded a rejection reason four times, not because a model was trained on 26 years of other people's data.</p>
+      </div>
+    </div>
+    <div class="slot">
+      <div class="t">17:50</div>
+      <div class="body">
+        <p><strong>What the recruiter did not do today:</strong> log a single interaction, write a recommendation letter from scratch, rebuild context before a call, search for a CV, check which client already saw a candidate, or remember to follow anything up.</p>
+        <p><strong>What Kanri learned today:</strong> one salary expectation moved, one location constraint changed, one client's rejection pattern got a fourth data point, one placed candidate became a hiring manager, and one recommendation was accepted while another was ignored.</p>
+        <p><strong>What is waiting tomorrow:</strong> the Friday counteroffer conversation with a prepared script, the Mercari intro if it was not sent, and a re-engagement list that is now slightly better than last week's because the database knows five more things.</p>
+      </div>
+    </div>
+  </div>
+
+  <p><strong>What stays human, permanently:</strong> deciding whether to take the brief. Judging whether the candidate is telling the truth about why they are leaving. Choosing which of two good candidates to push. Reading the room on a counteroffer. Telling a client something they do not want to hear. Kanri should never move into any of these, and CLAUDE.md should say so explicitly.</p>
+</section>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<section id="s17">
+  <span class="sec-num">17 / CLAUDE.md changes</span>
+  <h2>Recommended revisions</h2>
+
+  <div class="verdict">
+    <span class="label">Recommendation</span>
+    <p class="call">Significant update recommended</p>
+    <p>Not because the philosophy is wrong — it is largely right and worth defending — but because the factual sections have drifted far enough from the codebase that agents reading them start from a false map, and because the principles that would most change agent behaviour are not yet written down.</p>
+  </div>
+
+  <h3>Factual corrections required</h3>
+
+  <div class="diff">
+    <div class="head">Stale, actively misleading</div>
+    <div class="body">
+      <ul>
+        <li><span class="pill p-fix">Fix</span><strong>§18 AI endpoints</strong> — documents 19; there are 40. Missing: <code>refresh-context</code>, <code>interview-prep</code>, <code>closing-script</code>, <code>competing-brief</code>, <code>ccm-feedback-brief</code>, <code>ccm-next-step</code>, <code>client-rejection-diagnosis</code>, <code>match-candidates</code>, <code>call-priority</code>, <code>batch-cv-send</code>, <code>spec-email</code>, <code>job-spec-message</code>, <code>placed-checkin-message</code>, <code>infer-status</code>, <code>extract-conditions</code>, <code>merge-strategy-notes</code>, <code>update-client-strategy</code>, <code>chat-enrich-client</code>, <code>polish-call-notes</code>, <code>process-transcript</code>, <code>translate</code>.</li>
+        <li><span class="pill p-fix">Fix</span><strong>§15 component architecture</strong> — describes <code>src/hooks/</code>, <code>components/dashboard/</code>, <code>layout/</code>, <code>candidate/processes/</code>, <code>candidate/registration/</code> as populated. All five are empty. Two route files hold 51% of the frontend. State the reality and the target separately.</li>
+        <li><span class="pill p-fix">Fix</span><strong>§11 data model</strong> — omits <code>ai_context</code>, <code>ai_context_updated_at</code>, <code>ai_context_log</code>, <code>client_package_intelligence</code>, <code>requisition_conditions</code>, <code>recall_bot_sessions</code>, <code>import_batches</code>, and roughly 20 columns on <code>requisitions</code> including the hiring-manager intelligence fields.</li>
+        <li><span class="pill p-fix">Fix</span><strong>§13 routes</strong> — missing <code>/jobs/$id</code>, <code>/settings</code>, <code>/addin/taskpane</code>.</li>
+        <li><span class="pill p-fix">Fix</span><strong>§14</strong> — Client detail is described as 5 tabs in one place and 3 in the routes table.</li>
+        <li><span class="pill p-fix">Fix</span><strong>§20 migrations</strong> — stops at 018; the repo is at 043.</li>
+        <li><span class="pill p-fix">Fix</span><strong>§22 deferred</strong> — email sending is marked "in progress" and shipped in June. Sequences were removed. Recall.ai is done.</li>
+        <li><span class="pill p-fix">Fix</span><strong>Undocumented entirely</strong> — the CSV import wizard and <code>import_batches</code> rollback system, the Outlook add-in, Tavily-powered client enrichment, the Vitest suite, and the whole <code>ai_context</code> memory system.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>New principles to add</h3>
+
+  <div class="diff">
+    <div class="head">Proposed additions</div>
+    <div class="body">
+      <ul>
+        <li><span class="pill p-add">Add</span><strong>§2a The Memory Doctrine.</strong> Every entity has one reconciled context. Every handler reads it and no handler re-derives context from raw rows. Memory refreshes as a consequence of activity, never as a user action. This is the product's core asset and should be stated as such at the top of the file, not discovered in a handler.</li>
+        <li><span class="pill p-add">Add</span><strong>No new one-shot endpoints.</strong> A new recruiter question is answered by extending the context layer or the agent tool set. Adding endpoint 41 requires an explicit justification. Without this rule the sprawl continues by default, because adding a handler is always the locally easiest move.</li>
+        <li><span class="pill p-add">Add</span><strong>Outcome capture is mandatory.</strong> Every terminal state records a structured reason. Every AI recommendation records whether it was followed. This is the only data that cannot be backfilled, and agents will skip it unless the file makes it non-optional.</li>
+        <li><span class="pill p-add">Add</span><strong>Explainability.</strong> Every AI surface can name the records it read. No exceptions, including for outputs that seem obvious.</li>
+        <li><span class="pill p-add">Add</span><strong>Automate versus human — an explicit table.</strong> Automate: capture, retrieval, drafting, preparation, reminding, pattern detection. Never automate: deciding to take a brief, judging candidate honesty, choosing between two good candidates, reading a counteroffer, delivering bad news. Section 8 gestures at this; it should be a table an agent cannot misread.</li>
+        <li><span class="pill p-add">Add</span><strong>Japan regulatory posture.</strong> APPI plus 職業安定法 Art. 5-4: AI produces drafts, humans make decisions. Currently implicit in the AI rules. Make it explicit, because it is both a design constraint and a sales asset.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>Principles to sharpen or reconsider</h3>
+
+  <div class="diff">
+    <div class="head">Too vague, too rigid, or worth re-examining</div>
+    <div class="body">
+      <ul>
+        <li><span class="pill p-fix">Sharpen</span><strong>"Recruiter judgment only"</strong> appears repeatedly and is never operationally defined. Give it a test: if a wrong answer would embarrass the recruiter in front of a client, or if the field records an observation only a human could have made, it is recruiter-judgment-only.</li>
+        <li><span class="pill p-fix">Sharpen</span><strong>"All AI output must be editable."</strong> Correct, but currently framed as a UI rule. It is a trust doctrine. Restate it as such, with a defined exception process, otherwise it will be quietly broken the first time a feature makes editing awkward.</li>
+        <li><span class="pill p-keep">Keep</span><strong>The forbidden-words list, no em dashes, plain English.</strong> Unusual, specific, and working. Keep exactly as-is.</li>
+        <li><span class="pill p-keep">Keep</span><strong><code>notes_internal</code> and <code>notes_presentation</code> firewalls.</strong> Non-negotiable and correctly non-negotiable.</li>
+        <li><span class="pill p-cut">Reconsider</span><strong>The displacement thesis (§1).</strong> Right as a destination; possibly wrong as an entry motion in Japan. See the note in §15 — this is your call, not mine to make.</li>
+        <li><span class="pill p-cut">Reconsider</span><strong>"The dashboard surfaces priority actions for the logged-in recruiter only."</strong> This rules out the team feed that §5 says is the main point of multi-user. One of the two should give.</li>
+      </ul>
+    </div>
+  </div>
+
+  <p><strong>No changes made.</strong> CLAUDE.md is untouched on disk, as instructed.</p>
+</section>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<section id="s18">
+  <span class="sec-num">18 / Implementation order</span>
+  <h2>Sequence, with dependencies</h2>
+
+  <div class="scroller">
+    <table>
+      <thead><tr><th>Wave</th><th>Ships</th><th>Unlocks</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Wave 1</strong><br><span class="mono">Substrate</span></td>
+          <td>Automatic context refresh · universal context read · explainability panel · duplicate-submission guard · begin file decomposition alongside</td>
+          <td>Every AI feature gets consistent, current context. Explainability comes almost free from the loader. Nothing else in this table works properly until this lands.</td>
+        </tr>
+        <tr>
+          <td><strong>Wave 2</strong><br><span class="mono">Retrieval</span></td>
+          <td>pgvector + full-text search · two-stage matching · key-criteria spine</td>
+          <td>Removes the scaling wall. Makes semantic search, re-engagement and Ask-Kanri possible. Fixes the product's most conspicuous competitive gap.</td>
+        </tr>
+        <tr>
+          <td><strong>Wave 3</strong><br><span class="mono">Flywheel + wedge</span></td>
+          <td>Structured outcome capture · tasks and follow-ups entity · 推薦文 generator · keigo register control</td>
+          <td>Starts the data moat and closes the two most obvious functional gaps. Ship 推薦文 in this wave specifically so there is a visible Japan-native win while the plumbing work is invisible.</td>
+        </tr>
+        <tr>
+          <td><strong>Wave 4</strong><br><span class="mono">Intelligence</span></td>
+          <td>Client / hiring-manager scorecard · interview debrief capture · database re-engagement engine · handoff pack</td>
+          <td>The first features that are impossible for a competitor to replicate on day one, because they need Wave 3's accumulated data.</td>
+        </tr>
+        <tr>
+          <td><strong>Wave 5</strong><br><span class="mono">Anticipation</span></td>
+          <td>Event spine · pre-meeting brief auto-fire · offer-stage watch · competitive clock · job-change detection · two-way email log</td>
+          <td>Kanri stops responding to clicks and starts arriving before the recruiter asks. This is where the §16 day becomes real.</td>
+        </tr>
+        <tr>
+          <td><strong>Wave 6</strong><br><span class="mono">Leverage</span></td>
+          <td>Ask Kanri · placement post-mortem · weekly review · 職務経歴書 builder · prospect and BD objects</td>
+          <td>Revenue generation and knowledge reuse on top of a system that now remembers and predicts.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<section id="s19">
+  <span class="sec-num">19 / Start here</span>
+  <h2>The six highest-leverage changes</h2>
+
+  <ol class="ranked">
+    <li><span class="rank">01</span><div><h5>Switch the memory on</h5><p>Automatic refresh plus universal read. The asset exists and is disconnected. This is the highest ratio of value to effort anywhere in the codebase, and everything else compounds off it.</p></div></li>
+    <li><span class="rank">02</span><div><h5>Build the retrieval layer</h5><p>pgvector plus full-text search plus retrieve-then-rank. Fixes the most-asked recruiter question and removes a hard scaling failure that will otherwise surface during a pilot.</p></div></li>
+    <li><span class="rank">03</span><div><h5>Start recording outcomes today</h5><p>A constrained rejection-reason field on every close. Cheap now, impossible to backfill, and it is the only real moat in the list.</p></div></li>
+    <li><span class="rank">04</span><div><h5>Make follow-ups persist</h5><p>A tasks entity replacing localStorage. Not differentiating; disqualifying by its absence, and it is the surface every proactive recommendation needs to land on.</p></div></li>
+    <li><span class="rank">05</span><div><h5>Ship 推薦文</h5><p>The sharpest available proof that Kanri understands Japanese agency work rather than translating a Western product. Low effort, high signal, and no global competitor will follow.</p></div></li>
+    <li><span class="rank">06</span><div><h5>Correct CLAUDE.md, then decompose the mega-files</h5><p>Every agent session currently starts from a document that misdescribes the architecture and undercounts the endpoints by half. Fix the map, then fix the territory — incrementally, alongside the work above rather than as a separate project.</p></div></li>
+  </ol>
+
+  <div class="thesis">
+    <p><strong>The one-sentence version:</strong> Kanri should stop competing on what AI can generate and start competing on what it can remember, because generation is being commoditised by better-funded teams this year and reconciled institutional memory of a specific Japanese agency's relationships is not for sale at any price.</p>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<section id="src" class="sources">
+  <span class="sec-num">— / Sources</span>
+  <h2>References</h2>
+
+  <h4>Recruiter time and productivity</h4>
+  <ol>
+    <li><a href="https://www.staffingindustry.com/news/global-daily-news/recruiters-lose-ps17k-annually-to-admin-tasks-study-finds">Staffing Industry Analysts — Recruiters lose £17k annually to admin tasks</a> (Totaljobs survey of 748 HR leaders, Aug 2025)</li>
+    <li><a href="https://www.firefishsoftware.com/blog/recruitment-admin-time-drains">Firefish — Recruitment admin time drains</a></li>
+    <li><a href="https://cadient.ai/article/38-percent-of-your-recruiters-day-is-wasted-on-scheduling">Cadient — 38% of recruiter time on scheduling</a></li>
+    <li><a href="https://skillseek.eu/answers/sla-benchmark-statistics">SkillSeek — SLA benchmarks 2026</a> · <a href="https://www.yena.ai/blog/recruitment-analytics-agencies-2026">Yena — Recruitment analytics for agencies 2026</a></li>
+    <li><a href="https://recruiterflow.com/blog/talent-rediscovery/">Recruiterflow — Talent rediscovery</a> · <a href="https://recruiterflow.com/blog/database-resurrection-recruiting/">Database resurrection</a></li>
+    <li><a href="https://recruiterflow.com/blog/trigger-based-recruitment-bd/">Recruiterflow — Trigger-based BD playbook</a></li>
+  </ol>
+
+  <h4>Japan market</h4>
+  <ol start="7">
+    <li><a href="https://lreach.jp/media/article026">L reach COMPASS — 人材紹介業界の動向2026</a> (¥449bn FY2024, 30,561 agencies, AI capacity 1.3–1.8×)</li>
+    <li><a href="https://chordone.jp/media/recruiting/recruiting-agency-ra-ca-workflow.html">ChordOne — 両手型・片手型の業務設計とツール要件</a></li>
+    <li><a href="https://tameni.mynavi.jp/recruitment/9148/">Mynavi tameni — 人材紹介の推薦文の書き方</a> · <a href="https://www.taqnoblog.com/suisen/">Taqno — 効果的な推薦状</a></li>
+    <li><a href="https://hrbc.porters.jp/agent/">PORTERS Agent</a> · <a href="https://service.circus-group.jp/circus/foragent/column/temporary-staffing-sales/">circusAGENT — CA/RA の仕事内容</a></li>
+    <li><a href="https://helloworldjapan.com/en/articles/japan-ai-regulation-appi-2026">Hello World Japan — Japan's 2026 APPI amendment</a> · <a href="https://jinzai-hub.com/blog/recruitment-privacy-protection">人材HUB — 人材紹介の個人情報保護と職業安定法</a></li>
+    <li><a href="https://www.openwork.jp/">OpenWork</a> (22.1M reviews, Aug 2026) · <a href="https://www.japanlivingguide.com/career/findjobs/recruitment-agencies/">Japan Living Guide — agency fee structures</a></li>
+  </ol>
+
+  <h4>Competitors</h4>
+  <ol start="13">
+    <li><a href="https://spott.io/why-spott">Spott — Why Spott</a> · <a href="https://spott.io/conversation-memory">Conversation Memory</a> · <a href="https://spott.io/resources/spott-update-april-2026">April 2026 product update</a> · <a href="https://peoplemanagingpeople.com/tools/spott-ats-review/">People Managing People — Spott review</a></li>
+    <li><a href="https://headhunt.ai/">Headhunt.AI</a> · <a href="https://headhunt.ai/en/learn/ai-scout-messaging-japan.html">AI scout messaging in Japan</a> · <a href="https://headhunt.ai/en/learn/appi-compliance-ai-recruiting-japan.html">APPI compliance</a> · <a href="https://executivesearch.ai/en/headhunt-ai.html">ExecutiveSearch.AI</a></li>
+    <li><a href="https://www.bullhorn.com/products/amplify/">Bullhorn Amplify</a> · <a href="https://www.bullhorn.com/news-and-press/press-releases/bullhorn-launches-amplify/">Amplify launch release</a></li>
+    <li><a href="https://skima.ai/blog/product-deep-dives/vincere-reviews">Skima — Vincere review 2026</a> · <a href="https://www.trustradius.com/products/hiringboss/reviews">TrustRadius — Vincere reviews</a></li>
+    <li><a href="https://recruiterflow.com/blog/loxo-alternatives/">Recruiterflow — Loxo alternatives</a> · <a href="https://recruitcrm.io/">Recruit CRM</a> · <a href="https://www.ycombinator.com/companies/industry/recruiting">Y Combinator recruiting companies</a></li>
+    <li><a href="https://recruiterflow.com/blog/state-of-ai-in-recruiting/">Recruiterflow — State of AI in recruiting 2026</a> · <a href="https://employerbranding.news/resources/ai-in-hiring-statistics-2026-adoption-bias-trust-and-regulation/">AI in hiring statistics 2026 — adoption, bias, trust</a></li>
+  </ol>
+
+  <div class="note">
+    <p><strong>On vendor claims.</strong> Performance figures from Bullhorn (51% more submissions, 36% more placements per recruiter), Headhunt.AI (3.13% reply rate, +38% candidates met) and Spott (60% faster workflow) are vendor-published and I found no independent corroboration for any of them. They are recorded here as marketing positions, not measurements. Independent signal in this category is thin: Spott in particular has a very small verified review base on G2 and Capterra relative to its noise level.</p>
+  </div>
+</section>
+
+<footer class="end">
+  Stage 1 complete · No application code, database or CLAUDE.md modified · Stage 2 awaits your selection
+</footer>
+
+</main>
+</div>

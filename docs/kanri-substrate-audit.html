@@ -1,0 +1,1064 @@
+<title>Kanri Substrate Audit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;500;600&family=Shippori+Mincho:wght@500;700&display=swap">
+
+<style>
+  :root {
+    --paper:      #faf8f4;
+    --surface:    #ffffff;
+    --sunken:     #f2efe9;
+    --ink:        #14120f;
+    --ink-70:     #4e4a43;
+    --ink-45:     #86817a;
+    --ink-20:     #cdc8c0;
+    --ink-12:     #e2ded7;
+    --vermillion: #c2482a;
+    --verm-wash:  #f6e4dd;
+    --indigo:     #2c3e6b;
+    --indigo-wash:#dfe4ef;
+    --moss:       #3f5732;
+    --moss-wash:  #e0e8d8;
+    --gold:       #97741a;
+    --gold-wash:  #f2e9d1;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:      #14120f;
+      --surface:    #1b1915;
+      --sunken:     #221f1a;
+      --ink:        #ece7de;
+      --ink-70:     #b0a99e;
+      --ink-45:     #837c72;
+      --ink-20:     #443f38;
+      --ink-12:     #2e2a24;
+      --vermillion: #e2795a;
+      --verm-wash:  #3a221a;
+      --indigo:     #8ea3ce;
+      --indigo-wash:#1e2637;
+      --moss:       #9db888;
+      --moss-wash:  #212a1b;
+      --gold:       #d3ac4c;
+      --gold-wash:  #2e2716;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --paper:      #14120f;
+    --surface:    #1b1915;
+    --sunken:     #221f1a;
+    --ink:        #ece7de;
+    --ink-70:     #b0a99e;
+    --ink-45:     #837c72;
+    --ink-20:     #443f38;
+    --ink-12:     #2e2a24;
+    --vermillion: #e2795a;
+    --verm-wash:  #3a221a;
+    --indigo:     #8ea3ce;
+    --indigo-wash:#1e2637;
+    --moss:       #9db888;
+    --moss-wash:  #212a1b;
+    --gold:       #d3ac4c;
+    --gold-wash:  #2e2716;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 15px;
+    line-height: 1.65;
+    margin: 0;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 0 28px 140px;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  @media (min-width: 1060px) {
+    .wrap { grid-template-columns: 190px minmax(0, 1fr); gap: 56px; padding-left: 36px; padding-right: 36px; }
+  }
+
+  nav.toc { display: none; }
+
+  @media (min-width: 1060px) {
+    nav.toc {
+      display: block;
+      grid-column: 1;
+      position: sticky;
+      top: 0;
+      align-self: start;
+      max-height: 100vh;
+      overflow-y: auto;
+      padding: 56px 0 40px;
+      border-right: 1px solid var(--ink-12);
+      margin-right: -28px;
+      padding-right: 20px;
+    }
+    nav.toc ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+    nav.toc a {
+      font-family: "DM Mono", ui-monospace, monospace;
+      font-size: 10.5px;
+      letter-spacing: 0.03em;
+      color: var(--ink-45);
+      text-decoration: none;
+      display: block;
+      padding: 3px 0;
+      line-height: 1.4;
+    }
+    nav.toc a:hover, nav.toc a:focus-visible { color: var(--vermillion); }
+    nav.toc .num { color: var(--ink-20); margin-right: 6px; }
+  }
+
+  main { grid-column: 1; min-width: 0; }
+  @media (min-width: 1060px) { main { grid-column: 2; } }
+
+  header.mast { padding: 72px 0 0; border-bottom: 2px solid var(--ink); }
+
+  .kicker {
+    font-family: "DM Mono", ui-monospace, monospace;
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--vermillion);
+    margin: 0 0 22px;
+  }
+
+  h1 {
+    font-family: "Shippori Mincho", Georgia, serif;
+    font-weight: 700;
+    font-size: clamp(36px, 5.6vw, 58px);
+    line-height: 1.07;
+    letter-spacing: -0.015em;
+    margin: 0 0 20px;
+    text-wrap: balance;
+    max-width: 16ch;
+  }
+
+  .standfirst {
+    font-family: "Shippori Mincho", Georgia, serif;
+    font-size: clamp(17px, 2.2vw, 21px);
+    line-height: 1.5;
+    color: var(--ink-70);
+    max-width: 46ch;
+    margin: 0 0 34px;
+  }
+
+  .mast-meta { display: flex; flex-wrap: wrap; border-top: 1px solid var(--ink-12); }
+  .mast-meta div { padding: 14px 22px 16px 0; margin-right: 22px; border-right: 1px solid var(--ink-12); }
+  .mast-meta div:last-child { border-right: none; }
+  .mast-meta dt {
+    font-family: "DM Mono", ui-monospace, monospace;
+    font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.14em;
+    color: var(--ink-45); margin: 0 0 5px;
+  }
+  .mast-meta dd { font-family: "DM Mono", ui-monospace, monospace; font-size: 12px; margin: 0; color: var(--ink); }
+
+  section { padding-top: 64px; scroll-margin-top: 20px; }
+
+  h2 {
+    font-family: "Shippori Mincho", Georgia, serif;
+    font-weight: 700;
+    font-size: clamp(24px, 3.4vw, 33px);
+    line-height: 1.16; letter-spacing: -0.01em;
+    margin: 0 0 8px; text-wrap: balance; max-width: 24ch;
+  }
+
+  .sec-num {
+    font-family: "DM Mono", ui-monospace, monospace;
+    font-size: 10.5px; letter-spacing: 0.14em;
+    color: var(--vermillion); display: block; margin-bottom: 12px;
+    padding-top: 18px; border-top: 2px solid var(--ink);
+  }
+
+  h3 {
+    font-family: "Plus Jakarta Sans", sans-serif;
+    font-weight: 600; font-size: 16px; letter-spacing: -0.005em;
+    margin: 36px 0 10px; color: var(--ink);
+  }
+
+  h4 {
+    font-family: "DM Mono", ui-monospace, monospace;
+    font-weight: 500; font-size: 10.5px; text-transform: uppercase;
+    letter-spacing: 0.13em; color: var(--ink-45); margin: 30px 0 10px;
+  }
+
+  p { margin: 0 0 16px; max-width: 68ch; }
+  main > section > p, main > section > ul, main > section > ol { max-width: 68ch; }
+
+  a { color: var(--vermillion); text-decoration: underline; text-underline-offset: 2px; text-decoration-thickness: 1px; }
+  a:focus-visible { outline: 2px solid var(--vermillion); outline-offset: 2px; }
+
+  strong { font-weight: 600; }
+  em { font-style: italic; color: var(--ink-70); }
+
+  ul, ol { margin: 0 0 16px; padding-left: 20px; max-width: 68ch; }
+  li { margin-bottom: 7px; }
+  li::marker { color: var(--ink-45); }
+
+  code, .mono {
+    font-family: "DM Mono", ui-monospace, monospace;
+    font-size: 0.88em; background: var(--sunken); padding: 1px 5px; color: var(--ink-70);
+  }
+
+  pre {
+    background: var(--sunken); border: 1px solid var(--ink-12);
+    padding: 16px 18px; overflow-x: auto; margin: 20px 0;
+    font-family: "DM Mono", ui-monospace, monospace; font-size: 12px; line-height: 1.6;
+    color: var(--ink-70); max-width: 68ch;
+  }
+  pre code { background: none; padding: 0; font-size: inherit; }
+
+  .thesis {
+    border-left: 3px solid var(--vermillion); background: var(--verm-wash);
+    padding: 22px 24px; margin: 28px 0; max-width: 68ch;
+  }
+  .thesis p { margin: 0; font-family: "Shippori Mincho", Georgia, serif; font-size: 17px; line-height: 1.55; }
+  .thesis p + p { margin-top: 12px; }
+
+  .note {
+    border-left: 3px solid var(--ink-20); padding: 4px 0 4px 18px;
+    margin: 22px 0; max-width: 66ch; color: var(--ink-70); font-size: 14px;
+  }
+  .note p { margin: 0; }
+  .note p + p { margin-top: 10px; }
+
+  .correction {
+    border: 1px solid var(--vermillion); background: var(--verm-wash);
+    padding: 20px 24px; margin: 26px 0; max-width: 68ch;
+  }
+  .correction .label {
+    font-family: "DM Mono", ui-monospace, monospace; font-size: 9.5px;
+    text-transform: uppercase; letter-spacing: 0.14em;
+    color: var(--vermillion); display: block; margin-bottom: 9px;
+  }
+  .correction p { margin: 0; font-size: 14.5px; }
+  .correction p + p { margin-top: 11px; }
+
+  .findings { display: grid; gap: 1px; background: var(--ink-12); border: 1px solid var(--ink-12); margin: 24px 0; }
+  @media (min-width: 700px) { .findings { grid-template-columns: 1fr 1fr; } }
+  .finding { background: var(--surface); padding: 18px 20px 20px; }
+  .finding .tag {
+    font-family: "DM Mono", ui-monospace, monospace; font-size: 9.5px;
+    text-transform: uppercase; letter-spacing: 0.13em; margin: 0 0 8px; display: block;
+  }
+  .finding h5 { font-family: "Plus Jakarta Sans", sans-serif; font-weight: 600; font-size: 14.5px; margin: 0 0 7px; line-height: 1.35; }
+  .finding p { font-size: 13.5px; margin: 0; color: var(--ink-70); line-height: 1.55; }
+  .t-good { color: var(--moss); }
+  .t-bad  { color: var(--vermillion); }
+  .t-mid  { color: var(--gold); }
+  .t-info { color: var(--indigo); }
+
+  .scroller { overflow-x: auto; margin: 24px 0; border: 1px solid var(--ink-12); background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--ink-12); vertical-align: top; }
+  thead th {
+    font-family: "DM Mono", ui-monospace, monospace; font-size: 9.5px;
+    text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-45);
+    font-weight: 500; border-bottom: 1px solid var(--ink); white-space: nowrap; background: var(--surface);
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover td { background: var(--sunken); }
+  td.mono-cell { font-family: "DM Mono", ui-monospace, monospace; font-size: 11.5px; white-space: nowrap; }
+
+  .shortlist table { font-size: 12.5px; }
+  .shortlist .nm { min-width: 165px; font-weight: 500; }
+  .shortlist .pri { font-family: "DM Mono", ui-monospace, monospace; text-align: center; font-weight: 500; }
+
+  .ranked { list-style: none; padding: 0; margin: 24px 0; max-width: none; }
+  .ranked > li {
+    display: grid; grid-template-columns: 42px 1fr; gap: 16px;
+    padding: 20px 0; border-top: 1px solid var(--ink-12); margin: 0;
+  }
+  .ranked > li:first-child { border-top: 1px solid var(--ink); }
+  .rank {
+    font-family: "DM Mono", ui-monospace, monospace; font-size: 11px;
+    color: var(--vermillion); padding-top: 3px; font-variant-numeric: tabular-nums;
+  }
+  .ranked h5 { font-family: "Plus Jakarta Sans", sans-serif; font-weight: 600; font-size: 15.5px; margin: 0 0 8px; line-height: 1.35; }
+  .ranked p { font-size: 13.5px; color: var(--ink-70); margin: 0 0 9px; max-width: 62ch; }
+  .ranked p:last-child { margin-bottom: 0; }
+
+  .verdict-row {
+    display: grid; grid-template-columns: 1fr; gap: 2px;
+    margin: 8px 0 0; padding-top: 9px; border-top: 1px dotted var(--ink-20);
+  }
+  .verdict-row .v {
+    font-family: "DM Mono", ui-monospace, monospace; font-size: 10.5px;
+    letter-spacing: 0.06em; color: var(--ink-45);
+  }
+  .verdict-row .v strong { color: var(--ink); font-weight: 500; }
+
+  .pill {
+    display: inline-block; font-family: "DM Mono", ui-monospace, monospace;
+    font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.1em;
+    padding: 2px 7px; margin-right: 6px; vertical-align: 1px;
+  }
+  .p-use  { background: var(--moss-wash);   color: var(--moss); }
+  .p-learn{ background: var(--indigo-wash); color: var(--indigo); }
+  .p-inv  { background: var(--gold-wash);   color: var(--gold); }
+  .p-no   { background: var(--verm-wash);   color: var(--vermillion); }
+
+  .qa { margin: 24px 0; border-top: 1px solid var(--ink); }
+  .qa-item { padding: 18px 0; border-bottom: 1px solid var(--ink-12); }
+  .qa-item .q {
+    font-family: "Plus Jakarta Sans", sans-serif; font-weight: 600;
+    font-size: 14.5px; margin: 0 0 8px; color: var(--ink); max-width: 64ch;
+  }
+  .qa-item .a { font-size: 13.5px; color: var(--ink-70); margin: 0; max-width: 66ch; line-height: 1.6; }
+
+  .sources ol { padding-left: 22px; max-width: 80ch; }
+  .sources li { margin-bottom: 9px; color: var(--ink-70); font-size: 13px; }
+  .sources a { word-break: break-word; }
+
+  footer.end {
+    margin-top: 80px; padding-top: 22px; border-top: 2px solid var(--ink);
+    font-family: "DM Mono", ui-monospace, monospace; font-size: 10.5px;
+    color: var(--ink-45); letter-spacing: 0.05em;
+  }
+
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="wrap">
+
+<nav class="toc" aria-label="Contents">
+  <ol>
+    <li><a href="#s1"><span class="num">01</span>Executive summary</a></li>
+    <li><a href="#s2"><span class="num">02</span>What the ecosystem reveals</a></li>
+    <li><a href="#s3"><span class="num">03</span>The Stage 1 correction</a></li>
+    <li><a href="#s4"><span class="num">04</span>Shortlist</a></li>
+    <li><a href="#s5"><span class="num">05</span>Tier 1 — use</a></li>
+    <li><a href="#s6"><span class="num">06</span>Tier 2 — investigate</a></li>
+    <li><a href="#s7"><span class="num">07</span>Tier 3 — learn from</a></li>
+    <li><a href="#s8"><span class="num">08</span>Tier 4 — do not use</a></li>
+    <li><a href="#s9"><span class="num">09</span>Memory discoveries</a></li>
+    <li><a href="#s10"><span class="num">10</span>Graph or no graph</a></li>
+    <li><a href="#s11"><span class="num">11</span>Search and retrieval</a></li>
+    <li><a href="#s12"><span class="num">12</span>Japan discoveries</a></li>
+    <li><a href="#s13"><span class="num">13</span>10x opportunities</a></li>
+    <li><a href="#s14"><span class="num">14</span>Architectural implications</a></li>
+    <li><a href="#s15"><span class="num">15</span>Licensing and security</a></li>
+    <li><a href="#s16"><span class="num">16</span>Effect on the waves</a></li>
+    <li><a href="#s17"><span class="num">17</span>CLAUDE.md additions</a></li>
+    <li><a href="#s18"><span class="num">18</span>Ten questions</a></li>
+    <li><a href="#s19"><span class="num">19</span>Next steps</a></li>
+    <li><a href="#src"><span class="num">—</span>Sources</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<header class="mast">
+  <p class="kicker">Open-source discovery audit · Research only · No code, no dependencies, no CLAUDE.md changes</p>
+  <h1>Everything Wave 1 needs is already installed on your database</h1>
+  <p class="standfirst">The AI-memory ecosystem wants to sell you Neo4j, Qdrant, and a Python service. Your Supabase project already ships the whole substrate, unused.</p>
+  <dl class="mast-meta">
+    <div><dt>Date</dt><dd>23 Aug 2026</dd></div>
+    <div><dt>Repos inspected</dt><dd>14 in depth</dd></div>
+    <div><dt>New services needed</dt><dd>Zero</dd></div>
+    <div><dt>Stage 1 corrections</dt><dd>One, material</dd></div>
+  </dl>
+</header>
+
+<!-- ═══════════════════════════════════════════════ -->
+<section id="s1">
+  <span class="sec-num">01 / Executive summary</span>
+  <h2>The finding</h2>
+
+  <p>I queried the live Supabase project (<code>iqotqiqamytpjoafwgzb</code>) for its extension catalogue before searching GitHub, because availability is the binding constraint and everything else is speculation. The result reframes the entire exercise.</p>
+
+  <div class="scroller">
+    <table>
+      <thead><tr><th>Extension</th><th class="mono-cell">Version</th><th class="mono-cell">Installed</th><th>What it unlocks</th></tr></thead>
+      <tbody>
+        <tr><td><strong>vector</strong> (pgvector)</td><td class="mono-cell">0.8.0</td><td class="mono-cell">no</td><td>Semantic retrieval. 0.8.0 adds iterative index scans, which matter specifically because Kanri filters every query by <code>team_id</code></td></tr>
+        <tr><td><strong>pgroonga</strong></td><td class="mono-cell">3.2.5</td><td class="mono-cell">no</td><td>Japanese and CJK full-text search. There is no other viable answer inside Postgres</td></tr>
+        <tr><td><strong>pgmq</strong></td><td class="mono-cell">1.5.1</td><td class="mono-cell">no</td><td>Durable job queue with visibility-timeout retries. The context-refresh queue</td></tr>
+        <tr><td><strong>pg_net</strong></td><td class="mono-cell">0.20.0</td><td class="mono-cell">no</td><td>Async HTTP from inside Postgres. Lets a trigger call a Vercel handler without blocking the insert</td></tr>
+        <tr><td><strong>pg_cron</strong></td><td class="mono-cell">1.6.4</td><td class="mono-cell">no</td><td>Scheduled work: retry loops, nightly <code>infer-status</code>, the weekly re-engagement list</td></tr>
+        <tr><td><strong>pg_trgm</strong> / <strong>fuzzystrmatch</strong></td><td class="mono-cell">1.6 / 1.2</td><td class="mono-cell">no</td><td>Fuzzy matching, duplicate-candidate detection, entity resolution</td></tr>
+        <tr><td><strong>rum</strong></td><td class="mono-cell">1.3</td><td class="mono-cell">no</td><td>Full-text index that stores positional and timestamp data, so recency-weighted text ranking works without a re-sort</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>Every extension needed for the Wave 1 substrate and the Wave 2 retrieval layer is available and none of them are turned on. Meanwhile Supabase publishes a first-party production blueprint, <a href="https://supabase.com/docs/guides/ai/automatic-embeddings">Automatic Embeddings</a>, that wires exactly these pieces together: insert or update trigger → <code>pgmq</code> queue → <code>pg_cron</code> worker every 10 seconds → <code>pg_net</code> call to a function → write back → delete the job. Failed jobs reappear after the visibility timeout and retry automatically.</p>
+
+  <div class="thesis">
+    <p><strong>That pattern is not "how to generate embeddings." It is the event spine.</strong></p>
+    <p>Swap the payload and the same machinery runs automatic context refresh, embedding backfill, pre-meeting briefs that fire themselves, and the nightly outcome rollups. Wave 1 and most of Wave 5 share one piece of infrastructure that costs zero new services and is documented by the vendor Kanri already pays.</p>
+  </div>
+
+  <p>The contrast with the AI-memory ecosystem is stark. <a href="https://github.com/getzep/graphiti">Graphiti</a> (Apache 2.0, 30.2k stars) requires Neo4j, FalkorDB, or Amazon Neptune. <a href="https://github.com/mem0ai/mem0">Mem0</a> (Apache 2.0, 63.9k stars) requires a vector database service plus its own LLM extraction pipeline. <a href="https://github.com/letta-ai/letta">Letta</a> (Apache 2.0, 24.4k stars) is a server. Kanri is TypeScript on Vercel serverless talking to Postgres. <strong>None of the three is a sane dependency, and the best idea in all of them is free to copy.</strong></p>
+
+  <p>The second-order finding is Japan-specific and is the most valuable thing in this report after the extension catalogue: <strong>Japan has state-provided master data that nobody in this competitive set bothers to wire up.</strong> The National Tax Agency runs a free 法人番号 (corporate number) Web-API for company lookup and 名寄せ. The Digital Agency publishes an address base registry behind an MIT-licensed TypeScript normalizer. Neither Spott nor Bullhorn nor Loxo will ever integrate these. They are small, cheap, and unavailable to a horizontal product.</p>
+</section>
+
+<!-- ═══════════════════════════════════════════════ -->
+<section id="s2">
+  <span class="sec-num">02 / What the ecosystem reveals</span>
+  <h2>Four things worth knowing</h2>
+
+  <div class="findings">
+    <div class="finding">
+      <span class="tag t-info">Convergence</span>
+      <h5>Bi-temporal fact modelling has won the memory argument</h5>
+      <p>Graphiti tracks four timestamps per fact: when it was created and expired in the system, and the range over which it was actually true. Superseded facts are marked expired, never deleted. On temporal-retrieval benchmarks this approach scores 63.8% against Mem0's 49.0% — a 15-point gap specifically on facts that change over time.</p>
+    </div>
+    <div class="finding">
+      <span class="tag t-good">Directly usable</span>
+      <h5>Postgres has quietly become a full retrieval stack</h5>
+      <p>pgvector plus a lexical index plus reciprocal rank fusion now matches dedicated search infrastructure for most workloads, without a sync pipeline. The catch for Kanri is which lexical index — see §11.</p>
+    </div>
+    <div class="finding">
+      <span class="tag t-mid">Contradicts a Stage 1 plan</span>
+      <h5>Text-to-SQL is not reliable enough for "Ask Kanri"</h5>
+      <p>GPT-4o scores 86.6% on the Spider 1.0 benchmark and <strong>10.1% on Spider 2.0</strong>, which uses realistic enterprise schemas. o1-preview reaches 17.1%. The consensus fix is a semantic layer: typed, governed tools the model selects from, rather than SQL it authors.</p>
+    </div>
+    <div class="finding">
+      <span class="tag t-good">Free technique</span>
+      <h5>Contextual retrieval is a large, cheap win</h5>
+      <p>Anthropic's method — prepend an LLM-written chunk-specific context before embedding — cuts retrieval failures by 49%, and 67% with reranking. Kanri is unusually well placed: <code>ai_context</code> <em>is</em> the context to prepend, already written and already reconciled.</p>
+    </div>
+  </div>
+
+  <p>The general lesson: the open-source ecosystem has solved the <em>architecture</em> questions Kanri faces, and every packaged solution to them assumes a Python service and a dedicated datastore. The leverage is in the patterns, not the packages.</p>
+</section>
+
+<!-- ═══════════════════════════════════════════════ -->
+<section id="s3">
+  <span class="sec-num">03 / The Stage 1 correction</span>
+  <h2>Postgres full-text search does not work on Japanese</h2>
+
+  <div class="correction">
+    <span class="label">Correction to the Stage 1 report</span>
+    <p>Stage 1 recommended "pgvector over <code>notes_interview</code> and <code>ai_context</code>, plus Postgres full-text search" as Wave 2. The second half of that sentence was wrong, and I did not check it before writing it.</p>
+    <p>PostgreSQL's built-in full-text search tokenizes on whitespace and has <strong>no Japanese configuration</strong>. Japanese does not use spaces between words. Running <code>to_tsvector</code> over 職務経歴書 text or Japanese interview notes produces effectively one enormous token per sentence — the index builds, the queries run, and the results are garbage. This would have surfaced during Wave 2 implementation as an inexplicable relevance failure on exactly the content Kanri cares most about.</p>
+    <p>The fix is <code>pgroonga</code>, which is available on the project right now. It uses variable-length N-gram indexing, supports all languages including Japanese and Chinese, needs no recheck step, and does not block searches during index updates.</p>
+  </div>
+
+  <p>The alternative Japanese approach, <code>pg_bigm</code>, is not in Supabase's catalogue and is slower in any case. The ParadeDB <code>pg_search</code> and TigerData <code>pg_textsearch</code> BM25 extensions that dominate the 2026 hybrid-search literature are <strong>both absent from Supabase</strong>, so the standard "BM25 + pgvector + RRF" recipe is not directly available. Kanri's hybrid search fuses PGroonga's score with pgvector's cosine distance instead. That is a real design constraint and it should be written down before anyone starts.</p>
+</section>
+
+<!-- ═══════════════════════════════════════════════ -->
+<section id="s4">
+  <span class="sec-num">04 / Shortlist</span>
+  <h2>The fourteen that matter</h2>
+
+  <div class="scroller shortlist">
+    <table>
+      <thead>
+        <tr><th class="nm">Project</th><th>Capability</th><th>Why Kanri cares</th><th>Use</th><th class="mono-cell">License</th><th>Maturity</th><th>Risk</th><th class="pri">Pri</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="nm"><a href="https://github.com/pgroonga/pgroonga">PGroonga</a></td>
+          <td>CJK full-text index for Postgres</td>
+          <td>The only way Japanese text search works inside the database. Blocks Wave 2 without it</td>
+          <td><span class="pill p-use">Use</span></td>
+          <td class="mono-cell">PostgreSQL</td>
+          <td>v3.2.5, ~2,976 commits, native on Supabase</td><td>Low</td><td class="pri">P0</td>
+        </tr>
+        <tr>
+          <td class="nm"><a href="https://github.com/pgvector/pgvector">pgvector</a></td>
+          <td>Vector type, HNSW / IVFFlat</td>
+          <td>Semantic retrieval spine. 0.8.0's iterative scans fix over-filtering under <code>team_id</code></td>
+          <td><span class="pill p-use">Use</span></td>
+          <td class="mono-cell">PostgreSQL</td>
+          <td>0.8.0 available on project</td><td>Low</td><td class="pri">P0</td>
+        </tr>
+        <tr>
+          <td class="nm"><a href="https://github.com/pgmq/pgmq">pgmq</a></td>
+          <td>Postgres-native queue, visibility timeouts</td>
+          <td>Durable async refresh. Exactly-once within the timeout window, automatic retry on failure</td>
+          <td><span class="pill p-use">Use</span></td>
+          <td class="mono-cell">PostgreSQL</td>
+          <td>5.1k stars, Rust, PG 14–18, used by Supabase and Tembo</td><td>Low</td><td class="pri">P0</td>
+        </tr>
+        <tr>
+          <td class="nm"><a href="https://github.com/supabase/pg_net">pg_net</a></td>
+          <td>Async HTTP from SQL</td>
+          <td>Trigger calls a Vercel handler without blocking the write. Powers Supabase webhooks</td>
+          <td><span class="pill p-use">Use</span></td>
+          <td class="mono-cell">Apache 2.0</td>
+          <td>0.20.0, first-party Supabase</td><td>Low</td><td class="pri">P0</td>
+        </tr>
+        <tr>
+          <td class="nm">pg_cron</td>
+          <td>In-database scheduler</td>
+          <td>Queue worker, nightly batch jobs, weekly re-engagement list</td>
+          <td><span class="pill p-use">Use</span></td>
+          <td class="mono-cell">PostgreSQL</td>
+          <td>1.6.4, mature, Supabase-supported</td><td>Low</td><td class="pri">P0</td>
+        </tr>
+        <tr>
+          <td class="nm"><a href="https://supabase.com/docs/guides/ai/automatic-embeddings">Supabase Automatic Embeddings</a></td>
+          <td>Reference architecture</td>
+          <td>The exact trigger → queue → cron → HTTP → write-back blueprint. Copy the shape, change the payload</td>
+          <td><span class="pill p-learn">Copy pattern</span></td>
+          <td class="mono-cell">Docs</td>
+          <td>First-party, current</td><td>None</td><td class="pri">P0</td>
+        </tr>
+        <tr>
+          <td class="nm"><a href="https://www.anthropic.com/engineering/contextual-retrieval">Contextual Retrieval</a></td>
+          <td>Chunk-context prepending before embedding</td>
+          <td>49% fewer retrieval failures, 67% with reranking. Kanri already generates the context</td>
+          <td><span class="pill p-learn">Implement</span></td>
+          <td class="mono-cell">Technique</td>
+          <td>Published method, widely reproduced</td><td>Token cost</td><td class="pri">P1</td>
+        </tr>
+        <tr>
+          <td class="nm"><a href="https://github.com/getzep/graphiti">Graphiti</a></td>
+          <td>Bi-temporal fact graph with edge invalidation</td>
+          <td>Formalizes what <code>refresh-context</code> does in prose. Take the model, not the code</td>
+          <td><span class="pill p-learn">Learn</span></td>
+          <td class="mono-cell">Apache 2.0</td>
+          <td>30.2k stars, 951 commits, active</td><td>High if adopted — needs Neo4j</td><td class="pri">P1</td>
+        </tr>
+        <tr>
+          <td class="nm"><a href="https://www.houjin-bangou.nta.go.jp/webapi/index.html">法人番号 Web-API</a></td>
+          <td>Official JP corporate registry: lookup by number, search by name, period diffs</td>
+          <td>Canonical client identity and 名寄せ. Free application ID. No competitor wires this up</td>
+          <td><span class="pill p-use">Use</span></td>
+          <td class="mono-cell">Gov terms</td>
+          <td>National Tax Agency, stable</td><td>Low — read ToS</td><td class="pri">P2</td>
+        </tr>
+        <tr>
+          <td class="nm"><a href="https://github.com/geolonia/normalize-japanese-addresses">normalize-japanese-addresses</a></td>
+          <td>JP address normalization in TypeScript</td>
+          <td>Location preferences and commute logic need normalized addresses, not free text</td>
+          <td><span class="pill p-inv">Investigate</span></td>
+          <td class="mono-cell">MIT</td>
+          <td>960 stars, 511 commits, npm</td><td>Calls a remote data endpoint by default</td><td class="pri">P2</td>
+        </tr>
+        <tr>
+          <td class="nm"><a href="https://github.com/cl-tohoku/keigo_transfer_task">keigo_transfer_task</a></td>
+          <td>390 annotated sentences for keigo conversion</td>
+          <td>An evaluation set for 推薦文 register quality. Otherwise keigo correctness is vibes</td>
+          <td><span class="pill p-inv">Eval only</span></td>
+          <td class="mono-cell">Verify</td>
+          <td>Tohoku University, academic</td><td>Small; check terms</td><td class="pri">P2</td>
+        </tr>
+        <tr>
+          <td class="nm"><a href="https://github.com/mem0ai/mem0">Mem0</a></td>
+          <td>Generic agent memory, TS SDK exists</td>
+          <td>Extraction and conflict-resolution patterns worth reading. The product itself is generic where Kanri is specific</td>
+          <td><span class="pill p-learn">Learn</span></td>
+          <td class="mono-cell">Apache 2.0</td>
+          <td>63.9k stars, 2,607 commits</td><td>Medium — needs vector DB service</td><td class="pri">P3</td>
+        </tr>
+        <tr>
+          <td class="nm"><a href="https://github.com/taishi-i/awesome-japanese-nlp-resources">awesome-japanese-nlp-resources</a></td>
+          <td>Curated JP NLP index</td>
+          <td>The map for anything Japanese-language. Keep as a reference, not a dependency</td>
+          <td><span class="pill p-learn">Reference</span></td>
+          <td class="mono-cell">List</td>
+          <td>Maintained</td><td>None</td><td class="pri">P3</td>
+        </tr>
+        <tr>
+          <td class="nm"><a href="https://github.com/opencats/OpenCATS">OpenCATS</a></td>
+          <td>Legacy open-source ATS</td>
+          <td>Data-model curiosity only. PHP/MySQL, 2007 lineage</td>
+          <td><span class="pill p-no">Avoid</span></td>
+          <td class="mono-cell">GPL family — verify</td>
+          <td>Old, maintained slowly</td><td>Copyleft; wrong stack</td><td class="pri">P4</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════ -->
+<section id="s5">
+  <span class="sec-num">05 / Tier 1</span>
+  <h2>Use these — high value, high fit</h2>
+
+  <ol class="ranked">
+    <li>
+      <span class="rank">T1</span>
+      <div>
+        <h5>The Postgres substrate: pgvector + pgroonga + pgmq + pg_net + pg_cron</h5>
+        <p>Five <code>CREATE EXTENSION</code> statements and one migration establish the entire Wave 1 and Wave 2 foundation. No new service, no new vendor, no new bill, no new failure mode outside the database Kanri already runs. RLS continues to apply because the data never leaves Postgres — which matters under APPI in a way that shipping candidate text to a third-party vector service does not.</p>
+        <div class="verdict-row">
+          <span class="v"><strong>Recommendation:</strong> adopt as the Wave 1 opening move.</span>
+          <span class="v"><strong>Caveat:</strong> <code>pg_net</code> is fire-and-forget with a default timeout; the queue, not the HTTP call, is the durability guarantee. Never rely on a <code>pg_net</code> response.</span>
+        </div>
+      </div>
+    </li>
+    <li>
+      <span class="rank">T2</span>
+      <div>
+        <h5>The Supabase automatic-embeddings pattern, generalized</h5>
+        <p>The published guide solves embedding generation. The identical machinery — trigger enqueues, cron drains, HTTP dispatches, worker writes back and deletes — solves automatic context refresh, which is the single highest-leverage item in the Stage 1 report. Build it once as a generic <code>util.enqueue_job(kind, payload)</code> and both Wave 1 and Wave 2 land on the same rails.</p>
+        <div class="verdict-row">
+          <span class="v"><strong>Recommendation:</strong> copy the architecture, not the code. It is a docs page, not a library.</span>
+          <span class="v"><strong>Divergence:</strong> Supabase assumes Edge Functions; Kanri's handlers live on Vercel. <code>pg_net</code> does not care.</span>
+        </div>
+      </div>
+    </li>
+    <li>
+      <span class="rank">T3</span>
+      <div>
+        <h5>Contextual retrieval over interview notes</h5>
+        <p>Before embedding a chunk of <code>notes_interview</code>, prepend a one-line situating context generated from the candidate's <code>ai_context</code>. Anthropic reports 49% fewer failed retrievals, rising to 67% with reranking. Kanri gets this cheaper than most teams because the situating context already exists and does not need to be invented per chunk.</p>
+        <div class="verdict-row">
+          <span class="v"><strong>Recommendation:</strong> build into the Wave 2 embedding worker from day one. Retrofitting means re-embedding everything.</span>
+        </div>
+      </div>
+    </li>
+    <li>
+      <span class="rank">T4</span>
+      <div>
+        <h5>法人番号 Web-API for client identity</h5>
+        <p>Free application ID from the National Tax Agency. Three operations: look up by number, search by name, fetch changes over a period. Gives every client record a canonical 13-digit identity, resolves 株式会社 prefix and suffix variants, and the period-diff endpoint means Kanri can detect a client company's registered changes without polling anything commercial.</p>
+        <div class="verdict-row">
+          <span class="v"><strong>Recommendation:</strong> small, Japan-native, structurally unavailable to a horizontal competitor. Wave 3 or 4.</span>
+          <span class="v"><strong>Caveat:</strong> read the usage terms before shipping; government API terms are not open-source licenses.</span>
+        </div>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<!-- ═══════════════════════════════════════════════ -->
+<section id="s6">
+  <span class="sec-num">06 / Tier 2</span>
+  <h2>Investigate before committing</h2>
+
+  <ul>
+    <li><strong>Japanese embedding model choice.</strong> Domain-specific Japanese models beat multilingual ones on Japanese benchmarks — Ruri-base (111M params) reports 71.91% average on JMTEB and outperforms the much larger mE5-large. But Kanri's content is bilingual and often code-switched within a single interview note. A multilingual model that handles both may beat a Japanese-specialist model that handles one. <em>This needs an actual test on real Kanri notes, not a benchmark table.</em></li>
+    <li><strong>Reranking.</strong> Managed APIs (Cohere Rerank 4, Voyage rerank-2.5, Jina v3) are one call and no GPU. Self-hosted cross-encoders are impractical on Vercel serverless. A third option nobody lists: Claude already reranks well when given ~30 candidates and asked to score with reasons — and it produces the explanation that Kanri's explainability rule requires anyway. Test that before buying a reranker.</li>
+    <li><strong>normalize-japanese-addresses.</strong> MIT, 960 stars, actively maintained, but it fetches address data from a remote Geolonia endpoint by default. For a serverless handler that is a latency and availability dependency. It can be pointed at local data files — investigate that path before adopting. Underlying data derives from government sources with attribution expectations.</li>
+    <li><strong>keigo_transfer_task as an eval harness.</strong> 390 sentences annotated by two native speakers for conversion necessity and type. Small, but the alternative for validating 推薦文 register is asking a human every time. Worth an hour to assess whether it transfers to business-document generation rather than learner correction.</li>
+    <li><strong>rum instead of a plain GIN index.</strong> RUM stores positional and timestamp information in the index, which makes recency-weighted text ranking a single scan. Kanri's memory model is explicitly recency-weighted. Possibly a natural fit, possibly overkill next to PGroonga. Benchmark, do not assume.</li>
+  </ul>
+</section>
+
+<!-- ═══════════════════════════════════════════════ -->
+<section id="s7">
+  <span class="sec-num">07 / Tier 3</span>
+  <h2>Learn from, then build it yourself</h2>
+
+  <ol class="ranked">
+    <li>
+      <span class="rank">L1</span>
+      <div>
+        <h5>Graphiti's bi-temporal fact model</h5>
+        <p>The most valuable idea in the entire audit. Graphiti gives every fact four timestamps: created and expired in the system, valid and invalid in the world. Superseded facts are marked expired, never deleted, so the graph can answer "what did we believe on 12 June" as well as "what is true now."</p>
+        <p><strong>Why this matters for Kanri specifically:</strong> <code>refresh-context</code> already produces "salary expectation updated to ¥16M (was ¥14M at registration)" — a bi-temporal fact expressed as English prose. That sentence is generated fresh on every refresh, cannot be queried, cannot be aggregated, and gets truncated at 300–600 characters before most handlers ever see it. The upgrade is not to adopt a graph database. It is to make the reconciled fact a <em>row</em>: subject, predicate, value, valid_from, valid_to, source interaction. Then "which candidates raised their salary expectation this quarter?" becomes a query instead of an impossibility.</p>
+        <div class="verdict-row">
+          <span class="v"><strong>Recommendation:</strong> steal the model, refuse the infrastructure. A <code>candidate_facts</code> table in the Postgres you already have.</span>
+        </div>
+      </div>
+    </li>
+    <li>
+      <span class="rank">L2</span>
+      <div>
+        <h5>Semantic layer over text-to-SQL, for Ask Kanri</h5>
+        <p>Stage 1 proposed "Ask Kanri" as an agentic endpoint with database tools. The benchmark evidence sharpens what those tools should be. Text-to-SQL against realistic enterprise schemas collapses — GPT-4o falls from 86.6% on Spider 1.0 to 10.1% on Spider 2.0. Pointed at raw tables, a model re-derives joins and grain on every prompt, so the same question returns different answers on different days.</p>
+        <p>The fix is a small set of typed, governed tools that encode Kanri's domain — <code>find_candidates(criteria)</code>, <code>get_pipeline(client_id)</code>, <code>rejection_history(contact_id)</code> — with RLS applied before the query runs. Fewer degrees of freedom, reproducible answers, and an audit trail of which tool ran with which arguments. That audit trail <em>is</em> the explainability panel.</p>
+        <div class="verdict-row">
+          <span class="v"><strong>Recommendation:</strong> revise the Wave 6 plan. Never ship raw SQL generation over the recruiting database.</span>
+        </div>
+      </div>
+    </li>
+    <li>
+      <span class="rank">L3</span>
+      <div>
+        <h5>Mem0's extraction-and-reconciliation loop</h5>
+        <p>Worth reading for the shape: LLM extracts candidate facts from raw text, embeddings find related existing memories, a second pass decides add / update / supersede. Mem0's April 2026 algorithm moved to single-pass ADD-only accumulation, dropping UPDATE and DELETE entirely and resolving conflicts at retrieval time through temporal reasoning instead.</p>
+        <p>That is a genuinely interesting trade and it maps onto a decision Kanri will face: does <code>refresh-context</code> rewrite the note, or does it append facts and reconcile at read time? Append-only is auditable, cheaper to write, and preserves the correction history that §L1 wants. Rewriting is simpler to consume. Kanri currently rewrites.</p>
+        <div class="verdict-row">
+          <span class="v"><strong>Recommendation:</strong> read the algorithm, adopt append-only for structured facts, keep the prose note as a generated view over them.</span>
+        </div>
+      </div>
+    </li>
+    <li>
+      <span class="rank">L4</span>
+      <div>
+        <h5>Letta's self-editing memory blocks</h5>
+        <p>The concept worth taking is that an agent can hold a small, persistent, editable block of context that it maintains itself, distinct from retrieval. For Kanri the analogue is a recruiter-level memory — how this person works, who they trust, which advice they take — that is separate from candidate and client memory and small enough to include in every prompt. Stage 1 listed this as the fourth and hardest moat layer. Letta shows a working shape for it.</p>
+        <div class="verdict-row">
+          <span class="v"><strong>Recommendation:</strong> concept only. The repo is now largely a landing page with active work moved elsewhere.</span>
+        </div>
+      </div>
+    </li>
+    <li>
+      <span class="rank">L5</span>
+      <div>
+        <h5>Reciprocal rank fusion as the hybrid-search join</h5>
+        <p>RRF combines two ranked lists by summing reciprocal ranks, needs no score normalization between wildly different scales, and is about fifteen lines of SQL. Given that Kanri cannot use the BM25 extensions the literature assumes, RRF over PGroonga rank and pgvector distance is the practical hybrid. It is a technique, not a package.</p>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<!-- ═══════════════════════════════════════════════ -->
+<section id="s8">
+  <span class="sec-num">08 / Tier 4</span>
+  <h2>Do not use, despite looking relevant</h2>
+
+  <ul>
+    <li><strong>Graphiti, Mem0, Letta, or Cognee as dependencies.</strong> All Python. All require infrastructure Kanri does not run — Neo4j, FalkorDB, Neptune, Qdrant, or a persistent server. Adopting any of them means running a second backend in a second language to store a memory Kanri already generates better, because Kanri's version knows what a CCM stage is and a generic memory layer never will.</li>
+    <li><strong>JavaScript Japanese tokenizers</strong> — kuromoji.js, lindera-js, TinySegmenter, budoux. These solve tokenization <em>in the application</em>. PGroonga solves it <em>in the index</em>, which is where Kanri needs it. Shipping a morphological dictionary into a Vercel function to duplicate what the database already does is cost with no benefit. The one plausible exception is display-layer line breaking, which is cosmetic.</li>
+    <li><strong>Open-source resume parsers.</strong> The field has already migrated from spaCy-based parsers to LLM extraction — the most-cited project rewrote itself onto a local Qwen model. Kanri does LLM extraction with Claude today and it works. Adding a parser library would be a downgrade.</li>
+    <li><strong>OpenCATS or any legacy open-source ATS.</strong> PHP/MySQL, 2007 lineage, GPL-family licensing. Nothing to learn from the data model that Kanri's schema does not already do better, and real copyleft exposure if code were ever borrowed.</li>
+    <li><strong>Self-hosted cross-encoder rerankers.</strong> Model weights and GPU inference do not belong in a Vercel serverless function. If reranking is needed, call an API or use Claude.</li>
+    <li><strong>An agent framework.</strong> LangChain, LangGraph, CrewAI and similar. Kanri's handlers are direct Anthropic SDK calls and are perfectly legible. A framework would add indirection, version churn, and prompt opacity to solve a problem Kanri does not have.</li>
+    <li><strong>A separate vector database.</strong> Qdrant, Weaviate, Pinecone. pgvector inside the RLS boundary is both simpler and better aligned with the APPI posture in CLAUDE.md §10. Moving candidate text to a third-party store is a compliance conversation Kanri does not need to have.</li>
+  </ul>
+</section>
+
+<!-- ═══════════════════════════════════════════════ -->
+<section id="s9">
+  <span class="sec-num">09 / Memory discoveries</span>
+  <h2>What the memory ecosystem actually knows</h2>
+
+  <p>Three transferable insights, in descending order of value to Kanri.</p>
+
+  <p><strong>One: facts should be rows with validity intervals, not sentences in a paragraph.</strong> Every serious system converged on this. Kanri's prose reconciliation is genuinely differentiated as an <em>output</em> — a senior recruiter's reference note is more useful to read than a fact table — but it is a poor <em>storage</em> format. Storing structured facts and generating the prose from them gives both: the readable note stays, and the facts become queryable, aggregable, and diffable. It also fixes the truncation problem, because a handler can request the eight facts relevant to its task instead of slicing the first 400 characters of a narrative.</p>
+
+  <p><strong>Two: memory extraction is a separate step from memory retrieval, and both are separate from consolidation.</strong> Kanri currently fuses all three into one <code>refresh-context</code> call that reads 30 interactions and writes a narrative. That is why it is expensive, why it must be manual, and why it truncates. Splitting them — extract facts on interaction insert, retrieve relevant facts at query time, consolidate periodically via cron — makes each step cheap enough to run automatically.</p>
+
+  <p><strong>Three: the interesting benchmark is temporal, not semantic.</strong> The 15-point gap between Graphiti's 63.8% and Mem0's 49.0% appears specifically on facts that change over time. Recruiting is almost entirely facts that change over time: salary expectations, notice periods, availability, interest level, competing processes, who the hiring manager is. Kanri is operating in the regime where temporal modelling matters most, which is a reason to take §L1 seriously rather than filing it as sophistication.</p>
+</section>
+
+<!-- ═══════════════════════════════════════════════ -->
+<section id="s10">
+  <span class="sec-num">10 / Graph or no graph</span>
+  <h2>Does Kanri need a graph database?</h2>
+
+  <p>No. And this deserves a direct answer because "knowledge graph" is the most seductive phrase in this ecosystem and adopting one would be a serious, hard-to-reverse mistake for a product at Kanri's stage.</p>
+
+  <p>The argument for a graph is that recruiting is relational: candidate → company, candidate → process → requisition → client → contact, placement → hiring manager. The argument against is that <strong>Kanri already has those relationships as foreign keys in a relational database, correctly modelled, with RLS enforcing team scope on every one of them.</strong> A graph database would re-encode existing structure in a second store that must be kept in sync — the exact "permanent sync liability" argument that settled the displacement question in CLAUDE.md §1, applied internally.</p>
+
+  <p>Graph databases earn their keep on unbounded-depth traversal over schemas that change shape. Kanri's traversals are shallow and known in advance: two or three joins, all of them written already. Postgres does this well. The thing Kanri lacks is not graph traversal — it is <em>temporal fact storage</em> and <em>semantic retrieval</em>, and both are ordinary tables plus an index.</p>
+
+  <div class="note">
+    <p><strong>The one relationship capability genuinely worth adding</strong> is not a graph at all. It is a <code>candidate_company_history</code> view that already exists implicitly in <code>candidate_roles</code>: who worked where, when. That single relation answers the highest-value BD question in the Stage 1 report — "your placed candidate is now a hiring manager at a company you don't cover" — with one query and no new infrastructure.</p>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════ -->
+<section id="s11">
+  <span class="sec-num">11 / Search and retrieval</span>
+  <h2>The concrete Wave 2 design</h2>
+
+  <p>Constraints established by this audit, in order of how much they narrow the design:</p>
+
+  <ol>
+    <li>No BM25 extension exists on Supabase. <code>pg_search</code> and <code>pg_textsearch</code> are both unavailable.</li>
+    <li>Built-in Postgres FTS cannot tokenize Japanese.</li>
+    <li>PGroonga handles Japanese, English, and mixed text in one index, with its own scoring.</li>
+    <li>pgvector 0.8.0's iterative scans matter because every Kanri query filters by <code>team_id</code>, which is precisely the over-filtering case those scans were added to fix.</li>
+  </ol>
+
+  <p>Which produces one obvious architecture:</p>
+
+  <pre><code>lexical    → pgroonga index over notes_interview, ai_context,
+             full_notes, summary  (handles JP + EN in one index)
+semantic   → pgvector HNSW over contextual-prefixed chunks
+fuse       → reciprocal rank fusion, ~15 lines of SQL
+filter     → team_id, status, language level, comp band — pushed
+             down before ranking, iterative scans on
+rerank     → Claude over the top ~30, scoring with stated reasons
+             (produces the explainability payload for free)</code></pre>
+
+  <p>The reranking step is where Kanri gets something competitors buy separately. A Cohere or Voyage reranker returns a better ordering and a number. Claude returns a better ordering, a number, <em>and the sentence explaining it</em> — which CLAUDE.md's explainability rule requires anyway, and which recruiters need in order to trust the result. Paying a reranking vendor and then paying Claude again to explain the ranking would be strictly worse.</p>
+</section>
+
+<!-- ═══════════════════════════════════════════════ -->
+<section id="s12">
+  <span class="sec-num">12 / Japan discoveries</span>
+  <h2>Four Japan-specific findings</h2>
+
+  <div class="findings">
+    <div class="finding">
+      <span class="tag t-bad">Blocker</span>
+      <h5>PGroonga is not optional</h5>
+      <p>Without it there is no Japanese full-text search in Postgres, and Kanri's most valuable content is Japanese interview notes. PostgreSQL-licensed, available on the project, one statement to enable. This is the single most important technical finding in the audit.</p>
+    </div>
+    <div class="finding">
+      <span class="tag t-good">Free state data</span>
+      <h5>Japan ships master data nobody uses</h5>
+      <p>法人番号 Web-API for corporate identity (free application ID, name search, period diffs) and the Digital Agency address registry behind an MIT-licensed TypeScript normalizer. Structurally unavailable to horizontal competitors, who will never localize this deeply.</p>
+    </div>
+    <div class="finding">
+      <span class="tag t-mid">Measurable</span>
+      <h5>Keigo correctness can be tested, not guessed</h5>
+      <p>The Tohoku University keigo transfer dataset gives 390 native-annotated sentences for honorific conversion. Small, but it turns "does our 推薦文 sound right?" from an opinion into a number — and register errors are precisely the failure mode Headhunt.AI names for generic models.</p>
+    </div>
+    <div class="finding">
+      <span class="tag t-info">Open question</span>
+      <h5>Japanese-specialist embeddings may not win here</h5>
+      <p>Ruri-base beats mE5-large on JMTEB. But Kanri's notes code-switch mid-sentence between Japanese and English, which is the case neither benchmark measures. Test on real notes before choosing.</p>
+    </div>
+  </div>
+
+  <p>One note on what <em>not</em> to do. The Japanese NLP ecosystem is rich and almost all of it is Python, built for research pipelines rather than serverless request handlers. The temptation is to pull in morphological analysis, named-entity recognition, and reading estimation because they exist and are good. Resist it: PGroonga covers indexing, Claude covers extraction and generation, and the government APIs cover canonical identity. That is the whole Japan stack Kanri needs.</p>
+</section>
+
+<!-- ═══════════════════════════════════════════════ -->
+<section id="s13">
+  <span class="sec-num">13 / 10x opportunities</span>
+  <h2>Three that change the product, not the velocity</h2>
+
+  <ol class="ranked">
+    <li>
+      <span class="rank">X1</span>
+      <div>
+        <h5>The queryable fact ledger</h5>
+        <p>Structured, bi-temporal facts extracted from every interaction — subject, predicate, value, valid_from, valid_to, source. Kanri stops being a system that <em>writes notes</em> and becomes one that <em>knows things</em>.</p>
+        <p>What it unlocks that no competitor offers: "which candidates raised their salary expectation this quarter?" · "which clients' requirements have drifted since intake?" · "show me everyone who said they'd move for the right role, six months ago, who hasn't been contacted since." None of these are answerable by transcript storage, summarization, or semantic search. They need facts with dates.</p>
+      </div>
+    </li>
+    <li>
+      <span class="rank">X2</span>
+      <div>
+        <h5>The event spine, fully exploited</h5>
+        <p>Once <code>pgmq</code> plus <code>pg_cron</code> plus <code>pg_net</code> exist for context refresh, every other proactive feature in the Stage 1 roadmap becomes a queue consumer rather than a project: pre-meeting briefs that fire themselves, offer-stage watches, competitive clocks, weekly re-engagement lists, job-change detection. Wave 5 stops being a wave and becomes a series of small additions to infrastructure that already runs.</p>
+        <p>This is the difference between a product that responds to clicks and one that arrives before the recruiter asks — and the audit's finding is that the gap between them is one migration, not one quarter.</p>
+      </div>
+    </li>
+    <li>
+      <span class="rank">X3</span>
+      <div>
+        <h5>Explainability as a byproduct rather than a feature</h5>
+        <p>If retrieval runs through typed tools and reranking runs through Claude with stated reasons, then every AI surface can already name the records it read and why they ranked where they did. The explainability panel stops being something to build and becomes something to display.</p>
+        <p>Against Bullhorn's opaque hire-likelihood model, and under 職業安定法 Art. 5-4, that is a commercial asset rather than a compliance cost — and it costs nothing extra if the retrieval architecture is designed for it from the start. If it is not, retrofitting explainability across 41 handlers is a large and thankless project.</p>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<!-- ═══════════════════════════════════════════════ -->
+<section id="s14">
+  <span class="sec-num">14 / Architectural implications</span>
+  <h2>Does the current architecture need to change?</h2>
+
+  <p>Less than the ecosystem's marketing would suggest, and more than Stage 1 assumed. Four changes, all inside Postgres.</p>
+
+  <ul>
+    <li><strong>Add an event/queue layer.</strong> <code>pgmq</code> plus <code>pg_cron</code> plus <code>pg_net</code>. Unlocks: automatic memory, automatic embedding, all proactive features. This is the one genuinely new architectural component and it is entirely in-database.</li>
+    <li><strong>Add a retrieval layer.</strong> pgvector and PGroonga indexes plus an RRF fusion function exposed as a single SQL function. Handlers call one retrieval function instead of hand-writing selects. Same shape as the context loader, and the two should be built together.</li>
+    <li><strong>Add a fact layer beside the narrative.</strong> A <code>*_facts</code> table with validity intervals. The prose <code>ai_context</code> stays as a generated view over the facts, which fixes truncation at the same time: handlers request facts by relevance instead of slicing a paragraph.</li>
+    <li><strong>Do not add:</strong> a graph database, a vector database, an agent framework, a Python service, or an ML model server. Every one of these was considered and rejected on evidence, not aesthetics.</li>
+  </ul>
+
+  <p>The data model change worth flagging: the <code>ai_context</code> column becomes derived rather than authoritative. That is a meaningful shift and it should be a deliberate decision recorded in CLAUDE.md, not something that happens gradually while nobody is looking.</p>
+</section>
+
+<!-- ═══════════════════════════════════════════════ -->
+<section id="s15">
+  <span class="sec-num">15 / Licensing and security</span>
+  <h2>Legal and risk notes</h2>
+
+  <div class="scroller">
+    <table>
+      <thead><tr><th>Item</th><th class="mono-cell">License</th><th>Proprietary SaaS use</th><th>Obligations</th></tr></thead>
+      <tbody>
+        <tr><td>PGroonga</td><td class="mono-cell">PostgreSQL</td><td>Yes</td><td>BSD/MIT-like. Permissive. Used as a database extension, not linked into Kanri's code</td></tr>
+        <tr><td>pgvector, pgmq, pg_cron</td><td class="mono-cell">PostgreSQL</td><td>Yes</td><td>Same. Extensions, not application dependencies</td></tr>
+        <tr><td>pg_net</td><td class="mono-cell">Apache 2.0</td><td>Yes</td><td>Permissive; preserve NOTICE if redistributed. Not redistributed here</td></tr>
+        <tr><td>Graphiti, Mem0, Letta</td><td class="mono-cell">Apache 2.0</td><td>Yes</td><td>Permissive — but recommended for <em>ideas</em> only, so no obligation arises</td></tr>
+        <tr><td>normalize-japanese-addresses</td><td class="mono-cell">MIT</td><td>Yes</td><td><strong>Underlying address data carries attribution expectations</strong> derived from government sources. Do not strip attribution fields. Flag for review before shipping</td></tr>
+        <tr><td>法人番号 Web-API</td><td class="mono-cell">Gov terms</td><td>Requires reading</td><td>Not an open-source license. Free application ID, but terms of use govern caching, redistribution, and display. <strong>Review before production use</strong></td></tr>
+        <tr><td>keigo_transfer_task</td><td class="mono-cell">Unverified</td><td>Unknown</td><td>Academic dataset. <strong>Confirm license before any use, including internal evaluation</strong></td></tr>
+        <tr><td>OpenCATS</td><td class="mono-cell">GPL family</td><td><strong>No</strong></td><td>Copyleft. Do not read the source with intent to reimplement, and do not borrow code</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Security notes</h3>
+  <ul>
+    <li><strong><code>pg_net</code> and credentials.</strong> Any URL or key used by a database trigger must live in Supabase Vault, never inline in a migration. Migrations are committed to git.</li>
+    <li><strong><code>pg_net</code> is fire-and-forget.</strong> Responses are not guaranteed. Durability comes from the pgmq visibility timeout, not the HTTP call. Designing as if <code>pg_net</code> were reliable produces silent data loss.</li>
+    <li><strong>Service-role reach.</strong> A queue worker invoked from Postgres runs outside a user session. It must re-establish team scope explicitly, or RLS provides no protection. This is the most likely place for a cross-team data leak to be introduced.</li>
+    <li><strong>Never generate raw SQL from user text.</strong> Beyond the accuracy evidence in §L2, it is an injection surface pointed directly at candidate PII, which under the 2026 APPI amendment carries a surcharge regime for breaches affecting more than 1,000 individuals.</li>
+    <li><strong>Keeping candidate text in Postgres is a compliance feature.</strong> Shipping it to a third-party vector service is a data-transfer question Kanri currently does not have to answer. That is a reason to prefer pgvector beyond convenience.</li>
+  </ul>
+</section>
+
+<!-- ═══════════════════════════════════════════════ -->
+<section id="s16">
+  <span class="sec-num">16 / Effect on the waves</span>
+  <h2>Should this be folded into the roadmap?</h2>
+
+  <p>Yes — but as sharpening, not as new scope. It does not add a wave. It makes Waves 1, 2 and 6 concrete, and it moves one thing earlier.</p>
+
+  <div class="scroller">
+    <table>
+      <thead><tr><th>Wave</th><th>Change</th><th>Effect</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Wave 1</strong></td>
+          <td>Becomes: enable five extensions, build one generic job queue on the Supabase pattern, put context refresh on it</td>
+          <td>Much more concrete and smaller than written. Also absorbs the event-spine work previously sitting in Wave 5</td>
+        </tr>
+        <tr>
+          <td><strong>Wave 2</strong></td>
+          <td>PGroonga replaces "Postgres full-text search". Contextual retrieval added to the embedding worker. Claude-as-reranker instead of a reranking vendor</td>
+          <td>Fixes a blocker that would have failed silently on Japanese text. Adds ~49–67% retrieval quality for token cost</td>
+        </tr>
+        <tr>
+          <td><strong>Wave 3</strong></td>
+          <td>Add the fact ledger alongside structured outcome capture — they are the same shape of work and the same migration</td>
+          <td>Outcome capture stops being a special case and becomes one fact type among several</td>
+        </tr>
+        <tr>
+          <td><strong>Wave 4</strong></td>
+          <td>Add 法人番号 client identity resolution. Guarantee tracking already moved here</td>
+          <td>Small, Japan-native, and makes the client scorecard join reliably across name variants</td>
+        </tr>
+        <tr>
+          <td><strong>Wave 5</strong></td>
+          <td>Shrinks. The event spine already exists from Wave 1; these become queue consumers</td>
+          <td>The largest schedule change in the audit — proactive features get much cheaper</td>
+        </tr>
+        <tr>
+          <td><strong>Wave 6</strong></td>
+          <td>Ask Kanri becomes a semantic layer of typed tools, explicitly not text-to-SQL</td>
+          <td>Avoids shipping something that benchmarks at 10.1% on realistic schemas</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>Net effect on sequencing: Wave 1 gets slightly larger and much better defined, Wave 5 gets substantially smaller, and one silent failure in Wave 2 is caught before it is built.</p>
+</section>
+
+<!-- ═══════════════════════════════════════════════ -->
+<section id="s17">
+  <span class="sec-num">17 / CLAUDE.md additions</span>
+  <h2>Recommended, not applied</h2>
+
+  <p>The file was updated earlier today. These are additions this audit specifically justifies. <strong>No changes made.</strong></p>
+
+  <ul>
+    <li><strong>§2 Architecture Rules — add a fifth rule: "Prefer Postgres."</strong> Kanri does not add a datastore, a queue service, a search service, or a model server while Postgres can do the job. Every candidate for one was evaluated in this audit and rejected. Write it down so the evaluation does not get repeated by every agent that discovers Qdrant.</li>
+    <li><strong>§2 — add: "Never generate SQL from user or model text."</strong> Retrieval goes through typed functions. Both an accuracy and an injection argument, and both are documented.</li>
+    <li><strong>§6 Architecture — document the job-queue pattern</strong> once it exists, so handlers stop being the only place work can happen.</li>
+    <li><strong>§10 Japan — record that Postgres FTS cannot tokenize Japanese and PGroonga is the answer.</strong> This is exactly the class of fact that gets rediscovered painfully every six months.</li>
+    <li><strong>§11 Data Model — when the fact ledger lands, state explicitly that <code>ai_context</code> is derived, not authoritative.</strong> Otherwise a future session will "fix" the prose note by editing it directly.</li>
+    <li><strong>§19 Supabase — list the enabled extensions and why each one is on.</strong> An extension nobody can justify is an extension somebody will remove.</li>
+    <li><strong>§22 Deferred — add: agent frameworks, separate vector databases, graph databases, self-hosted model serving.</strong> With the one-line reason each. These are the four things a capable agent will propose, and the reasons are now researched.</li>
+  </ul>
+
+  <p>One thing this audit does <em>not</em> change: the memory philosophy, the human-in-the-loop stance, and the displacement thesis all survive intact. The ecosystem evidence supports them rather than challenging them.</p>
+</section>
+
+<!-- ═══════════════════════════════════════════════ -->
+<section id="s18">
+  <span class="sec-num">18 / Ten questions</span>
+  <h2>Direct answers</h2>
+
+  <div class="qa">
+    <div class="qa-item">
+      <p class="q">1. The five most interesting technologies discovered?</p>
+      <p class="a">PGroonga (Japanese FTS inside Postgres) · pgmq (durable queue inside Postgres) · pg_net (async HTTP from SQL) · pgvector 0.8.0 iterative scans (filtered vector search that actually works under RLS) · Graphiti's bi-temporal model (as a concept).</p>
+    </div>
+    <div class="qa-item">
+      <p class="q">2. The five most interesting product concepts?</p>
+      <p class="a">Bi-temporal facts with validity intervals · contextual retrieval (context prepended before embedding) · semantic layer instead of text-to-SQL · append-only memory with reconciliation at read time · self-editing recruiter-level memory blocks.</p>
+    </div>
+    <div class="qa-item">
+      <p class="q">3. The single technology to investigate further?</p>
+      <p class="a">PGroonga. It is a hard blocker on Japanese search, it is already available, and validating it takes an afternoon: enable it, index real Japanese interview notes, run queries a recruiter would actually ask.</p>
+    </div>
+    <div class="qa-item">
+      <p class="q">4. The single product idea to investigate further?</p>
+      <p class="a">The bi-temporal fact ledger. It is the difference between a product that stores notes and one that knows things, and it is the only idea here that competitors cannot copy by shipping a feature — they would need the history.</p>
+    </div>
+    <div class="qa-item">
+      <p class="q">5. Anything that could fundamentally change the architecture?</p>
+      <p class="a">Yes — the in-database event spine. It changes Kanri from request-response to event-driven without adding a single service, and it is the precondition for every proactive feature in the roadmap.</p>
+    </div>
+    <div class="qa-item">
+      <p class="q">6. Anything that creates a moat?</p>
+      <p class="a">The fact ledger, because it accrues and cannot be backfilled. Also 法人番号 identity resolution, which is small but structurally unavailable to horizontal competitors. Note that no <em>technology</em> here is a moat — pgvector is available to everyone. The moat is the accumulated, reconciled, timestamped history it stores.</p>
+    </div>
+    <div class="qa-item">
+      <p class="q">7. Anything substantially better for Japanese recruiters?</p>
+      <p class="a">PGroonga, decisively — it is the difference between working and broken. Then 法人番号 and address normalization for entity resolution, and the keigo evaluation set for measuring 推薦文 register quality rather than guessing at it.</p>
+    </div>
+    <div class="qa-item">
+      <p class="q">8. Anything Spott or Headhunt.AI are unlikely to have?</p>
+      <p class="a">Bi-temporal facts over a two-year recruiter relationship: Spott's Conversation Memory captures and summarizes; it does not model change over time. Japanese government master-data integration: too narrow for a horizontal product, and Headhunt.AI stops at first reply so it never needs client identity. And ranking explanations produced by the ranker itself rather than bolted on afterwards.</p>
+    </div>
+    <div class="qa-item">
+      <p class="q">9. What should we absolutely not incorporate?</p>
+      <p class="a">Any graph database. Any separate vector database. Any Python memory framework as a dependency. Any agent framework. JavaScript Japanese tokenizers. OpenCATS. Self-hosted rerankers. Each was genuinely considered; each fails on architectural fit rather than quality.</p>
+    </div>
+    <div class="qa-item">
+      <p class="q">10. What to investigate next, before writing code?</p>
+      <p class="a">Three things, in order: (a) enable PGroonga on a branch and test Japanese retrieval against real notes; (b) test two or three embedding models on genuinely code-switched Kanri notes rather than trusting JMTEB; (c) prototype the fact-extraction prompt on twenty real interactions and check whether the facts it produces are ones a recruiter would actually want queried.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════ -->
+<section id="s19">
+  <span class="sec-num">19 / Next steps</span>
+  <h2>Recommended sequence</h2>
+
+  <ol>
+    <li><strong>Spike PGroonga on a Supabase branch.</strong> Half a day. Enable it, index <code>notes_interview</code>, run ten real recruiter queries in Japanese and English. This either confirms the Wave 2 design or invalidates it before anything is built on top.</li>
+    <li><strong>Embedding model bake-off on real notes.</strong> Half a day. Ruri, multilingual-e5, and one Anthropic-adjacent option against genuinely code-switched Kanri content. The benchmark tables do not measure Kanri's actual data.</li>
+    <li><strong>Prototype fact extraction on twenty interactions.</strong> One day, prompt only, no schema. The question is whether extracted facts are things recruiters would query — if they are not, the ledger is sophistication rather than leverage and should be dropped.</li>
+    <li><strong>Then start Wave 1</strong> with the extension set and the generic job queue, informed by all three.</li>
+  </ol>
+
+  <p>Total: roughly two days of investigation that de-risks the two largest architectural commitments in the roadmap. Given that Wave 2 as originally specified contained a silent Japanese-language failure, that seems a reasonable trade.</p>
+</section>
+
+<!-- ═══════════════════════════════════════════════ -->
+<section id="src" class="sources">
+  <span class="sec-num">— / Sources</span>
+  <h2>References</h2>
+
+  <h4>Postgres substrate</h4>
+  <ol>
+    <li><a href="https://supabase.com/docs/guides/ai/automatic-embeddings">Supabase — Automatic Embeddings</a> (the trigger → pgmq → pg_cron → pg_net pattern)</li>
+    <li><a href="https://github.com/pgroonga/pgroonga">PGroonga</a> · <a href="https://pgroonga.github.io/reference/pgroonga-versus-pg-bigm.html">PGroonga vs pg_bigm</a> · <a href="https://supabase.com/docs/guides/database/extensions/pgroonga">Supabase PGroonga docs</a></li>
+    <li><a href="https://github.com/pgmq/pgmq">pgmq</a> · <a href="https://github.com/supabase/pg_net">pg_net</a> · <a href="https://www.postgresql.org/about/news/pgvector-080-released-2952/">pgvector 0.8.0 release</a></li>
+    <li><a href="https://www.paradedb.com/blog/hybrid-search-in-postgresql-the-missing-manual">ParadeDB — Hybrid search in PostgreSQL</a> · <a href="https://www.tigerdata.com/blog/elasticsearchs-hybrid-search-now-in-postgres-bm25-vector-rrf">Tiger Data — BM25 + vector + RRF</a></li>
+    <li>Live extension catalogue read directly from Supabase project <code>iqotqiqamytpjoafwgzb</code></li>
+  </ol>
+
+  <h4>Memory and retrieval</h4>
+  <ol start="6">
+    <li><a href="https://github.com/getzep/graphiti">Graphiti</a> · <a href="https://blog.getzep.com/beyond-static-knowledge-graphs/">Zep — Beyond static knowledge graphs</a> · <a href="https://www.getzep.com/ai-agents/temporal-knowledge-graph/">Temporal knowledge graphs</a></li>
+    <li><a href="https://github.com/mem0ai/mem0">Mem0</a> · <a href="https://github.com/letta-ai/letta">Letta</a> · <a href="https://particula.tech/blog/agent-memory-frameworks-tested-mem0-zep-letta-cognee-2026">Particula — memory frameworks tested</a></li>
+    <li><a href="https://www.anthropic.com/engineering/contextual-retrieval">Anthropic — Contextual Retrieval</a></li>
+    <li><a href="https://arxiv.org/abs/2502.10739">BASE-SQL</a> and <a href="https://cube.dev/articles/semantic-layer-for-ai-agents-2026">Cube — semantic layer for AI agents</a> (text-to-SQL limits)</li>
+    <li><a href="https://zeroentropy.dev/articles/open-source-alternatives-to-cohere-rerank/">Open-source alternatives to Cohere Rerank</a></li>
+  </ol>
+
+  <h4>Japan</h4>
+  <ol start="11">
+    <li><a href="https://www.houjin-bangou.nta.go.jp/webapi/index.html">法人番号システム Web-API</a> (National Tax Agency)</li>
+    <li><a href="https://github.com/geolonia/normalize-japanese-addresses">geolonia/normalize-japanese-addresses</a> · <a href="https://github.com/cl-tohoku/keigo_transfer_task">cl-tohoku/keigo_transfer_task</a></li>
+    <li><a href="https://github.com/taishi-i/awesome-japanese-nlp-resources">awesome-japanese-nlp-resources</a> · <a href="https://github.com/sbintuitions/JMTEB">JMTEB</a> · <a href="https://arxiv.org/pdf/2409.07737">Ruri: Japanese General Text Embeddings</a></li>
+  </ol>
+
+  <div class="note">
+    <p><strong>On evidence quality.</strong> Extension availability was read directly from the live project, not inferred. Licenses, star counts and activity for Graphiti, Mem0, Letta, pgmq, PGroonga and normalize-japanese-addresses were read from the repositories. Benchmark figures (JMTEB, Spider, temporal retrieval, contextual retrieval) come from published papers and vendor engineering posts and carry the usual caveat that vendors publish benchmarks that favour them — the 63.8% vs 49.0% temporal comparison in particular originates from Zep, Graphiti's author.</p>
+  </div>
+</section>
+
+<footer class="end">
+  Research only · No application code, database, dependencies or CLAUDE.md modified · Recommendations await your selection
+</footer>
+
+</main>
+</div>
