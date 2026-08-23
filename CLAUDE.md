@@ -985,6 +985,7 @@ After regeneration, re-append the custom types block from Section 11.
 | `045_harden_extension_schemas.sql` | Moves `vector` into the `extensions` schema (security linter) |
 | `046_schedule_context_refresh_worker.sql` | Schedules the queue worker on `pg_cron` — turns on automatic memory refresh in production |
 | `047_candidate_retrieval.sql` | `candidates.profile_embedding` (pgvector) + `search_text` (pgroonga-indexed generated column) + `match_candidates_hybrid()` (RRF fusion). `requisition_conditions` gets a `dealbreaker` condition_type and a `weight` column |
+| `048_requisition_conditions_recruiter_source.sql` | Adds `'recruiter'` to `requisition_conditions.source`'s allowed values. Pre-existing bug found verifying Wave 2: `ConditionsCard`'s manual-add insert always sent this value, and the check constraint never allowed it — every manual add through that UI had failed since it was written |
 
 Note: there is no `031`. Numbering skips it.
 
