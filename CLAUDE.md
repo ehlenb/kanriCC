@@ -67,18 +67,21 @@ These rules override everything else. No exceptions.
 
 ### Architecture Rules
 
-These four exist because the codebase has drifted away from them before. They govern how AI capability gets added, not just what it says.
+These five exist because the codebase has drifted away from them before. They govern how AI capability gets added, not just what it says.
 
 - **The Memory Doctrine.** Every candidate, client, and requisition has exactly one reconciled context (`ai_context`), written by `refresh-context`. Handlers read that context. Handlers do **not** re-derive context by querying raw rows. Memory refreshes as a consequence of activity, never as something a recruiter has to remember to press.
 - **No new one-shot AI endpoints.** A new recruiter question is answered by extending the context layer or the agent tool set, not by adding another handler with another button. Adding a handler is always the locally easiest move and is why there are now 41 of them. Adding number 42 requires a written justification in the session log.
 - **Outcome capture is mandatory.** Every terminal process state records a structured reason. Every AI recommendation records whether the recruiter followed it. This data cannot be backfilled — a month not captured is a month permanently lost. Never ship a flow that closes a process without recording why.
 - **Explainability is not optional.** Every AI surface must be able to name the records it read. No exceptions, including for outputs that look obvious. This is both the top recruiter trust barrier and a Japanese regulatory requirement (see Section 10).
+- **Prefer Postgres.** Kanri does not add a datastore, a queue service, a search service, or a model server while Postgres can do the job. `pgvector`, `pgroonga`, `pgmq`, `pg_net`, and `pg_cron` (see Section 19) replace what a vector database, a search service, and a job queue service would otherwise be. Every alternative was evaluated and rejected on evidence, not aesthetics — see `docs/kanri-substrate-audit.html`. Write this down so the evaluation does not get repeated by every agent that discovers Qdrant.
 
 ### Security Rules
 - `ANTHROPIC_API_KEY` — server-side only. Never in any `VITE_` variable. Never imported in `src/`
 - `SUPABASE_SERVICE_ROLE_KEY` — server-side only. Same rule
 - All AI calls go through `api/ai/*.ts` serverless functions. Never call the Anthropic API from the browser
 - RLS enforces team-scoped access — every table includes both `recruiter_id` (owner) and `team_id` (org)
+- **Never generate SQL from user or model text.** Retrieval goes through typed functions (e.g. `match_candidates_hybrid`, Section 19), not model-authored queries. This is both an accuracy argument (text-to-SQL collapses on realistic schemas — GPT-4o scores 86.6% on Spider 1.0 but 10.1% on Spider 2.0, which uses enterprise-shaped schemas) and an injection argument, and it applies directly to any future "Ask Kanri" agentic surface (Wave 6).
+- A queue worker or scheduled job invoked from Postgres (`pg_cron`/`pg_net`) runs outside a user session and outside RLS if it uses the service-role key. It must filter `team_id` explicitly in the query or function itself — RLS provides no protection there. This is the most likely place for a cross-team data leak to be introduced.
 
 ### Code Quality Rules
 - No `as any` casts — fix the type properly or regenerate Supabase types
@@ -128,6 +131,7 @@ VITE_SUPABASE_URL=...          # browser-safe
 VITE_SUPABASE_ANON_KEY=...     # browser-safe
 SUPABASE_SERVICE_ROLE_KEY=...  # server-side only
 ANTHROPIC_API_KEY=...          # server-side only
+VOYAGE_API_KEY=...             # server-side only — candidate profile embeddings (Wave 2). Optional: unset, retrieval degrades to full-text search only
 ```
 
 ---
@@ -393,6 +397,10 @@ This context is essential for writing accurate AI prompts and building correct U
 - BizReach is the dominant sourcing platform in Japan for mid-career professionals — more commonly used than LinkedIn in this market.
 - Market size: the domestic white-collar agency market was ¥449B in FY2024, up 12% year on year, across roughly 30,561 agencies of which about 70% have ten or fewer staff. That last figure is the ICP — approximately 21,000 firms shaped like Torch.
 - Candidates earning ¥7M+ now register with several agencies at once. Speed and exclusivity decide outcomes, which is why `competing_interviews` is a clock and not just a risk badge.
+
+### Postgres full-text search does not work on Japanese
+
+PostgreSQL's built-in full-text search (`to_tsvector`) tokenizes on whitespace and has no Japanese configuration. Japanese does not use spaces between words, so running native Postgres FTS over 職務経歴書 text or Japanese interview notes produces roughly one giant token per sentence — the index builds, the query runs, and the results are silently useless. **`pgroonga` is the answer** (Section 19) — it uses variable-length N-gram indexing and handles Japanese, English, and mixed text in one index. This is the single most important fact for any full-text search work on candidate or client data. Do not reach for `tsvector`/GIN on any column that might contain Japanese.
 - Offer decline (内定辞退) runs roughly 15–20% at large firms and above 30% at SMEs. The most-cited cause is a gap between what was described and what the actual conditions turn out to be.
 - Early turnover inside 3–6 months triggers refund obligations. `placement_guarantee_until` exists for this reason.
 
@@ -583,18 +591,19 @@ That reconciliation is the differentiator. Competitors store transcripts and sum
 
 **`import_batches`** (+ `_contacts`, `_interactions`) — CSV import staging with rollback. See Section 24.
 
-### Known state of the memory layer (August 2026)
+### Known state of the memory layer (updated 2026-08-23, Wave 2)
 
-Documented so no agent assumes this works better than it does:
+Documented so no agent assumes this works better — or worse — than it does. This block was stale for a while (it described the pre-Wave-1 state after Wave 1 had already shipped); corrected here.
 
 - `refresh-context` handles all three entity types correctly.
-- It is triggered **manually** — a button on candidate and client pages, plus `TranscriptPanel`. Nothing rebuilds memory automatically when an interaction is logged, so `ai_context` is stale by default.
-- **9 of 39 handlers read `ai_context`**: `client-meeting-prep`, `interview-prep`, `closing-script`, `pre-call-briefing`, `match-candidates`, `req-strategic-context`, `spec-email`, `submission-note`, and `refresh-context` itself. The other 30 re-derive context from raw rows, violating the Memory Doctrine.
-- **Every one of those 9 truncates it**, via `ai_context.slice(0, 300)` through `slice(0, 600)`. The note is generated at up to 900 tokens (roughly 3,000+ characters), so call sites are reading the first sixth of it and discarding the rest. Reconciled facts near the end of the note — which is where changes and corrections tend to land — never reach the model.
-- `requisitions.ai_context` is written by `refresh-context` and read by **nothing**. (`req-strategic-context` reads `clients.ai_context`, not the requisition's own.)
-- Outcome fields (`closed_reason`, `ccm_outcome`, `placed_fee_jpy`) are captured but only read by `client-rejection-diagnosis`, scoped to a single requisition. There is no cross-database learning.
+- **Refresh is automatic**, not manual. A trigger on `interactions` insert enqueues a job (`pgmq`), drained every minute by `pg_cron`, dispatched to `refresh-context` via `pg_net` (migrations 044/046). The manual "Refresh" buttons on candidate/client pages and `TranscriptPanel` still exist and both paths coexist without conflict.
+- **9 of 39 handlers read `ai_context`**: `client-meeting-prep`, `interview-prep`, `closing-script`, `pre-call-briefing`, `match-candidates`, `req-strategic-context`, `spec-email`, `submission-note`, and `refresh-context` itself (which only writes it). The other 30 still re-derive context from raw rows, violating the Memory Doctrine — extending to them remains open.
+- **Truncation is gone.** None of the 9 slice `ai_context` anymore; all interpolate the full string.
+- `candidates.profile_embedding` (pgvector, Wave 2) is now computed in the same job that refreshes `ai_context`, so the two stay in sync automatically.
+- `requisitions.ai_context` is written by `refresh-context` and still read by **nothing**. (`req-strategic-context` reads `clients.ai_context`, not the requisition's own.) Still open.
+- Outcome fields (`closed_reason`, `ccm_outcome`, `placed_fee_jpy`) are captured but only read by `client-rejection-diagnosis`, scoped to a single requisition. There is no cross-database learning. Still open — this is Wave 4.
 
-The highest-leverage work available in this codebase: make refresh automatic, stop truncating, extend to the remaining 30 handlers, and give the requisition context a reader.
+Remaining highest-leverage work: extend `ai_context` reads to the other 30 handlers, give the requisition context a reader, and build the explainability panel (Wave 1, still open — see the roadmap below).
 
 ### Custom TypeScript Types (append after every `gen types` run)
 
@@ -850,8 +859,8 @@ Before adding a 42nd, read the Architecture Rules in Section 2. The answer is us
 
 | Endpoint | Input | Output |
 |---|---|---|
-| `advanced-search` | `requisition_id`, `client_id`, `threshold`, `use_key_criteria` | Scored candidate list. **Known limitation: loads every eligible candidate into one prompt. This does not scale and will fail, not degrade, on a real agency database.** |
-| `match-candidates` | `requisition_id`, `recruiter_id` | Candidate matches for a requisition. Reads `ai_context`. |
+| `advanced-search` | `requisition_id`, `client_id`, `threshold`, `use_key_criteria` | Scored candidate list. Stage 1 retrieval (hybrid vector + full-text, `candidate-retrieval.ts`) bounds the candidate set before Claude ranks it — see Wave 2 in the roadmap below. |
+| `match-candidates` | `requisition_id`, `recruiter_id` | Candidate matches for a requisition. Reads `ai_context`. Same two-stage retrieval as `advanced-search`. |
 
 ### Extraction and formatting
 
@@ -900,6 +909,20 @@ Current model split: 30 handlers on `claude-sonnet-5`, 15 call sites on `claude-
 - **Storage bucket:** `resumes` — private, PDF only
 - **Storage path pattern:** `{team_id}/{candidate_id}/{timestamp}_{filename}`
 - **Buckets cannot be created via SQL migrations** — must use Supabase Dashboard UI
+
+### Enabled extensions
+
+An extension nobody can justify is an extension somebody will remove — so the reason each one is on is recorded here, not just the fact of it (from `docs/kanri-substrate-audit.html`).
+
+| Extension | Schema | Why it's on |
+|---|---|---|
+| `vector` (pgvector) | `extensions` | Semantic retrieval — `candidates.profile_embedding`, `match_candidates_hybrid` (migration 047) |
+| `pgroonga` | `public` | Japanese/CJK full-text search — Postgres FTS cannot tokenize Japanese (Section 10). `candidates.search_text` |
+| `pgmq` | `pgmq` | Durable job queue with visibility-timeout retries — the automatic context-refresh queue (migration 044) |
+| `pg_net` | `public` | Async HTTP from inside Postgres — lets the refresh trigger call a Vercel handler without blocking the interaction insert. Fire-and-forget; the queue, not the HTTP response, is the durability guarantee |
+| `pg_cron` | `pg_catalog` | Drains the context-refresh queue every minute (migration 046) |
+
+Do not add a new extension without recording why here in the same migration.
 
 ### Regenerating TypeScript Types
 
@@ -958,6 +981,10 @@ After regeneration, re-append the custom types block from Section 11.
 | `041_process_last_activity_default.sql` | Default for the above |
 | `042_candidate_last_interaction_sync.sql` | Trigger + backfill for `candidates.last_interaction_at`. Fixes the "Last touch" filter and all staleness logic. |
 | `043_resumes_bucket_allow_docx.sql` | Storage bucket accepts .docx |
+| `044_automatic_context_refresh.sql` | Enables `vector`/`pgroonga`/`pgmq`/`pg_net`/`pg_cron`; trigger on `interactions` insert enqueues a context-refresh job, drained by a worker function (not yet scheduled) |
+| `045_harden_extension_schemas.sql` | Moves `vector` into the `extensions` schema (security linter) |
+| `046_schedule_context_refresh_worker.sql` | Schedules the queue worker on `pg_cron` — turns on automatic memory refresh in production |
+| `047_candidate_retrieval.sql` | `candidates.profile_embedding` (pgvector) + `search_text` (pgroonga-indexed generated column) + `match_candidates_hybrid()` (RRF fusion). `requisition_conditions` gets a `dealbreaker` condition_type and a `weight` column |
 
 Note: there is no `031`. Numbering skips it.
 
@@ -1008,6 +1035,10 @@ Do not suggest, scaffold, or partially implement these unless explicitly instruc
 | Offer panel action buttons | UI shells exist, logic not yet wired |
 | Real-time collaboration (live cursors, comments, @mentions) | Deferred |
 | Mobile app | Not planned. A mobile voice-capture route is worth having; a second full client is not |
+| A separate vector database (Qdrant, Weaviate, Pinecone) | **Do not build.** `pgvector` inside the RLS boundary is simpler and keeps candidate text inside Postgres, which matters under the APPI posture in Section 10 — shipping candidate text to a third-party vector store is a data-transfer question Kanri does not need to have. See Section 2's "Prefer Postgres" rule |
+| A graph database (Neo4j, FalkorDB, Neptune) | **Do not build.** Kanri's relationships are already correctly modelled as foreign keys with RLS enforcing team scope on every one of them. A graph database would re-encode that in a second store that must be kept in sync — the same "permanent sync liability" argument that settled the displacement question in Section 1, applied internally. Graphs earn their keep on unbounded-depth traversal over schemas that change shape; Kanri's traversals are shallow and known in advance |
+| An agent framework (LangChain, LangGraph, CrewAI, etc.) | **Do not build.** Kanri's handlers are direct Anthropic SDK calls and are perfectly legible. A framework adds indirection, version churn, and prompt opacity to solve a problem Kanri does not have |
+| Self-hosted model serving (embedding models, cross-encoder rerankers) | **Do not build.** Model weights and GPU inference do not belong in a Vercel serverless function. Call a managed API (Voyage for embeddings) or use Claude itself (it already reranks well when given a bounded candidate set and asked to score with reasons — see `match-candidates.ts`/`advanced-search.ts`) |
 
 ### Shipped — remove from any "deferred" reasoning
 
@@ -1247,6 +1278,16 @@ Active development resumed June 2026. All sessions below are committed and pushe
 - Resolved a standing contradiction between Sections 5 and 9: personal priority queue and team activity feed are separate surfaces, and teammate items must never enter the personal queue.
 - Displacement thesis re-examined and reaffirmed with the reasoning recorded, so it does not get relitigated.
 
+**Wave 2 — retrieval layer (2026-08-23)**
+- Migration 047: `candidates.profile_embedding` (pgvector, HNSW index) + `candidates.search_text` (generated column, `pgroonga` index) + `match_candidates_hybrid()` SQL function (reciprocal rank fusion over the two). `requisition_conditions` gets a `dealbreaker` condition_type and a `weight` (1-10) column, backfilled for existing rows.
+- `lib/embeddings.ts` — Voyage AI (`voyage-3.5`) wrapper via raw `fetch`, no SDK. Returns `null` on missing key or failure; every caller must degrade gracefully.
+- `refresh-context.ts`'s `refreshCandidate()` now computes `profile_embedding` in the same job that already refreshes `ai_context` on every interaction insert — no new trigger.
+- New `lib/ai-handlers/lib/candidate-retrieval.ts` — shared two-stage retrieval helper (not a new AI endpoint). `advanced-search.ts` and `match-candidates.ts` both call it instead of loading the whole team's candidate table, fixing the scaling failure Section 18 used to flag.
+- Along the way: `match-candidates.ts` was filtering candidates by `recruiter_id` (owner), hiding teammates' candidates from a job's matches — contradicts the multi-user rule in Section 5. Fixed as a side effect of team-scoping the new retrieval helper. `advanced-search.ts`'s candidate and client-process queries had no `team_id` filter at all despite running under the service-role key (bypasses RLS) — also fixed.
+- Regenerated `src/integrations/supabase/types.ts` (stale since migration 030) — incidentally resolved the `recall_bot_sessions` `@ts-expect-error` noted in Known Issues below.
+- This work incorporated `docs/kanri-substrate-audit.html`, a same-day open-source discovery audit that had been written but never folded back into this file (its own §17 says so explicitly). Its corrections: `pgroonga` not native Postgres FTS (Section 10), reciprocal rank fusion not a plain union for combining vector + full-text results (no BM25 extension on Supabase), and Claude-as-reranker validated over a paid reranking API. Its unmerged CLAUDE.md recommendations are now folded in: the "Prefer Postgres" rule and the SQL-injection rule in Section 2, the extension list in Section 19, and the deferred-technology entries in Section 22.
+- `scripts/backfill-candidate-embeddings.ts` — one-off backfill for existing seed candidates, needs `VOYAGE_API_KEY` to run.
+
 ---
 
 ### Strategy review — August 2026 (decisions in force)
@@ -1263,9 +1304,13 @@ A full discovery and competitive review was run on 2026-08-23. Findings, the 34-
 
 Sequenced by dependency. Each wave assumes the one above it.
 
-**Wave 1 — substrate.** Automatic context refresh on interaction insert. Universal context read across all handlers, without truncation. Explainability panel. Duplicate-submission guard. Begin decomposing the two mega-files alongside whatever else touches them.
+**Wave 1 — substrate. Mostly done (2026-08-23).** Automatic context refresh on interaction insert is live (migrations 044/046, `lib/job-handlers/process-context-refresh-queue.ts`) and the 9 handlers that read `ai_context` no longer truncate it. Still open: explainability panel (no UI exists, and `ai_context_log` doesn't record which records were read, only that a refresh happened), duplicate-submission guard (done — warning in `AddToProcessModal`), and mega-file decomposition (not started — `candidates.$id.tsx` is now 5,640 lines, up from 5,579).
 
-**Wave 2 — retrieval.** pgvector over `notes_interview` and `ai_context` plus Postgres full-text search. Two-stage matching (retrieve, then rank) to replace the whole-table prompt. Promote `requisition_conditions` to the matching spine with must / nice / dealbreaker weights.
+**Wave 2 — retrieval. Done (2026-08-23).** Built as hybrid pgvector + `pgroonga` (not native Postgres full-text search, which cannot tokenize Japanese — see Section 10 and `docs/kanri-substrate-audit.html` §3), fused with reciprocal rank fusion in `match_candidates_hybrid()` (migration 047). `advanced-search.ts` and `match-candidates.ts` both call the new `lib/ai-handlers/lib/candidate-retrieval.ts` helper for a bounded, relevance-ranked candidate set instead of loading the whole team's candidate table. `requisition_conditions` now has a `dealbreaker` tier and a `weight` (1-10) column. Scope decisions, so a future session doesn't re-litigate them:
+  - Only `candidates.profile_embedding` is a stored embedding column — computed as a side effect of the existing context-refresh job (`refreshCandidate()` in `refresh-context.ts`), not a new trigger. Requisition query text is embedded live at search time instead of stored, since it changes more often and has no refresh trigger of its own.
+  - Embedding provider is **Voyage AI** (`voyage-3.5`, `output_dimension: 1024`) — chosen by the user, **not independently validated** against Kanri's actual code-switched JP/EN content. `docs/kanri-substrate-audit.html` §12 flags this as an open question (Japanese-specialist models like Ruri may or may not beat multilingual ones here) that nobody has tested on real notes. Revisit if match quality looks off.
+  - `requisition_conditions.weight` is AI/default-assigned (`extract-conditions.ts`, and per-type defaults in `ConditionsCard`), not manually editable — no weight slider in v1.
+  - `VOYAGE_API_KEY` is unset in this environment as of this writing. Everything degrades safely without it (embedding write/read no-ops, retrieval falls back to full-text-only, then to a bounded fetch) — see `scripts/backfill-candidate-embeddings.ts`, which needs to be run once the key is added, to populate embeddings for the existing seed candidates.
 
 **Wave 3 — flywheel and Japan wedge.** Structured outcome capture on every terminal process state. Tasks and follow-ups as a real entity, replacing `localStorage`. 推薦文 generator. Keigo register control at generation time.
 
@@ -1292,10 +1337,10 @@ Target: ~20 clients, ~150+ candidates across every stage including Placed and Cl
 - Per-contact AI summary (needs design decision on where/how AI reads contact notes)
 - Interaction editing (assess scope before starting)
 - PDF export for ROI calculator (low priority — standalone HTML file is the demo path)
-- `supabase gen types` has not been re-run since migration 030; the `recall_bot_sessions` query carries a `@ts-expect-error`
 - `placement_guarantee_until` exists on candidates and nothing reads it. Japan's 3–6 month early-turnover refund exposure makes this worth wiring
 - Dashboard done/snooze state is per-browser `localStorage` — invisible to teammates, lost on device change. Fixed by the Wave 3 tasks entity
-- Two mega-files (`candidates.$id.tsx` 5,579 lines, `clients.$id.tsx` 4,309 lines) are 51% of the frontend. Decompose incrementally, never in one pass
+- Two mega-files (`candidates.$id.tsx` 5,640 lines, `clients.$id.tsx` 4,309 lines) are over half the frontend. Decompose incrementally, never in one pass
+- **`VOYAGE_API_KEY` is unset, both locally and in Vercel production.** Candidate profile embeddings (Wave 2) no-op without it — matching still works, just full-text-only, no semantic retrieval. Needs a Voyage AI account and API key, then `scripts/backfill-candidate-embeddings.ts` run once to populate the existing seed candidates. Embedding model choice (Voyage vs. a Japanese-specialist alternative) was also never validated on real Kanri notes — see the Wave 2 roadmap entry above
 - **Recall.ai note-taker was never actually finished.** `RECALL_API_KEY` is unset both locally and in Vercel production — nobody has signed up at recall.ai and added a key anywhere. `recall_bot_sessions` has zero rows; the feature has never been exercised end to end. The `APP_URL` half of this was fixed 2026-08-23 (it silently defaulted to an unrelated third-party domain — see that commit), but the feature still cannot be used until a real Recall.ai API key is obtained and added to both `.env` and Vercel. **Deliberately deferred until after the roadmap waves are done** — flag this to the user once Wave 6 is complete; they asked to be reminded then, not before.
 
 ---
