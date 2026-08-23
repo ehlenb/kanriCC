@@ -32,6 +32,16 @@ It is:
 
 **Why not "sit on top" long-term:** Early framing described Kanri as a layer above existing ATS systems, with ATS integration deferred post-pilot. In practice, the dashboard, pipeline stage, and activity timeline already function as the actual source of truth for what a recruiter does day-to-day — Vincere/Bullhorn become a stale system nobody updates once Kanri is faster to use. A permanent "sits on top" architecture also implies building and maintaining sync with every customer's ATS indefinitely, which is a harder, more open-ended engineering burden than being the system of record directly. Displacement is the honest end state; the augment framing was an onboarding strategy, not the product's identity.
 
+**Displacement is settled. Do not reopen it.** This decision was re-examined in the August 2026 strategy review and reaffirmed. Three reasons, in order of weight:
+
+1. **Firms do not want to buy several systems.** A boutique with four consultants will not pay for an ATS, a sourcing tool, a note-taker, and an intelligence layer. All of Kanri's value has to be reachable in one place, or the buyer picks the one product that does the most and Kanri is the thing that gets cut.
+2. **A companion product loses to whoever consolidates.** Every "layer on top" eventually competes with the platform it sits on, from a weaker position, because the platform owns the data and the login.
+3. **Permanent sync is an unbounded liability.** Building and maintaining bidirectional integration with every customer's ATS is more engineering, forever, than being the system of record once.
+
+The competitive read supports this. Sourcing-first platforms (Headhunt.AI and similar) deliberately stop at first reply and hand off to an ATS. That leaves the entire span from buy-in through placement — where agency money is actually made and where Kanri's data model already lives — owned by nobody. Kanri takes that span, and then takes the record.
+
+A pilot customer may run their old ATS in parallel during evaluation. That is an onboarding accommodation with an end date, not an architecture. Build one-time import; never build ongoing two-way sync.
+
 **The target customer:** Boutique and mid-sized agency recruiting firms. Initial focus on Japan bilingual and gaishikei recruitment (placing bilingual candidates at foreign firms in Japan). Reference companies: Torch (Vincere ATS, 4 consultants), Robert Walters Japan, Hays, Michael Page, RGF.
 
 ---
@@ -50,6 +60,19 @@ These rules override everything else. No exceptions.
 - AI never generates or modifies anything explicitly marked "recruiter judgment only"
 - AI output is always a starting point for recruiter judgment, never a final answer
 - Recruiters must be able to edit all AI-generated output inline before using it
+
+**Test for "recruiter judgment only":** a field is recruiter-judgment-only if either (a) a wrong value would embarrass the recruiter in front of a client or candidate, or (b) it records an observation only a human present in the room could have made. When unsure, treat the field as recruiter-judgment-only and flag it.
+
+**The editability rule is a trust doctrine, not a UI preference.** Recruiters adopt AI output they can audit and correct, and abandon output they cannot. If a feature makes inline editing awkward, redesign the feature — do not drop the editing. Any exception requires an explicit decision recorded in this file.
+
+### Architecture Rules
+
+These four exist because the codebase has drifted away from them before. They govern how AI capability gets added, not just what it says.
+
+- **The Memory Doctrine.** Every candidate, client, and requisition has exactly one reconciled context (`ai_context`), written by `refresh-context`. Handlers read that context. Handlers do **not** re-derive context by querying raw rows. Memory refreshes as a consequence of activity, never as something a recruiter has to remember to press.
+- **No new one-shot AI endpoints.** A new recruiter question is answered by extending the context layer or the agent tool set, not by adding another handler with another button. Adding a handler is always the locally easiest move and is why there are now 41 of them. Adding number 42 requires a written justification in the session log.
+- **Outcome capture is mandatory.** Every terminal process state records a structured reason. Every AI recommendation records whether the recruiter followed it. This data cannot be backfilled — a month not captured is a month permanently lost. Never ship a flow that closes a process without recording why.
+- **Explainability is not optional.** Every AI surface must be able to name the records it read. No exceptions, including for outputs that look obvious. This is both the top recruiter trust barrier and a Japanese regulatory requirement (see Section 10).
 
 ### Security Rules
 - `ANTHROPIC_API_KEY` — server-side only. Never in any `VITE_` variable. Never imported in `src/`
@@ -125,8 +148,11 @@ Kanri is a team product. Multiple recruiters at the same agency share one worksp
 - A recruiter can see all candidates, clients, and requisitions owned by teammates
 - A recruiter can see interactions logged by teammates on shared accounts
 - Processes show which recruiter owns them
-- The dashboard surfaces priority actions for the logged-in recruiter only — not the whole team's queue
+- The dashboard **priority queue** surfaces actions for the logged-in recruiter only — never the whole team's queue. That queue is a personal to-do list and stays personal.
+- Team activity is a **separate surface** from the priority queue. A recruiter should be able to see what teammates logged without those items entering their own action list. This is not yet built; it is the main unshipped piece of the multi-user promise.
 - Teammates' activity appears in timelines with a clear "logged by [name]" attribution
+
+**Note for agents:** these two rules used to read as a contradiction — "the primary value is seeing teammate activity" against "the dashboard is scoped to the logged-in recruiter only." They are not in conflict. Personal queue and team feed are different surfaces. Do not resolve the tension by mixing teammate items into the priority list.
 
 ### What Multi-User Does NOT Mean in MVP
 
@@ -150,28 +176,45 @@ RLS policies enforce: `team_id = auth.jwt() -> team_id`. All team members can re
 
 ### Folder Structure
 
+Handler logic lives in `lib/`, **not** in `api/`. The files under `api/` are thin Vercel entry points that dispatch into `lib/` — this keeps Vercel's serverless function count down. `api/ai.ts` routes `?type=<name>` to one of 39 handlers in `lib/ai-handlers/`.
+
 ```
 src/
   routes/           # TanStack Router file-based routes
+    _authenticated/ # Guarded app routes
+    addin/          # Outlook add-in task pane
   components/
     ui/             # shadcn/ui primitives — never modify directly
-    shared/         # Reusable domain-aware components (Card, StageBadge, etc.)
-    [feature]/      # Feature-specific components (candidates/, clients/, jobs/, dashboard/)
+    shared/         # Reusable domain-aware components (Card, StageBadge, ActivityTimeline…)
+    candidate/      # Candidate-specific components
   lib/
     candidate-utils.ts   # All candidate domain utility functions
-    supabase.ts          # Supabase client (browser)
-    supabase-server.ts   # Supabase client (service role, server-side only)
-  hooks/            # Custom React hooks — one concern per hook
+    auth-context.tsx     # Auth provider
+    pdf-utils.ts
+  hooks/            # Custom React hooks — one concern per hook. CURRENTLY EMPTY (see §15)
   integrations/
     supabase/
+      client.ts     # Supabase client (browser)
       types.ts      # Generated types + custom app types appended below
+  locales/          # en.json / ja.json
+  i18n.ts
   styles.css        # Design tokens as CSS custom properties
-api/
-  ai/               # Vercel serverless AI handlers
+lib/                # ← all server-side handler logic
+  ai-handlers/      # 39 AI handlers
+  oauth-handlers/   # Gmail + Microsoft Graph connect/exchange/status/disconnect
+  import-handlers/  # CSV import: suggest-mapping, commit, rollback, history
+  addin-handlers/   # Outlook add-in: match-sender, log-email
+  webhook-handlers/ # Recall.ai transcript webhook
+api/                # thin Vercel entry points only
+  ai.ts             # dispatch table → lib/ai-handlers
+  ai/               # 2 standalone handlers (polish-notes, translate-interaction)
+  oauth.ts  import.ts  addin.ts  webhooks.ts  send-email.ts  extract-text.ts
 supabase/
   migrations/       # Sequential SQL migration files
 scripts/
   dev-api.ts        # Local dev API server
+tests/
+  ai-handlers-structure.test.ts   # npm test — see §18
 ```
 
 ### State Management
@@ -265,6 +308,23 @@ curl https://api.anthropic.com/v1/models \
 - `client_contacts.notes` — recruiter observation only
 - Any field or section explicitly marked "recruiter judgment only"
 
+### What Kanri Automates vs What Stays Human
+
+The product thesis is that AI removes the work *between* the recruiter's judgment and the outcome. It does not move into the judgment. This table is the operational version of that sentence. If a proposed feature belongs in the right column, do not build it.
+
+| Kanri automates | Stays human, permanently |
+|---|---|
+| Capturing what was said (calls, email, meetings) | Deciding whether to take a brief |
+| Retrieving what is already known | Judging whether a candidate is telling the truth about why they are leaving |
+| Reconciling contradictory facts across time | Choosing which of two good candidates to push |
+| Drafting messages, notes, and documents | Reading the room on a counteroffer |
+| Preparing the recruiter before a conversation | Deciding what a client is actually willing to hear |
+| Reminding, sequencing, and prioritising work | Delivering bad news |
+| Detecting patterns across outcomes | Setting expectations with a candidate about their market value |
+| Flagging risk and surfacing opportunity | Every final decision, without exception |
+
+Two consequences. **Never auto-send anything** — no email, no message, no scheduling on the recruiter's behalf. And **never present AI output as a conclusion**; it is a draft the recruiter edits, approves, and owns.
+
 ### Positioning Framework (NFAR — never surface this label)
 
 Every positioning talking point implicitly follows: Need → Feature → Action → Result.
@@ -331,6 +391,37 @@ This context is essential for writing accurate AI prompts and building correct U
 - Bilingual talent (Japanese + English at business level or above) is extremely scarce — under 10% of the professional workforce has this combination.
 - Agency fees are 30–35% of OTE, significantly higher than global averages. This reflects the difficulty of finding qualified bilingual talent.
 - BizReach is the dominant sourcing platform in Japan for mid-career professionals — more commonly used than LinkedIn in this market.
+- Market size: the domestic white-collar agency market was ¥449B in FY2024, up 12% year on year, across roughly 30,561 agencies of which about 70% have ten or fewer staff. That last figure is the ICP — approximately 21,000 firms shaped like Torch.
+- Candidates earning ¥7M+ now register with several agencies at once. Speed and exclusivity decide outcomes, which is why `competing_interviews` is a clock and not just a risk badge.
+- Offer decline (内定辞退) runs roughly 15–20% at large firms and above 30% at SMEs. The most-cited cause is a gap between what was described and what the actual conditions turn out to be.
+- Early turnover inside 3–6 months triggers refund obligations. `placement_guarantee_until` exists for this reason.
+
+### How Japanese Boutiques Actually Operate
+
+Two operating models, and Kanri's customer is the first one:
+
+- **両手型 (ryōte-gata, dual desk)** — one consultant owns both the client and the candidate side. Standard at boutiques and at industry-specialist firms. Information does not fragment, but the model's named failure mode is **属人化 (zokujinka)**: knowledge trapped in one person's head, so the business stops when they are out, overloaded, or leave.
+- **片手型 (katate-gata, RA/CA split)** — separate client-facing (RA) and candidate-facing (CA) consultants. Standard at large firms. Enables volume; fails on handoffs and duplicate candidate approaches.
+
+**Why this matters to the product:** 属人化 is the defining operational problem of Kanri's exact target market, and Kanri's reconciled memory layer is the direct answer to it. Say so. The stated tool requirement for 両手型 firms is single-screen visibility across jobs, candidates, matches, and revenue. Cross-client submission visibility (which client has already seen this candidate) is treated as critical infrastructure by both models.
+
+Japanese agencies adopting AI report 1.3–1.8× expansion in per-consultant interview capacity. The three tasks named as the highest-value AI targets are: resume screening, 面談議事録 (interview minutes), and **推薦文作成 (recommendation-letter writing)**.
+
+### Japan-Specific Documents
+
+These are real artifacts with conventional forms. Getting them wrong reads as a foreign product with a Japanese menu.
+
+- **推薦文 (suisenbun)** — a formal recommendation letter written by the consultant and submitted with the candidate's 履歴書 and 職務経歴書 at document-screening stage. Conventional five-part structure: opening greeting acknowledging the relationship → candidate basics (name, age, status, desired start, salary expectation) → character, skills, and achievements with concrete numbers → reason for changing jobs → forward-looking close. Written in keigo. PREP-structured. Specific numbers beat adjectives; overstatement that the candidate cannot live up to in interview is the classic failure. This is **not** the same artifact as `submission-note`, which produces an English client email.
+- **職務経歴書 (shokumu keirekisho)** — the Japanese career-history document. Agencies routinely reformat and correct (添削) a candidate's version before submission. Standard format, not a free-form CV.
+- **Register matters at generation time, not translation time.** 敬語 (keigo) / 丁寧語 / casual are different documents, not different translations. Generic models trained mostly on English get keigo conjugation wrong. Choose register when generating; do not generate in English and translate after.
+
+### Regulatory Posture (APPI + 職業安定法)
+
+Two laws govern this. Both point the same direction, and Kanri's existing human-in-the-loop design already complies. State it explicitly in the product, because in Japan it is a sales asset and not just a constraint.
+
+- **職業安定法 Art. 5-4** — using AI output directly as a hiring decision is a legal exposure. The operating rule Japanese counsel gives is: **AI produces drafts, humans make decisions.** This is exactly Section 8's table.
+- **APPI (個人情報保護法)** — the 2026 amendment was promulgated 17 July 2026. It loosens consent for some AI-training uses while sharply tightening enforcement, introducing a surcharge regime for serious violations affecting more than 1,000 individuals.
+- **Practical consequence:** import and process candidate data the customer already lawfully holds. Do **not** build scraping or unlicensed candidate-data accumulation. Operators holding large Japanese candidate databases do so under a registered provider licence (第4号特定募集情報等提供事業者); Kanri is not that and should not act like it.
 
 ### Candidate Psychology from Domestic Companies
 
@@ -434,7 +525,15 @@ Company accounts. `company_name`, `industry`, `hq_country`, `kk_entity` (KK = Ja
 People at client companies. `name`, `role` (ContactRole), `title`, `notes` (recruiter only — AI never writes here), `relationship_score` (1–5), `bypass_hr_warning` (bool), `is_primary` (bool).
 
 ### `requisitions`
-Open roles. `title`, `client_id`, `salary_min`, `salary_max`, `salary_stretch`, `salary_range_text` (free-text comp description), `location`, `urgency_date` (target close date), `is_open`, `is_backfill`, `hiring_manager_id` (FK to client_contacts), `strategic_context`, `owner_recruiter_id`, `team_id`.
+Open roles. `title`, `client_id`, `salary_min`, `salary_max`, `salary_stretch`, `salary_range_text` (free-text comp description), `location`, `urgency_date` (target close date), `is_open`, `is_backfill`, `hiring_manager_id` (FK to client_contacts), `strategic_context`, `recruiter_notes`, `owner_recruiter_id`, `team_id`.
+
+Intake intelligence (captured at job intake, read by matching and prep handlers): `jd_text`, `jd_url`, `why_role_opened`, `ideal_candidate_notes`, `industry_must_haves`, `japanese_level_required`, `english_level_required`, `age_min`, `age_max`, `open_to_foreign_candidates`, `internal_candidate`, `other_agencies`, `other_agency_names`, `flexibility_notes`, `target_start_date`, `urgency`.
+
+Hiring manager intelligence (recruiter observation about how this HM behaves): `hm_communication_style`, `hm_priority_beyond_jd`, `hm_rejection_patterns`, `hm_can_meet_in_person`.
+
+Interview process: `interview_rounds`, `interview_steps`, `interview_structure` (JSON), `interview_notes`, `has_skills_test`, `skills_test_notes`.
+
+Memory: `ai_context`, `ai_context_updated_at` — see Memory & Intelligence Tables below.
 
 ### `processes`
 Candidate × requisition pairing. The core object driving the pipeline.
@@ -457,8 +556,45 @@ Tab color by `coverage_type`:
 ### `interactions`
 Activity log — calls, emails, meetings. `candidate_id` (nullable), `client_id` (nullable), `contact_id` (nullable FK to client_contacts — which specific contact was involved), `primary_party` ('candidate' | 'client' — who you were speaking with), `interaction_type` (call/email/meeting/note/job spec sent/linkedin message/other), `summary`, `full_notes`, `interacted_at`, `recruiter_id` (who logged it), `team_id`.
 
+Also on `interactions`: `requisition_id` (nullable — links activity to a specific job), `process_id` (nullable), `direction` (inbound/outbound), `is_future` + `scheduled_at` (upcoming events render above the past feed), `transcript_raw`, `full_notes_translated` + `translated_lang` (cached JP/EN translation), `triggers_context_refresh` (marks an interaction as significant enough to rebuild entity memory).
+
 Always display "logged by [recruiter name]" on teammate interactions in timelines.
 Cross-linking: an interaction can link to both a `candidate_id` and a `client_id` — it will appear on both timelines. Use `contact_id` to link to a specific client contact, and `primary_party` to designate who you spoke with.
+
+### Memory & Intelligence Tables
+
+These are the product's core asset and were previously undocumented. Read the Memory Doctrine in Section 2 before touching any of them.
+
+**`ai_context` columns** — present on `candidates`, `clients`, and `requisitions`, each paired with `ai_context_updated_at`. Holds one reconciled narrative of everything currently known about that entity, written by the `refresh-context` handler.
+
+How `refresh-context` builds it: fetch the entity plus its last 30 interactions, bucket each interaction by age as `CURRENT` (≤30 days) / `RECENT` (≤90 days) / `BACKGROUND` (older), then ask Claude to write a senior recruiter's reference note where recent facts override older ones and **contradictions are stated explicitly** — "salary expectation updated to ¥16M (was ¥14M at registration)."
+
+That reconciliation is the differentiator. Competitors store transcripts and summarise them; Kanri stores resolved current state plus the correction history. Do not "simplify" this into a summary.
+
+**`ai_context_log`** — one row per refresh: `entity_type`, `entity_id`, `recruiter_id`, `triggered_by_interaction_id`, `tokens_used`, `created_at`. Cost tracking and audit trail.
+
+**`requisition_conditions`** — extracted job criteria: `condition_text`, `condition_type`, `priority_rank`, `source`. Populated by `extract-conditions` from JD text. Intended as the spine of matching (must / nice / dealbreaker); currently underused.
+
+**`client_package_intelligence`** — accumulated comp knowledge per client: `base_pct_of_total`, `bonus_type`, `last_bonus_payout_pct`, `has_rsu`, `rsu_notes`, `confirmed_stretch`. This is institutional knowledge that gets more valuable with every deal.
+
+**`candidate_lists`** — saved shortlists: `name`, `candidate_ids[]`, `requisition_id` (nullable), `source`, `visibility`.
+
+**`recall_bot_sessions`** — Recall.ai note-taker sessions: `bot_id`, `candidate_id`, `meeting_url`, `status` (invited/in_progress/done/failed).
+
+**`import_batches`** (+ `_contacts`, `_interactions`) — CSV import staging with rollback. See Section 24.
+
+### Known state of the memory layer (August 2026)
+
+Documented so no agent assumes this works better than it does:
+
+- `refresh-context` handles all three entity types correctly.
+- It is triggered **manually** — a button on candidate and client pages, plus `TranscriptPanel`. Nothing rebuilds memory automatically when an interaction is logged, so `ai_context` is stale by default.
+- **9 of 39 handlers read `ai_context`**: `client-meeting-prep`, `interview-prep`, `closing-script`, `pre-call-briefing`, `match-candidates`, `req-strategic-context`, `spec-email`, `submission-note`, and `refresh-context` itself. The other 30 re-derive context from raw rows, violating the Memory Doctrine.
+- **Every one of those 9 truncates it**, via `ai_context.slice(0, 300)` through `slice(0, 600)`. The note is generated at up to 900 tokens (roughly 3,000+ characters), so call sites are reading the first sixth of it and discarding the rest. Reconciled facts near the end of the note — which is where changes and corrections tend to land — never reach the model.
+- `requisitions.ai_context` is written by `refresh-context` and read by **nothing**. (`req-strategic-context` reads `clients.ai_context`, not the requisition's own.)
+- Outcome fields (`closed_reason`, `ccm_outcome`, `placed_fee_jpy`) are captured but only read by `client-rejection-diagnosis`, scoped to a single requisition. There is no cross-database learning.
+
+The highest-leverage work available in this codebase: make refresh automatic, stop truncating, extend to the remaining 30 handlers, and give the requisition context a reader.
 
 ### Custom TypeScript Types (append after every `gen types` run)
 
@@ -515,9 +651,14 @@ Stage badge logic lives exclusively in `stageBadgeVariant()` in `candidate-utils
 | `/candidates` | `.../candidates.tsx` | Candidate list with filters |
 | `/candidates/$id` | `.../candidates.$id.tsx` | Candidate detail (4 tabs) |
 | `/clients` | `.../clients.tsx` | Client list |
-| `/clients/$id` | `.../clients.$id.tsx` | Client detail (3 tabs) |
+| `/clients/$id` | `.../clients.$id.tsx` | Client detail (5 tabs) |
 | `/jobs` | `.../jobs.tsx` | Open requisitions + revenue forecast |
+| `/jobs/$id` | `.../jobs.$id.tsx` | Single requisition detail |
+| `/settings` | `.../settings.tsx` | Gmail / Outlook OAuth connect + disconnect |
 | `/advanced-search` | `.../advanced-search.tsx` | Three-panel AI candidate search — not a nav item, accessed via candidates page |
+| `/addin/taskpane` | `routes/addin/taskpane.tsx` | Outlook add-in task pane — see Section 24 |
+
+Sidebar nav has five items: Dashboard, Candidates, Clients, Jobs, Settings.
 
 ---
 
@@ -529,7 +670,7 @@ Tab order (left to right): **Timeline → Candidate notes → Candidate intellig
 
 1. **Timeline** — merged feed of manual activity logs + process milestones, newest first. "Log activity" button opens inline form: type (call/email/meeting/job spec sent/linkedin message/other), date, summary, notes, optional linked client (cross-posts to client timeline). "Paste transcript" opens TranscriptPanel for AI processing.
 2. **Candidate notes** — structured inline form, one card per section. Click any field box to begin typing; saves on blur. Sections: Current employment (company, title), Interview notes (large textarea → `notes_interview`), Notice period & urgency, Language assessment (Japanese/English selects + other text), Compensation (current base/bonus/total + expected range, all ¥M inline), Recruiter assessment (presentation & communication only → `notes_presentation`).
-3. **Candidate intelligence** — active process panels with AI action buttons (all output editable). Compensation card with Edit dialog (5 salary fields, amounts in ¥M, stored as raw yen) + "Sync from notes" button (calls `/api/ai/extract-compensation`). Collapsible "Candidate profile data" section: status/source, language, job history, motivations, blockers, competing interviews.
+3. **Candidate intelligence** — active process panels with AI action buttons (all output editable). Compensation card with Edit dialog (5 salary fields, amounts in ¥M, stored as raw yen) + "Sync from notes" button (calls `/api/ai?type=extract-compensation`). Collapsible "Candidate profile data" section: status/source, language, job history, motivations, blockers, competing interviews.
 4. **Registration** — document uploads (registration form PDF + CV PDF, CV triggers AI field extraction). Candidate details card: full name (English), full name (Japanese), date of birth (auto-calculates and saves `age`), email, phone, address, LinkedIn (all auto-populated from registration form upload).
 
 ### Candidate Profile Header
@@ -538,32 +679,53 @@ Shows: name · Japanese name | title · company · age | current salary · expec
 
 ### Client Detail — 5 Tabs
 
-1. **Timeline** — interaction log. Each entry shows: type badge, date, "with [contact]" chip if contact_id set, "re: [candidate]" chip if candidate_id set, "spoke with candidate/client" badge from primary_party. Log event button opens LogInteractionDialog (includes who-you-spoke-with + contact selector).
+1. **Timeline** — interaction log. Each entry shows: type badge, date, "with [contact]" chip if contact_id set, "re: [candidate]" chip if candidate_id set, "spoke with candidate/client" badge from primary_party. Log event button opens `LogActivityModal` (includes who-you-spoke-with + contact selector).
 2. **Client info** — company header, completeness bar, strategy notes, AI enrich, account intelligence, recommended actions, quick actions, Japan Market Context (all fields inline-editable).
 3. **Contacts** — ContactsCard with per-contact activity log button and inline interaction history per contact.
-4. **Jobs** — inline AddJobForm: JD upload (AI extracts title/salary/location via `/api/ai/extract-req-fields`), free-text salary range, location, hiring manager select, target close date, strategic context. Job list with pipeline badges.
-5. **Contract** — all fields inline-editable (fee %, client since, contract signed). Contract file upload → AI extracts fee % and start date via `/api/ai/extract-contract`.
+4. **Jobs** — inline AddJobForm: JD upload (AI extracts title/salary/location via `/api/ai?type=extract-req-fields`), free-text salary range, location, hiring manager select, target close date, strategic context. Job list with pipeline badges.
+5. **Contract** — all fields inline-editable (fee %, client since, contract signed). Contract file upload → AI extracts fee % and start date via `/api/ai?type=extract-contract`.
 
 ---
 
 ## 15. Component Architecture
 
-### Hierarchy
+### Actual state — read this before believing the target below
+
+The target architecture in this section describes where the code should go. It is **not** where the code is. As of August 2026:
+
+- `src/routes/_authenticated/candidates.$id.tsx` is **5,579 lines**.
+- `src/routes/_authenticated/clients.$id.tsx` is **4,309 lines**.
+- Those two files are **51% of the entire frontend** (~19,300 lines across routes and components).
+- `src/hooks/`, `src/components/dashboard/`, `src/components/layout/`, `src/components/candidate/processes/`, and `src/components/candidate/registration/` **exist and are empty**. Earlier versions of this file described them as populated. They were not.
+
+There are ~35 component functions inside `candidates.$id.tsx` and ~25 inside `clients.$id.tsx`, all defined in-file.
+
+**Standing instruction:** when you touch either mega-file for a feature, extract the components you touched into the directories below as part of that change. Do not attempt a big-bang refactor, and do not add new top-level components to those files.
+
+### Target hierarchy
 
 ```
 src/components/ui/          ← shadcn primitives. Never modify.
 src/components/shared/      ← Reusable domain components. Check here first.
 src/components/[feature]/   ← Feature-specific. e.g. candidates/CandidateCard.tsx
+src/hooks/                  ← One concern per hook. Currently empty.
 ```
 
 ### Existing Shared Components — use these, do not recreate
 
 | Component | Purpose |
 |---|---|
-| `Card` | White rounded container, standard inner padding |
+| `Card` | White square container, standard inner padding |
 | `SectionLabel` | Small uppercase label above a data group |
 | `FieldRow` | Label + value row inside a Card. `highlight="warning"` for amber state |
 | `StageBadge` | Colored pill for pipeline stages — always use, never inline |
+| `ActivityTimeline` | Unified feed for candidate and client pages. Handles upcoming events, cross-link chips, contact filtering, translation |
+| `LogActivityModal` | Unified log-activity dialog. Exports `interactionTypeLabel(type, primaryParty)` |
+| `SendEmailDialog` | Send via connected Gmail/Outlook. Editable To/Subject; body read-only (edit the draft first) |
+| `ImportWizard` | CSV import with column mapping and rollback |
+| `JdViewer` | Job description viewer |
+| `LiveCallPanel` | In-call panel |
+| `TranslateButton` | On-demand EN/JA translation of a text block |
 
 ### Rules for New Components
 
@@ -633,28 +795,103 @@ Process tab colors: `tab-own` (green), `tab-colleague` (grey), `tab-uncovered` (
 
 ---
 
-## 18. AI Endpoints (`api/ai/`)
+## 18. AI Endpoints
+
+**41 endpoints.** 39 live in `lib/ai-handlers/` and are dispatched by `api/ai.ts` via `?type=<name>`. Two are standalone files under `api/ai/`. This table was previously 16 rows and badly out of date; it is now complete.
+
+Before adding a 42nd, read the Architecture Rules in Section 2. The answer is usually to extend the context layer, not to add a handler.
+
+### Memory (read the Memory Doctrine first)
+
+| Endpoint | Input | Output |
+|---|---|---|
+| `refresh-context` | `entity_type` ('candidate' \| 'client' \| 'requisition'), `entity_id`, `triggered_by_interaction_id?` | Rebuilds that entity's reconciled `ai_context`. Recency-weights the last 30 interactions and states contradictions explicitly. Logs to `ai_context_log`. |
+
+### Candidate intelligence
+
+| Endpoint | Input | Output |
+|---|---|---|
+| `pre-call-briefing` | `candidate_id` | 60-second pre-call brief. Reads `ai_context`. |
+| `positioning` | `process_id` | NFAR talking points sequenced by ranked motivations |
+| `competing-analysis` | `candidate_id`, `recruiter_id` | Risk analysis across competing processes |
+| `competing-brief` | `candidate_id`, `process_id?`, `competing[]` | Positioning call brief against named competitors |
+| `closing-script` | `process_id` | Closing and counteroffer-defense script. Reads `ai_context`. |
+| `interview-prep` | `process_id`, `ccm_number` | Prep for the next interview round. Reads `ai_context`. |
+| `rejection-email` | `process_id`, `candidate_id` | Soft candidate rejection email in recruiter voice |
+| `placed-checkin-message` | `process_id`, `milestone`, `format` | Post-placement check-in message |
+| `job-spec-message` | `candidate_id`, `requisition_id`, `recruiter_id` | Spec message to a candidate |
+| `spec-email` | `candidate_id`, `requisition_id` | Spec email. Reads `ai_context`. |
+
+### Client intelligence
+
+| Endpoint | Input | Output |
+|---|---|---|
+| `client-snapshot` | `client_id` | Two-part account snapshot |
+| `client-meeting-prep` | `client_id`, `requisition_id?` | Pre-meeting brief. Reads `ai_context`. |
+| `client-draft` | `client_id` + context | Client-facing email draft |
+| `client-rejection-diagnosis` | `requisition_id` | Why candidates are being rejected at this client. **The only handler that reads outcome data.** |
+| `enrich-client` | Pasted company text | Structured client profile fields. Writes nothing when it has no real information. |
+| `chat-enrich-client` | `company_name`, `url?`, `question` | Tavily-backed company research Q&A |
+| `update-client-strategy` | `client_id`, `interaction_summary`, `interaction_notes` | Synthesizes meeting notes into a living client brief |
+| `merge-strategy-notes` | `existing`, `incoming` | Consolidates two versions of strategy notes |
+| `req-strategic-context` | `requisition_id` | Strategic framing paragraph. Reads the client's `ai_context`. |
+
+### Submission and pipeline
+
+| Endpoint | Input | Output |
+|---|---|---|
+| `submission-note` | `candidate_id`, `requisition_id` | Client submission note. Returns `contactEmail` for the Send dialog. Reads `ai_context`. |
+| `batch-cv-send` | `candidate_ids[]`, `requisition_id` | Multi-candidate introduction email in flowing prose |
+| `call-priority` | `candidate_ids[]`, `requisition_id` | Ranks candidates 'call' vs 'email' with a one-line reason |
+| `ccm-feedback-brief` | `process_id` | Client-chase call brief for outstanding interview feedback |
+| `ccm-next-step` | `process_id`, `scenario` ('pass' \| 'reject' \| 'no_response') | Next-step guidance for each post-interview outcome |
+
+### Search and matching
+
+| Endpoint | Input | Output |
+|---|---|---|
+| `advanced-search` | `requisition_id`, `client_id`, `threshold`, `use_key_criteria` | Scored candidate list. **Known limitation: loads every eligible candidate into one prompt. This does not scale and will fail, not degrade, on a real agency database.** |
+| `match-candidates` | `requisition_id`, `recruiter_id` | Candidate matches for a requisition. Reads `ai_context`. |
+
+### Extraction and formatting
+
+| Endpoint | Input | Output |
+|---|---|---|
+| `extract-candidate` | `candidate_id` (fetches PDF from storage) | Structured candidate fields from CV |
+| `extract-compensation` | `candidateId` | Salary figures from `notes_template`, saved as raw yen |
+| `extract-conditions` | `requisition_id`, `jd_text` | Rows into `requisition_conditions` |
+| `extract-contract` | Contract text | `fee_pct`, `started_at` — only fields it can identify |
+| `extract-req-fields` | `jd_text` | Title, `salary_range_text`, location. Excludes the client's own company name from the title. |
+| `apply-candidate-notes` | `candidateId`, `existingTemplate`, `rawNotes?`, `fileBase64?`, `fileType?` | Distributes raw notes into template sections. Accepts text, PDF, Word. |
+| `format-interview-notes` | `raw_text` | Structured interview notes (BACKGROUND / CAREER HISTORY / MOTIVATIONS) |
+| `polish-call-notes` | `raw_notes`, `candidate_name?` | Cleaned call notes |
+| `process-transcript` | `candidate_id`, `transcript_raw`, `interaction_type`, `interacted_at` | Structured interaction from a raw transcript |
+| `infer-status` | none (batch job) | Recomputes `candidate_status` from activity recency. Clears stale 'placed'. |
+| `translate` | `text`, `target_lang` ('en' \| 'ja') | Translated text |
+
+### Integrations
+
+| Endpoint | Input | Output |
+|---|---|---|
+| `invite-recall-bot` | `candidate_id?`, `meeting_url?`, `recruiter_id?` | Creates a Recall.ai bot session, stores it in `recall_bot_sessions` |
+
+### Standalone (not in the `api/ai.ts` dispatch table)
 
 | File | Input | Output |
 |---|---|---|
-| `extract-candidate.ts` | `candidate_id` (fetches PDF from storage) | Structured candidate fields from CV |
-| `enrich-client.ts` | Pasted company text | Structured client profile fields |
-| `positioning.ts` | `process_id` | Context-driven positioning talking points |
-| `pre-call-briefing.ts` | `candidate_id` | 60-second pre-call brief |
-| `submission-note.ts` | `candidate_id` + `requisition_id` | Full client submission note |
-| `client-snapshot.ts` | `client_id` | Two-part client account snapshot |
-| `client-meeting-prep.ts` | `client_id` + `requisition_id?` | Pre-meeting brief |
-| `client-draft.ts` | `client_id` + context | Draft client-facing email |
-| `req-strategic-context.ts` | `requisition_id` | Strategic framing paragraph |
-| `extract-req-fields.ts` | `jd_text` | Extract title, salary_range_text, location from JD — only returns fields it can identify |
-| `extract-contract.ts` | `contract_text` | Extract fee_pct, started_at from contract text — only returns fields it can identify |
-| `advanced-search.ts` | `requisition_id`, `client_id`, `threshold`, `use_key_criteria` | Scored candidate list for advanced search |
-| `apply-candidate-notes.ts` | `candidateId`, `existingTemplate`, `rawNotes?`, `fileBase64?`, `fileType?` | Distributes raw notes into the correct template sections; accepts text/PDF/Word |
-| `extract-compensation.ts` | `candidateId` | Reads `notes_template`, extracts salary figures, saves raw yen to candidates table |
-| `format-interview-notes.ts` | `raw_text` | Formats raw document text into clean structured interview notes (BACKGROUND / CAREER HISTORY / MOTIVATIONS sections) |
-| `rejection-email.ts` | `process_id`, `candidate_id` | Soft candidate rejection email in recruiter voice, using notes_interview + ccm_feedback_notes |
+| `api/ai/polish-notes.ts` | `notes` | Cleaned, scannable activity-log notes (haiku) |
+| `api/ai/translate-interaction.ts` | `interaction_id`, `notes`, `source_lang` | Translation cached to `full_notes_translated` |
 
----
+### Handler structure — enforced by tests
+
+`tests/ai-handlers-structure.test.ts` (run with `npm test`) is a permanent regression guard. Every handler must:
+
+1. Pass `thinking: { type: "disabled" }`. `claude-sonnet-5` emits an unrequested thinking block by default.
+2. Extract text with `.content.find(b => b.type === "text")`, never `message.content[0]`.
+
+Both patterns silently broke or truncated most AI features in August 2026. Do not regress them.
+
+Current model split: 30 handlers on `claude-sonnet-5`, 15 call sites on `claude-haiku-4-5-20251001`.
 
 ## 19. Supabase
 
@@ -697,8 +934,36 @@ After regeneration, re-append the custom types block from Section 11.
 | `016_candidate_notes_interview.sql` | `notes_interview` column + expanded interactions type constraint |
 | `017_jobs_interactions_update.sql` | `requisitions`: ADD `is_backfill`, `hiring_manager_id`, `salary_range_text`, `location`, `urgency_date`; `interactions`: ADD `contact_id`, `primary_party` |
 | `018_candidate_notes_extra.sql` | `candidates`: ADD `urgency_notes` text, `comp_notes` text |
+| `019_drop_urgency_to_move.sql` | Drops the legacy `urgency_to_move` column |
+| `020_placed_fee.sql` | `processes`: ADD `placed_fee_jpy`, `placed_date` |
+| `021_priority_fields.sql` | `interactions`: ADD `is_future`, `scheduled_at`; `processes`: ADD `not_interested_at` |
+| `022_candidate_preferences.sql` | `candidates`: location / industry / bonus preferences, `equity_open`, `availability_date` |
+| `023_interactions_requisition_link.sql` | `interactions`: ADD `requisition_id` FK (idempotent) |
+| `024_ccm_interaction_types.sql` | Constraint allows `ccm1`–`ccm6` interaction types |
+| `025_requisition_recruiter_notes.sql` | `requisitions`: ADD `recruiter_notes` |
+| `026_candidate_lists_requisition.sql` | `candidate_lists`: ADD `requisition_id` FK — persistent spec shortlists |
+| `027_clients_website.sql` | `clients`: ADD `website` |
+| `028_dual_cv_fields.sql` | Separate English CV and Japanese document fields |
+| `029_oauth_tokens.sql` | `recruiter_oauth_tokens` — AES-256-CBC encrypted refresh tokens, unique on (recruiter_id, provider) |
+| `030_recall_bot_sessions.sql` | `recall_bot_sessions` table with team-scoped RLS |
+| `032_drop_outreach_sequences.sql` | Removes the outreach-sequence tables. **Feature deliberately cut — do not reintroduce.** |
+| `033_email_received_type.sql` | Adds inbound email as an interaction type |
+| `034_interactions_delete_policy.sql` | RLS delete policy on interactions |
+| `035_restore_tanaka_interactions.sql` | Mock-data repair |
+| `036_interaction_translations.sql` | `interactions`: ADD `full_notes_translated`, `translated_lang` |
+| `037_import_batches.sql` | `import_batches` — CSV import staging with rollback |
+| `038_import_batches_contacts.sql` | Contact import support |
+| `039_import_batches_interactions.sql` | Interaction import support |
+| `040_process_last_activity_sync.sql` | Trigger syncing `processes.last_activity_at` from interactions |
+| `041_process_last_activity_default.sql` | Default for the above |
+| `042_candidate_last_interaction_sync.sql` | Trigger + backfill for `candidates.last_interaction_at`. Fixes the "Last touch" filter and all staleness logic. |
+| `043_resumes_bucket_allow_docx.sql` | Storage bucket accepts .docx |
+
+Note: there is no `031`. Numbering skips it.
 
 New migrations increment sequentially. Never edit existing migration files.
+
+**The two trigger-sync migrations (040, 042) exist because denormalised timestamp columns silently stopped matching the interactions table.** If you add another cached timestamp or counter, add the trigger in the same migration.
 
 ---
 
@@ -727,19 +992,32 @@ Do not suggest, scaffold, or partially implement these unless explicitly instruc
 
 | Feature | Status |
 |---|---|
-| Bidirectional live sync with third-party ATS (Bullhorn, Vincere, Greenhouse, etc.) | Deferred indefinitely — not the product direction. One-time CSV/bulk import for pilot onboarding is in scope; ongoing two-way sync is not, since Kanri is meant to displace these systems, not maintain parity with them |
-| Email sending from Kanri (Gmail/Outlook) | **In progress** — Gmail/Outlook OAuth + send, Feature 1 of workflow sprint |
-| Calendar sync for interviews | Deferred |
-| LinkedIn / BizReach sourcing automation | Deferred |
-| Autonomous AI follow-ups | Deferred — trust risk too high for MVP |
+| Bidirectional live sync with third-party ATS (Bullhorn, Vincere, Greenhouse, etc.) | **Deferred permanently.** Not a sequencing choice — it contradicts the displacement thesis in Section 1. One-time CSV/bulk import is in scope; ongoing two-way sync never is |
+| Outreach sequences / multi-channel campaigns | **Cut and removed** (migration 032). Competitor core competence, not Kanri's. Do not reintroduce |
+| External sourcing database or profile scraping | **Do not build.** Established players hold 4M+ Japan profiles under a registered provider licence; Kanri is not licensed for this and the 2026 APPI surcharge regime makes it a poor place to improvise. See Section 10 |
+| Additional one-shot AI endpoints | **Requires written justification.** See Architecture Rules, Section 2 |
+| Calendar sync for interviews | Deferred. Highest measured admin cost in the industry, and pure commodity — buy or integrate rather than build |
+| LinkedIn / BizReach sourcing automation | Deferred. Importing data the customer already holds is in scope; automated sourcing is not |
+| Autonomous AI follow-ups | Deferred — trust risk too high, and it crosses the line in the Section 8 table |
 | SMS / LINE / WhatsApp integration | Deferred |
 | Permission tiers / admin roles | Deferred — all team members have equal access in MVP |
-| Candidate-facing portal | Deferred |
-| Reporting and analytics (beyond Jobs forecast chip) | Deferred |
+| Candidate-facing portal | Deferred. A single tokenised self-update link is the acceptable narrow version |
+| Reporting and analytics (beyond Jobs forecast chip) | Deferred — except outcome-derived intelligence (client / hiring-manager conversion patterns), which is strategy, not reporting |
 | AI podcast / audio briefing feature | Deferred — strong idea, post-MVP |
-| Automated resume tailoring | Deferred |
+| Automated resume tailoring | Deferred. Japanese 職務経歴書 generation is a separate, in-scope thing — see Section 10 |
 | Offer panel action buttons | UI shells exist, logic not yet wired |
 | Real-time collaboration (live cursors, comments, @mentions) | Deferred |
+| Mobile app | Not planned. A mobile voice-capture route is worth having; a second full client is not |
+
+### Shipped — remove from any "deferred" reasoning
+
+| Feature | Shipped |
+|---|---|
+| Email sending from Kanri (Gmail + Outlook OAuth) | June 2026. `api/send-email.ts`, `/settings`, `SendEmailDialog` |
+| Call auto-logging via Recall.ai | June 2026. Migration 030, `api/webhooks/recall.ts` |
+| Full EN/JP i18n toggle | June 2026 |
+| CSV import with rollback | See Section 24 |
+| Outlook add-in | See Section 24 |
 
 ---
 
@@ -754,10 +1032,66 @@ Do not suggest, scaffold, or partially implement these unless explicitly instruc
 - Commit at logical stopping points. One feature or fix = one commit.
 - Commit message format: `[area]: description` — e.g. `candidates: add motivation ranking UI`, `ai: add pre-call briefing endpoint`, `dashboard: wire daily agenda priority logic`
 
+### Before adding any AI capability, ask in this order
+
+1. Does the reconciled `ai_context` already contain what this needs? If yes, read it. Do not query raw rows.
+2. Can an existing handler be extended instead of a new one being added? Prefer extension.
+3. Does this record an outcome or a decision? If it should and does not, add that first.
+4. Can the recruiter see what the AI read? If not, it is not finished.
+5. Does it fall in the right-hand column of the Section 8 table? If so, do not build it.
+
+### Keeping this file true
+
+This document is the single source of truth, which means a wrong line here is worse than a missing one — agents act on it. When a session changes the endpoint list, the schema, the routes, or the architecture, update the matching section in the same commit.
+
+This file drifted badly once already: it documented 16 AI endpoints when there were 41, described five component directories that were empty, and stopped listing migrations at 018 when the repo was at 043. Do not let that happen again.
+
+
+## 24. Systems Not Documented Elsewhere
+
+These shipped and were never written down. Agents have proposed rebuilding them.
+
+### CSV Import (`lib/import-handlers/`, `src/components/shared/ImportWizard.tsx`)
+
+Bulk import for pilot onboarding — the sanctioned answer to migration friction, and the only ATS-data path that exists.
+
+- `suggest-mapping.ts` — AI-suggested column mapping from an uploaded CSV
+- `commit.ts` — writes rows, recording the batch in `import_batches`
+- `rollback.ts` — undoes an entire batch
+- `history.ts` — past imports
+
+Supports candidates, client contacts, and interactions (migrations 037–039). Entity types include activity/timeline.
+
+### Outlook Add-in (`lib/addin-handlers/`, `src/routes/addin/taskpane.tsx`)
+
+A task pane inside Outlook that logs an email to Kanri without leaving the mail client.
+
+- `match-sender.ts` — resolves a sender address to a candidate, client, or contact
+- `log-email.ts` — writes the email into `interactions`
+
+Built by `npm run build`, which copies `dist/index.html` to `dist/addin/taskpane.html`. **Currently outbound-only.** Two-way capture (inbound email as well) is the intended next step, not a new system.
+
+### OAuth (`lib/oauth-handlers/`)
+
+Gmail and Microsoft Graph connect / exchange / status / disconnect. Refresh tokens are AES-256-CBC encrypted at rest (`recruiter_oauth_tokens`, migration 029). `encryptToken` / `decryptToken` are exported from `gmail-exchange.ts` and reused by the Outlook path and by `api/send-email.ts`.
+
+Environment: `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `OUTLOOK_CLIENT_ID`, `OUTLOOK_CLIENT_SECRET`, optional `OAUTH_REDIRECT_BASE` (default `http://localhost:5173`) and `OAUTH_ENCRYPTION_KEY` (32 chars; falls back to a dev key if unset).
+
+### Tavily web research
+
+`@tavily/core` powers `ClientEnrichCard` on the client page and the `chat-enrich-client` handler. This is the only outbound web-research capability in the product. It is the right tool for BD signal detection when that gets built.
+
+### Tests
+
+`tests/ai-handlers-structure.test.ts`, run with `npm test` (Vitest). Guards the two handler-structure rules in Section 18. Run it before committing any change to `lib/ai-handlers/`.
+
+---
 
 ## Project Status
 
 Active development resumed June 2026. All sessions below are committed and pushed to main.
+
+**Reading the session log:** entries are a historical record of what each session did, not a description of current state. Where an entry conflicts with Sections 1–24, the numbered sections win. In particular, older entries write AI calls as `/api/ai/<name>`; the actual convention is `/api/ai?type=<name>` for the 39 dispatched handlers (see Section 18).
 
 ### Session log (June 2026)
 
@@ -906,62 +1240,60 @@ Active development resumed June 2026. All sessions below are committed and pushe
 - `daily-agenda.ts` deleted — dead code, nothing in the frontend has called it since the dashboard moved to the rule-based `usePriorityActions` hook; removed from `api/ai.ts` route table too.
 - Mock data enrichment: `scripts/enrich-mock-candidates.mjs` (authored text, not AI-generated) gave 201/202 seed candidates a realistic `notes_interview`, diversified `candidate_status` (28 active / 172 passive / 2 placed, was 0/200/2), and added 4 `competing_interviews` — the AI positioning/briefing/submission outputs were reading as generic because almost no seed candidate had any of this.
 
-### Roadmap — next up (workflow sprint)
-
-Four features to match Spott's table-stakes + add Kanri's intelligence layer on top. Each is a separate session.
-
-#### Feature 1: Email send from AI drafts (Gmail + Outlook OAuth)
-Kanri already writes the emails. This makes them sendable.
-- Gmail OAuth (Google OAuth2) + Outlook OAuth (Microsoft Graph) — recruiter connects mailbox once in Settings
-- `recruiter_oauth_tokens` table (migration 029) — stores encrypted refresh tokens per recruiter
-- `api/send-email.ts` — sends via Gmail API or Microsoft Graph using stored token
-- "Send" button added alongside "Copy" on all AI draft components (pre-call brief, rejection email, batch CV send, submission note, job spec message)
-- Sent emails auto-log to `interactions` table as `interaction_type: "email"` with full body as `full_notes`
-- Settings page (`/settings`) — connect/disconnect Gmail and Outlook
-
-#### Feature 2: Call auto-logging via Recall.ai ✓ DONE (2026-06-21)
-See session log above.
-
-#### Feature 3a + 3b: Outreach sequences — removed, not needed
-
-#### Feature 4: Auto-enrichment (Apollo.io + Hunter.io)
-- Apollo.io API (primary, best Japan coverage) + Hunter.io (fallback)
-- `api/ai/enrich-contact.ts` — given name + company, returns email + phone via waterfall
-- "Enrich" button on candidate Registration tab and client Contacts card
-- Auto-triggers on new candidate creation if email is missing
-- Results shown as suggestions (same pattern as ExtractionReviewModal) — recruiter confirms before saving
+**Strategy review + CLAUDE.md rewrite (2026-08-23)**
+- Discovery, market and competitive research pass. No application code or database changes. Report published to `docs/kanri-memory-thesis.html`.
+- This file rewritten against the actual codebase. Section 18 went from 16 documented endpoints to all 41. Section 15 now states the real component architecture (two route files are 51% of the frontend; five documented directories are empty) instead of an aspirational one. Section 20 extended from migration 018 to 043. Section 11 gained the memory and intelligence tables, which had never been documented. Section 13 gained `/jobs/$id`, `/settings`, and the add-in route, and the client tab count was corrected from 3 to 5.
+- New in Section 2: the Memory Doctrine, a ban on new one-shot AI endpoints, mandatory outcome capture, and mandatory explainability. New in Section 8: an explicit automate-versus-human table. New in Section 10: 両手型 / 属人化 operating context, the 推薦文 and 職務経歴書 document specs, and the APPI + 職業安定法 posture. New Section 24 documents the CSV import system, the Outlook add-in, OAuth, Tavily, and the test suite — all previously shipped and unwritten.
+- Resolved a standing contradiction between Sections 5 and 9: personal priority queue and team activity feed are separate surfaces, and teammate items must never enter the personal queue.
+- Displacement thesis re-examined and reaffirmed with the reasoning recorded, so it does not get relitigated.
 
 ---
 
-### Roadmap — seed data (after workflow sprint)
+### Strategy review — August 2026 (decisions in force)
 
-#### Phase 2: Seed data
-Generate realistic demo data via Supabase SQL seed scripts:
-- ~20 clients (mix of gaishikei, domestic, PE-backed)
-- ~150 candidates (varied stages, Japanese/English names, real-feeling notes_pitch + notes_interview)
-- Processes at every stage — Specs Sent through Placed and Closed Lost
-- Activity timelines with realistic entry patterns (2–8 interactions per active process)
-- 3–5 candidates with competing interviews
-- 2–3 at Offer stage
-- Some cold (last touch >30 days)
+A full discovery and competitive review was run on 2026-08-23. Findings, the 34-opportunity scoring matrix, and the competitive analysis live in `docs/kanri-memory-thesis.html`. The decisions below are settled and should not be re-derived each session.
 
-Key rule: no pre-seeded AI snapshots (`ai_snapshot` = null for all seed candidates). Intelligence is generated on demand from notes. This validates the real pipeline.
+**Positioning.** Kanri's differentiator is not the number of things it can generate — that layer is commoditising fast, and better-funded competitors ship it weekly. The differentiator is the reconciled memory underneath: Kanri remembers, everything else generates. In Japan this maps directly onto 属人化, the defining failure of the 両手型 boutiques that are the target customer. See Sections 1 and 10.
 
-#### Phase 3: Demo readiness
-- Run through the ROI calculator (`kanri-roi-calculator.html` on Desktop) — verify numbers feel right for a 5-person boutique
-- Test advanced search with seed data (AI search needs real requisitions + candidates)
-- Walk through a mock client pitch using the app as the live demo
+**Displacement confirmed.** Re-examined and reaffirmed. See Section 1.
 
-#### Phase 4: Outlook integration (future — not yet)
-Significant engineering: OAuth, Microsoft Graph API, email polling/webhooks, thread parsing, deduplication, activity auto-logging. Hold until at least one real user is asking for it.
+**What the review found in the code.** The memory layer works and is underused: refresh is manual, 30 of 39 handlers ignore `ai_context`, the 9 that read it truncate it to 300–600 characters, `requisitions.ai_context` has no reader, and outcome data is captured but never learned from. `advanced-search` puts the whole candidate table in one prompt and will fail on a real database. Dashboard done/snooze lives in `localStorage`. There is no task entity, no team feed, no BD surface, and no way to re-surface dormant candidates.
 
----
+### Roadmap — build order
+
+Sequenced by dependency. Each wave assumes the one above it.
+
+**Wave 1 — substrate.** Automatic context refresh on interaction insert. Universal context read across all handlers, without truncation. Explainability panel. Duplicate-submission guard. Begin decomposing the two mega-files alongside whatever else touches them.
+
+**Wave 2 — retrieval.** pgvector over `notes_interview` and `ai_context` plus Postgres full-text search. Two-stage matching (retrieve, then rank) to replace the whole-table prompt. Promote `requisition_conditions` to the matching spine with must / nice / dealbreaker weights.
+
+**Wave 3 — flywheel and Japan wedge.** Structured outcome capture on every terminal process state. Tasks and follow-ups as a real entity, replacing `localStorage`. 推薦文 generator. Keigo register control at generation time.
+
+**Wave 4 — intelligence.** Client and hiring-manager scorecard from outcome data. Interview debrief capture. Database re-engagement engine. Handoff pack.
+
+**Wave 5 — anticipation.** Event spine giving interactions and stage changes consequences. Pre-meeting briefs that fire themselves. Offer-stage watch. Competitive clock. Job-change detection on the firm's own database. Two-way email logging.
+
+**Wave 6 — leverage.** Ask Kanri (single agentic surface with database tools). Placement post-mortem. Weekly recruiter review. 職務経歴書 builder. Prospect and BD objects.
+
+**Deferred from earlier roadmaps:** Apollo.io / Hunter.io auto-enrichment. Contact enrichment is commodity and lower value than any wave above.
+
+### Roadmap — seed data
+
+Not yet done at target scale. Current state: 201 seed candidates with authored `notes_interview` (28 active / 172 passive / 2 placed), 4 competing interviews, plus a Torch mock import dataset.
+
+Target: ~20 clients, ~150+ candidates across every stage including Placed and Closed Lost, 2–8 interactions per active process, several candidates at Offer, some cold (last touch >30 days).
+
+**Key rule: no pre-seeded AI output.** `ai_snapshot` and `ai_context` stay null for all seed records. Intelligence is generated on demand from notes. Seeding it would hide exactly the pipeline failures this data exists to expose.
 
 ### Known issues / deferred
 
 - Per-contact AI summary (needs design decision on where/how AI reads contact notes)
 - Interaction editing (assess scope before starting)
 - PDF export for ROI calculator (low priority — standalone HTML file is the demo path)
+- `supabase gen types` has not been re-run since migration 030; the `recall_bot_sessions` query carries a `@ts-expect-error`
+- `placement_guarantee_until` exists on candidates and nothing reads it. Japan's 3–6 month early-turnover refund exposure makes this worth wiring
+- Dashboard done/snooze state is per-browser `localStorage` — invisible to teammates, lost on device change. Fixed by the Wave 3 tasks entity
+- Two mega-files (`candidates.$id.tsx` 5,579 lines, `clients.$id.tsx` 4,309 lines) are 51% of the frontend. Decompose incrementally, never in one pass
 
 ---
 
