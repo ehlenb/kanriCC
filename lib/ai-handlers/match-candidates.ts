@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
 import { retrieveCandidateIds } from "./lib/candidate-retrieval.js";
+import { extractJson } from "./lib/parse-json-response.js";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -149,7 +150,7 @@ ${candidatesSummary}
 
   const message = await anthropic.messages.create({
     model: "claude-sonnet-5",
-    max_tokens: 2000,
+    max_tokens: 6000,
     thinking: { type: "disabled" },
     system: `You are ranking candidates for an open role at a foreign company in Japan.
 
@@ -179,7 +180,7 @@ Return valid JSON only — no markdown fences, no explanation:
   });
 
   const raw = message.content.find((b) => b.type === "text")?.text.trim() ?? "{}";
-  const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
+  const cleaned = extractJson(raw);
 
   try {
     const parsed = JSON.parse(cleaned) as { matches: unknown[] };

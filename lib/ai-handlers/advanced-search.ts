@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
 import { retrieveCandidateIds } from "./lib/candidate-retrieval.js";
+import { extractJson } from "./lib/parse-json-response.js";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -217,7 +218,7 @@ Return valid JSON only, no markdown:
   });
 
   const raw = message.content.find((b) => b.type === "text")?.text.trim() ?? "{}";
-  const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
+  const cleaned = extractJson(raw);
 
   try {
     const parsed = JSON.parse(cleaned) as { matches: unknown[] };
