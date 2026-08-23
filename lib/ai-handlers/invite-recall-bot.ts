@@ -17,6 +17,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const recallKey = process.env.RECALL_API_KEY;
   if (!recallKey) return res.status(500).json({ error: "RECALL_API_KEY not configured" });
 
+  const appUrl = process.env.APP_URL;
+  if (!appUrl) return res.status(500).json({ error: "APP_URL not configured" });
+
   const supabase = createClient(
     process.env.VITE_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -41,7 +44,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     body: JSON.stringify({
       meeting_url,
       transcription_options: { provider: "assembly_ai" },
-      webhook_url: `${process.env.APP_URL ?? "https://kanri.vercel.app"}/api/webhooks/recall`,
+      webhook_url: `${appUrl}/api/webhooks/recall`,
     }),
   });
 
