@@ -2,6 +2,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
+import { retrieveCandidateIds } from "./lib/candidate-retrieval.js";
+
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 const supabase = createClient(
@@ -28,12 +30,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const [{ data: requisition }, { data: conditions }, { data: existingProcesses }] = await Promise.all([
     supabase
       .from("requisitions")
-      .select("id, title, jd_text, jd_url, salary_min, salary_max, strategic_context, interview_notes")
+      .select("id, team_id, title, jd_text, jd_url, salary_min, salary_max, strategic_context, interview_notes")
       .eq("id", requisition_id)
       .single(),
     supabase
       .from("requisition_conditions")
-      .select("condition_text, condition_type, priority_rank")
+      .select("condition_text, condition_type, priority_rank, weight")
       .eq("requisition_id", requisition_id)
       .order("priority_rank"),
     supabase
@@ -45,6 +47,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (!requisition) return res.status(404).json({ error: "Requisition not found" });
 
+  const r = requisition as {
+    team_id: string;
+    title: string;
+    jd_text: string | null;
+    salary_min: number | null;
+    salary_max: number | null;
+    strategic_context: string | null;
+    interview_notes: string | null;
+  };
+
   // Candidates already in process for this requisition — exclude from AI results
   const excludedIds = new Set(
     (existingProcesses ?? []).map((p: { candidate_id: string }) => p.candidate_id),
@@ -54,6 +66,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { data: clientProcesses } = await supabase
     .from("processes")
     .select("candidate_id, requisitions ( client_id )")
+    .eq("team_id", r.team_id)
     .not("stage", "in", '("Placed","Closed lost")');
 
   (clientProcesses ?? []).forEach((p: { candidate_id: string; requisitions: { client_id: string } | null }) => {
@@ -62,54 +75,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   });
 
-  // Fetch all eligible candidates (all team members' candidates via service role)
-  const { data: allCandidates } = await supabase
-    .from("candidates")
-    .select(
-      "id, full_name, current_title, current_company, japanese_level, english_level, age, current_base, base_minimum, expected_total_min, expected_total_max, candidate_status, placed_at, coin_icon_dismissed, notes_pitch, notes_personality",
-    )
-    .in("candidate_status", ["active", "passive"]);
+  const conditionRows = (conditions ?? []) as { condition_text: string; condition_type: string; priority_rank: number; weight: number }[];
 
-  const now = new Date();
-  const eligible = (allCandidates ?? []).filter((c: {
-    id: string;
-    candidate_status: string;
-    placed_at: string | null;
-    coin_icon_dismissed: boolean;
-  }) => {
-    if (excludedIds.has(c.id)) return false;
-    // Exclude placed within 90 days unless coin dismissed
-    if (c.candidate_status === "placed" && c.placed_at && !c.coin_icon_dismissed) {
-      const days = Math.floor((now.getTime() - new Date(c.placed_at).getTime()) / 86_400_000);
-      if (days <= 90) return false;
-    }
-    return true;
+  // Stage 1 — retrieve. Bounded, relevance-ranked candidate ids from the
+  // database (hybrid vector + full-text search), instead of loading every
+  // active/passive candidate in the team.
+  const candidateIds = await retrieveCandidateIds({
+    teamId: r.team_id,
+    title: r.title,
+    jdText: r.jd_text,
+    strategicContext: r.strategic_context,
+    conditions: conditionRows,
+    statuses: ["active", "passive"],
+    excludedIds: [...excludedIds],
+    limit: 100,
   });
 
-  if (eligible.length === 0) {
+  if (candidateIds.length === 0) {
     return res.status(200).json({ matches: [] });
   }
-
-  const r = requisition as {
-    title: string;
-    jd_text: string | null;
-    salary_min: number | null;
-    salary_max: number | null;
-    strategic_context: string | null;
-    interview_notes: string | null;
-  };
-
-  const formatYen = (n: number | null) => (n ? `¥${(n / 1_000_000).toFixed(1)}M` : "—");
-
-  const mustHaves = (conditions ?? [])
-    .filter((c: { condition_type: string }) => c.condition_type === "must_have")
-    .map((c: { priority_rank: number; condition_text: string }) => `${c.priority_rank}. ${c.condition_text}`)
-    .join("\n");
-
-  const flexCriteria = (conditions ?? [])
-    .filter((c: { condition_type: string }) => c.condition_type === "nice_to_have")
-    .map((c: { condition_text: string }) => `- ${c.condition_text}`)
-    .join("\n");
 
   type CandidateRecord = {
     id: string;
@@ -127,7 +111,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     notes_personality: string | null;
   };
 
-  const candidatesSummary = eligible.slice(0, 60).map((c: CandidateRecord) => {
+  const { data: retrieved } = await supabase
+    .from("candidates")
+    .select(
+      "id, full_name, current_title, current_company, japanese_level, english_level, age, current_base, base_minimum, expected_total_min, expected_total_max, notes_pitch, notes_personality",
+    )
+    .in("id", candidateIds);
+
+  // .in() does not preserve order — re-sort to the retrieval stage's
+  // relevance ranking so the safety-cap slice below drops the least
+  // relevant candidates, not an arbitrary DB-order tail.
+  const rankById = new Map(candidateIds.map((id, i) => [id, i]));
+  const eligible = ((retrieved ?? []) as CandidateRecord[]).sort(
+    (a, b) => (rankById.get(a.id) ?? 0) - (rankById.get(b.id) ?? 0),
+  );
+
+  const formatYen = (n: number | null) => (n ? `¥${(n / 1_000_000).toFixed(1)}M` : "—");
+
+  const dealbreakers = conditionRows
+    .filter((c) => c.condition_type === "dealbreaker")
+    .map((c) => `${c.condition_text} (importance: ${c.weight}/10)`)
+    .join("\n");
+
+  const mustHaves = conditionRows
+    .filter((c) => c.condition_type === "must_have")
+    .map((c) => `${c.priority_rank}. ${c.condition_text} (importance: ${c.weight}/10)`)
+    .join("\n");
+
+  const flexCriteria = conditionRows
+    .filter((c) => c.condition_type === "nice_to_have")
+    .map((c) => `- ${c.condition_text} (importance: ${c.weight}/10)`)
+    .join("\n");
+
+  const candidatesSummary = eligible.slice(0, 80).map((c: CandidateRecord) => {
     const salaryStretch =
       r.salary_max && c.expected_total_min && c.expected_total_min > r.salary_max;
     return `ID:${c.id}
@@ -151,6 +167,9 @@ KEY CRITERIA TIERING (active):
 ROLE: ${r.title}
 Salary range: ${formatYen(r.salary_min)}–${formatYen(r.salary_max)}
 
+Dealbreakers (hard exclude — score no higher than 20 if a candidate clearly fails one of these):
+${dealbreakers || "None specified."}
+
 Must-have criteria (hard signals — language levels are strict in the Japan bilingual market):
 ${mustHaves || "None specified."}
 
@@ -161,7 +180,7 @@ ${r.jd_text ? `Job description:\n${r.jd_text.slice(0, 1000)}` : ""}
 ${r.strategic_context ? `Strategic context:\n${r.strategic_context.slice(0, 400)}` : ""}
 ${keyCriteriaInstruction}
 
-CANDIDATES TO RANK:
+CANDIDATES TO RANK (already relevance-ordered — earlier candidates are a stronger retrieval match):
 ${candidatesSummary}
 `.trim();
 
@@ -174,6 +193,7 @@ ${candidatesSummary}
 Score each candidate 30–100. Apply the threshold: only return candidates scoring ${threshold} or above.
 Return at most 50 candidates, ranked highest score first.
 
+Dealbreakers are a hard exclude — a candidate who clearly fails one should score no higher than 20, regardless of other fit. Use higher-importance dealbreakers/must-haves to break ties among otherwise-similar candidates.
 Language requirements are strict in Japan — if a must-have language level is not met, cap the score at 45.
 Salary stretch (candidate expected > role max): keep in results if overall fit is strong, flag it.
 
