@@ -2,6 +2,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
+import { embedText, toVectorLiteral } from "../embeddings.js";
+
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 const supabase = createClient(
@@ -23,7 +25,7 @@ export async function refreshCandidate(entityId: string, triggeredById?: string)
     supabase
       .from("candidates")
       .select(
-        "recruiter_id, full_name, current_company, current_title, japanese_level, english_level, candidate_status, current_base, current_total, expected_total_min, expected_total_max, base_is_priority, base_minimum, notice_period_months, notes_personality, notes_pitch, notes_closing",
+        "recruiter_id, full_name, current_company, current_title, japanese_level, english_level, candidate_status, current_base, current_total, expected_total_min, expected_total_max, base_is_priority, base_minimum, notice_period_months, notes_personality, notes_pitch, notes_closing, notes_interview",
       )
       .eq("id", entityId)
       .single(),
@@ -69,6 +71,7 @@ export async function refreshCandidate(entityId: string, triggeredById?: string)
     notes_personality: string | null;
     notes_pitch: string | null;
     notes_closing: string | null;
+    notes_interview: string | null;
   };
 
   const now = Date.now();
@@ -140,11 +143,24 @@ NEVER use: straightforward, genuinely, honestly, leverage (as a verb), utilize. 
   const contextText = message.content.find((b) => b.type === "text")?.text ?? "";
   const tokensUsed = message.usage.output_tokens;
 
+  // Embedding input mirrors the fields in the prompt above (identity, skills,
+  // reconciled context, raw interview notes) so the vector reflects the same
+  // "who this candidate is" signal the prose note does. A failed or unset
+  // Voyage call returns null -- omit the key entirely rather than writing
+  // null, so a transient failure never clobbers a previously-good embedding.
+  const embeddingInput = `${c.full_name}. ${c.current_title ?? ""} at ${c.current_company ?? ""}. Japanese ${c.japanese_level ?? "—"}, English ${c.english_level ?? "—"}.
+${contextText}
+${c.notes_interview ?? ""}`.trim();
+  const embedding = await embedText(embeddingInput, "document");
+
+  const candidateUpdate: { ai_context: string; ai_context_updated_at: string; profile_embedding?: string } = {
+    ai_context: contextText,
+    ai_context_updated_at: new Date().toISOString(),
+  };
+  if (embedding) candidateUpdate.profile_embedding = toVectorLiteral(embedding);
+
   await Promise.all([
-    supabase
-      .from("candidates")
-      .update({ ai_context: contextText, ai_context_updated_at: new Date().toISOString() })
-      .eq("id", entityId),
+    supabase.from("candidates").update(candidateUpdate).eq("id", entityId),
     supabase.from("ai_context_log").insert({
       recruiter_id: c.recruiter_id,
       entity_type: "candidate",

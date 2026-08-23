@@ -4065,14 +4065,13 @@ function ActiveBotBanner({ candidateId }: { candidateId: string }) {
   const { data: sessions } = useQuery<BotSession[]>({
     queryKey: ["recall-bot-sessions", candidateId],
     queryFn: async () => {
-      // @ts-expect-error — recall_bot_sessions not yet in generated types; run `supabase gen types` after migration 030 is applied
       const { data } = await supabase
         .from("recall_bot_sessions")
         .select("id, bot_id, status, meeting_url, created_at")
         .eq("candidate_id", candidateId)
         .in("status", ["invited", "in_progress"])
         .order("created_at", { ascending: false });
-      return (data ?? []) as unknown as BotSession[];
+      return (data ?? []) as BotSession[];
     },
     staleTime: 30_000,
     retry: 1,

@@ -130,6 +130,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "candidate_lists_requisition_id_fkey"
+            columns: ["requisition_id"]
+            isOneToOne: false
+            referencedRelation: "requisitions"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "candidate_lists_team_id_fkey"
             columns: ["team_id"]
             isOneToOne: false
@@ -236,6 +243,8 @@ export type Database = {
           current_title: string | null
           current_total: number | null
           cv_url: string | null
+          cv_url_jp_rireki: string | null
+          cv_url_jp_shokumu: string | null
           date_of_birth: string | null
           email: string | null
           english_level: string | null
@@ -263,14 +272,15 @@ export type Database = {
           placed_at: string | null
           placement_guarantee_until: string | null
           presentation_notes: string | null
+          profile_embedding: string | null
           recruiter_id: string
           registration_form_url: string | null
+          search_text: string | null
           source: string
           status_source: string
           team_id: string
           updated_at: string
           urgency_notes: string | null
-          urgency_to_move: string | null
         }
         Insert: {
           active_passive?: string | null
@@ -293,6 +303,8 @@ export type Database = {
           current_title?: string | null
           current_total?: number | null
           cv_url?: string | null
+          cv_url_jp_rireki?: string | null
+          cv_url_jp_shokumu?: string | null
           date_of_birth?: string | null
           email?: string | null
           english_level?: string | null
@@ -320,14 +332,15 @@ export type Database = {
           placed_at?: string | null
           placement_guarantee_until?: string | null
           presentation_notes?: string | null
+          profile_embedding?: string | null
           recruiter_id: string
           registration_form_url?: string | null
+          search_text?: string | null
           source?: string
           status_source?: string
           team_id?: string
           updated_at?: string
           urgency_notes?: string | null
-          urgency_to_move?: string | null
         }
         Update: {
           active_passive?: string | null
@@ -350,6 +363,8 @@ export type Database = {
           current_title?: string | null
           current_total?: number | null
           cv_url?: string | null
+          cv_url_jp_rireki?: string | null
+          cv_url_jp_shokumu?: string | null
           date_of_birth?: string | null
           email?: string | null
           english_level?: string | null
@@ -377,14 +392,15 @@ export type Database = {
           placed_at?: string | null
           placement_guarantee_until?: string | null
           presentation_notes?: string | null
+          profile_embedding?: string | null
           recruiter_id?: string
           registration_form_url?: string | null
+          search_text?: string | null
           source?: string
           status_source?: string
           team_id?: string
           updated_at?: string
           urgency_notes?: string | null
-          urgency_to_move?: string | null
         }
         Relationships: [
           {
@@ -643,6 +659,76 @@ export type Database = {
           },
         ]
       }
+      import_batch_items: {
+        Row: {
+          batch_id: string
+          created_at: string
+          entity_id: string
+          id: string
+        }
+        Insert: {
+          batch_id: string
+          created_at?: string
+          entity_id: string
+          id?: string
+        }
+        Update: {
+          batch_id?: string
+          created_at?: string
+          entity_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_batch_items_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "import_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      import_batches: {
+        Row: {
+          created_at: string
+          entity_type: string
+          id: string
+          recruiter_id: string
+          row_count: number
+          source_name: string | null
+          status: string
+          team_id: string
+        }
+        Insert: {
+          created_at?: string
+          entity_type: string
+          id?: string
+          recruiter_id: string
+          row_count?: number
+          source_name?: string | null
+          status?: string
+          team_id: string
+        }
+        Update: {
+          created_at?: string
+          entity_type?: string
+          id?: string
+          recruiter_id?: string
+          row_count?: number
+          source_name?: string | null
+          status?: string
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_batches_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       interactions: {
         Row: {
           candidate_id: string | null
@@ -705,9 +791,9 @@ export type Database = {
           requisition_id?: string | null
           scheduled_at?: string | null
           summary?: string | null
-          translated_lang?: string | null
           team_id?: string | null
           transcript_raw?: string | null
+          translated_lang?: string | null
           triggers_context_refresh?: boolean
         }
         Relationships: [
@@ -777,10 +863,10 @@ export type Database = {
           cv_sent_at: string | null
           id: string
           last_activity_at: string | null
+          not_interested_at: string | null
           offer_amount: number | null
           offer_date: string | null
           owner_recruiter_id: string
-          not_interested_at: string | null
           placed_date: string | null
           placed_fee_jpy: number | null
           requisition_id: string
@@ -872,6 +958,95 @@ export type Database = {
           },
         ]
       }
+      recall_bot_sessions: {
+        Row: {
+          bot_id: string
+          candidate_id: string
+          created_at: string
+          id: string
+          meeting_url: string
+          recruiter_id: string
+          status: string
+          team_id: string
+        }
+        Insert: {
+          bot_id: string
+          candidate_id: string
+          created_at?: string
+          id?: string
+          meeting_url: string
+          recruiter_id: string
+          status?: string
+          team_id: string
+        }
+        Update: {
+          bot_id?: string
+          candidate_id?: string
+          created_at?: string
+          id?: string
+          meeting_url?: string
+          recruiter_id?: string
+          status?: string
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recall_bot_sessions_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recall_bot_sessions_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recruiter_oauth_tokens: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          provider: string
+          recruiter_id: string
+          refresh_token_enc: string
+          team_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          provider: string
+          recruiter_id: string
+          refresh_token_enc: string
+          team_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          provider?: string
+          recruiter_id?: string
+          refresh_token_enc?: string
+          team_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recruiter_oauth_tokens_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       recruiters: {
         Row: {
           agency_name: string | null
@@ -917,6 +1092,7 @@ export type Database = {
           recruiter_id: string
           requisition_id: string
           source: string
+          weight: number
         }
         Insert: {
           condition_text: string
@@ -927,6 +1103,7 @@ export type Database = {
           recruiter_id: string
           requisition_id: string
           source: string
+          weight?: number
         }
         Update: {
           condition_text?: string
@@ -937,6 +1114,7 @@ export type Database = {
           recruiter_id?: string
           requisition_id?: string
           source?: string
+          weight?: number
         }
         Relationships: [
           {
@@ -989,11 +1167,11 @@ export type Database = {
           other_agencies: boolean | null
           other_agency_names: string | null
           recruiter_id: string
+          recruiter_notes: string | null
           salary_max: number | null
           salary_min: number | null
           salary_range_text: string | null
           salary_stretch: number | null
-          recruiter_notes: string | null
           skills_test_notes: string | null
           strategic_context: string | null
           target_start_date: string | null
@@ -1036,10 +1214,10 @@ export type Database = {
           other_agencies?: boolean | null
           other_agency_names?: string | null
           recruiter_id: string
+          recruiter_notes?: string | null
           salary_max?: number | null
           salary_min?: number | null
           salary_range_text?: string | null
-          recruiter_notes?: string | null
           salary_stretch?: number | null
           skills_test_notes?: string | null
           strategic_context?: string | null
@@ -1083,10 +1261,10 @@ export type Database = {
           other_agencies?: boolean | null
           other_agency_names?: string | null
           recruiter_id?: string
+          recruiter_notes?: string | null
           salary_max?: number | null
           salary_min?: number | null
           salary_range_text?: string | null
-          recruiter_notes?: string | null
           salary_stretch?: number | null
           skills_test_notes?: string | null
           strategic_context?: string | null
@@ -1146,54 +1324,480 @@ export type Database = {
         }
         Relationships: []
       }
-      recall_bot_sessions: {
-        Row: {
-          id: string
-          bot_id: string
-          candidate_id: string
-          meeting_url: string
-          status: string
-          recruiter_id: string
-          team_id: string
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          bot_id: string
-          candidate_id: string
-          meeting_url: string
-          status?: string
-          recruiter_id: string
-          team_id: string
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          bot_id?: string
-          candidate_id?: string
-          meeting_url?: string
-          status?: string
-          recruiter_id?: string
-          team_id?: string
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      complete_context_refresh_job: {
+        Args: { job_msg_id: number }
+        Returns: undefined
+      }
       current_team_id: { Args: never; Returns: string }
+      match_candidates_hybrid: {
+        Args: {
+          p_excluded_ids: string[]
+          p_limit?: number
+          p_statuses: string[]
+          p_team_id: string
+          query_embedding: string
+          query_text: string
+        }
+        Returns: {
+          id: string
+          score: number
+        }[]
+      }
+      pgroonga_command:
+        | { Args: { groongacommand: string }; Returns: string }
+        | {
+            Args: { arguments: string[]; groongacommand: string }
+            Returns: string
+          }
+      pgroonga_command_escape_value: {
+        Args: { value: string }
+        Returns: string
+      }
+      pgroonga_condition: {
+        Args: {
+          column_name?: string
+          fuzzy_max_distance_ratio?: number
+          index_name?: string
+          query?: string
+          schema_name?: string
+          scorers?: string[]
+          weights?: number[]
+        }
+        Returns: Database["public"]["CompositeTypes"]["pgroonga_condition"]
+        SetofOptions: {
+          from: "*"
+          to: "pgroonga_condition"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      pgroonga_equal_query_text_array: {
+        Args: { query: string; targets: string[] }
+        Returns: boolean
+      }
+      pgroonga_equal_query_text_array_condition:
+        | {
+            Args: {
+              condition: Database["public"]["CompositeTypes"]["pgroonga_condition"]
+              targets: string[]
+            }
+            Returns: boolean
+          }
+        | {
+            Args: {
+              condition: Database["public"]["CompositeTypes"]["pgroonga_full_text_search_condition"]
+              targets: string[]
+            }
+            Returns: boolean
+          }
+      pgroonga_equal_query_varchar_array: {
+        Args: { query: string; targets: string[] }
+        Returns: boolean
+      }
+      pgroonga_equal_query_varchar_array_condition:
+        | {
+            Args: {
+              condition: Database["public"]["CompositeTypes"]["pgroonga_condition"]
+              targets: string[]
+            }
+            Returns: boolean
+          }
+        | {
+            Args: {
+              condition: Database["public"]["CompositeTypes"]["pgroonga_full_text_search_condition"]
+              targets: string[]
+            }
+            Returns: boolean
+          }
+      pgroonga_equal_text: {
+        Args: { other: string; target: string }
+        Returns: boolean
+      }
+      pgroonga_equal_text_condition:
+        | {
+            Args: {
+              condition: Database["public"]["CompositeTypes"]["pgroonga_condition"]
+              target: string
+            }
+            Returns: boolean
+          }
+        | {
+            Args: {
+              condition: Database["public"]["CompositeTypes"]["pgroonga_full_text_search_condition"]
+              target: string
+            }
+            Returns: boolean
+          }
+      pgroonga_equal_varchar: {
+        Args: { other: string; target: string }
+        Returns: boolean
+      }
+      pgroonga_equal_varchar_condition:
+        | {
+            Args: {
+              condition: Database["public"]["CompositeTypes"]["pgroonga_condition"]
+              target: string
+            }
+            Returns: boolean
+          }
+        | {
+            Args: {
+              condition: Database["public"]["CompositeTypes"]["pgroonga_full_text_search_condition"]
+              target: string
+            }
+            Returns: boolean
+          }
+      pgroonga_escape:
+        | {
+            Args: { value: number }
+            Returns: {
+              error: true
+            } & "Could not choose the best candidate function between: public.pgroonga_escape(value => bool), public.pgroonga_escape(value => int8), public.pgroonga_escape(value => int2), public.pgroonga_escape(value => int4), public.pgroonga_escape(value => text), public.pgroonga_escape(value => float4), public.pgroonga_escape(value => float8), public.pgroonga_escape(value => timestamp), public.pgroonga_escape(value => timestamptz). Try renaming the parameters or the function itself in the database so function overloading can be resolved"
+          }
+        | {
+            Args: { value: boolean }
+            Returns: {
+              error: true
+            } & "Could not choose the best candidate function between: public.pgroonga_escape(value => bool), public.pgroonga_escape(value => int8), public.pgroonga_escape(value => int2), public.pgroonga_escape(value => int4), public.pgroonga_escape(value => text), public.pgroonga_escape(value => float4), public.pgroonga_escape(value => float8), public.pgroonga_escape(value => timestamp), public.pgroonga_escape(value => timestamptz). Try renaming the parameters or the function itself in the database so function overloading can be resolved"
+          }
+        | {
+            Args: { value: number }
+            Returns: {
+              error: true
+            } & "Could not choose the best candidate function between: public.pgroonga_escape(value => bool), public.pgroonga_escape(value => int8), public.pgroonga_escape(value => int2), public.pgroonga_escape(value => int4), public.pgroonga_escape(value => text), public.pgroonga_escape(value => float4), public.pgroonga_escape(value => float8), public.pgroonga_escape(value => timestamp), public.pgroonga_escape(value => timestamptz). Try renaming the parameters or the function itself in the database so function overloading can be resolved"
+          }
+        | {
+            Args: { value: number }
+            Returns: {
+              error: true
+            } & "Could not choose the best candidate function between: public.pgroonga_escape(value => bool), public.pgroonga_escape(value => int8), public.pgroonga_escape(value => int2), public.pgroonga_escape(value => int4), public.pgroonga_escape(value => text), public.pgroonga_escape(value => float4), public.pgroonga_escape(value => float8), public.pgroonga_escape(value => timestamp), public.pgroonga_escape(value => timestamptz). Try renaming the parameters or the function itself in the database so function overloading can be resolved"
+          }
+        | {
+            Args: { value: number }
+            Returns: {
+              error: true
+            } & "Could not choose the best candidate function between: public.pgroonga_escape(value => bool), public.pgroonga_escape(value => int8), public.pgroonga_escape(value => int2), public.pgroonga_escape(value => int4), public.pgroonga_escape(value => text), public.pgroonga_escape(value => float4), public.pgroonga_escape(value => float8), public.pgroonga_escape(value => timestamp), public.pgroonga_escape(value => timestamptz). Try renaming the parameters or the function itself in the database so function overloading can be resolved"
+          }
+        | {
+            Args: { value: number }
+            Returns: {
+              error: true
+            } & "Could not choose the best candidate function between: public.pgroonga_escape(value => bool), public.pgroonga_escape(value => int8), public.pgroonga_escape(value => int2), public.pgroonga_escape(value => int4), public.pgroonga_escape(value => text), public.pgroonga_escape(value => float4), public.pgroonga_escape(value => float8), public.pgroonga_escape(value => timestamp), public.pgroonga_escape(value => timestamptz). Try renaming the parameters or the function itself in the database so function overloading can be resolved"
+          }
+        | {
+            Args: { value: string }
+            Returns: {
+              error: true
+            } & "Could not choose the best candidate function between: public.pgroonga_escape(value => bool), public.pgroonga_escape(value => int8), public.pgroonga_escape(value => int2), public.pgroonga_escape(value => int4), public.pgroonga_escape(value => text), public.pgroonga_escape(value => float4), public.pgroonga_escape(value => float8), public.pgroonga_escape(value => timestamp), public.pgroonga_escape(value => timestamptz). Try renaming the parameters or the function itself in the database so function overloading can be resolved"
+          }
+        | {
+            Args: { special_characters: string; value: string }
+            Returns: string
+          }
+        | {
+            Args: { value: string }
+            Returns: {
+              error: true
+            } & "Could not choose the best candidate function between: public.pgroonga_escape(value => bool), public.pgroonga_escape(value => int8), public.pgroonga_escape(value => int2), public.pgroonga_escape(value => int4), public.pgroonga_escape(value => text), public.pgroonga_escape(value => float4), public.pgroonga_escape(value => float8), public.pgroonga_escape(value => timestamp), public.pgroonga_escape(value => timestamptz). Try renaming the parameters or the function itself in the database so function overloading can be resolved"
+          }
+        | {
+            Args: { value: string }
+            Returns: {
+              error: true
+            } & "Could not choose the best candidate function between: public.pgroonga_escape(value => bool), public.pgroonga_escape(value => int8), public.pgroonga_escape(value => int2), public.pgroonga_escape(value => int4), public.pgroonga_escape(value => text), public.pgroonga_escape(value => float4), public.pgroonga_escape(value => float8), public.pgroonga_escape(value => timestamp), public.pgroonga_escape(value => timestamptz). Try renaming the parameters or the function itself in the database so function overloading can be resolved"
+          }
+      pgroonga_flush: { Args: { indexname: unknown }; Returns: boolean }
+      pgroonga_highlight_html:
+        | { Args: { keywords: string[]; target: string }; Returns: string }
+        | {
+            Args: { indexname: unknown; keywords: string[]; target: string }
+            Returns: string
+          }
+        | { Args: { keywords: string[]; targets: string[] }; Returns: string[] }
+        | {
+            Args: { indexname: unknown; keywords: string[]; targets: string[] }
+            Returns: string[]
+          }
+      pgroonga_index_column_name:
+        | { Args: { columnindex: number; indexname: unknown }; Returns: string }
+        | { Args: { columnname: string; indexname: unknown }; Returns: string }
+      pgroonga_is_writable: { Args: never; Returns: boolean }
+      pgroonga_list_broken_indexes: { Args: never; Returns: string[] }
+      pgroonga_list_lagged_indexes: { Args: never; Returns: string[] }
+      pgroonga_match_positions_byte:
+        | { Args: { keywords: string[]; target: string }; Returns: number[] }
+        | {
+            Args: { indexname: unknown; keywords: string[]; target: string }
+            Returns: number[]
+          }
+      pgroonga_match_positions_character:
+        | { Args: { keywords: string[]; target: string }; Returns: number[] }
+        | {
+            Args: { indexname: unknown; keywords: string[]; target: string }
+            Returns: number[]
+          }
+      pgroonga_match_term:
+        | { Args: { target: string; term: string }; Returns: boolean }
+        | { Args: { target: string[]; term: string }; Returns: boolean }
+        | { Args: { target: string; term: string }; Returns: boolean }
+        | { Args: { target: string[]; term: string }; Returns: boolean }
+      pgroonga_match_text_array_condition:
+        | {
+            Args: {
+              condition: Database["public"]["CompositeTypes"]["pgroonga_condition"]
+              target: string[]
+            }
+            Returns: boolean
+          }
+        | {
+            Args: {
+              condition: Database["public"]["CompositeTypes"]["pgroonga_full_text_search_condition"]
+              target: string[]
+            }
+            Returns: boolean
+          }
+      pgroonga_match_text_array_condition_with_scorers: {
+        Args: {
+          condition: Database["public"]["CompositeTypes"]["pgroonga_full_text_search_condition_with_scorers"]
+          target: string[]
+        }
+        Returns: boolean
+      }
+      pgroonga_match_text_condition:
+        | {
+            Args: {
+              condition: Database["public"]["CompositeTypes"]["pgroonga_condition"]
+              target: string
+            }
+            Returns: boolean
+          }
+        | {
+            Args: {
+              condition: Database["public"]["CompositeTypes"]["pgroonga_full_text_search_condition"]
+              target: string
+            }
+            Returns: boolean
+          }
+      pgroonga_match_text_condition_with_scorers: {
+        Args: {
+          condition: Database["public"]["CompositeTypes"]["pgroonga_full_text_search_condition_with_scorers"]
+          target: string
+        }
+        Returns: boolean
+      }
+      pgroonga_match_varchar_condition:
+        | {
+            Args: {
+              condition: Database["public"]["CompositeTypes"]["pgroonga_condition"]
+              target: string
+            }
+            Returns: boolean
+          }
+        | {
+            Args: {
+              condition: Database["public"]["CompositeTypes"]["pgroonga_full_text_search_condition"]
+              target: string
+            }
+            Returns: boolean
+          }
+      pgroonga_match_varchar_condition_with_scorers: {
+        Args: {
+          condition: Database["public"]["CompositeTypes"]["pgroonga_full_text_search_condition_with_scorers"]
+          target: string
+        }
+        Returns: boolean
+      }
+      pgroonga_normalize:
+        | { Args: { target: string }; Returns: string }
+        | { Args: { normalizername: string; target: string }; Returns: string }
+      pgroonga_prefix_varchar_condition:
+        | {
+            Args: {
+              conditoin: Database["public"]["CompositeTypes"]["pgroonga_condition"]
+              target: string
+            }
+            Returns: boolean
+          }
+        | {
+            Args: {
+              conditoin: Database["public"]["CompositeTypes"]["pgroonga_full_text_search_condition"]
+              target: string
+            }
+            Returns: boolean
+          }
+      pgroonga_query_escape: { Args: { query: string }; Returns: string }
+      pgroonga_query_expand: {
+        Args: {
+          query: string
+          synonymscolumnname: string
+          tablename: unknown
+          termcolumnname: string
+        }
+        Returns: string
+      }
+      pgroonga_query_extract_keywords: {
+        Args: { index_name?: string; query: string }
+        Returns: string[]
+      }
+      pgroonga_query_text_array_condition:
+        | {
+            Args: {
+              condition: Database["public"]["CompositeTypes"]["pgroonga_condition"]
+              targets: string[]
+            }
+            Returns: boolean
+          }
+        | {
+            Args: {
+              condition: Database["public"]["CompositeTypes"]["pgroonga_full_text_search_condition"]
+              targets: string[]
+            }
+            Returns: boolean
+          }
+      pgroonga_query_text_array_condition_with_scorers: {
+        Args: {
+          condition: Database["public"]["CompositeTypes"]["pgroonga_full_text_search_condition_with_scorers"]
+          targets: string[]
+        }
+        Returns: boolean
+      }
+      pgroonga_query_text_condition:
+        | {
+            Args: {
+              condition: Database["public"]["CompositeTypes"]["pgroonga_condition"]
+              target: string
+            }
+            Returns: boolean
+          }
+        | {
+            Args: {
+              condition: Database["public"]["CompositeTypes"]["pgroonga_full_text_search_condition"]
+              target: string
+            }
+            Returns: boolean
+          }
+      pgroonga_query_text_condition_with_scorers: {
+        Args: {
+          condition: Database["public"]["CompositeTypes"]["pgroonga_full_text_search_condition_with_scorers"]
+          target: string
+        }
+        Returns: boolean
+      }
+      pgroonga_query_varchar_condition:
+        | {
+            Args: {
+              condition: Database["public"]["CompositeTypes"]["pgroonga_condition"]
+              target: string
+            }
+            Returns: boolean
+          }
+        | {
+            Args: {
+              condition: Database["public"]["CompositeTypes"]["pgroonga_full_text_search_condition"]
+              target: string
+            }
+            Returns: boolean
+          }
+      pgroonga_query_varchar_condition_with_scorers: {
+        Args: {
+          condition: Database["public"]["CompositeTypes"]["pgroonga_full_text_search_condition_with_scorers"]
+          target: string
+        }
+        Returns: boolean
+      }
+      pgroonga_regexp_text_array: {
+        Args: { pattern: string; targets: string[] }
+        Returns: boolean
+      }
+      pgroonga_regexp_text_array_condition: {
+        Args: {
+          pattern: Database["public"]["CompositeTypes"]["pgroonga_condition"]
+          targets: string[]
+        }
+        Returns: boolean
+      }
+      pgroonga_result_to_jsonb_objects: {
+        Args: { result: Json }
+        Returns: Json
+      }
+      pgroonga_result_to_recordset: {
+        Args: { result: Json }
+        Returns: Record<string, unknown>[]
+      }
+      pgroonga_score:
+        | { Args: { row: Record<string, unknown> }; Returns: number }
+        | { Args: { ctid: unknown; tableoid: unknown }; Returns: number }
+      pgroonga_set_writable: {
+        Args: { newwritable: boolean }
+        Returns: boolean
+      }
+      pgroonga_snippet_html: {
+        Args: { keywords: string[]; target: string; width?: number }
+        Returns: string[]
+      }
+      pgroonga_table_name: { Args: { indexname: unknown }; Returns: string }
+      pgroonga_tokenize: {
+        Args: { options: string[]; target: string }
+        Returns: Json[]
+      }
+      pgroonga_vacuum: { Args: never; Returns: boolean }
+      pgroonga_wal_apply:
+        | { Args: never; Returns: number }
+        | { Args: { indexname: unknown }; Returns: number }
+      pgroonga_wal_set_applied_position:
+        | { Args: never; Returns: boolean }
+        | { Args: { block: number; offset: number }; Returns: boolean }
+        | { Args: { indexname: unknown }; Returns: boolean }
+        | {
+            Args: { block: number; indexname: unknown; offset: number }
+            Returns: boolean
+          }
+      pgroonga_wal_status: {
+        Args: never
+        Returns: {
+          current_block: number
+          current_offset: number
+          current_size: number
+          last_block: number
+          last_offset: number
+          last_size: number
+          name: string
+          oid: unknown
+        }[]
+      }
+      pgroonga_wal_truncate:
+        | { Args: never; Returns: number }
+        | { Args: { indexname: unknown }; Returns: number }
     }
     Enums: {
       [_ in never]: never
     }
     CompositeTypes: {
-      [_ in never]: never
+      pgroonga_condition: {
+        query: string | null
+        weigths: number[] | null
+        scorers: string[] | null
+        schema_name: string | null
+        index_name: string | null
+        column_name: string | null
+        fuzzy_max_distance_ratio: number | null
+      }
+      pgroonga_full_text_search_condition: {
+        query: string | null
+        weigths: number[] | null
+        indexname: string | null
+      }
+      pgroonga_full_text_search_condition_with_scorers: {
+        query: string | null
+        weigths: number[] | null
+        scorers: string[] | null
+        indexname: string | null
+      }
     }
   }
 }
