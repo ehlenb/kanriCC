@@ -10,6 +10,7 @@ import {
   relativeTime,
   formatYen,
   daysSince,
+  isCcmStage,
 } from "@/lib/candidate-utils";
 import { StageBadge } from "@/components/shared/StageBadge";
 import { SectionLabel } from "@/components/shared/SectionLabel";
@@ -57,6 +58,7 @@ import {
   IconSend,
   IconVideo,
   IconRobot,
+  IconAlertTriangle,
 } from "@tabler/icons-react";
 import { TranscriptPanel } from "@/components/candidate/TranscriptPanel";
 import { SubmissionPackagePanel } from "@/components/candidate/SubmissionPackagePanel";
@@ -3720,6 +3722,19 @@ type OpenReq = {
   clients: { id: string; company_name: string } | null;
 };
 
+type ExistingClientSubmission = {
+  requisitionId: string;
+  reqTitle: string;
+  stage: string;
+};
+
+// A candidate counts as "already submitted" to a client once their CV has
+// actually gone to that client — CV Sent or later. Specs Sent / Buy-In are
+// pre-submission and don't warrant a duplicate warning.
+function isSubmittedStage(stage: string): boolean {
+  return stage === "CV Sent" || stage === "Offer" || stage === "Placed" || isCcmStage(stage);
+}
+
 function AddToProcessModal({
   open,
   onClose,
@@ -3750,6 +3765,36 @@ function AddToProcessModal({
         .eq("is_open", true)
         .order("created_at", { ascending: false });
       return (data ?? []) as OpenReq[];
+    },
+    enabled: open,
+    staleTime: 30_000,
+  });
+
+  // Duplicate-submission guard: has this candidate already been submitted
+  // (CV Sent or later) to the same client on a different requisition?
+  const { data: existingSubmissions = {} } = useQuery({
+    queryKey: ["candidate-client-submissions", candidateId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("processes")
+        .select("requisition_id, stage, requisitions ( client_id, title )")
+        .eq("candidate_id", candidateId);
+
+      const byClient: Record<string, ExistingClientSubmission[]> = {};
+      for (const p of (data ?? []) as {
+        requisition_id: string;
+        stage: string;
+        requisitions: { client_id: string; title: string } | null;
+      }[]) {
+        if (!p.requisitions || !isSubmittedStage(p.stage)) continue;
+        const clientId = p.requisitions.client_id;
+        (byClient[clientId] ??= []).push({
+          requisitionId: p.requisition_id,
+          reqTitle: p.requisitions.title,
+          stage: p.stage,
+        });
+      }
+      return byClient;
     },
     enabled: open,
     staleTime: 30_000,
@@ -3843,9 +3888,12 @@ function AddToProcessModal({
                     {clientReqs.map((r) => {
                       const alreadyAdded = existingReqIds.includes(r.id);
                       const isSaving = saving === r.id;
+                      const duplicates = (existingSubmissions[r.clients?.id ?? ""] ?? []).filter(
+                        (d) => d.requisitionId !== r.id,
+                      );
                       return (
+                        <div key={r.id}>
                         <button
-                          key={r.id}
                           disabled={alreadyAdded || isSaving}
                           onClick={() => void handleAdd(r)}
                           className="w-full text-left px-3 py-2.5 flex items-center justify-between gap-3 transition-colors"
@@ -3893,6 +3941,19 @@ function AddToProcessModal({
                             <IconPlus size={14} style={{ color: "var(--color-ink-30)", flexShrink: 0 }} />
                           )}
                         </button>
+                        {duplicates.length > 0 && (
+                          <div
+                            className="flex items-start gap-1.5 px-3 py-1.5 text-[11px]"
+                            style={{ background: "var(--color-gold-light)", color: "var(--color-gold)" }}
+                          >
+                            <IconAlertTriangle size={13} style={{ flexShrink: 0, marginTop: 1 }} />
+                            <span>
+                              {candidateName} was already submitted to {clientName} for{" "}
+                              {duplicates.map((d) => `"${d.reqTitle}" (${d.stage})`).join(", ")}.
+                            </span>
+                          </div>
+                        )}
+                        </div>
                       );
                     })}
                   </div>
