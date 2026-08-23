@@ -12,7 +12,7 @@ const supabase = createClient(
 const formatYen = (n: number | null) =>
   n ? `¥${(n / 1_000_000).toFixed(1)}M` : "—";
 
-async function refreshCandidate(entityId: string, triggeredById?: string) {
+export async function refreshCandidate(entityId: string, triggeredById?: string) {
   const [
     { data: candidate },
     { data: motivations },
@@ -155,7 +155,7 @@ NEVER use: straightforward, genuinely, honestly, leverage (as a verb), utilize. 
   ]);
 }
 
-async function refreshClient(entityId: string, triggeredById?: string) {
+export async function refreshClient(entityId: string, triggeredById?: string) {
   const [
     { data: client },
     { data: contacts },
@@ -265,7 +265,7 @@ NEVER use: straightforward, genuinely, honestly, leverage (as a verb), utilize. 
   ]);
 }
 
-async function refreshRequisition(entityId: string, triggeredById?: string) {
+export async function refreshRequisition(entityId: string, triggeredById?: string) {
   const [
     { data: req },
     { data: conditions },
