@@ -81,12 +81,13 @@ Write a strategic context paragraph (3-4 sentences) explaining why this role mat
   const message = await anthropic.messages.create({
     model: "claude-haiku-4-5-20251001",
     max_tokens: 300,
+    thinking: { type: "disabled" },
     system: `You write concise strategic framing for open roles at foreign companies in Japan. Your output goes into a recruiter's internal notes — it should help them explain the business case for a role in 30 seconds. Write in clear English. Do not use: straightforward, genuinely, honestly, leverage (as verb), utilize. No em dashes. No bullet points — prose only.`,
     messages: [{ role: "user", content: prompt }],
   });
 
   const content =
-    message.content[0].type === "text" ? message.content[0].text : "";
+    message.content.find((b) => b.type === "text")?.text ?? "";
 
   return res.status(200).json({ content });
 }

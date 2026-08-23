@@ -256,10 +256,10 @@ function usePriorityActions(recruiterId: string) {
           });
         }
 
-        // Rule 4: CV Sent > 3 business days with no response
+        // Rule 4: CV Sent > 5 business days with no response
         if (proc.stage === "CV Sent" && proc.cv_sent_at) {
           const bizDaysSinceCv = businessDaysSince(proc.cv_sent_at);
-          if (bizDaysSinceCv >= 3) {
+          if (bizDaysSinceCv >= 5) {
             actions.push({
               entity_type: "candidate", entity_id: candidateId,
               entity_name: candidateName, process_id: proc.id, stage: proc.stage,

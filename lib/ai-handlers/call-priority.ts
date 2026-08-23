@@ -103,10 +103,11 @@ Order from highest call priority to lowest.`;
   const message = await anthropic.messages.create({
     model: "claude-haiku-4-5-20251001",
     max_tokens: 600,
+    thinking: { type: "disabled" },
     messages: [{ role: "user", content: prompt }],
   });
 
-  const raw = message.content[0]?.type === "text" ? message.content[0].text.trim() : "[]";
+  const raw = message.content.find((b) => b.type === "text")?.text.trim() ?? "[]";
   const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
 
   try {

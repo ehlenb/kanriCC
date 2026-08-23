@@ -126,6 +126,7 @@ ${candidateActivityText}
   const message = await anthropic.messages.create({
     model: "claude-haiku-4-5-20251001",
     max_tokens: 600,
+    thinking: { type: "disabled" },
     system: `You are writing a call brief for a recruiter who is about to call ${clientName} to chase ${stage} feedback on ${candidateName}. This is a client-facing call, not a candidate call.
 
 Use markdown formatting: **bold** for section headers and key phrases, • for bullet points. Write in short, clear English. No preamble.
@@ -146,6 +147,6 @@ NEVER use: straightforward, genuinely, honestly, leverage (as a verb), utilize. 
     messages: [{ role: "user", content: prompt }],
   });
 
-  const content = message.content[0].type === "text" ? message.content[0].text : "";
+  const content = message.content.find((b) => b.type === "text")?.text ?? "";
   return res.status(200).json({ content });
 }

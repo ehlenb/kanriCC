@@ -16,6 +16,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const message = await anthropic.messages.create({
       model: "claude-haiku-4-5-20251001",
       max_tokens: 1024,
+      thinking: { type: "disabled" },
       system: `You are a professional translator specializing in Japanese business and recruitment content.
 Translate the provided text to ${targetName}.
 Return only the translated text — no explanation, no preamble, no quotes around the result.
@@ -25,7 +26,7 @@ If the text is already in ${targetName}, return it unchanged.`,
       messages: [{ role: "user", content: text }],
     });
 
-    const translated = message.content[0]?.type === "text" ? message.content[0].text.trim() : text;
+    const translated = message.content.find((b) => b.type === "text")?.text.trim() ?? text;
     return res.status(200).json({ translated });
   } catch (err) {
     console.error("translate handler error:", err);

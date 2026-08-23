@@ -153,6 +153,7 @@ ${interactionText || "No interactions logged yet."}
   const message = await anthropic.messages.create({
     model: "claude-sonnet-5",
     max_tokens: 700,
+    thinking: { type: "disabled" },
     system: `You are preparing a competitive positioning brief for a recruiter. The candidate has active competing interviews. The recruiter needs to call the candidate and reinforce their process at ${clientName || "our client"}.
 
 Use markdown formatting: **bold** for section headers and key phrases, • for bullet points. Write in short, clear English. No preamble.
@@ -173,6 +174,6 @@ NEVER use: straightforward, genuinely, honestly, leverage (as a verb), utilize. 
     messages: [{ role: "user", content: prompt }],
   });
 
-  const content = message.content[0].type === "text" ? message.content[0].text : "";
+  const content = message.content.find((b) => b.type === "text")?.text ?? "";
   return res.status(200).json({ content });
 }

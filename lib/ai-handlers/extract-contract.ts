@@ -57,6 +57,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const response = await anthropic.messages.create({
         model: "claude-sonnet-5",
         max_tokens: 256,
+        thinking: { type: "disabled" },
         system: SYSTEM_PROMPT,
         messages: [
           {
@@ -72,7 +73,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ],
       });
 
-      const raw = response.content[0].type === "text" ? response.content[0].text.trim() : "";
+      const raw = response.content.find((b) => b.type === "text")?.text.trim() ?? "";
       const match = raw.match(/\{[\s\S]*\}/);
       if (match) extracted = JSON.parse(match[0]) as typeof extracted;
     } else {
@@ -80,6 +81,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const response = await anthropic.messages.create({
         model: "claude-sonnet-5",
         max_tokens: 256,
+        thinking: { type: "disabled" },
         system: SYSTEM_PROMPT,
         messages: [
           {
@@ -89,7 +91,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ],
       });
 
-      const raw = response.content[0].type === "text" ? response.content[0].text.trim() : "";
+      const raw = response.content.find((b) => b.type === "text")?.text.trim() ?? "";
       const match = raw.match(/\{[\s\S]*\}/);
       if (match) extracted = JSON.parse(match[0]) as typeof extracted;
     }

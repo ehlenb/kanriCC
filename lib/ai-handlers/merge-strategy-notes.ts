@@ -28,6 +28,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const message = await anthropic.messages.create({
       model: "claude-haiku-4-5-20251001",
       max_tokens: 400,
+      thinking: { type: "disabled" },
       system: SYSTEM_PROMPT,
       messages: [{
         role: "user",

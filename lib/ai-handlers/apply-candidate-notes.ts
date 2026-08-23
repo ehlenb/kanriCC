@@ -49,6 +49,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     message = await anthropic.messages.create({
       model: "claude-sonnet-5",
       max_tokens: 8000,
+      thinking: { type: "disabled" },
       system: SYSTEM_PROMPT,
       messages: [
         {
@@ -83,6 +84,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     message = await anthropic.messages.create({
       model: "claude-sonnet-5",
       max_tokens: 8000,
+      thinking: { type: "disabled" },
       system: SYSTEM_PROMPT,
       messages: [
         {
@@ -96,6 +98,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     message = await anthropic.messages.create({
       model: "claude-sonnet-5",
       max_tokens: 8000,
+      thinking: { type: "disabled" },
       system: SYSTEM_PROMPT,
       messages: [
         {

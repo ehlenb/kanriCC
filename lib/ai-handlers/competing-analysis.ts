@@ -161,10 +161,11 @@ One paragraph on the most likely way you lose this candidate and what to watch f
   const msg = await anthropic.messages.create({
     model: "claude-sonnet-5",
     max_tokens: 2000,
+    thinking: { type: "disabled" },
     messages: [{ role: "user", content: prompt }],
   });
 
-  const text = msg.content[0].type === "text" ? msg.content[0].text : "";
+  const text = msg.content.find((b) => b.type === "text")?.text ?? "";
 
   return res.status(200).json({ analysis: text });
 }

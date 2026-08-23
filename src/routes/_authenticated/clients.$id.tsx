@@ -48,8 +48,11 @@ import {
   IconChevronRight,
   IconList,
   IconTrash,
+  IconSend,
 } from "@tabler/icons-react";
 import { ActivityTimeline } from "@/components/shared/ActivityTimeline";
+import { JdViewer } from "@/components/shared/JdViewer";
+import { SendEmailDialog } from "@/components/shared/SendEmailDialog";
 import { LogActivityModal } from "@/components/shared/LogActivityModal";
 import { LiveCallPanel } from "@/components/shared/LiveCallPanel";
 
@@ -121,6 +124,8 @@ type ReqWithPipeline = {
   why_role_opened: string | null;
   strategic_context: string | null;
   recruiter_notes: string | null;
+  jd_url: string | null;
+  jd_text: string | null;
   processes: PipelineProcess[];
 };
 
@@ -155,6 +160,7 @@ type MatchCandidate = AiMatchResult & {
   full_name: string;
   current_title: string | null;
   current_company: string | null;
+  email: string | null;
 };
 
 // ─── action item type ─────────────────────────────────────────────────────────
@@ -205,7 +211,7 @@ function useClientDetail(id: string) {
           .from("requisitions")
           .select(
             `id, title, salary_min, salary_max, salary_stretch, salary_range_text, location, urgency_date, is_open, is_backfill,
-             interview_rounds, hiring_manager_id, why_role_opened, strategic_context, recruiter_notes,
+             interview_rounds, hiring_manager_id, why_role_opened, strategic_context, recruiter_notes, jd_url, jd_text,
              processes (
                id, stage, coverage_type, updated_at, cv_sent_at, ccm_outcome,
                candidates ( id, full_name, full_name_japanese, current_title )
@@ -937,6 +943,7 @@ function ClientDetail() {
             contacts={contacts}
             interactions={interactions}
             onDeleteReq={(reqId, title) => setDeleteTarget({ type: "req", id: reqId, label: title })}
+            companyName={c.company_name}
           />
         </div>
       )}
@@ -1826,18 +1833,24 @@ function JobMatchPanel({
   recruiterId,
   existingListId,
   onSaveList,
+  jobTitle,
+  companyName,
 }: {
   requisitionId: string;
   clientId: string;
   recruiterId: string;
   existingListId?: string | null;
   onSaveList: (candidateIds: string[]) => Promise<void>;
+  jobTitle: string;
+  companyName: string;
 }) {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [matches, setMatches] = useState<MatchCandidate[] | null>(null);
   const [draftStates, setDraftStates] = useState<Record<string, { loading: boolean; text: string | null }>>({});
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(!!existingListId);
+  const [sendDialog, setSendDialog] = useState<{ to: string; subject: string; body: string; candidateId: string } | null>(null);
 
   useEffect(() => {
     void runSearch();
@@ -1876,11 +1889,11 @@ function JobMatchPanel({
       // Enrich with candidate names from DB
       const { data: cands } = await supabase
         .from("candidates")
-        .select("id, full_name, current_title, current_company")
+        .select("id, full_name, current_title, current_company, email")
         .in("id", top.map((m) => m.candidate_id));
 
       const candMap = new Map(
-        ((cands ?? []) as { id: string; full_name: string; current_title: string | null; current_company: string | null }[])
+        ((cands ?? []) as { id: string; full_name: string; current_title: string | null; current_company: string | null; email: string | null }[])
           .map((c) => [c.id, c]),
       );
 
@@ -1890,6 +1903,7 @@ function JobMatchPanel({
           full_name: candMap.get(m.candidate_id)?.full_name ?? "Unknown",
           current_title: candMap.get(m.candidate_id)?.current_title ?? null,
           current_company: candMap.get(m.candidate_id)?.current_company ?? null,
+          email: candMap.get(m.candidate_id)?.email ?? null,
         })),
       );
     } catch {
@@ -1981,6 +1995,7 @@ function JobMatchPanel({
   }
 
   return (
+    <>
     <div className="mt-3 pt-3 space-y-2" style={{ borderTop: "0.5px solid var(--color-ink-15)" }}>
       <div className="flex items-center justify-between">
         <p className="text-[11px] font-mono uppercase tracking-wide" style={{ color: "var(--color-ink-30)" }}>
@@ -2086,6 +2101,21 @@ function JobMatchPanel({
                     <IconSparkles size={10} />
                     {t('common.regenerate')}
                   </button>
+                  <button
+                    className="ab flex items-center gap-1"
+                    style={{ fontSize: 11, padding: "3px 8px" }}
+                    disabled={!m.email}
+                    title={m.email ? undefined : "No email on file for this candidate"}
+                    onClick={() => setSendDialog({
+                      to: m.email ?? "",
+                      subject: `${jobTitle} at ${companyName}`,
+                      body: draft.text ?? "",
+                      candidateId: m.candidate_id,
+                    })}
+                  >
+                    <IconSend size={10} />
+                    {t('common.send')}
+                  </button>
                 </div>
               </div>
             ) : (
@@ -2103,6 +2133,20 @@ function JobMatchPanel({
         );
       })}
     </div>
+    {sendDialog && (
+      <SendEmailDialog
+        open
+        onClose={() => setSendDialog(null)}
+        defaultTo={sendDialog.to}
+        defaultSubject={sendDialog.subject}
+        body={sendDialog.body}
+        bodyEditable
+        candidateId={sendDialog.candidateId}
+        clientId={clientId}
+        onSent={() => setSendDialog(null)}
+      />
+    )}
+    </>
   );
 }
 
@@ -2120,6 +2164,7 @@ type SpecCandidate = {
   full_name: string;
   current_title: string | null;
   current_company: string | null;
+  email: string | null;
 };
 
 type CallRanking = { candidate_id: string; priority: "call" | "email"; reason: string };
@@ -2129,23 +2174,28 @@ function SpecListPanel({
   requisitionId,
   recruiterId,
   onDelete,
+  jobTitle,
+  companyName,
 }: {
   list: SpecList;
   requisitionId: string;
   recruiterId: string;
   onDelete: (listId: string) => void;
+  jobTitle: string;
+  companyName: string;
 }) {
   const { t } = useTranslation();
   const [candidates, setCandidates] = useState<SpecCandidate[] | null>(null);
   const [draftStates, setDraftStates] = useState<Record<string, { loading: boolean; text: string | null }>>({});
   const [callRankings, setCallRankings] = useState<CallRanking[] | null>(null);
   const [rankingLoading, setRankingLoading] = useState(false);
+  const [sendDialog, setSendDialog] = useState<{ to: string; subject: string; body: string; candidateId: string } | null>(null);
 
   useEffect(() => {
     if (list.candidate_ids.length === 0) { setCandidates([]); return; }
     void supabase
       .from("candidates")
-      .select("id, full_name, current_title, current_company")
+      .select("id, full_name, current_title, current_company, email")
       .in("id", list.candidate_ids)
       .then(({ data }) => setCandidates((data ?? []) as SpecCandidate[]));
   }, [list.id, list.candidate_ids]);
@@ -2300,6 +2350,20 @@ function SpecListPanel({
                       >
                         <IconSparkles size={10} /> {t('common.regenerate')}
                       </button>
+                      <button
+                        className="ab flex items-center gap-1"
+                        style={{ fontSize: 11, padding: "3px 8px" }}
+                        disabled={!c.email}
+                        title={c.email ? undefined : "No email on file for this candidate"}
+                        onClick={() => setSendDialog({
+                          to: c.email ?? "",
+                          subject: `${jobTitle} at ${companyName}`,
+                          body: draft.text ?? "",
+                          candidateId: c.id,
+                        })}
+                      >
+                        <IconSend size={10} /> {t('common.send')}
+                      </button>
                     </div>
                   </div>
                 ) : (
@@ -2318,6 +2382,18 @@ function SpecListPanel({
           });
           })()}
         </div>
+      )}
+      {sendDialog && (
+        <SendEmailDialog
+          open
+          onClose={() => setSendDialog(null)}
+          defaultTo={sendDialog.to}
+          defaultSubject={sendDialog.subject}
+          body={sendDialog.body}
+          bodyEditable
+          candidateId={sendDialog.candidateId}
+          onSent={() => setSendDialog(null)}
+        />
       )}
     </div>
   );
@@ -2339,12 +2415,14 @@ function JobDetailPanel({
   recruiterId: string;
 }) {
   const { t } = useTranslation();
+  const qc = useQueryClient();
   const hm = contacts.find((c) => c.id === req.hiring_manager_id);
   const [notesDraft, setNotesDraft] = useState(req.recruiter_notes ?? "");
   const [buyInDrafts, setBuyInDrafts] = useState<Record<string, { loading: boolean; text: string | null }>>({});
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [cvSendDraft, setCvSendDraft] = useState<{ subject: string; body: string } | null>(null);
+  const [cvSendDraft, setCvSendDraft] = useState<{ subject: string; body: string; contactEmail?: string | null } | null>(null);
   const [cvSendLoading, setCvSendLoading] = useState(false);
+  const [cvSendDialogOpen, setCvSendDialogOpen] = useState(false);
 
   const buyInProcesses = req.processes.filter((p) => p.stage === "Buy-In" && p.candidates);
 
@@ -2366,9 +2444,9 @@ function JobDetailPanel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ candidate_ids: [...selectedIds], requisition_id: req.id }),
       });
-      const data = (await resp.json()) as { subject?: string; body?: string; error?: string };
+      const data = (await resp.json()) as { subject?: string; body?: string; contactEmail?: string | null; error?: string };
       if (data.subject && data.body) {
-        setCvSendDraft({ subject: data.subject, body: data.body });
+        setCvSendDraft({ subject: data.subject, body: data.body, contactEmail: data.contactEmail });
       } else {
         toast.error("Could not generate CV send email. Try again.");
       }
@@ -2409,6 +2487,7 @@ function JobDetailPanel({
   const linked = interactions.filter((i) => i.requisition_id === req.id);
 
   return (
+    <>
     <div className="p-4 space-y-3" style={{ background: "var(--color-white)", border: "0.5px solid var(--color-ink-15)", borderTop: "none" }}>
       {/* Header row */}
       <div className="flex items-start gap-4 flex-wrap">
@@ -2437,6 +2516,14 @@ function JobDetailPanel({
           </div>
         )}
       </div>
+
+      <JdViewer
+        requisitionId={req.id}
+        recruiterId={recruiterId}
+        jdUrl={req.jd_url}
+        jdText={req.jd_text}
+        onUploaded={() => void qc.invalidateQueries({ queryKey: ["client"] })}
+      />
 
       {req.strategic_context && (
         <div>
@@ -2615,6 +2702,14 @@ function JobDetailPanel({
               >
                 <IconSparkles size={11} /> {t('common.regenerate')}
               </button>
+              <button
+                className="btn btn-ghost btn-sm flex items-center gap-1"
+                onClick={() => setCvSendDialogOpen(true)}
+                disabled={!cvSendDraft.contactEmail}
+                title={cvSendDraft.contactEmail ? undefined : "No hiring manager email on file for this requisition"}
+              >
+                <IconSend size={11} /> {t('common.send')}
+              </button>
             </div>
           </div>
         )}
@@ -2636,6 +2731,17 @@ function JobDetailPanel({
         )}
       </div>
     </div>
+    {cvSendDraft && (
+      <SendEmailDialog
+        open={cvSendDialogOpen}
+        onClose={() => setCvSendDialogOpen(false)}
+        defaultTo={cvSendDraft.contactEmail ?? ""}
+        defaultSubject={cvSendDraft.subject}
+        body={cvSendDraft.body}
+        bodyEditable
+      />
+    )}
+    </>
   );
 }
 
@@ -3136,6 +3242,7 @@ function JobsTab({
   contacts,
   interactions,
   onDeleteReq,
+  companyName,
 }: {
   clientId: string;
   recruiterId: string;
@@ -3144,6 +3251,7 @@ function JobsTab({
   contacts: Contact[];
   interactions: Interaction[];
   onDeleteReq?: (id: string, title: string) => void;
+  companyName: string;
 }) {
   const { t } = useTranslation();
   const qc = useQueryClient();
@@ -3228,12 +3336,13 @@ function JobsTab({
     setJdUploading(true);
     try {
       let extractedText = "";
+      const isPdf = file.type === "application/pdf" || file.name.endsWith(".pdf");
       if (file.name.endsWith(".docx")) {
         const mammoth = await import("mammoth");
         const buf = await file.arrayBuffer();
         const result = await mammoth.extractRawText({ arrayBuffer: buf });
         extractedText = result.value;
-      } else if (file.type === "application/pdf" || file.name.endsWith(".pdf")) {
+      } else if (isPdf) {
         const buf = await file.arrayBuffer();
         const base64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
         const resp = await fetch("/api/extract-text", {
@@ -3244,9 +3353,13 @@ function JobsTab({
         const data = (await resp.json()) as { text?: string };
         extractedText = data.text?.trim() ?? "";
       }
-      const path = `${recruiterId}/${clientId}/jd_${Date.now()}_${file.name.replace(/\s+/g, "_")}`;
-      const { error } = await supabase.storage.from("resumes").upload(path, file);
-      if (!error) setJdUrl(path);
+      // Storage bucket only accepts PDFs — .docx is text-extracted above but not stored as a file.
+      if (isPdf) {
+        const path = `${recruiterId}/${clientId}/jd_${Date.now()}_${file.name.replace(/\s+/g, "_")}`;
+        const { error } = await supabase.storage.from("resumes").upload(path, file);
+        if (error) { toast.error("Upload failed. Try again."); return; }
+        setJdUrl(path);
+      }
       setJdText(extractedText);
       toast.success("JD uploaded.");
       if (extractedText.length > 50) {
@@ -3380,10 +3493,10 @@ function JobsTab({
 
           <div className="grid grid-cols-2 gap-3">
             <F label="Hiring manager">
-              <Select value={form.hiring_manager_id} onValueChange={(v) => setForm((p) => ({ ...p, hiring_manager_id: v }))}>
+              <Select value={form.hiring_manager_id || "none"} onValueChange={(v) => setForm((p) => ({ ...p, hiring_manager_id: v === "none" ? "" : v }))}>
                 <SelectTrigger><SelectValue placeholder="Select contact…" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No hiring manager</SelectItem>
+                  <SelectItem value="none">No hiring manager</SelectItem>
                   {contacts.map((ct) => (
                     <SelectItem key={ct.id} value={ct.id}>{ct.name}</SelectItem>
                   ))}
@@ -3450,6 +3563,8 @@ function JobsTab({
                 requisitionId={activeSpecReqId}
                 recruiterId={recruiterId}
                 onDelete={(listId) => void handleDeleteSpecList(listId).then(() => setActiveSpecReqId(null))}
+                jobTitle={openReqs.find((r) => r.id === activeSpecReqId)?.title ?? ""}
+                companyName={companyName}
               />
             ) : null;
           })()}
@@ -3460,6 +3575,8 @@ function JobsTab({
               recruiterId={recruiterId}
               existingListId={specListByReq.get(activeMatchReqId)?.id}
               onSaveList={(ids) => handleSaveSpecList(activeMatchReqId, ids)}
+              jobTitle={openReqs.find((r) => r.id === activeMatchReqId)?.title ?? ""}
+              companyName={companyName}
             />
           )}
         </>

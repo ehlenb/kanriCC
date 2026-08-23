@@ -167,7 +167,8 @@ ${candidatesSummary}
 
   const message = await anthropic.messages.create({
     model: "claude-sonnet-5",
-    max_tokens: 2500,
+    max_tokens: 8000,
+    thinking: { type: "disabled" },
     system: `You are ranking candidates for an open role at a company in Japan.
 
 Score each candidate 30–100. Apply the threshold: only return candidates scoring ${threshold} or above.
@@ -195,7 +196,7 @@ Return valid JSON only, no markdown:
     messages: [{ role: "user", content: prompt }],
   });
 
-  const raw = message.content[0]?.type === "text" ? message.content[0].text.trim() : "{}";
+  const raw = message.content.find((b) => b.type === "text")?.text.trim() ?? "{}";
   const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
 
   try {

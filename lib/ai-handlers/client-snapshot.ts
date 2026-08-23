@@ -76,6 +76,7 @@ ${activePipeline.length > 0 ? activePipeline.join("\n") : "No active processes"}
   const message = await anthropic.messages.create({
     model: "claude-haiku-4-5-20251001",
     max_tokens: 400,
+    thinking: { type: "disabled" },
     system: `You are a recruitment intelligence assistant supporting a boutique agency recruiter in Japan.
 Generate a two-part client snapshot.
 
@@ -89,7 +90,7 @@ Rules: Write in clear English suitable for non-native speakers. Do not use: stra
     messages: [{ role: "user", content: prompt }],
   });
 
-  const raw = message.content[0].type === "text" ? message.content[0].text : "{}";
+  const raw = message.content.find((b) => b.type === "text")?.text ?? "{}";
   // Strip markdown code fences if Claude wraps the JSON
   const text = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
 

@@ -180,10 +180,11 @@ NEVER use: straightforward, genuinely, honestly, leverage (as a verb), utilize. 
   const message = await anthropic.messages.create({
     model: "claude-sonnet-5",
     max_tokens: 700,
+    thinking: { type: "disabled" },
     system: systemPrompt,
     messages: [{ role: "user", content: userPrompt }],
   });
 
-  const content = message.content[0].type === "text" ? message.content[0].text : "";
+  const content = message.content.find((b) => b.type === "text")?.text ?? "";
   return res.status(200).json({ content });
 }

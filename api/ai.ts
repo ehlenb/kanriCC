@@ -14,7 +14,6 @@ import clientSnapshot from "../lib/ai-handlers/client-snapshot.js";
 import closingScript from "../lib/ai-handlers/closing-script.js";
 import competingAnalysis from "../lib/ai-handlers/competing-analysis.js";
 import competingBrief from "../lib/ai-handlers/competing-brief.js";
-import dailyAgenda from "../lib/ai-handlers/daily-agenda.js";
 import enrichClient from "../lib/ai-handlers/enrich-client.js";
 import extractCandidate from "../lib/ai-handlers/extract-candidate.js";
 import extractCompensation from "../lib/ai-handlers/extract-compensation.js";
@@ -58,7 +57,6 @@ const routes: Record<string, Handler> = {
   "closing-script": closingScript,
   "competing-analysis": competingAnalysis,
   "competing-brief": competingBrief,
-  "daily-agenda": dailyAgenda,
   "enrich-client": enrichClient,
   "extract-candidate": extractCandidate,
   "extract-compensation": extractCompensation,

@@ -648,7 +648,6 @@ Process tab colors: `tab-own` (green), `tab-colleague` (grey), `tab-uncovered` (
 | `req-strategic-context.ts` | `requisition_id` | Strategic framing paragraph |
 | `extract-req-fields.ts` | `jd_text` | Extract title, salary_range_text, location from JD — only returns fields it can identify |
 | `extract-contract.ts` | `contract_text` | Extract fee_pct, started_at from contract text — only returns fields it can identify |
-| `daily-agenda.ts` | `recruiter_id` | Ranked priority action list for dashboard |
 | `advanced-search.ts` | `requisition_id`, `client_id`, `threshold`, `use_key_criteria` | Scored candidate list for advanced search |
 | `apply-candidate-notes.ts` | `candidateId`, `existingTemplate`, `rawNotes?`, `fileBase64?`, `fileType?` | Distributes raw notes into the correct template sections; accepts text/PDF/Word |
 | `extract-compensation.ts` | `candidateId` | Reads `notes_template`, extracts salary figures, saves raw yen to candidates table |
@@ -890,6 +889,22 @@ Active development resumed June 2026. All sessions below are committed and pushe
 4. Apply migration 029 to Supabase: `supabase db push`
 
 ---
+
+**Recruiter workflow QA pass — 7-step walkthrough + follow-up fixes (2026-08-23)**
+- Systemic bug: claude-sonnet-5 emits an unrequested "thinking" content block by default. All 33+ `lib/ai-handlers/*.ts` files were indexing `message.content[0]` directly (often the thinking block, not text) and none disabled thinking — silently broke or truncated most AI features. Fixed: every handler now uses `.content.find(b => b.type === "text")` and passes `thinking: { type: "disabled" }`. Added `tests/ai-handlers-structure.test.ts` (Vitest, `npm test`) as a permanent regression guard for both patterns.
+- `advanced-search.ts`: `max_tokens` raised 2500 → 8000 (was truncating before any JSON output with ~60 candidates in the ranking prompt).
+- Candidates search/filter: fixed a stale-closure bug where updating a filter while a candidate was open would get silently overwritten by an auto-redirect effect a moment later. `candidates.$id.tsx` `updateSearch()` now preserves the open candidate's route instead of bouncing through the bare `/candidates` path.
+- `candidates.last_interaction_at` was never synced from `interactions` (same bug class as the `processes.last_activity_at` fix above, just not caught at the time) — added migration 042 (trigger + backfill), fixing the "Last touch" filter and touch-staleness logic app-wide.
+- `clients.$id.tsx` "Add job" crashed the whole app on open (`SelectItem value=""` — Radix reserves empty string for "no selection"). Fixed with a `"none"` sentinel.
+- `extract-req-fields.ts`: job title extraction no longer includes the client's own company name (redundant since the req is already scoped to that client).
+- `enrich-client.ts`: when the model has no real info about a company, it now leaves strategy notes empty instead of writing an apology/refusal paragraph into the field; frontend shows a toast instead of saving junk text.
+- Missing Send capability, despite being documented as already wired: `JobMatchPanel`, `SpecListPanel` (candidate email), and `JobDetailPanel`'s batch CV send (client contact email via `hiring_manager_id`) all had Copy/Regenerate but no Send. All three now open `SendEmailDialog` pre-filled with the real recipient address.
+- `submission-note.ts`: submission emails are addressed to a named client contact but never included that contact's email for the Send dialog. Added `contactEmail` to the response.
+- Stage-change toast copy contradicted the SituationBanner shown right below it (Buy-In: "confirmed" before any outreach happened; CCM: "prepare the candidate" for an interview that already occurred). Reworded both to match the banner's actual meaning.
+- CV Sent chase threshold drift: banner and this doc both said 5 business days, but the live dashboard rule and the (now-deleted) `daily-agenda.ts` were both firing at 3. Aligned dashboard rule to 5.
+- Marking a process "Placed" left the candidate's own Candidate Intelligence tab showing "No active processes — add to open requisition," as if nothing happened, and never logged a timeline entry for the placement. Fixed: proper "Placed." empty-state summary + auto-logged timeline entry, matching the existing "specs sent" auto-log pattern.
+- `daily-agenda.ts` deleted — dead code, nothing in the frontend has called it since the dashboard moved to the rule-based `usePriorityActions` hook; removed from `api/ai.ts` route table too.
+- Mock data enrichment: `scripts/enrich-mock-candidates.mjs` (authored text, not AI-generated) gave 201/202 seed candidates a realistic `notes_interview`, diversified `candidate_status` (28 active / 172 passive / 2 placed, was 0/200/2), and added 4 `competing_interviews` — the AI positioning/briefing/submission outputs were reading as generic because almost no seed candidate had any of this.
 
 ### Roadmap — next up (workflow sprint)
 

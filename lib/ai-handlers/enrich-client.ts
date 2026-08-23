@@ -22,6 +22,8 @@ Write in plain, professional English. Flowing prose only — no headers, no bull
 
 Do not use: straightforward, genuinely, honestly, leverage (as verb), utilize. No em dashes.
 
+If you have no reliable information about this specific company's Japan operations, do not write a paragraph explaining that, apologizing, or suggesting where to look instead. Output nothing for the paragraph — just an empty line.
+
 After the paragraph, on a new line output exactly:
 JSON: {"years_in_japan": <number>, "japan_team_size": <number>}
 
@@ -45,6 +47,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const message = await anthropic.messages.create({
       model: "claude-haiku-4-5-20251001",
       max_tokens: 600,
+      thinking: { type: "disabled" },
       system: SYSTEM_PROMPT,
       messages: [{
         role: "user",
@@ -55,9 +58,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const textBlock = message.content.find((b) => b.type === "text");
     const raw = textBlock?.type === "text" ? textBlock.text.trim() : "";
 
-    const jsonMarker = raw.lastIndexOf("\nJSON:");
+    const jsonMarker = raw.search(/JSON:/);
     const paragraph = jsonMarker >= 0 ? raw.slice(0, jsonMarker).trim() : raw;
-    const jsonStr = jsonMarker >= 0 ? raw.slice(jsonMarker + 6).trim() : "{}";
+    const jsonStr = jsonMarker >= 0 ? raw.slice(jsonMarker + "JSON:".length).trim() : "{}";
 
     let structured: { years_in_japan?: number; japan_team_size?: number } = {};
     try { structured = JSON.parse(jsonStr) as typeof structured; } catch { /* best-effort */ }

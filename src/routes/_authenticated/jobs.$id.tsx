@@ -9,6 +9,7 @@ import { formatYen, relativeTime, stageOrder, initials } from "@/lib/candidate-u
 import { StageBadge } from "@/components/shared/StageBadge";
 import { Card } from "@/components/shared/Card";
 import { SectionLabel } from "@/components/shared/SectionLabel";
+import { JdViewer } from "@/components/shared/JdViewer";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import {
@@ -34,6 +35,7 @@ type Requisition = {
   urgency: string | null;
   salary_min: number | null;
   salary_max: number | null;
+  salary_range_text: string | null;
   salary_stretch: number | null;
   strategic_context: string | null;
   interview_steps: number | null;
@@ -84,7 +86,7 @@ function useRequisition(id: string) {
       const { data, error } = await supabase
         .from("requisitions")
         .select(
-          "id, title, is_open, urgency, salary_min, salary_max, salary_stretch, strategic_context, interview_steps, interview_notes, jd_url, jd_text, client_id, clients ( id, company_name )",
+          "id, title, is_open, urgency, salary_min, salary_max, salary_range_text, salary_stretch, strategic_context, interview_steps, interview_notes, jd_url, jd_text, client_id, clients ( id, company_name )",
         )
         .eq("id", id)
         .single();
@@ -247,12 +249,14 @@ function JobDetail() {
           </div>
           <p className="text-[13px]" style={{ color: "var(--color-ink-60)" }}>
             {r.clients?.company_name ?? "—"}&nbsp;
-            {(r.salary_min || r.salary_max) && (
+            {(r.salary_min || r.salary_max) ? (
               <span>
                 &middot; {formatYen(r.salary_min)}–{formatYen(r.salary_max)}
                 {r.salary_stretch && <span> (stretch {formatYen(r.salary_stretch)})</span>}
               </span>
-            )}
+            ) : r.salary_range_text ? (
+              <span>&middot; {r.salary_range_text}</span>
+            ) : null}
           </p>
         </div>
 
@@ -282,7 +286,7 @@ function JobDetail() {
       <div className="grid gap-5" style={{ gridTemplateColumns: "1fr 400px" }}>
         {/* ── Left: requisition details ── */}
         <div className="space-y-3">
-          <JdViewer jdUrl={r.jd_url} jdText={r.jd_text} />
+          <JdViewer requisitionId={id} recruiterId={recruiterId} jdUrl={r.jd_url} jdText={r.jd_text} />
 
           <StrategicContextCard requisitionId={id} value={r.strategic_context} />
 
@@ -292,7 +296,9 @@ function JobDetail() {
               <div>
                 <SectionLabel>{t('jobs.detail.salaryRange')}</SectionLabel>
                 <p className="text-[13px] font-medium">
-                  {formatYen(r.salary_min)} – {formatYen(r.salary_max)}
+                  {r.salary_min || r.salary_max
+                    ? `${formatYen(r.salary_min)} – ${formatYen(r.salary_max)}`
+                    : r.salary_range_text ?? "—"}
                 </p>
                 {r.salary_stretch && (
                   <p className="text-[12px] mt-0.5" style={{ color: "var(--color-ink-60)" }}>
@@ -494,57 +500,6 @@ function RejectionFlagBanner({
         </div>
       )}
     </div>
-  );
-}
-
-// ─── JD viewer ────────────────────────────────────────────────────────────────
-
-function JdViewer({
-  jdUrl,
-  jdText,
-}: {
-  jdUrl: string | null;
-  jdText: string | null;
-}) {
-  const signedUrl = useQuery({
-    queryKey: ["jd-signed-url", jdUrl],
-    staleTime: 30_000,
-    retry: 1,
-    enabled: !!jdUrl,
-    queryFn: async () => {
-      const { data, error } = await supabase.storage
-        .from("resumes")
-        .createSignedUrl(jdUrl!, 3600);
-      if (error) return null;
-      return data.signedUrl;
-    },
-  });
-
-  if (!jdUrl && !jdText) return null;
-
-  return (
-    <Card>
-      <SectionLabel className="mb-2">Job description</SectionLabel>
-      {jdUrl && signedUrl.data ? (
-        <iframe
-          src={signedUrl.data}
-          title="Job description"
-          className="w-full "
-          style={{ height: 480, border: "0.5px solid var(--color-ink-15)" }}
-        />
-      ) : jdText && !jdText.startsWith("[PDF") ? (
-        <pre
-          className="text-[12px] leading-relaxed whitespace-pre-wrap font-sans overflow-auto"
-          style={{ color: "var(--color-ink)", maxHeight: 420 }}
-        >
-          {jdText}
-        </pre>
-      ) : (
-        <p className="text-[12px]" style={{ color: "var(--color-ink-30)" }}>
-          {signedUrl.isLoading ? "Loading JD…" : "JD not available."}
-        </p>
-      )}
-    </Card>
   );
 }
 

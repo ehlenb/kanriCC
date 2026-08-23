@@ -167,6 +167,7 @@ ${conditionsText}
   const message = await anthropic.messages.create({
     model: "claude-sonnet-5",
     max_tokens: 800,
+    thinking: { type: "disabled" },
     system: `You are preparing a pre-meeting brief for a recruiter going into a client meeting in Japan. The recruiter reads this in 90 seconds before the meeting.
 
 Write in plain text. Use ALL CAPS section labels exactly as shown. No markdown.
@@ -190,6 +191,6 @@ NEVER use: straightforward, genuinely, honestly, leverage (as a verb), utilize. 
     messages: [{ role: "user", content: prompt }],
   });
 
-  const content = message.content[0].type === "text" ? message.content[0].text : "";
+  const content = message.content.find((b) => b.type === "text")?.text ?? "";
   return res.status(200).json({ content });
 }

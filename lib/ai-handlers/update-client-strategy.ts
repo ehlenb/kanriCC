@@ -69,10 +69,11 @@ Rules:
   const message = await anthropic.messages.create({
     model: "claude-haiku-4-5-20251001",
     max_tokens: 600,
+    thinking: { type: "disabled" },
     messages: [{ role: "user", content: prompt }],
   });
 
-  const text = message.content[0]?.type === "text" ? message.content[0].text.trim() : "";
+  const text = message.content.find((b) => b.type === "text")?.text.trim() ?? "";
   if (!text) return res.status(200).json({ error: "Could not update strategy notes. Try again." });
 
   // Model signalled nothing useful to add

@@ -29,10 +29,11 @@ Output only the polished notes. No preamble.`;
     const msg = await anthropic.messages.create({
       model: "claude-sonnet-5",
       max_tokens: 512,
+      thinking: { type: "disabled" },
       messages: [{ role: "user", content: prompt }],
     });
 
-    const text = msg.content[0].type === "text" ? msg.content[0].text.trim() : "";
+    const text = msg.content.find((b) => b.type === "text")?.text.trim() ?? "";
     return res.json({ data: { polished: text } });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "AI error";

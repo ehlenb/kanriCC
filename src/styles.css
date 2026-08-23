@@ -575,3 +575,29 @@
   animation: stageAdvance 0.55s cubic-bezier(0.34, 1.56, 0.64, 1);
   display: inline-block;
 }
+
+/* ── JD Word-doc preview (converted from .docx via mammoth) ── */
+.jd-docx-preview {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--color-ink);
+}
+.jd-docx-preview p { margin: 0 0 10px; }
+.jd-docx-preview h1, .jd-docx-preview h2, .jd-docx-preview h3 {
+  font-weight: 600;
+  margin: 16px 0 8px;
+}
+.jd-docx-preview h1 { font-size: 16px; }
+.jd-docx-preview h2 { font-size: 14px; }
+.jd-docx-preview h3 { font-size: 13px; }
+.jd-docx-preview ul, .jd-docx-preview ol {
+  margin: 0 0 10px 18px;
+}
+.jd-docx-preview table {
+  border-collapse: collapse;
+  margin: 0 0 10px;
+}
+.jd-docx-preview td, .jd-docx-preview th {
+  border: 0.5px solid var(--color-ink-15);
+  padding: 4px 8px;
+}

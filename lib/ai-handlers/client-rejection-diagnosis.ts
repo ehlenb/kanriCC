@@ -145,6 +145,7 @@ ${rejectionNotes.length > 0 ? rejectionNotes.map((n) => `${n.candidate_name}: ${
   const message = await anthropic.messages.create({
     model: "claude-sonnet-5",
     max_tokens: 800,
+    thinking: { type: "disabled" },
     system: `You are a senior recruiting advisor diagnosing why a client keeps rejecting candidates on a role.
 
 Analyze the rejection pattern and return a JSON diagnosis. Choose the most accurate path.
@@ -171,7 +172,7 @@ NEVER use: straightforward, genuinely, honestly, leverage (as a verb), utilize. 
     messages: [{ role: "user", content: prompt }],
   });
 
-  const raw = message.content[0]?.type === "text" ? message.content[0].text.trim() : "{}";
+  const raw = message.content.find((b) => b.type === "text")?.text.trim() ?? "{}";
   const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
 
   try {

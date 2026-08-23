@@ -82,10 +82,11 @@ Reply with exactly one word: active or passive.`;
       const message = await anthropic.messages.create({
         model: "claude-haiku-4-5-20251001",
         max_tokens: 10,
+        thinking: { type: "disabled" },
         messages: [{ role: "user", content: prompt }],
       });
 
-      const reply = (message.content[0] as { text: string }).text.trim().toLowerCase();
+      const reply = (message.content.find((b) => b.type === "text")?.text ?? "").trim().toLowerCase();
 
       if (reply === "passive" && candidate.candidate_status !== "passive") {
         await supabase

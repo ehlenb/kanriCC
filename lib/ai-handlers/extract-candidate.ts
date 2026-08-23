@@ -35,6 +35,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const message = await anthropic.messages.create({
     model: "claude-sonnet-5",
     max_tokens: 2000,
+    thinking: { type: "disabled" },
     system: `You are extracting structured candidate data from a CV or resume for a recruiter in Japan.
 Extract only what is explicitly stated in the document. Do not infer, estimate, or hallucinate data.
 Salary values in Japan are typically annual figures in JPY (millions). Convert if needed.
@@ -107,7 +108,7 @@ Return ONLY the JSON object. No markdown. No explanation.`,
     ],
   });
 
-  const text = message.content[0].type === "text" ? message.content[0].text : "{}";
+  const text = message.content.find((b) => b.type === "text")?.text ?? "{}";
   const cleaned = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
 
   try {

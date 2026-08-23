@@ -1363,4 +1363,5 @@ export interface SubmissionPackage {
   email: { subject: string; body: string };
   englishContent: ProfileContent;
   japaneseContent: ProfileContent;
+  contactEmail?: string | null;
 }

@@ -260,6 +260,7 @@ function NewClientDialog({
       };
 
       const enrichment = enrichJson.enrichment;
+      const strategyNotes = enrichment?.strategy_notes?.trim() || null;
       const { data, error } = await supabase
         .from("clients")
         .insert({
@@ -267,7 +268,7 @@ function NewClientDialog({
           company_name: form.company_name.trim(),
           website: form.website.trim() || null,
           hiring_manager_name: form.hiring_manager_name.trim() || null,
-          strategy_notes: enrichment?.strategy_notes ?? null,
+          strategy_notes: strategyNotes,
           years_in_japan: enrichment?.years_in_japan ?? null,
           japan_team_size: enrichment?.japan_team_size ?? null,
         })
@@ -275,6 +276,9 @@ function NewClientDialog({
         .single();
 
       if (error) { toast.error(error.message); setKanriSaving(false); return; }
+      if (!strategyNotes) {
+        toast("Not enough public info to generate strategy notes. Add them manually on the Client info tab.");
+      }
       resetForm();
       onCreated(data.id);
     } catch {

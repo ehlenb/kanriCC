@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Outlet, useMatches } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -80,6 +80,9 @@ function urgencyOrder(u: string | null): number {
 // ─── component ───────────────────────────────────────────────────────────────
 
 function JobsDashboard() {
+  const matches = useMatches();
+  const onDetailRoute = matches.some((m) => m.routeId === "/_authenticated/jobs/$id");
+
   const { t } = useTranslation();
   const { user } = useAuth();
   const recruiterId = user!.id;
@@ -111,6 +114,10 @@ function JobsDashboard() {
   const forecastTotal = allJobs
     .filter((j) => j.is_open)
     .reduce((sum, j) => sum + (expectedFee(j) ?? 0), 0);
+
+  if (onDetailRoute) {
+    return <Outlet />;
+  }
 
   return (
     <div className="px-8 py-7 max-w-5xl">

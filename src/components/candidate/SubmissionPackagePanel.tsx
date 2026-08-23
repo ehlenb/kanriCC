@@ -134,6 +134,7 @@ export function SubmissionPackagePanel({
       <SendEmailDialog
         open={sendOpen}
         onClose={() => setSendOpen(false)}
+        defaultTo={pkg.contactEmail ?? ""}
         defaultSubject={emailSubject}
         body={emailBody}
         candidateId={candidateId}

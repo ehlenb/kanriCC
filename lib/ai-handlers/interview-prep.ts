@@ -102,6 +102,7 @@ ${primaryContact ? `Interviewer: ${primaryContact.name}${primaryContact.title ? 
   const message = await anthropic.messages.create({
     model: "claude-sonnet-5",
     max_tokens: 1500,
+    thinking: { type: "disabled" },
     system: `You are preparing interview preparation materials for a recruiter in Japan to share with and use for a candidate going into CCM${ccm_number}.
 
 Generate two outputs:
@@ -126,7 +127,7 @@ Return valid JSON only — no markdown fences:
     messages: [{ role: "user", content: prompt }],
   });
 
-  const raw = message.content[0]?.type === "text" ? message.content[0].text.trim() : "{}";
+  const raw = message.content.find((b) => b.type === "text")?.text.trim() ?? "{}";
   const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
 
   try {

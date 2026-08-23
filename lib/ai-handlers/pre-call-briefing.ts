@@ -166,6 +166,7 @@ ${processContext}
     const message = await anthropic.messages.create({
       model: "claude-sonnet-5",
       max_tokens: 700,
+      thinking: { type: "disabled" },
       system: `You are preparing a pre-call briefing for a recruiter in Japan. The recruiter reads this in 60 seconds before the call.
 
 Use markdown: **bold** for headers and key phrases, • for bullets. Short, clear English. No preamble.
@@ -191,7 +192,7 @@ NEVER use: straightforward, genuinely, honestly, leverage (as a verb), utilize. 
       messages: [{ role: "user", content: prompt }],
     });
 
-    const content = message.content[0].type === "text" ? message.content[0].text : "";
+    const content = message.content.find((b) => b.type === "text")?.text ?? "";
     return res.status(200).json({ content });
   }
 
@@ -262,6 +263,7 @@ ${cl.strategy_notes ? `Strategy notes: ${cl.strategy_notes.slice(0, 300)}` : ""}
   const message = await anthropic.messages.create({
     model: "claude-sonnet-5",
     max_tokens: 700,
+    thinking: { type: "disabled" },
     system: `You are preparing a pre-call briefing for a recruiter in Japan calling a client. The recruiter reads this in 60 seconds before the call.
 
 Use markdown: **bold** for headers and key phrases, • for bullets. Short, clear English. No preamble.
@@ -282,6 +284,6 @@ NEVER use: straightforward, genuinely, honestly, leverage (as a verb), utilize. 
     messages: [{ role: "user", content: prompt }],
   });
 
-  const content = message.content[0].type === "text" ? message.content[0].text : "";
+  const content = message.content.find((b) => b.type === "text")?.text ?? "";
   return res.status(200).json({ content });
 }

@@ -307,10 +307,11 @@ Write the email. Subject line first, then blank line, then body. Address it to $
   const message = await anthropic.messages.create({
     model: "claude-sonnet-5",
     max_tokens: maxTokens,
+    thinking: { type: "disabled" },
     system,
     messages: [{ role: "user", content: prompt }],
   });
 
-  const content = message.content[0].type === "text" ? message.content[0].text : "";
+  const content = message.content.find((b) => b.type === "text")?.text ?? "";
   return res.status(200).json({ content });
 }

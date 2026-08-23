@@ -120,6 +120,7 @@ ${candidatesSummary}
   const message = await anthropic.messages.create({
     model: "claude-sonnet-5",
     max_tokens: 2000,
+    thinking: { type: "disabled" },
     system: `You are ranking candidates for an open role at a foreign company in Japan.
 
 Focus on must-have conditions. Language levels must meet the requirement — this is a hard filter in the Japan bilingual market.
@@ -146,7 +147,7 @@ Return valid JSON only — no markdown fences, no explanation:
     messages: [{ role: "user", content: prompt }],
   });
 
-  const raw = message.content[0]?.type === "text" ? message.content[0].text.trim() : "{}";
+  const raw = message.content.find((b) => b.type === "text")?.text.trim() ?? "{}";
   const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
 
   try {

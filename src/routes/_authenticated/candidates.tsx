@@ -118,6 +118,7 @@ function CandidatesLayout() {
   const [openNew, setOpenNew] = useState(false);
 
   const search = Route.useSearch();
+  const activeId = loc.pathname.split("/candidates/")[1];
 
   // Local text inputs — debounced before writing to URL
   const [nameInput, setNameInput] = useState(search.name);
@@ -125,10 +126,12 @@ function CandidatesLayout() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function updateSearch(patch: Partial<CandidateSearch>) {
-    void navigate({
-      to: "/candidates",
-      search: () => withCandidateDefaults({ ...search, ...patch }),
-    });
+    const nextSearch = withCandidateDefaults({ ...search, ...patch });
+    if (activeId) {
+      void navigate({ to: "/candidates/$id", params: { id: activeId }, search: nextSearch });
+    } else {
+      void navigate({ to: "/candidates", search: nextSearch });
+    }
   }
 
   function handleTextInput(field: "name" | "company", value: string) {
@@ -190,8 +193,6 @@ function CandidatesLayout() {
   }));
 
   const hasFilters = search.name || search.company || search.status || search.japanese_level || search.english_level || search.source || search.last_touch;
-
-  const activeId = loc.pathname.split("/candidates/")[1];
 
   useEffect(() => {
     if (loc.pathname === "/candidates" && candidates.length > 0) {

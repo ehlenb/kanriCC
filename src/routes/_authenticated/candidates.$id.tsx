@@ -339,7 +339,6 @@ function useCandidateProfile(id: string) {
           `,
           )
           .eq("candidate_id", id)
-          .not("stage", "in", '("Placed","Closed lost")')
           .order("updated_at", { ascending: false }),
         supabase
           .from("interactions")
@@ -351,13 +350,15 @@ function useCandidateProfile(id: string) {
 
       if (cErr) throw cErr;
 
+      const allProcesses = (processes ?? []) as Process[];
       return {
         candidate: candidate as Candidate,
         motivations: (motivations ?? []) as Motivation[],
         blockers: (blockers ?? []) as Blocker[],
         roles: (roles ?? []) as Role[],
         competing: (competing ?? []) as CompetingInterview[],
-        processes: (processes ?? []) as Process[],
+        processes: allProcesses.filter((p) => p.stage !== "Placed" && p.stage !== "Closed lost"),
+        hasPlacedHistory: allProcesses.some((p) => p.stage === "Placed"),
         interactions: (interactions ?? []) as CandidateInteraction[],
       };
     },
@@ -406,7 +407,7 @@ function CandidateProfile() {
     );
   }
 
-  const { candidate: c, motivations, blockers, roles, competing, processes, interactions } = data;
+  const { candidate: c, motivations, blockers, roles, competing, processes, hasPlacedHistory, interactions } = data;
   const lastContact = relativeTime(c.updated_at);
   const daysAgo = daysSince(c.updated_at);
 
@@ -532,6 +533,7 @@ function CandidateProfile() {
           roles={roles}
           competing={competing}
           processes={processes}
+          hasPlacedHistory={hasPlacedHistory}
           recruiterId={user!.id}
         />
       )}
@@ -2221,6 +2223,7 @@ function ProcessesPage({
   roles,
   competing,
   processes,
+  hasPlacedHistory,
   recruiterId,
 }: {
   candidate: Candidate;
@@ -2229,6 +2232,7 @@ function ProcessesPage({
   roles: Role[];
   competing: CompetingInterview[];
   processes: Process[];
+  hasPlacedHistory: boolean;
   recruiterId: string;
 }) {
   const [activeProcessId, setActiveProcessId] = useState<string | null>(
@@ -2280,10 +2284,21 @@ function ProcessesPage({
     return (
       <>
         <div className="py-10 text-center">
-          <p className="text-sm font-medium">No active processes.</p>
-          <p className="mt-1 text-[13px]" style={{ color: "var(--color-ink-60)" }}>
-            Add this candidate to an open requisition to start tracking the process.
-          </p>
+          {hasPlacedHistory ? (
+            <>
+              <p className="text-sm font-medium" style={{ color: "var(--color-moss)" }}>Placed.</p>
+              <p className="mt-1 text-[13px]" style={{ color: "var(--color-ink-60)" }}>
+                No other active processes for this candidate right now. See the timeline for placement details.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-sm font-medium">No active processes.</p>
+              <p className="mt-1 text-[13px]" style={{ color: "var(--color-ink-60)" }}>
+                Add this candidate to an open requisition to start tracking the process.
+              </p>
+            </>
+          )}
           <button
             className="mt-4 ab mx-auto flex items-center gap-1"
             onClick={() => setAddProcessOpen(true)}
@@ -2536,13 +2551,13 @@ const PIPELINE_STAGES = [
 function stageMilestoneToast(newStage: string, candidateName?: string) {
   const ccmMatch = /^CCM(\d+)$/.exec(newStage);
   if (newStage === "Buy-In") {
-    toast.success("Buy-in confirmed.", { description: "CV can now be submitted to the client." });
+    toast.success("Now at Buy-In stage.", { description: "Reach out and confirm interest before submitting the CV." });
   } else if (newStage === "CV Sent") {
-    toast.success("CV submitted.", { description: "Track client response — follow up in 3 days if no reply." });
+    toast.success("CV submitted.", { description: "Track client response — chase for feedback if no reply within 5 business days." });
   } else if (ccmMatch) {
     const n = ccmMatch[1];
     const ordinal = n === "1" ? "First" : n === "2" ? "Second" : n === "3" ? "Third" : `${n}th`;
-    toast.success(`${ordinal} interview confirmed.`, { description: "Pipeline is moving. Prepare the candidate." });
+    toast.success(`${ordinal} interview completed.`, { description: "Chase the client for feedback before the conversation goes cold." });
   } else if (newStage === "Offer") {
     toast.success("Offer stage reached.", { description: "Prepare the offer package and brief the candidate.", duration: 6000 });
   } else if (newStage === "Placed") {
@@ -2555,7 +2570,7 @@ function stageMilestoneToast(newStage: string, candidateName?: string) {
   }
 }
 
-function useStageChange(candidateId: string, opts?: { candidateName?: string; onAdvanced?: () => void }) {
+function useStageChange(candidateId: string, opts?: { candidateName?: string; recruiterId?: string; onAdvanced?: () => void }) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ process, newStage }: { process: Process; newStage: string }) => {
@@ -2621,6 +2636,19 @@ function useStageChange(candidateId: string, opts?: { candidateName?: string; on
           placement_guarantee_until: guarantee.toISOString().slice(0, 10),
           // status_source intentionally omitted — placement via process is not a manual toggle
         } as { candidate_status: string; placed_at: string; coin_icon_dismissed: boolean; placement_guarantee_until: string }).eq("id", candidateId);
+
+        if (opts?.recruiterId) {
+          await supabase.from("interactions").insert({
+            candidate_id: candidateId,
+            process_id: process.id,
+            recruiter_id: opts.recruiterId,
+            interaction_type: "note",
+            primary_party: "candidate",
+            summary: "Placed",
+            full_notes: `Placed as ${process.requisitions?.title ?? "the role"} at ${process.requisitions?.clients?.company_name ?? "the client"}.`,
+            interacted_at: now,
+          });
+        }
       }
     },
     onSuccess: (_, { newStage }) => {
@@ -2739,6 +2767,7 @@ function ProcessPanel({
   const [justAdvanced, setJustAdvanced] = useState(false);
   const stageChange = useStageChange(c.id, {
     candidateName: c.full_name,
+    recruiterId,
     onAdvanced: () => {
       setJustAdvanced(true);
       setTimeout(() => setJustAdvanced(false), 700);
@@ -2829,7 +2858,7 @@ function InterviewPanel({
   const [rejectionEmail, setRejectionEmail] = useState<string | null>(null);
   const [closingProcess, setClosingProcess] = useState(false);
   const [sendDialog, setSendDialog] = useState<{ body: string; to: string; subject: string; candidateId?: string } | null>(null);
-  const stageChange = useStageChange(c.id, { candidateName: c.full_name });
+  const stageChange = useStageChange(c.id, { candidateName: c.full_name, recruiterId });
 
   const ccmMatch = /^CCM(\d+)$/.exec(p.stage);
   const ccmNumber = ccmMatch ? parseInt(ccmMatch[1], 10) : null;

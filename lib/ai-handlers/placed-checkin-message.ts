@@ -93,6 +93,7 @@ ${lastInteraction ? `Last interaction: ${new Date(lastInteraction.interacted_at)
   const message = await anthropic.messages.create({
     model: "claude-sonnet-5",
     max_tokens: 300,
+    thinking: { type: "disabled" },
     system: `You are helping a Japan-based recruiter write a check-in message to a candidate they placed.
 
 Milestone context: ${milestoneContext[milestone]}
@@ -108,6 +109,6 @@ Rules:
     messages: [{ role: "user", content: prompt }],
   });
 
-  const content = message.content[0]?.type === "text" ? message.content[0].text : "";
+  const content = message.content.find((b) => b.type === "text")?.text ?? "";
   return res.status(200).json({ content });
 }

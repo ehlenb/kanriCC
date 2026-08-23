@@ -31,7 +31,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     supabase
       .from("requisitions")
       .select(
-        "title, salary_min, salary_max, salary_range_text, location, strategic_context, clients(company_name, strategy_notes)",
+        "title, salary_min, salary_max, salary_range_text, location, strategic_context, hiring_manager_id, clients(company_name, strategy_notes)",
       )
       .eq("id", requisition_id)
       .single(),
@@ -48,8 +48,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     salary_range_text: string | null;
     location: string | null;
     strategic_context: string | null;
+    hiring_manager_id: string | null;
     clients: { company_name: string; strategy_notes: string | null } | null;
   };
+
+  let contactEmail: string | null = null;
+  if (r.hiring_manager_id) {
+    const { data: contact } = await supabase
+      .from("client_contacts")
+      .select("email")
+      .eq("id", r.hiring_manager_id)
+      .single();
+    contactEmail = (contact as { email: string | null } | null)?.email ?? null;
+  }
 
   const formatYen = (n: number | null) => (n ? `¥${(n / 1_000_000).toFixed(1)}M` : null);
   const salaryLine = r.salary_range_text ?? [formatYen(r.salary_min), formatYen(r.salary_max)].filter(Boolean).join("–");
@@ -124,15 +135,16 @@ Return valid JSON only — no markdown, no explanation:
   const message = await anthropic.messages.create({
     model: "claude-sonnet-5",
     max_tokens: 1500,
+    thinking: { type: "disabled" },
     messages: [{ role: "user", content: prompt }],
   });
 
-  const raw = message.content[0]?.type === "text" ? message.content[0].text.trim() : "{}";
+  const raw = message.content.find((b) => b.type === "text")?.text.trim() ?? "{}";
   const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
 
   try {
     const parsed = JSON.parse(cleaned) as { subject: string; body: string };
-    return res.status(200).json(parsed);
+    return res.status(200).json({ ...parsed, contactEmail });
   } catch {
     return res.status(200).json({ error: "Could not generate CV send email. Try again.", raw });
   }

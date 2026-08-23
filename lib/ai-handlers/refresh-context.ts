@@ -121,6 +121,7 @@ ${interactionLines.join("\n")}
   const message = await anthropic.messages.create({
     model: "claude-sonnet-5",
     max_tokens: 900,
+    thinking: { type: "disabled" },
     system: `You are writing an internal recruiter briefing note for a senior recruiter's reference file.
 
 Write as a senior recruiter summarising what they know about this candidate right now.
@@ -136,7 +137,7 @@ NEVER use: straightforward, genuinely, honestly, leverage (as a verb), utilize. 
     messages: [{ role: "user", content: prompt }],
   });
 
-  const contextText = message.content[0].type === "text" ? message.content[0].text : "";
+  const contextText = message.content.find((b) => b.type === "text")?.text ?? "";
   const tokensUsed = message.usage.output_tokens;
 
   await Promise.all([
@@ -232,6 +233,7 @@ ${interactionLines.join("\n")}
   const message = await anthropic.messages.create({
     model: "claude-sonnet-5",
     max_tokens: 900,
+    thinking: { type: "disabled" },
     system: `You are writing an internal account briefing note for a senior recruiter's reference file.
 
 Write as a senior recruiter summarising their knowledge of this client account.
@@ -245,7 +247,7 @@ NEVER use: straightforward, genuinely, honestly, leverage (as a verb), utilize. 
     messages: [{ role: "user", content: prompt }],
   });
 
-  const contextText = message.content[0].type === "text" ? message.content[0].text : "";
+  const contextText = message.content.find((b) => b.type === "text")?.text ?? "";
   const tokensUsed = message.usage.output_tokens;
 
   await Promise.all([
@@ -325,6 +327,7 @@ ${(interactions ?? []).map((i: { interaction_type: string; summary: string | nul
   const message = await anthropic.messages.create({
     model: "claude-sonnet-5",
     max_tokens: 900,
+    thinking: { type: "disabled" },
     system: `You are writing an internal requisition briefing note for a senior recruiter's reference file.
 
 Summarise the current state of this requisition. Cover: what the role is, what the client really needs (focus on must-have conditions), the interview process, salary reality vs. market, and any intelligence from interactions with the client about this role.
@@ -334,7 +337,7 @@ NEVER use: straightforward, genuinely, honestly, leverage (as a verb), utilize. 
     messages: [{ role: "user", content: prompt }],
   });
 
-  const contextText = message.content[0].type === "text" ? message.content[0].text : "";
+  const contextText = message.content.find((b) => b.type === "text")?.text ?? "";
   const tokensUsed = message.usage.output_tokens;
 
   await Promise.all([

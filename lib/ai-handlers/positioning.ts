@@ -140,6 +140,7 @@ Strategic context: ${req_?.strategic_context ?? "Not specified"}
   const message = await anthropic.messages.create({
     model: "claude-sonnet-5",
     max_tokens: 700,
+    thinking: { type: "disabled" },
     system: `You are an elite recruiting strategist preparing positioning talking points for a recruiter in Japan.
 
 FORBIDDEN WORDS: straightforward, genuinely, honestly, leverage (as a verb), utilize.
@@ -170,7 +171,7 @@ Respond ONLY with valid JSON, no markdown, no explanation:
     messages: [{ role: "user", content: prompt }],
   });
 
-  const rawText = message.content[0].type === "text" ? message.content[0].text : "{}";
+  const rawText = message.content.find((b) => b.type === "text")?.text ?? "{}";
 
   let points: Array<{ label: string; body: string }> = [];
   try {

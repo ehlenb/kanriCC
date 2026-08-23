@@ -95,6 +95,7 @@ ${req_.clients?.ai_context ? `Client intelligence: ${req_.clients.ai_context.sli
   const message = await anthropic.messages.create({
     model: "claude-sonnet-5",
     max_tokens: 1000,
+    thinking: { type: "disabled" },
     system: `You are writing a closing call guide for a recruiter in Japan. The candidate is at Offer stage. The recruiter reads this immediately before the closing call.
 
 Write in plain text. Use ALL CAPS section labels exactly as shown below. No markdown.
@@ -126,6 +127,6 @@ NEVER use: straightforward, genuinely, honestly, leverage (as a verb), utilize. 
     messages: [{ role: "user", content: prompt }],
   });
 
-  const content = message.content[0]?.type === "text" ? message.content[0].text : "";
+  const content = message.content.find((b) => b.type === "text")?.text ?? "";
   return res.status(200).json({ content });
 }

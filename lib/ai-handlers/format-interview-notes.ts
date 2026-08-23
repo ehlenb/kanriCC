@@ -30,11 +30,12 @@ ${raw_text.slice(0, 8000)}`;
     const message = await client.messages.create({
       model: "claude-haiku-4-5-20251001",
       max_tokens: 1024,
+      thinking: { type: "disabled" },
       messages: [{ role: "user", content: prompt }],
     });
 
-    const content = message.content[0];
-    if (content.type !== "text") return res.json({ error: "Unexpected response from AI" });
+    const content = message.content.find((b) => b.type === "text");
+    if (!content) return res.json({ error: "Unexpected response from AI" });
 
     return res.json({ data: content.text.trim() });
   } catch (err) {

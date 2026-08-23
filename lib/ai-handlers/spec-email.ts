@@ -113,6 +113,7 @@ ${r.jd_text ? `JD excerpt:\n${r.jd_text.slice(0, 800)}` : ""}
   const message = await anthropic.messages.create({
     model: "claude-haiku-4-5-20251001",
     max_tokens: 800,
+    thinking: { type: "disabled" },
     system: `You are writing a candidate outreach email and talking points for a recruiter in Japan. The recruiter will send this to the candidate to pitch a role before buy-in is secured.
 
 Rules:
@@ -131,7 +132,7 @@ Return valid JSON only — no markdown fences, no explanation:
     messages: [{ role: "user", content: prompt }],
   });
 
-  const raw = message.content[0]?.type === "text" ? message.content[0].text.trim() : "{}";
+  const raw = message.content.find((b) => b.type === "text")?.text.trim() ?? "{}";
   const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
 
   try {

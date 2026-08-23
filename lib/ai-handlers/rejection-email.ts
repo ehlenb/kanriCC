@@ -57,6 +57,7 @@ ${c.notes_interview ? `Registration notes (for context on candidate's situation)
   const message = await anthropic.messages.create({
     model: "claude-haiku-4-5-20251001",
     max_tokens: 500,
+    thinking: { type: "disabled" },
     system: `You are writing a rejection email on behalf of a recruiter in Japan.
 
 The email is from the recruiter to the candidate informing them that the client will not be proceeding.
@@ -75,6 +76,6 @@ Rules:
     messages: [{ role: "user", content: prompt }],
   });
 
-  const email = message.content[0].type === "text" ? message.content[0].text : "";
+  const email = message.content.find((b) => b.type === "text")?.text ?? "";
   return res.status(200).json({ email });
 }

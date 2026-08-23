@@ -106,10 +106,11 @@ Return only the message text. No subject line. No sign-off. No markdown.`;
   const message = await anthropic.messages.create({
     model: "claude-sonnet-5",
     max_tokens: 400,
+    thinking: { type: "disabled" },
     messages: [{ role: "user", content: prompt }],
   });
 
-  const text = message.content[0]?.type === "text" ? message.content[0].text.trim() : "";
+  const text = message.content.find((b) => b.type === "text")?.text.trim() ?? "";
   if (!text) return res.status(200).json({ error: "No message generated. Try again." });
 
   return res.status(200).json({ message: text });

@@ -110,7 +110,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     supabase
       .from("requisitions")
       .select(
-        "title, jd_text, salary_min, salary_max, strategic_context, interview_notes, clients ( company_name, ai_context, years_in_japan, employee_japanese_pct, client_contacts ( name, title, role, is_primary ) )",
+        "title, jd_text, salary_min, salary_max, strategic_context, interview_notes, clients ( company_name, ai_context, years_in_japan, employee_japanese_pct, client_contacts ( name, title, role, is_primary, email ) )",
       )
       .eq("id", requisition_id)
       .single(),
@@ -157,7 +157,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ai_context: string | null;
       years_in_japan: number | null;
       employee_japanese_pct: number | null;
-      client_contacts: Array<{ name: string; title: string | null; role: string; is_primary: boolean }>;
+      client_contacts: Array<{ name: string; title: string | null; role: string; is_primary: boolean; email: string | null }>;
     } | null;
   };
 
@@ -165,6 +165,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const primaryContact = r.clients?.client_contacts?.find((cc) => cc.is_primary) ?? r.clients?.client_contacts?.[0];
   const contactName = primaryContact?.name ?? "Hiring Manager";
+  const contactEmail = primaryContact?.email ?? null;
 
   const rolesText = (roles ?? [])
     .map((role: {
@@ -254,6 +255,7 @@ Return exactly this JSON structure:
       anthropic.messages.create({
         model: "claude-sonnet-5",
         max_tokens: 2000,
+        thinking: { type: "disabled" },
         messages: [{ role: "user", content: englishPrompt }],
       }),
       supabase
@@ -263,7 +265,7 @@ Return exactly this JSON structure:
         .single(),
     ]);
 
-    const englishRaw = englishMsg.content[0]?.type === "text" ? englishMsg.content[0].text.trim() : "";
+    const englishRaw = englishMsg.content.find((b) => b.type === "text")?.text.trim() ?? "";
     const englishParsed = JSON.parse(stripJsonFences(englishRaw)) as {
       emailBlurb: string;
       snapshot: ProfileContent["snapshot"];
@@ -296,10 +298,11 @@ ${JSON.stringify({
     const japaneseMsg = await anthropic.messages.create({
       model: "claude-sonnet-5",
       max_tokens: 2000,
+      thinking: { type: "disabled" },
       messages: [{ role: "user", content: translationPrompt }],
     });
 
-    const japaneseRaw = japaneseMsg.content[0]?.type === "text" ? japaneseMsg.content[0].text.trim() : "";
+    const japaneseRaw = japaneseMsg.content.find((b) => b.type === "text")?.text.trim() ?? "";
     const japaneseParsed = JSON.parse(stripJsonFences(japaneseRaw)) as ProfileContent;
 
     const email = composeEmail(
@@ -321,6 +324,7 @@ ${JSON.stringify({
         closing: englishParsed.closing,
       },
       japaneseContent: japaneseParsed,
+      contactEmail,
     };
 
     // Side effects: log interaction, advance stage

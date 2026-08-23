@@ -15,6 +15,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const response = await client.messages.create({
       model: "claude-haiku-4-5-20251001",
       max_tokens: 512,
+      thinking: { type: "disabled" },
       messages: [
         {
           role: "user",
@@ -24,7 +25,7 @@ Job description:
 ${jd_text.slice(0, 4000)}
 
 Return a JSON object with these fields (omit any field you cannot determine):
-- title: job title (string)
+- title: job title only, e.g. "Senior Business Development Manager". Do not include the company name, level codes, or location, even if the source heading contains them. (string)
 - salary_range_text: salary information exactly as stated, e.g. "¥8M–¥12M base + 15% bonus" (string)
 - location: work location, e.g. "Tokyo, hybrid 3 days in-office" (string)
 
@@ -33,7 +34,7 @@ Return only the JSON object, no other text.`,
       ],
     });
 
-    const raw = response.content[0].type === "text" ? response.content[0].text.trim() : "";
+    const raw = response.content.find((b) => b.type === "text")?.text.trim() ?? "";
     let extracted: Record<string, string> = {};
     try {
       const jsonMatch = raw.match(/\{[\s\S]*\}/);

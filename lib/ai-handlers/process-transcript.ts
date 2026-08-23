@@ -43,6 +43,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const message = await anthropic.messages.create({
     model: "claude-sonnet-5",
     max_tokens: 2000,
+    thinking: { type: "disabled" },
     system: `You are a recruiting intelligence assistant processing a candidate interview transcript.
 
 Extract only information that is clearly stated in the transcript. Never infer or guess.
@@ -100,7 +101,7 @@ Return ONLY the JSON object. No markdown fences. No explanation.`,
     ],
   });
 
-  const raw = message.content[0]?.type === "text" ? message.content[0].text.trim() : "{}";
+  const raw = message.content.find((b) => b.type === "text")?.text.trim() ?? "{}";
   const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
 
   try {
