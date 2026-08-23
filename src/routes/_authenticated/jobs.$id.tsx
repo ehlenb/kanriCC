@@ -52,6 +52,15 @@ type Condition = {
   condition_type: string;
   source: string;
   priority_rank: number;
+  weight: number;
+};
+
+// Per-type default weight for manually-added conditions (1-10 scale).
+// AI-extracted conditions get their own weight from extract-conditions.ts.
+const DEFAULT_CONDITION_WEIGHT: Record<string, number> = {
+  dealbreaker: 10,
+  must_have: 7,
+  nice_to_have: 3,
 };
 
 type ProcessCard = {
@@ -108,7 +117,7 @@ function useConditions(requisitionId: string) {
     queryFn: async (): Promise<Condition[]> => {
       const { data, error } = await supabase
         .from("requisition_conditions")
-        .select("id, condition_text, condition_type, source, priority_rank")
+        .select("id, condition_text, condition_type, source, priority_rank, weight")
         .eq("requisition_id", requisitionId)
         .order("priority_rank");
       if (error) throw error;
@@ -569,6 +578,7 @@ function ConditionsCard({
 }) {
   const { t } = useTranslation();
   const qc = useQueryClient();
+  const [dealbreakerInput, setDealbreakerInput] = useState("");
   const [mustInput, setMustInput] = useState("");
   const [flexInput, setFlexInput] = useState("");
 
@@ -577,7 +587,7 @@ function ConditionsCard({
     : 1;
 
   const addMutation = useMutation({
-    mutationFn: async ({ text, type }: { text: string; type: "must_have" | "nice_to_have" }) => {
+    mutationFn: async ({ text, type }: { text: string; type: "dealbreaker" | "must_have" | "nice_to_have" }) => {
       const { error } = await supabase.from("requisition_conditions").insert({
         requisition_id: requisitionId,
         recruiter_id: recruiterId,
@@ -585,6 +595,7 @@ function ConditionsCard({
         condition_type: type,
         source: "recruiter",
         priority_rank: nextRank,
+        weight: DEFAULT_CONDITION_WEIGHT[type],
       });
       if (error) throw error;
     },
@@ -608,14 +619,17 @@ function ConditionsCard({
     onError: () => toast.error("Could not remove criterion. Try again."),
   });
 
+  const dealbreakers = conditions.filter((c) => c.condition_type === "dealbreaker");
   const mustHave = conditions.filter((c) => c.condition_type === "must_have");
   const flexible = conditions.filter((c) => c.condition_type === "nice_to_have");
 
-  function addCriterion(type: "must_have" | "nice_to_have") {
-    const text = type === "must_have" ? mustInput : flexInput;
+  function addCriterion(type: "dealbreaker" | "must_have" | "nice_to_have") {
+    const text = type === "dealbreaker" ? dealbreakerInput : type === "must_have" ? mustInput : flexInput;
     if (!text.trim()) return;
     addMutation.mutate({ text, type });
-    if (type === "must_have") setMustInput(""); else setFlexInput("");
+    if (type === "dealbreaker") setDealbreakerInput("");
+    else if (type === "must_have") setMustInput("");
+    else setFlexInput("");
   }
 
   return (
@@ -625,7 +639,63 @@ function ConditionsCard({
       {isLoading && <Skeleton className="h-20 w-full" />}
 
       {!isLoading && (
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-3 gap-4">
+          {/* Dealbreaker column */}
+          <div>
+            <p className="text-[11px] font-semibold mb-2 uppercase tracking-[0.04em]" style={{ color: "var(--color-vermillion)" }}>
+              Dealbreaker
+            </p>
+
+            {dealbreakers.length === 0 && (
+              <p className="text-[12px] mb-2" style={{ color: "var(--color-ink-30)" }}>None added.</p>
+            )}
+
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {dealbreakers.map((c) => (
+                <span
+                  key={c.id}
+                  className="flex items-center gap-1  px-2 py-1 text-[12px]"
+                  style={{
+                    borderLeft: "3px solid #c94f2a",
+                    background: "var(--color-vermillion-light)",
+                    color: "var(--color-vermillion)",
+                  }}
+                >
+                  {c.condition_text}
+                  <button
+                    onClick={() => deleteMutation.mutate(c.id)}
+                    className="ml-0.5  hover:opacity-70"
+                    title="Remove"
+                  >
+                    <IconX size={10} />
+                  </button>
+                </span>
+              ))}
+            </div>
+
+            <div className="flex gap-1">
+              <input
+                className="flex-1 min-w-0  px-2 py-1 text-[12px] outline-none"
+                style={{ background: "var(--color-ink-10)", border: "0.5px solid var(--color-ink-15)", color: "var(--color-ink)" }}
+                placeholder="Add criterion…"
+                value={dealbreakerInput}
+                onChange={(e) => setDealbreakerInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") addCriterion("dealbreaker"); }}
+              />
+              <button
+                className="rounded px-2 py-1 text-[12px] transition-colors"
+                style={{ background: "var(--color-vermillion-light)", color: "var(--color-vermillion)" }}
+                onClick={() => addCriterion("dealbreaker")}
+              >
+                <IconPlus size={12} />
+              </button>
+            </div>
+
+            <p className="mt-2 text-[11px]" style={{ color: "var(--color-ink-30)" }}>
+              A candidate who clearly fails a dealbreaker is excluded from AI match results.
+            </p>
+          </div>
+
           {/* Must-haves column */}
           <div>
             <p className="text-[11px] font-semibold mb-2 uppercase tracking-[0.04em]" style={{ color: "var(--color-moss)" }}>

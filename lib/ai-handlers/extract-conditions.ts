@@ -22,10 +22,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     system: `You are extracting structured hiring conditions from a job description for a recruiter in Japan.
 
 Extract conditions that are explicitly stated in the JD as requirements or preferences.
-Classify each as must_have (clearly required) or nice_to_have (preferred or advantageous).
+Classify each into one of three tiers:
+- dealbreaker: language like "required", "must", "essential", "non-negotiable" — a candidate lacking this should be excluded outright
+- must_have: a clear requirement, stated less absolutely than a dealbreaker
+- nice_to_have: language like "preferred", "a plus", "bonus", "advantageous"
+Assign a weight 1-10 for how important the condition is within its tier (dealbreaker conditions should generally weight 8-10, must_have 5-8, nice_to_have 1-4).
 Write each condition as a short, specific statement. Maximum 15 words per condition.
 Do not combine multiple requirements into one condition.
-Suggested priority_rank: must_have conditions rank 1-N in order of prominence. nice_to_have conditions rank after all must_haves.
+Suggested priority_rank: dealbreaker and must_have conditions rank 1-N in order of prominence. nice_to_have conditions rank after all of those.
 Maximum 10 conditions total. Quality over quantity.
 Never fabricate. Only extract what is written.
 
@@ -34,9 +38,10 @@ Return a JSON object with this exact structure:
   "conditions": [
     {
       "condition_text": string,
-      "condition_type": "must_have" | "nice_to_have",
+      "condition_type": "dealbreaker" | "must_have" | "nice_to_have",
       "source": "jd",
-      "priority_rank": number
+      "priority_rank": number,
+      "weight": number
     }
   ]
 }
