@@ -98,7 +98,7 @@ Name: ${c.full_name} (${c.candidate_status})
 Current: ${c.current_title ?? "—"} at ${c.current_company ?? "—"}
 Languages: Japanese ${c.japanese_level ?? "—"} / English ${c.english_level ?? "—"}
 Expected salary: ${formatYen(c.expected_total_min)}–${formatYen(c.expected_total_max)}${salaryStretch ? " [SALARY STRETCH]" : ""}
-${c.ai_context ? `Intelligence: ${c.ai_context.slice(0, 300)}` : ""}`;
+${c.ai_context ? `Intelligence: ${c.ai_context}` : ""}`;
   }).join("\n\n---\n\n");
 
   const prompt = `

@@ -69,7 +69,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const prompt = `
 CANDIDATE: ${cand.full_name}
-${cand.ai_context ? `Intelligence summary:\n${cand.ai_context.slice(0, 400)}` : ""}
+${cand.ai_context ? `Intelligence summary:\n${cand.ai_context}` : ""}
 ${cand.notes_interview ? `\nRegistration interview notes (primary context for motivations and reasons for moving):\n${cand.notes_interview.slice(0, 800)}` : ""}
 ${cand.notes_closing ? `\nClosing intelligence:\n${cand.notes_closing.slice(0, 200)}` : ""}
 
@@ -89,7 +89,7 @@ Salary range: ${formatYen(req_.salary_min)}–${formatYen(req_.salary_max)}
 COMPANY: ${req_.clients?.company_name ?? "—"}
 ${req_.clients?.years_in_japan ? `Years in Japan: ${req_.clients.years_in_japan}` : ""}
 ${req_.clients?.employee_japanese_pct != null ? `Japanese team %: ${req_.clients.employee_japanese_pct}%` : ""}
-${req_.clients?.ai_context ? `Client intelligence: ${req_.clients.ai_context.slice(0, 400)}` : ""}
+${req_.clients?.ai_context ? `Client intelligence: ${req_.clients.ai_context}` : ""}
 `.trim();
 
   const message = await anthropic.messages.create({

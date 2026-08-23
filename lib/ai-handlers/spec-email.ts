@@ -95,14 +95,14 @@ Top motivations (ranked — motivation rank 1 gets the strongest pitch point):
 ${(motivations ?? []).map((m: { rank: number; motivation_type: string | null; motivation_text: string }) => `${m.rank}. ${m.motivation_type ? `[${m.motivation_type}] ` : ""}${m.motivation_text}`).join("\n")}
 
 ${c.notes_pitch ? `Recruiter pitch notes: ${c.notes_pitch.slice(0, 300)}` : ""}
-${c.ai_context ? `Candidate intelligence: ${c.ai_context.slice(0, 500)}` : ""}
+${c.ai_context ? `Candidate intelligence: ${c.ai_context}` : ""}
 
 Role: ${r.title} at ${r.clients?.company_name ?? "—"}
 Salary: ${formatYen(r.salary_min)}–${formatYen(r.salary_max)}
 ${r.strategic_context ? `Strategic context: ${r.strategic_context.slice(0, 400)}` : ""}
 ${r.clients?.years_in_japan ? `Company years in Japan: ${r.clients.years_in_japan}` : ""}
 ${r.clients?.employee_japanese_pct != null ? `Japanese team %: ${r.clients.employee_japanese_pct}%` : ""}
-${r.clients?.ai_context ? `Client intelligence: ${r.clients.ai_context.slice(0, 300)}` : ""}
+${r.clients?.ai_context ? `Client intelligence: ${r.clients.ai_context}` : ""}
 
 Must-have conditions:
 ${(conditions ?? []).map((cond: { condition_text: string }) => `- ${cond.condition_text}`).join("\n")}

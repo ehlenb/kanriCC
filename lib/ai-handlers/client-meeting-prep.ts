@@ -146,7 +146,7 @@ ${client.japan_role_in_group ? `Japan role in group: ${client.japan_role_in_grou
 ${client.years_in_japan ? `Years in Japan: ${client.years_in_japan}` : ""}
 ${client.employee_japanese_pct != null ? `Japanese team %: ${client.employee_japanese_pct}%` : ""}
 ${client.strategy_notes ? `Strategy notes: ${client.strategy_notes.slice(0, 400)}` : ""}
-${client.ai_context ? `Account intelligence:\n${client.ai_context.slice(0, 500)}` : ""}
+${client.ai_context ? `Account intelligence:\n${client.ai_context}` : ""}
 
 Key contacts:
 ${contacts.map((c) => `- ${c.name} (${c.role}${c.title ? `, ${c.title}` : ""})${c.is_primary ? " [primary]" : ""}${c.relationship_score ? ` — relationship score ${c.relationship_score}/5` : ""}${c.notes ? `: ${c.notes.slice(0, 100)}` : ""}`).join("\n")}

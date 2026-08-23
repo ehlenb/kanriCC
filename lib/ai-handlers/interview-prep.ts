@@ -74,7 +74,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 CANDIDATE: ${cand.full_name}
 Current: ${cand.current_title ?? "—"} at ${cand.current_company ?? "—"}
 Languages: Japanese ${cand.japanese_level ?? "—"} / English ${cand.english_level ?? "—"}
-${cand.ai_context ? `Candidate intelligence:\n${cand.ai_context.slice(0, 500)}` : ""}
+${cand.ai_context ? `Candidate intelligence:\n${cand.ai_context}` : ""}
 
 Motivations:
 ${cand.candidate_motivations.map((m) => `${m.rank}. ${m.motivation_text}`).join("\n")}
@@ -95,7 +95,7 @@ ${req_.jd_text ? `JD excerpt:\n${req_.jd_text.slice(0, 800)}` : ""}
 CLIENT: ${req_.clients?.company_name ?? "—"}
 ${req_.clients?.years_in_japan ? `Years in Japan: ${req_.clients.years_in_japan}` : ""}
 ${req_.clients?.strategy_notes ? `Strategy: ${req_.clients.strategy_notes.slice(0, 300)}` : ""}
-${req_.clients?.ai_context ? `Client intelligence: ${req_.clients.ai_context.slice(0, 400)}` : ""}
+${req_.clients?.ai_context ? `Client intelligence: ${req_.clients.ai_context}` : ""}
 ${primaryContact ? `Interviewer: ${primaryContact.name}${primaryContact.title ? `, ${primaryContact.title}` : ""} (${primaryContact.role})` : ""}
 `.trim();
 

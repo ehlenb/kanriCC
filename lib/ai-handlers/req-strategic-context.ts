@@ -69,7 +69,7 @@ Company: ${cl.company_name}
 ${cl.japan_role_in_group ? `Japan role in group: ${cl.japan_role_in_group}` : ""}
 ${cl.years_in_japan ? `Years in Japan: ${cl.years_in_japan}` : ""}
 ${cl.strategy_notes ? `Company strategy notes:\n${cl.strategy_notes.slice(0, 400)}` : ""}
-${cl.ai_context ? `Account intelligence:\n${cl.ai_context.slice(0, 400)}` : ""}
+${cl.ai_context ? `Account intelligence:\n${cl.ai_context}` : ""}
 
 Role being hired: ${title}
 ${isBackfill ? `Backfill context: ${whyRoleOpened}` : `Why role exists: ${whyRoleOpened}`}

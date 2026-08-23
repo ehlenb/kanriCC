@@ -141,7 +141,7 @@ ${c.base_is_priority ? `Base priority: YES — minimum ${formatYen(c.base_minimu
 ${c.notes_interview ? `REGISTRATION INTERVIEW NOTES (primary knowledge base — may be superseded by more recent activity below):
 ${c.notes_interview.slice(0, 1200)}` : ""}
 
-${c.ai_context ? `Intelligence summary:\n${c.ai_context.slice(0, 400)}` : ""}
+${c.ai_context ? `Intelligence summary:\n${c.ai_context}` : ""}
 
 ${(motivations ?? []).length > 0 ? `Recorded motivations:\n${(motivations ?? []).map((m: { rank: number; motivation_type: string | null; motivation_text: string }) => `${m.rank}. ${m.motivation_type ? `[${m.motivation_type}] ` : ""}${m.motivation_text}`).join("\n")}` : ""}
 
@@ -243,7 +243,7 @@ ${cl.japan_role_in_group ? `Japan role: ${cl.japan_role_in_group}` : ""}
 ${cl.years_in_japan ? `Years in Japan: ${cl.years_in_japan}` : ""}
 ${cl.employee_japanese_pct != null ? `Japanese team %: ${cl.employee_japanese_pct}%` : ""}
 
-${cl.ai_context ? `Account intelligence:\n${cl.ai_context.slice(0, 600)}` : ""}
+${cl.ai_context ? `Account intelligence:\n${cl.ai_context}` : ""}
 
 Contacts:
 ${(contacts ?? []).map((c: { name: string; title: string | null; role: string; relationship_score: number | null; is_primary: boolean }) => `- ${c.name}, ${c.title ?? c.role}${c.is_primary ? " (primary)" : ""}${c.relationship_score ? ` — relationship ${c.relationship_score}/5` : ""}`).join("\n")}

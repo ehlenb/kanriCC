@@ -202,7 +202,7 @@ ${(motivations ?? []).map((m: { rank: number; motivation_type: string | null; mo
 ${(blockers ?? []).length > 0 ? `Blockers and constraints:\n${(blockers ?? []).map((b: { theme: string; detail: string | null; is_risk: boolean }) => `${b.is_risk ? "[RISK]" : "[CONTEXT]"} ${b.theme}: ${b.detail ?? ""}`).join("\n")}` : ""}
 
 ${c.notes_pitch ? `Pitch notes: ${c.notes_pitch.slice(0, 300)}` : ""}
-${c.ai_context ? `Candidate intelligence summary:\n${c.ai_context.slice(0, 600)}` : ""}`;
+${c.ai_context ? `Candidate intelligence summary:\n${c.ai_context}` : ""}`;
 
   const roleContext = `
 Role: ${r.title} at ${r.clients?.company_name ?? "—"}
@@ -218,7 +218,7 @@ ${r.jd_text ? `Job description excerpt:\n${r.jd_text.slice(0, 1500)}` : ""}
 Client: ${r.clients?.company_name ?? "—"}
 ${r.clients?.years_in_japan ? `Years in Japan: ${r.clients.years_in_japan}` : ""}
 ${r.clients?.employee_japanese_pct != null ? `Japanese team %: ${r.clients.employee_japanese_pct}%` : ""}
-${r.clients?.ai_context ? `Client intelligence:\n${r.clients.ai_context.slice(0, 400)}` : ""}`;
+${r.clients?.ai_context ? `Client intelligence:\n${r.clients.ai_context}` : ""}`;
 
   const englishPrompt = `You are a senior Japan bilingual talent agency recruiter writing a candidate submission.
 
