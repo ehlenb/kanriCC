@@ -175,6 +175,12 @@
       },
       "showLess": "Show less",
       "showMore": "Show {{count}} more"
+    },
+    "teamActivity": {
+      "title": "Team activity",
+      "loading": "Loading team activity…",
+      "empty": "No teammate activity logged yet.",
+      "unknownRecruiter": "A teammate"
     }
   },
   "candidates": {

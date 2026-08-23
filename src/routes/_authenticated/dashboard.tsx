@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { BLANK_CANDIDATE_SEARCH } from "@/routes/_authenticated/candidates";
 import { greetingByHour, todayFormatted, relativeTime } from "@/lib/candidate-utils";
+import { TeamActivityFeed } from "@/components/dashboard/TeamActivityFeed";
 import { Skeleton } from "@/components/ui/skeleton";
 import { IconChevronRight, IconSparkles, IconCheck, IconBellOff, IconBriefcase, IconX } from "@tabler/icons-react";
 
@@ -803,6 +804,10 @@ function Dashboard() {
           }
         }}
       />
+
+      {/* Team activity — separate surface from the priority queue above.
+          Never mixes teammate items into the personal agenda (CLAUDE.md §5). */}
+      <TeamActivityFeed recruiterId={recruiterId} />
     </div>
   );
 }

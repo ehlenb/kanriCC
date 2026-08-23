@@ -175,6 +175,12 @@
       },
       "showLess": "表示を減らす",
       "showMore": "あと{{count}}件表示"
+    },
+    "teamActivity": {
+      "title": "チームの活動",
+      "loading": "チームの活動を読み込み中…",
+      "empty": "まだチームメンバーの活動はありません。",
+      "unknownRecruiter": "チームメンバー"
     }
   },
   "candidates": {
