@@ -1275,6 +1275,8 @@ Sequenced by dependency. Each wave assumes the one above it.
 
 **Wave 6 — leverage.** Ask Kanri (single agentic surface with database tools). Placement post-mortem. Weekly recruiter review. 職務経歴書 builder. Prospect and BD objects.
 
+**When Wave 6 is complete:** stop and remind the user about the Recall.ai note-taker setup gap in Known Issues below — they explicitly asked to be prompted about it once all waves are finished, not before.
+
 **Deferred from earlier roadmaps:** Apollo.io / Hunter.io auto-enrichment. Contact enrichment is commodity and lower value than any wave above.
 
 ### Roadmap — seed data
@@ -1294,6 +1296,7 @@ Target: ~20 clients, ~150+ candidates across every stage including Placed and Cl
 - `placement_guarantee_until` exists on candidates and nothing reads it. Japan's 3–6 month early-turnover refund exposure makes this worth wiring
 - Dashboard done/snooze state is per-browser `localStorage` — invisible to teammates, lost on device change. Fixed by the Wave 3 tasks entity
 - Two mega-files (`candidates.$id.tsx` 5,579 lines, `clients.$id.tsx` 4,309 lines) are 51% of the frontend. Decompose incrementally, never in one pass
+- **Recall.ai note-taker was never actually finished.** `RECALL_API_KEY` is unset both locally and in Vercel production — nobody has signed up at recall.ai and added a key anywhere. `recall_bot_sessions` has zero rows; the feature has never been exercised end to end. The `APP_URL` half of this was fixed 2026-08-23 (it silently defaulted to an unrelated third-party domain — see that commit), but the feature still cannot be used until a real Recall.ai API key is obtained and added to both `.env` and Vercel. **Deliberately deferred until after the roadmap waves are done** — flag this to the user once Wave 6 is complete; they asked to be reminded then, not before.
 
 ---
 
