@@ -1327,6 +1327,8 @@ Sequenced by dependency. Each wave assumes the one above it.
 
 **When Wave 6 is complete:** stop and remind the user about the Recall.ai note-taker setup gap in Known Issues below — they explicitly asked to be prompted about it once all waves are finished, not before.
 
+**Also when Wave 6 is complete:** bring up building a **Placements tab** in the left sidebar nav (alongside Dashboard/Candidates/Clients/Jobs/Settings) — the user asked for this 2026-08-23 but explicitly said not to action it until all waves are done. Spec as given: lists every placement (candidate name, placement fee), filterable by all-time / year / quarter, with fees totaled for the selected filter. `processes.placed_fee_jpy` and `placed_date` already exist and are the data source — this is a new list view and filter, not new data model.
+
 **Deferred from earlier roadmaps:** Apollo.io / Hunter.io auto-enrichment. Contact enrichment is commodity and lower value than any wave above.
 
 ### Roadmap — seed data
