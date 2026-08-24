@@ -2639,6 +2639,14 @@ function useStageChange(candidateId: string, opts?: { candidateName?: string; re
           // status_source intentionally omitted — placement via process is not a manual toggle
         } as { candidate_status: string; placed_at: string; coin_icon_dismissed: boolean; placement_guarantee_until: string }).eq("id", candidateId);
 
+        // A requisition is one seat, always — placing a candidate fills it.
+        // Close it so it stops appearing in "add to process" pickers and the
+        // Jobs open-roles count; a backfill (if needed) is a new requisition,
+        // never this one reopened.
+        if (process.requisitions?.id) {
+          await supabase.from("requisitions").update({ is_open: false }).eq("id", process.requisitions.id);
+        }
+
         if (opts?.recruiterId) {
           await supabase.from("interactions").insert({
             candidate_id: candidateId,

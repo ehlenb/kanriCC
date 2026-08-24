@@ -1139,6 +1139,7 @@ export type Database = {
           age_min: number | null
           ai_context: string | null
           ai_context_updated_at: string | null
+          backfill_of_requisition_id: string | null
           client_id: string
           created_at: string
           english_level_required: string | null
@@ -1186,6 +1187,7 @@ export type Database = {
           age_min?: number | null
           ai_context?: string | null
           ai_context_updated_at?: string | null
+          backfill_of_requisition_id?: string | null
           client_id: string
           created_at?: string
           english_level_required?: string | null
@@ -1233,6 +1235,7 @@ export type Database = {
           age_min?: number | null
           ai_context?: string | null
           ai_context_updated_at?: string | null
+          backfill_of_requisition_id?: string | null
           client_id?: string
           created_at?: string
           english_level_required?: string | null
@@ -1276,6 +1279,13 @@ export type Database = {
           why_role_opened?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "requisitions_backfill_of_requisition_id_fkey"
+            columns: ["backfill_of_requisition_id"]
+            isOneToOne: false
+            referencedRelation: "requisitions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "requisitions_client_id_fkey"
             columns: ["client_id"]

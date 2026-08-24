@@ -3222,6 +3222,8 @@ type AddJobForm = {
   hiring_manager_id: string;
   why_role_opened: string;
   strategic_context: string;
+  is_backfill: boolean;
+  backfill_of_requisition_id: string;
 };
 
 const EMPTY_ADD_JOB: AddJobForm = {
@@ -3232,6 +3234,8 @@ const EMPTY_ADD_JOB: AddJobForm = {
   hiring_manager_id: "",
   why_role_opened: "",
   strategic_context: "",
+  is_backfill: false,
+  backfill_of_requisition_id: "",
 };
 
 function JobsTab({
@@ -3398,7 +3402,7 @@ function JobsTab({
       const resp = await fetch("/api/ai?type=req-strategic-context", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clientId, title: form.title.trim(), whyRoleOpened: form.why_role_opened.trim(), isBackfill: false }),
+        body: JSON.stringify({ clientId, title: form.title.trim(), whyRoleOpened: form.why_role_opened.trim(), isBackfill: form.is_backfill }),
       });
       const json = (await resp.json()) as { content?: string };
       if (json.content) setForm((p) => ({ ...p, strategic_context: json.content! }));
@@ -3415,7 +3419,8 @@ function JobsTab({
         client_id: clientId,
         recruiter_id: recruiterId,
         is_open: true,
-        is_backfill: false,
+        is_backfill: form.is_backfill,
+        backfill_of_requisition_id: form.is_backfill ? (form.backfill_of_requisition_id || null) : null,
         title: form.title.trim(),
         salary_range_text: form.salary_range_text.trim() || null,
         location: form.location.trim() || null,
@@ -3506,6 +3511,37 @@ function JobsTab({
             <F label="Target close date">
               <Input type="date" value={form.urgency_date} onChange={(e) => setForm((p) => ({ ...p, urgency_date: e.target.value }))} />
             </F>
+          </div>
+
+          <div>
+            <label className="flex items-center gap-2 cursor-pointer w-fit">
+              <input
+                type="checkbox"
+                checked={form.is_backfill}
+                onChange={(e) => setForm((p) => ({ ...p, is_backfill: e.target.checked, backfill_of_requisition_id: e.target.checked ? p.backfill_of_requisition_id : "" }))}
+                style={{ accentColor: "var(--color-vermillion)", width: 13, height: 13 }}
+              />
+              <span className="text-[12px]" style={{ color: "var(--color-ink)" }}>This is a backfill</span>
+            </label>
+
+            {form.is_backfill && (
+              <div className="mt-2">
+                <F label="Backfilling which role?">
+                  <Select
+                    value={form.backfill_of_requisition_id || "none"}
+                    onValueChange={(v) => setForm((p) => ({ ...p, backfill_of_requisition_id: v === "none" ? "" : v }))}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Select the role this replaces…" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Not linked to a specific role</SelectItem>
+                      {closedReqs.map((r) => (
+                        <SelectItem key={r.id} value={r.id}>{r.title}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </F>
+              </div>
+            )}
           </div>
 
           <F label="Why does this role exist?">
