@@ -31,7 +31,20 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
-const BATCH_SIZE = 100; // Voyage accepts up to 128 texts per call
+// Voyage accepts up to 128 texts per call, but without a payment method on
+// file the account is capped at 3 requests/minute and 10K tokens/minute
+// (200M free tokens still apply either way -- this is a rate limit, not a
+// quota). Small batches + pacing between requests keeps this run under both
+// caps without needing a card on file. Add a payment method on the Voyage
+// dashboard to remove this constraint and run the backfill (and live
+// search) at full speed instead.
+const BATCH_SIZE = 8;
+const DELAY_BETWEEN_BATCHES_MS = 21_000; // just over 20s -> under 3 requests/min
+const RETRY_DELAY_MS = 65_000; // cool off past the 1-minute rate-limit window
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 type CandidateRow = {
   id: string;
@@ -67,10 +80,23 @@ async function main() {
   console.log(`${candidates.length} candidates missing profile_embedding.`);
   if (candidates.length === 0) return;
 
+  const totalBatches = Math.ceil(candidates.length / BATCH_SIZE);
+  const etaMinutes = Math.ceil((totalBatches * DELAY_BETWEEN_BATCHES_MS) / 60_000);
+  console.log(`Rate-limited to ~3 requests/min -- this will take roughly ${etaMinutes} minute(s).`);
+
   let done = 0;
   for (let i = 0; i < candidates.length; i += BATCH_SIZE) {
     const batch = candidates.slice(i, i + BATCH_SIZE);
-    const embeddings = await embedTexts(batch.map(buildEmbeddingInput), "document");
+    let embeddings = await embedTexts(batch.map(buildEmbeddingInput), "document");
+
+    // A batch that comes back entirely null is almost always the 429 rate
+    // limit, not a real per-candidate failure -- cool off past the 1-minute
+    // window and try this batch once more before giving up on it.
+    if (embeddings.every((e) => e === null)) {
+      console.warn(`  batch at ${i} failed (likely rate limited) -- waiting ${RETRY_DELAY_MS / 1000}s and retrying once`);
+      await sleep(RETRY_DELAY_MS);
+      embeddings = await embedTexts(batch.map(buildEmbeddingInput), "document");
+    }
 
     await Promise.all(
       batch.map((c, j) => {
@@ -88,6 +114,10 @@ async function main() {
 
     done += batch.length;
     console.log(`  processed ${done} / ${candidates.length}`);
+
+    if (i + BATCH_SIZE < candidates.length) {
+      await sleep(DELAY_BETWEEN_BATCHES_MS);
+    }
   }
 
   console.log("Done.");
