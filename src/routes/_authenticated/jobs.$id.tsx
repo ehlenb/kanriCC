@@ -897,14 +897,15 @@ function PipelinePanel({
           </p>
           <div className="space-y-1">
             {closed.map((p) => (
-              <div
+              <button
                 key={p.id}
-                className="flex items-center gap-2 px-3 py-2  opacity-50"
+                className="w-full text-left flex items-center gap-2 px-3 py-2  opacity-50 transition-opacity hover:opacity-75"
                 style={{ background: "var(--color-ink-10)" }}
+                onClick={() => void navigate({ to: "/candidates/$id", params: { id: p.candidate_id }, search: BLANK_CANDIDATE_SEARCH })}
               >
                 <span className="text-[12px] flex-1">{p.candidate_name}</span>
                 <StageBadge stage={p.stage} />
-              </div>
+              </button>
             ))}
           </div>
         </div>
