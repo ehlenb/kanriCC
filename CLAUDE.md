@@ -172,7 +172,9 @@ Every table has both:
 - `recruiter_id` — the user who created/owns the record
 - `team_id` — the agency this record belongs to
 
-RLS policies enforce: `team_id = auth.jwt() -> team_id`. All team members can read all records within their team. Write operations also check ownership where relevant.
+RLS policies enforce team scoping, in practice via `team_id = current_team_id()` (a `SECURITY DEFINER` SQL function, not the `auth.jwt() -> team_id` form this line used to describe — corrected 2026-08-24, migration 052). All team members can read all records within their team. Write operations also check ownership where relevant, usually via `recruiter_id = (select auth.uid())`.
+
+**New table checklist:** wrap `auth.uid()` as `(select auth.uid())` in every policy from the start — Postgres otherwise re-evaluates it per row instead of once per query (Supabase advisor: `auth_rls_initplan`). Also index the `team_id` column. Migration 052 fixed 24 policies and 11 missing indexes that had accumulated across the schema; don't reintroduce the gap on a new table.
 
 ---
 
@@ -180,7 +182,7 @@ RLS policies enforce: `team_id = auth.jwt() -> team_id`. All team members can re
 
 ### Folder Structure
 
-Handler logic lives in `lib/`, **not** in `api/`. The files under `api/` are thin Vercel entry points that dispatch into `lib/` — this keeps Vercel's serverless function count down. `api/ai.ts` routes `?type=<name>` to one of 39 handlers in `lib/ai-handlers/`.
+Handler logic lives in `lib/`, **not** in `api/`. The files under `api/` are thin Vercel entry points that dispatch into `lib/` — this keeps Vercel's serverless function count down. `api/ai.ts` routes `?type=<name>` to one of 40 handlers in `lib/ai-handlers/`.
 
 ```
 src/
@@ -599,7 +601,7 @@ Documented so no agent assumes this works better — or worse — than it does. 
 
 - `refresh-context` handles all three entity types correctly.
 - **Refresh is automatic**, not manual. A trigger on `interactions` insert enqueues a job (`pgmq`), drained every minute by `pg_cron`, dispatched to `refresh-context` via `pg_net` (migrations 044/046). The manual "Refresh" buttons on candidate/client pages and `TranscriptPanel` still exist and both paths coexist without conflict.
-- **9 of 39 handlers read `ai_context`**: `client-meeting-prep`, `interview-prep`, `closing-script`, `pre-call-briefing`, `match-candidates`, `req-strategic-context`, `spec-email`, `submission-note`, and `refresh-context` itself (which only writes it). The other 30 still re-derive context from raw rows, violating the Memory Doctrine — extending to them remains open.
+- **10 of 40 handlers read `ai_context`**: `client-meeting-prep`, `interview-prep`, `closing-script`, `pre-call-briefing`, `match-candidates`, `req-strategic-context`, `spec-email`, `submission-note`, `suisenbun`, and `refresh-context` itself (which only writes it). The other 30 still re-derive context from raw rows, violating the Memory Doctrine — extending to them remains open.
 - **Truncation is gone.** None of the 9 slice `ai_context` anymore; all interpolate the full string.
 - `candidates.profile_embedding` (pgvector, Wave 2) is now computed in the same job that refreshes `ai_context`, so the two stay in sync automatically.
 - `requisitions.ai_context` is written by `refresh-context` and still read by **nothing**. (`req-strategic-context` reads `clients.ai_context`, not the requisition's own.) Still open.
@@ -808,7 +810,7 @@ Process tab colors: `tab-own` (green), `tab-colleague` (grey), `tab-uncovered` (
 
 ## 18. AI Endpoints
 
-**41 endpoints.** 39 live in `lib/ai-handlers/` and are dispatched by `api/ai.ts` via `?type=<name>`. Two are standalone files under `api/ai/`. This table was previously 16 rows and badly out of date; it is now complete.
+**42 endpoints.** 40 live in `lib/ai-handlers/` and are dispatched by `api/ai.ts` via `?type=<name>`. Two are standalone files under `api/ai/`. This table was previously 16 rows and badly out of date; it is now complete.
 
 Before adding a 42nd, read the Architecture Rules in Section 2. The answer is usually to extend the context layer, not to add a handler.
 
@@ -852,6 +854,7 @@ Before adding a 42nd, read the Architecture Rules in Section 2. The answer is us
 | Endpoint | Input | Output |
 |---|---|---|
 | `submission-note` | `candidate_id`, `requisition_id` | Client submission note. Returns `contactEmail` for the Send dialog. Reads `ai_context`. |
+| `suisenbun` | `candidate_id`, `requisition_id` | 推薦文 — formal Japanese recommendation letter, composed natively in keigo (not English-then-translate). Distinct artifact from `submission-note`; no side effects (pure draft, no stage change, no interaction log). Reads `ai_context`. |
 | `batch-cv-send` | `candidate_ids[]`, `requisition_id` | Multi-candidate introduction email in flowing prose |
 | `call-priority` | `candidate_ids[]`, `requisition_id` | Ranks candidates 'call' vs 'email' with a one-line reason |
 | `ccm-feedback-brief` | `process_id` | Client-chase call brief for outstanding interview feedback |
@@ -902,7 +905,7 @@ Before adding a 42nd, read the Architecture Rules in Section 2. The answer is us
 
 Both patterns silently broke or truncated most AI features in August 2026. Do not regress them.
 
-Current model split: 30 handlers on `claude-sonnet-5`, 15 call sites on `claude-haiku-4-5-20251001`.
+Current model split (recounted 2026-08-24, correcting a stale figure): 24 handlers on `claude-sonnet-5`, 15 on `claude-haiku-4-5-20251001`. `invite-recall-bot.ts` calls neither — it only creates a Recall.ai bot session, no Claude call at all.
 
 ## 19. Supabase
 
@@ -989,6 +992,9 @@ After regeneration, re-append the custom types block from Section 11.
 | `047_candidate_retrieval.sql` | `candidates.profile_embedding` (pgvector) + `search_text` (pgroonga-indexed generated column) + `match_candidates_hybrid()` (RRF fusion). `requisition_conditions` gets a `dealbreaker` condition_type and a `weight` column |
 | `048_requisition_conditions_recruiter_source.sql` | Adds `'recruiter'` to `requisition_conditions.source`'s allowed values. Pre-existing bug found verifying Wave 2: `ConditionsCard`'s manual-add insert always sent this value, and the check constraint never allowed it — every manual add through that UI had failed since it was written |
 | `049_backfill_requisition_link.sql` | `requisitions.backfill_of_requisition_id` (nullable, self-FK) — structural link from a backfill requisition to the one it replaces |
+| `050_process_outcome_capture.sql` | `processes.closed_reason_category` — 8-value `CHECK`-constrained enum for structured Closed-lost outcome capture |
+| `051_priority_action_state.sql` | `priority_action_state` table — DB-backed dashboard done/snooze state, replacing `localStorage`; RLS scoped to `recruiter_id = auth.uid()` |
+| `052_rls_performance_indexes.sql` | Adds `team_id` indexes on 11 tables; rewrites the 24 RLS policies that called bare `auth.uid()` to `(select auth.uid())` (Supabase advisor `auth_rls_initplan` fix) — see Section 5 note |
 
 Note: there is no `031`. Numbering skips it.
 
@@ -1293,6 +1299,30 @@ Active development resumed June 2026. All sessions below are committed and pushe
 - This work incorporated `docs/kanri-substrate-audit.html`, a same-day open-source discovery audit that had been written but never folded back into this file (its own §17 says so explicitly). Its corrections: `pgroonga` not native Postgres FTS (Section 10), reciprocal rank fusion not a plain union for combining vector + full-text results (no BM25 extension on Supabase), and Claude-as-reranker validated over a paid reranking API. Its unmerged CLAUDE.md recommendations are now folded in: the "Prefer Postgres" rule and the SQL-injection rule in Section 2, the extension list in Section 19, and the deferred-technology entries in Section 22.
 - `scripts/backfill-candidate-embeddings.ts` — one-off backfill for existing seed candidates, needs `VOYAGE_API_KEY` to run.
 
+**Wave 3, piece 1 — structured outcome capture (2026-08-24)**
+- Migration 050: `processes.closed_reason_category` — 8-value `CHECK`-constrained enum (`client_rejected`, `candidate_withdrew`, `counteroffer`, `competing_offer`, `salary_mismatch`, `client_cancelled_role`, `no_response`, `other`), mirroring `ccm_outcome`'s shape — the only outcome field that previously worked end-to-end. `closed_reason` (migration 008), `placed_fee_jpy` (020), and `start_date` (021) already existed but had a 100% non-write rate in production; wired up rather than re-schemaed.
+- New shared `src/components/shared/ProcessOutcomeModal.tsx` — both terminal-stage entry points (the header stage `<select>` in `ProcessPanel`, and the CCM-fail banner's "Close process" button, which used to fire a bare `window.confirm()`) now open this modal instead of writing the stage change directly. Placed requires a fee entry or an explicit "not finalized yet" checkbox; Closed lost requires a category, with free text required only for "Other."
+- `client-rejection-diagnosis.ts` updated: reads `closed_reason_category`, and its rejection filter now excludes candidate-driven closures (withdrew/counteroffer/competing offer/no response) from the "client rejected this candidate" count — previously every post-CV-Sent "Closed lost" was counted as a client rejection regardless of cause.
+
+**Wave 3, piece 2 — tasks/follow-ups entity replacing dashboard localStorage (2026-08-24)**
+- Migration 051: `priority_action_state` table — replaces the dashboard's `localStorage`-based done/snooze state (previously invisible across devices/browsers for the same recruiter). RLS scoped strictly to `recruiter_id = auth.uid()` (stricter than the usual team-wide read pattern) since the priority queue is personal per Section 5 and is never meant to be teammate-visible.
+- Along the way, fixed a real bug: the old localStorage keyed dismissal by `entity_id` alone, so a candidate with two independent agenda items (e.g. "Offer stage" + "competing interview risk" firing simultaneously) would have both silently dismissed by one click. The new table keys on `(recruiter_id, entity_id, action_type)` — dismissal is now per-reason.
+- `dashboard.tsx`: `TODAY` was a module-load-time constant, not live — a tab left open across midnight would keep comparing against a stale date. Replaced with `todayStr()` computed at call time. `handleDone`/`handleSnooze`/`handleRestore` are now `useMutation`s against `priority_action_state`; the 6s-undo-toast UX is unchanged. The "Restore N dismissed" count previously only counted done items, not snoozed ones (pre-existing bug, since `handleRestore` already cleared both) — now counts all dismissed rows.
+- Not built, out of scope for this piece: drag-and-drop reorder (documented in Section 9 but was never actually implemented — confirmed by grep, not a regression) and an arbitrary-date snooze picker (today's UI is a fixed "until tomorrow" preset, preserved as-is).
+
+**Wave 3, piece 3 — 推薦文 (suisenbun) generator (2026-08-24)**
+- New handler `lib/ai-handlers/suisenbun.ts`, registered as `?type=suisenbun` — endpoint #42. **Written justification for a new handler (Architecture Rule 2):** 推薦文 is a distinct Japan-market document type per Section 10 — a formal recommendation letter in keigo, submitted alongside CV/履歴書 at document-screening stage — and is explicitly not the same artifact as `submission-note` (English client email). It could not be built as an extension of `submission-note`: that handler generates English content and then runs a **second Claude call to translate it into Japanese**, which is exactly the anti-pattern Section 10 names — "register matters at generation time, not translation time... do not generate in English and translate after." 推薦文 composes natively in Japanese keigo in one call. Different structural template (five-part letter, not an email + bilingual profile blocks) and different purpose (a supporting document, not the act of submission) round out the case.
+- No keigo-aware generation existed anywhere in the codebase before this (grepped `lib/ai-handlers/` for keigo/敬語/丁寧語/honorific — zero matches beforehand). Getting this one handler right is being treated as satisfying the roadmap's separate "keigo register control at generation time" line item, since no other Japanese-generation surface in the app currently needs register control — revisit if a second one does.
+- No side effects (no interaction logged, no stage change) — unlike `submission-note`, generating a 推薦文 isn't itself a submission action. Reads `candidates.ai_context` and `clients.ai_context` in full, no truncation — the 10th handler on that list.
+- Frontend: no new component. Added to `InterviewPanel`'s existing `AIToolbox` actions (`candidates.$id.tsx`) alongside "Submission note", following the exact inline pattern already used for `rejectionEmail` — editable `<textarea>` + Dismiss + Copy, no Send button (this isn't an email). Verified genuinely editable (not static text) — `SubmissionPackagePanel.tsx`'s profile-content sections were found to violate the "AI output is always editable" rule during this investigation (static `<p>` tags); noted but not fixed here (different component, out of scope for this task).
+
+**RLS performance fixes — team_id indexes and auth.uid() re-evaluation (2026-08-24)**
+- Migration 052. Re-queried the Supabase advisor directly rather than trusting the earlier review's recollection, to get the precise scope: exactly 24 policies across 8 tables (`recruiters`, `client_package_intelligence`, `recall_bot_sessions`, `ai_context_log`, `candidate_lists`, `recruiter_oauth_tokens`, `import_batches`, `import_batch_items`, `priority_action_state`) had a bare `auth.uid()` inline in the policy expression, rewritten via `ALTER POLICY` to `(select auth.uid())` in place (same predicate, no permission change — just lets Postgres cache it once per query instead of re-evaluating per row). The dominant pattern in this codebase, `team_id = current_team_id()` (candidates/clients/processes/requisitions/interactions and every `EXISTS`-based child-table policy), was **not** flagged at all — `current_team_id()` is a plain SQL `STABLE` function the planner already inlines.
+- Also added `idx_<table>_team_id` on the 11 tables whose `team_id` foreign key had no covering index.
+- Deliberately did not touch the ~19 *other* unindexed FK columns (`candidate_id`, `client_id`, `recruiter_id`, etc.) or the pre-existing `multiple_permissive_policies` finding on `client_contacts` — those were never part of what was flagged to the user, so fixing them would have been silent scope creep.
+- Verified via `get_advisors` before/after: all 24 `auth_rls_initplan` and all 11 `team_id` `unindexed_foreign_keys` findings gone, nothing else changed. Spot-checked the live policy text and did a real write against `priority_action_state` through the dashboard UI to confirm RLS still permits normal operation, not just reads.
+- Section 5 corrected to describe the actual RLS pattern (`current_team_id()`, not the `auth.jwt() -> team_id` form it used to claim) and gained a "new table checklist" so this gap doesn't reaccumulate.
+
 ---
 
 ### Strategy review — August 2026 (decisions in force)
@@ -1317,7 +1347,7 @@ Sequenced by dependency. Each wave assumes the one above it.
   - `requisition_conditions.weight` is AI/default-assigned (`extract-conditions.ts`, and per-type defaults in `ConditionsCard`), not manually editable — no weight slider in v1.
   - `VOYAGE_API_KEY` is unset in this environment as of this writing. Everything degrades safely without it (embedding write/read no-ops, retrieval falls back to full-text-only, then to a bounded fetch) — see `scripts/backfill-candidate-embeddings.ts`, which needs to be run once the key is added, to populate embeddings for the existing seed candidates.
 
-**Wave 3 — flywheel and Japan wedge.** Structured outcome capture on every terminal process state. Tasks and follow-ups as a real entity, replacing `localStorage`. 推薦文 generator. Keigo register control at generation time.
+**Wave 3 — flywheel and Japan wedge. Done (2026-08-24).** Structured outcome capture on every terminal process state — migration 050, `closed_reason_category` enum + wired-up `placed_fee_jpy`/`start_date`, `ProcessOutcomeModal`. Tasks and follow-ups as a real entity, replacing `localStorage` — migration 051, `priority_action_state` table. 推薦文 generator — `lib/ai-handlers/suisenbun.ts`, endpoint #42, native-keigo generation. Keigo register control at generation time — treated as satisfied by the suisenbun handler's native-Japanese generation for now (see its session log entry for the reasoning); no other Japanese-generation surface in the app currently needs its own register logic; the user explicitly declined to build it as a separate general-purpose mechanism (2026-08-24), leave it until there's a second real caller (`translate.ts` is the obvious future one). Final review pass (2026-08-24) re-verified schema/RLS against the live DB, corrected a stale model-count figure (§18) discovered in the process, confirmed no regressions via `tsc`/`npm test`, and found two Supabase performance-advisor findings that were codebase-wide rather than specific to this session's new table — both fixed same-day, migration 052 (see session log).
 
 **Wave 4 — intelligence.** Client and hiring-manager scorecard from outcome data. Interview debrief capture. Database re-engagement engine. Handoff pack.
 
@@ -1345,7 +1375,6 @@ Target: ~20 clients, ~150+ candidates across every stage including Placed and Cl
 - Interaction editing (assess scope before starting)
 - PDF export for ROI calculator (low priority — standalone HTML file is the demo path)
 - `placement_guarantee_until` exists on candidates and nothing reads it. Japan's 3–6 month early-turnover refund exposure makes this worth wiring
-- Dashboard done/snooze state is per-browser `localStorage` — invisible to teammates, lost on device change. Fixed by the Wave 3 tasks entity
 - Two mega-files (`candidates.$id.tsx` 5,640 lines, `clients.$id.tsx` 4,309 lines) are over half the frontend. Decompose incrementally, never in one pass
 - **`VOYAGE_API_KEY` is unset, both locally and in Vercel production.** Candidate profile embeddings (Wave 2) no-op without it — matching still works, just full-text-only, no semantic retrieval. Needs a Voyage AI account and API key, then `scripts/backfill-candidate-embeddings.ts` run once to populate the existing seed candidates. Embedding model choice (Voyage vs. a Japanese-specialist alternative) was also never validated on real Kanri notes — see the Wave 2 roadmap entry above
 - **Recall.ai note-taker was never actually finished.** `RECALL_API_KEY` is unset both locally and in Vercel production — nobody has signed up at recall.ai and added a key anywhere. `recall_bot_sessions` has zero rows; the feature has never been exercised end to end. The `APP_URL` half of this was fixed 2026-08-23 (it silently defaulted to an unrelated third-party domain — see that commit), but the feature still cannot be used until a real Recall.ai API key is obtained and added to both `.env` and Vercel. **Deliberately deferred until after the roadmap waves are done** — flag this to the user once Wave 6 is complete; they asked to be reminded then, not before.

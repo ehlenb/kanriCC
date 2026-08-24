@@ -59,6 +59,7 @@ import {
   IconVideo,
   IconRobot,
   IconAlertTriangle,
+  IconCertificate,
 } from "@tabler/icons-react";
 import { TranscriptPanel } from "@/components/candidate/TranscriptPanel";
 import { SubmissionPackagePanel } from "@/components/candidate/SubmissionPackagePanel";
@@ -66,6 +67,7 @@ import { ActivityTimeline } from "@/components/shared/ActivityTimeline";
 import { LogActivityModal } from "@/components/shared/LogActivityModal";
 import { SendEmailDialog } from "@/components/shared/SendEmailDialog";
 import { LiveCallPanel } from "@/components/shared/LiveCallPanel";
+import { ProcessOutcomeModal } from "@/components/shared/ProcessOutcomeModal";
 
 export const Route = createFileRoute("/_authenticated/candidates/$id")({
   component: CandidateProfile,
@@ -161,6 +163,10 @@ type Process = {
   ccm_outcome: "pass" | "fail" | "pending" | null;
   ccm_feedback_notes: string | null;
   ccm_feedback_at: string | null;
+  placed_fee_jpy: number | null;
+  start_date: string | null;
+  closed_reason_category: string | null;
+  closed_reason: string | null;
   requisitions: {
     id: string;
     title: string;
@@ -334,6 +340,7 @@ function useCandidateProfile(id: string) {
             id, stage, coverage_type, ai_snapshot, updated_at,
             buy_in_confirmed_at, not_interested_at, cv_sent_at, placed_date, last_activity_at,
             ccm_outcome, ccm_feedback_notes, ccm_feedback_at,
+            placed_fee_jpy, start_date, closed_reason_category, closed_reason,
             requisitions (
               id, title, salary_min, salary_max, salary_stretch,
               clients ( id, company_name )
@@ -2572,10 +2579,17 @@ function stageMilestoneToast(newStage: string, candidateName?: string) {
   }
 }
 
+type OutcomeCapture = {
+  closed_reason_category?: string;
+  closed_reason?: string;
+  placed_fee_jpy?: number;
+  start_date?: string;
+};
+
 function useStageChange(candidateId: string, opts?: { candidateName?: string; recruiterId?: string; onAdvanced?: () => void }) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ process, newStage }: { process: Process; newStage: string }) => {
+    mutationFn: async ({ process, newStage, outcome }: { process: Process; newStage: string; outcome?: OutcomeCapture }) => {
       const now = new Date().toISOString();
       const today = now.slice(0, 10);
 
@@ -2611,12 +2625,24 @@ function useStageChange(candidateId: string, opts?: { candidateName?: string; re
         ccm_outcome?: null;
         ccm_feedback_notes?: null;
         ccm_feedback_at?: null;
+        placed_fee_jpy?: number;
+        start_date?: string;
+        closed_reason_category?: string;
+        closed_reason?: string;
       };
       const patch: ProcessPatch = { stage: newStage, last_activity_at: now };
 
       if (newStage === "Buy-In" && !process.buy_in_confirmed_at) patch.buy_in_confirmed_at = now;
       if (newStage === "CV Sent" && !process.cv_sent_at) patch.cv_sent_at = now;
-      if (newStage === "Placed") patch.placed_date = today;
+      if (newStage === "Placed") {
+        patch.placed_date = today;
+        if (outcome?.placed_fee_jpy !== undefined) patch.placed_fee_jpy = outcome.placed_fee_jpy;
+        if (outcome?.start_date) patch.start_date = outcome.start_date;
+      }
+      if (newStage === "Closed lost") {
+        if (outcome?.closed_reason_category) patch.closed_reason_category = outcome.closed_reason_category;
+        if (outcome?.closed_reason) patch.closed_reason = outcome.closed_reason;
+      }
 
       // Clear CCM feedback when advancing to the next round so it starts as pending
       if (currentCcmMatch && newCcmMatch && parseInt(newCcmMatch[1], 10) === parseInt(currentCcmMatch[1], 10) + 1) {
@@ -2775,6 +2801,7 @@ function ProcessPanel({
   const req = p.requisitions;
   const clientName = req?.clients?.company_name ?? "Unknown";
   const [justAdvanced, setJustAdvanced] = useState(false);
+  const [pendingStage, setPendingStage] = useState<"Placed" | "Closed lost" | null>(null);
   const stageChange = useStageChange(c.id, {
     candidateName: c.full_name,
     recruiterId,
@@ -2816,7 +2843,12 @@ function ProcessPanel({
           disabled={stageChange.isPending}
           onChange={(e) => {
             const newStage = e.target.value;
-            if (newStage !== p.stage) stageChange.mutate({ process: p, newStage });
+            if (newStage === p.stage) return;
+            if (newStage === "Placed" || newStage === "Closed lost") {
+              setPendingStage(newStage);
+            } else {
+              stageChange.mutate({ process: p, newStage });
+            }
           }}
           className="text-[11px] font-medium  px-2 py-0.5 outline-none cursor-pointer"
           style={{ border: "0.5px solid rgba(26,26,24,0.16)", color: "var(--color-ink)", background: "var(--color-ink-10)" }}
@@ -2834,6 +2866,21 @@ function ProcessPanel({
       ) : (
         <InterviewPanel process={p} candidate={c} motivations={motivations} blockers={blockers} recruiterId={recruiterId} />
       )}
+
+      <ProcessOutcomeModal
+        open={pendingStage !== null}
+        targetStage={pendingStage ?? "Placed"}
+        candidateName={c.full_name}
+        submitting={stageChange.isPending}
+        onCancel={() => setPendingStage(null)}
+        onConfirm={(outcome) => {
+          if (!pendingStage) return;
+          stageChange.mutate(
+            { process: p, newStage: pendingStage, outcome },
+            { onSuccess: () => setPendingStage(null) },
+          );
+        }}
+      />
     </div>
   );
 }
@@ -2866,7 +2913,9 @@ function InterviewPanel({
   const [specEmail, setSpecEmail] = useState<{ email: string; talking_points: string[] } | null>(null);
   const [loadingRejection, setLoadingRejection] = useState(false);
   const [rejectionEmail, setRejectionEmail] = useState<string | null>(null);
-  const [closingProcess, setClosingProcess] = useState(false);
+  const [loadingSuisenbun, setLoadingSuisenbun] = useState(false);
+  const [suisenbunContent, setSuisenbunContent] = useState<string | null>(null);
+  const [confirmingClose, setConfirmingClose] = useState(false);
   const [sendDialog, setSendDialog] = useState<{ body: string; to: string; subject: string; candidateId?: string } | null>(null);
   const stageChange = useStageChange(c.id, { candidateName: c.full_name, recruiterId });
 
@@ -3012,14 +3061,27 @@ function InterviewPanel({
     }
   }
 
-  async function handleCloseProcess() {
-    if (!confirm("Close this process and mark as 'Closed lost'? This cannot be undone easily.")) return;
-    setClosingProcess(true);
+  async function generateSuisenbun() {
+    if (!p.requisitions?.id) { toast.error("No requisition linked to this process."); return; }
+    setLoadingSuisenbun(true);
     try {
-      await stageChange.mutateAsync({ process: p, newStage: "Closed lost" });
+      const resp = await fetch("/api/ai?type=suisenbun", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ candidate_id: c.id, requisition_id: p.requisitions.id }),
+      });
+      const json = await resp.json() as { content?: string; error?: string };
+      if (json.error) { toast.error("Could not generate 推薦文. Try again."); return; }
+      if (json.content) setSuisenbunContent(json.content);
+    } catch {
+      toast.error("Could not generate 推薦文. Try again.");
     } finally {
-      setClosingProcess(false);
+      setLoadingSuisenbun(false);
     }
+  }
+
+  function handleCloseProcess() {
+    setConfirmingClose(true);
   }
 
   const watchOuts = blockers.filter((b) => b.is_risk);
@@ -3036,7 +3098,21 @@ function InterviewPanel({
         onCloseProcess={handleCloseProcess}
         loadingPrep={loadingInterviewPrep}
         loadingRejection={loadingRejection}
-        closingProcess={closingProcess}
+        closingProcess={confirmingClose && stageChange.isPending}
+      />
+
+      <ProcessOutcomeModal
+        open={confirmingClose}
+        targetStage="Closed lost"
+        candidateName={c.full_name}
+        submitting={stageChange.isPending}
+        onCancel={() => setConfirmingClose(false)}
+        onConfirm={(outcome) => {
+          stageChange.mutate(
+            { process: p, newStage: "Closed lost", outcome },
+            { onSuccess: () => setConfirmingClose(false) },
+          );
+        }}
       />
 
       {/* Two-column: motivations + watch-outs */}
@@ -3162,6 +3238,32 @@ function InterviewPanel({
         </div>
       )}
 
+      {/* 推薦文 output */}
+      {suisenbunContent !== null && (
+        <div className="mb-4">
+          <div className="flex items-center justify-between mb-1.5">
+            <p className="sl" style={{ color: "var(--color-indigo)" }}>推薦文</p>
+            <button onClick={() => setSuisenbunContent(null)} className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>Dismiss</button>
+          </div>
+          <textarea
+            value={suisenbunContent}
+            onChange={(e) => setSuisenbunContent(e.target.value)}
+            rows={16}
+            className="w-full p-3 text-[13px] leading-relaxed resize-y outline-none"
+            style={{ background: "var(--color-indigo-light)", border: "0.5px solid rgba(44,62,107,0.25)", color: "var(--color-ink)" }}
+          />
+          <div className="flex gap-2 mt-1.5">
+            <button
+              className="ab flex items-center gap-1"
+              style={{ fontSize: 11, padding: "3px 8px" }}
+              onClick={() => { void navigator.clipboard.writeText(suisenbunContent); toast.success("Copied."); }}
+            >
+              <IconCopy size={10} /> Copy
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Positioning talking points — NFAR blocks */}
       <SectionLabel>{t('candidateDetail.intelligence.positioningPoints')}</SectionLabel>
       {(() => {
@@ -3202,6 +3304,7 @@ function InterviewPanel({
           { key: "briefing", label: "Pre-call briefing", icon: IconPhone, loading: loadingBriefing, onRun: generateBriefing },
           { key: "positioning", label: "Refresh talking points", icon: IconSparkles, loading: loadingPositioning, onRun: generatePositioning },
           { key: "submission", label: "Submission note", icon: IconFileText, loading: loadingSubmission, onRun: generateSubmissionNote },
+          { key: "suisenbun", label: "Generate 推薦文", icon: IconCertificate, loading: loadingSuisenbun, onRun: generateSuisenbun },
           ...(ccmNumber !== null ? [{ key: "prep", label: `Interview prep (CCM${ccmNumber})`, icon: IconClipboard, loading: loadingInterviewPrep, onRun: generateInterviewPrep }] : []),
           ...(p.stage === "Specs Sent" ? [{ key: "specemail", label: "Spec email", icon: IconMail, loading: loadingSpecEmail, onRun: generateSpecEmail }] : []),
           ...(p.ccm_outcome === "fail" ? [{ key: "rejection", label: "Rejection email", icon: IconMail, loading: loadingRejection, onRun: generateRejectionEmail }] : []),

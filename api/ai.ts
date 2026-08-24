@@ -37,6 +37,7 @@ import rejectionEmail from "../lib/ai-handlers/rejection-email.js";
 import reqStrategicContext from "../lib/ai-handlers/req-strategic-context.js";
 import specEmail from "../lib/ai-handlers/spec-email.js";
 import submissionNote from "../lib/ai-handlers/submission-note.js";
+import suisenbun from "../lib/ai-handlers/suisenbun.js";
 import translate from "../lib/ai-handlers/translate.js";
 import updateClientStrategy from "../lib/ai-handlers/update-client-strategy.js";
 
@@ -80,6 +81,7 @@ const routes: Record<string, Handler> = {
   "req-strategic-context": reqStrategicContext,
   "spec-email": specEmail,
   "submission-note": submissionNote,
+  "suisenbun": suisenbun,
   "translate": translate,
   "update-client-strategy": updateClientStrategy,
 };

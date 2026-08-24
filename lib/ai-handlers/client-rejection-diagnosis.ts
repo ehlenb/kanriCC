@@ -42,7 +42,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { data: processes } = await supabase
     .from("processes")
     .select(
-      "id, stage, cv_sent_at, ccm_outcome, ccm_feedback_notes, closed_reason, candidate_id, candidates ( full_name, japanese_level, english_level, current_total, expected_total_min, expected_total_max, notes_pitch )",
+      "id, stage, cv_sent_at, ccm_outcome, ccm_feedback_notes, closed_reason, closed_reason_category, candidate_id, candidates ( full_name, japanese_level, english_level, current_total, expected_total_min, expected_total_max, notes_pitch )",
     )
     .eq("requisition_id", requisition_id);
 
@@ -53,6 +53,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     ccm_outcome: string | null;
     ccm_feedback_notes: string | null;
     closed_reason: string | null;
+    closed_reason_category: string | null;
     candidate_id: string;
     candidates: {
       full_name: string;
@@ -67,10 +68,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const allProcesses = (processes ?? []) as ProcessRow[];
 
-  // Identify confirmed rejections
+  // Identify confirmed client-side rejections — excludes candidate-driven closures
+  // (withdrew, counteroffer, competing offer, no response), which aren't about
+  // the client's spec fit. Rows with no category (pre-migration-050 history)
+  // still count, to preserve prior behavior for old data.
+  const clientSideCategories = new Set(["client_rejected", "salary_mismatch"]);
   const rejections = allProcesses.filter((p) => {
     // Explicit: closed lost after reaching CV Sent or beyond
-    if (p.stage === "Closed lost" && p.cv_sent_at) return true;
+    if (p.stage === "Closed lost" && p.cv_sent_at) {
+      return p.closed_reason_category === null || clientSideCategories.has(p.closed_reason_category);
+    }
     // CCM fail = interviewed and declined
     if (p.ccm_outcome === "fail") return true;
     return false;
@@ -122,7 +129,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   Stage reached: ${p.stage}
   CCM outcome: ${p.ccm_outcome ?? "n/a"}
   CCM feedback: ${p.ccm_feedback_notes ?? "none recorded"}
-  Closed reason: ${p.closed_reason ?? "none recorded"}
+  Closed reason category: ${p.closed_reason_category ?? "none recorded"}
+  Closed reason detail: ${p.closed_reason ?? "none recorded"}
   ${cand?.notes_pitch ? `Pitch notes: ${cand.notes_pitch.slice(0, 200)}` : ""}`;
     })
     .join("\n\n");

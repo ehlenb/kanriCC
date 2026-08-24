@@ -848,6 +848,57 @@ export type Database = {
           },
         ]
       }
+      priority_action_state: {
+        Row: {
+          action_type: string
+          created_at: string
+          effective_date: string
+          entity_id: string
+          entity_type: string
+          id: string
+          recruiter_id: string
+          status: string
+          team_id: string
+        }
+        Insert: {
+          action_type: string
+          created_at?: string
+          effective_date: string
+          entity_id: string
+          entity_type: string
+          id?: string
+          recruiter_id: string
+          status: string
+          team_id?: string
+        }
+        Update: {
+          action_type?: string
+          created_at?: string
+          effective_date?: string
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          recruiter_id?: string
+          status?: string
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "priority_action_state_recruiter_id_fkey"
+            columns: ["recruiter_id"]
+            isOneToOne: false
+            referencedRelation: "recruiters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "priority_action_state_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       processes: {
         Row: {
           ai_snapshot: string | null
@@ -858,6 +909,7 @@ export type Database = {
           ccm_feedback_notes: string | null
           ccm_outcome: string | null
           closed_reason: string | null
+          closed_reason_category: string | null
           coverage_type: string
           created_at: string
           cv_sent_at: string | null
@@ -884,6 +936,7 @@ export type Database = {
           ccm_feedback_notes?: string | null
           ccm_outcome?: string | null
           closed_reason?: string | null
+          closed_reason_category?: string | null
           coverage_type: string
           created_at?: string
           cv_sent_at?: string | null
@@ -910,6 +963,7 @@ export type Database = {
           ccm_feedback_notes?: string | null
           ccm_outcome?: string | null
           closed_reason?: string | null
+          closed_reason_category?: string | null
           coverage_type?: string
           created_at?: string
           cv_sent_at?: string | null

@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import React, { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -15,30 +15,46 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
 });
 
-// ─── agenda localStorage ─────────────────────────────────────────────────────
+// ─── priority action state (DB-backed done/snooze) ────────────────────────────
 
-const TODAY = new Date().toISOString().slice(0, 10);
+type PriorityActionStateRow = {
+  id: string;
+  entity_id: string;
+  action_type: string;
+  status: "done" | "snoozed";
+  effective_date: string;
+};
 
-function getDoneToday(): Record<string, string> {
-  try { return JSON.parse(localStorage.getItem("kanri_done_today") ?? "{}") as Record<string, string>; }
-  catch { return {}; }
+function todayStr(): string {
+  return new Date().toISOString().slice(0, 10);
 }
-function getSnoozed(): Record<string, string> {
-  try { return JSON.parse(localStorage.getItem("kanri_snoozed") ?? "{}") as Record<string, string>; }
-  catch { return {}; }
+
+function stateKey(entityId: string, actionType: string): string {
+  return `${entityId}:${actionType}`;
 }
-function markDoneToday(entityId: string) {
-  const d = getDoneToday(); d[entityId] = TODAY;
-  localStorage.setItem("kanri_done_today", JSON.stringify(d));
+
+function isVisible(stateByKey: Map<string, PriorityActionStateRow>, entityId: string, actionType: string): boolean {
+  const row = stateByKey.get(stateKey(entityId, actionType));
+  if (!row) return true;
+  const today = todayStr();
+  if (row.status === "done") return row.effective_date !== today;
+  return !(row.effective_date > today);
 }
-function snoozeUntil(entityId: string, date: string) {
-  const d = getSnoozed(); d[entityId] = date;
-  localStorage.setItem("kanri_snoozed", JSON.stringify(d));
-}
-function isVisible(entityId: string): boolean {
-  if (getDoneToday()[entityId] === TODAY) return false;
-  const snoozeDate = getSnoozed()[entityId];
-  return !(snoozeDate && snoozeDate > TODAY);
+
+function usePriorityActionState(recruiterId: string) {
+  return useQuery({
+    queryKey: ["priority-action-state", recruiterId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("priority_action_state")
+        .select("id, entity_id, action_type, status, effective_date")
+        .eq("recruiter_id", recruiterId);
+      if (error) throw error;
+      return (data ?? []) as PriorityActionStateRow[];
+    },
+    staleTime: 30_000,
+    retry: 1,
+  });
 }
 
 // ─── types ───────────────────────────────────────────────────────────────────
@@ -610,12 +626,20 @@ function Dashboard() {
 
   const metrics = useWeeklyMetrics(recruiterId);
   const priorityActions = usePriorityActions(recruiterId);
+  const priorityActionState = usePriorityActionState(recruiterId);
+  const qc = useQueryClient();
+
+  const stateByKey = React.useMemo(() => {
+    const m = new Map<string, PriorityActionStateRow>();
+    for (const row of priorityActionState.data ?? []) m.set(stateKey(row.entity_id, row.action_type), row);
+    return m;
+  }, [priorityActionState.data]);
 
   useEffect(() => {
     if (priorityActions.data) {
-      setAgendaItems(priorityActions.data.filter((item) => isVisible(item.entity_id)));
+      setAgendaItems(priorityActions.data.filter((item) => isVisible(stateByKey, item.entity_id, item.action_type)));
     }
-  }, [priorityActions.data]);
+  }, [priorityActions.data, stateByKey]);
 
   // Set of flagged process_ids for revenue strip "needs action" calculation
   const flaggedProcessIds = React.useMemo(
@@ -624,28 +648,56 @@ function Dashboard() {
   );
   const pipelineRevenue = usePipelineRevenue(recruiterId, flaggedProcessIds);
 
+  const upsertState = useMutation({
+    mutationFn: async (row: { entity_type: string; entity_id: string; action_type: string; status: "done" | "snoozed"; effective_date: string }) => {
+      const { error } = await supabase
+        .from("priority_action_state")
+        .upsert({ recruiter_id: recruiterId, ...row }, { onConflict: "recruiter_id,entity_id,action_type" });
+      if (error) throw error;
+    },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["priority-action-state", recruiterId] }),
+  });
+
+  const deleteState = useMutation({
+    mutationFn: async (vars: { entityId: string; actionType: string }) => {
+      const { error } = await supabase
+        .from("priority_action_state")
+        .delete()
+        .eq("recruiter_id", recruiterId)
+        .eq("entity_id", vars.entityId)
+        .eq("action_type", vars.actionType);
+      if (error) throw error;
+    },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["priority-action-state", recruiterId] }),
+  });
+
+  const clearAllState = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from("priority_action_state").delete().eq("recruiter_id", recruiterId);
+      if (error) throw error;
+    },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["priority-action-state", recruiterId] }),
+  });
+
   function handleRestore() {
-    localStorage.removeItem("kanri_done_today");
-    localStorage.removeItem("kanri_snoozed");
+    clearAllState.mutate();
     if (priorityActions.data) {
       setAgendaItems(priorityActions.data);
     }
   }
 
-  function handleDone(entityId: string) {
-    const removed = agendaItems.find((i) => i.entity_id === entityId);
-    markDoneToday(entityId);
-    setAgendaItems((prev) => prev.filter((i) => i.entity_id !== entityId));
+  function handleDone(entityId: string, actionType: string) {
+    const removed = agendaItems.find((i) => i.entity_id === entityId && i.action_type === actionType);
+    upsertState.mutate({ entity_type: "candidate", entity_id: entityId, action_type: actionType, status: "done", effective_date: todayStr() });
+    setAgendaItems((prev) => prev.filter((i) => !(i.entity_id === entityId && i.action_type === actionType)));
     if (removed) {
       toast(t("dashboard.toast.markedDone"), {
         action: {
           label: t("dashboard.toast.undo"),
           onClick: () => {
-            const d = getDoneToday();
-            delete d[entityId];
-            localStorage.setItem("kanri_done_today", JSON.stringify(d));
+            deleteState.mutate({ entityId, actionType });
             setAgendaItems((prev) => {
-              if (prev.some((i) => i.entity_id === entityId)) return prev;
+              if (prev.some((i) => i.entity_id === entityId && i.action_type === actionType)) return prev;
               return [removed, ...prev];
             });
           },
@@ -654,22 +706,20 @@ function Dashboard() {
       });
     }
   }
-  function handleSnooze(entityId: string) {
-    const removed = agendaItems.find((i) => i.entity_id === entityId);
+  function handleSnooze(entityId: string, actionType: string) {
+    const removed = agendaItems.find((i) => i.entity_id === entityId && i.action_type === actionType);
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    snoozeUntil(entityId, tomorrow.toISOString().slice(0, 10));
-    setAgendaItems((prev) => prev.filter((i) => i.entity_id !== entityId));
+    upsertState.mutate({ entity_type: "candidate", entity_id: entityId, action_type: actionType, status: "snoozed", effective_date: tomorrow.toISOString().slice(0, 10) });
+    setAgendaItems((prev) => prev.filter((i) => !(i.entity_id === entityId && i.action_type === actionType)));
     if (removed) {
       toast(t("dashboard.toast.snoozedTomorrow"), {
         action: {
           label: t("dashboard.toast.undo"),
           onClick: () => {
-            const d = getSnoozed();
-            delete d[entityId];
-            localStorage.setItem("kanri_snoozed", JSON.stringify(d));
+            deleteState.mutate({ entityId, actionType });
             setAgendaItems((prev) => {
-              if (prev.some((i) => i.entity_id === entityId)) return prev;
+              if (prev.some((i) => i.entity_id === entityId && i.action_type === actionType)) return prev;
               return [removed, ...prev];
             });
           },
@@ -789,6 +839,7 @@ function Dashboard() {
         onDone={handleDone}
         onSnooze={handleSnooze}
         onRestore={handleRestore}
+        dismissedCount={priorityActionState.data?.length ?? 0}
         recruiterId={recruiterId}
         onNavigate={(item) => {
           if (item.entity_type === "candidate") {
@@ -1245,16 +1296,18 @@ function PrioritySection({
   onSnooze,
   onNavigate,
   onRestore,
+  dismissedCount,
   recruiterId,
 }: {
   items: AgendaItem[];
   isLoading: boolean;
   showAll: boolean;
   onToggleShowAll: () => void;
-  onDone: (entityId: string) => void;
-  onSnooze: (entityId: string) => void;
+  onDone: (entityId: string, actionType: string) => void;
+  onSnooze: (entityId: string, actionType: string) => void;
   onNavigate: (item: AgendaItem) => void;
   onRestore: () => void;
+  dismissedCount: number;
   recruiterId: string;
 }) {
   const { t } = useTranslation();
@@ -1368,9 +1421,9 @@ function PrioritySection({
               <span className="text-[12px]" style={{ color: "var(--color-ink-30)" }}>
                 {t('dashboard.noPriorityActions')}
               </span>
-              {Object.keys(getDoneToday()).length > 0 && (
+              {dismissedCount > 0 && (
                 <button onClick={onRestore} className="text-[11px] underline" style={{ color: "var(--color-ink-60)" }}>
-                  {t('dashboard.restoreDismissed', { count: Object.keys(getDoneToday()).length })}
+                  {t('dashboard.restoreDismissed', { count: dismissedCount })}
                 </button>
               )}
             </div>
@@ -1458,7 +1511,7 @@ function PrioritySection({
                   {/* Done */}
                   <div className="group/tip relative flex flex-1">
                     <button
-                      onClick={(e) => { e.stopPropagation(); onDone(item.entity_id); }}
+                      onClick={(e) => { e.stopPropagation(); onDone(item.entity_id, item.action_type); }}
                       className="flex flex-1 items-center justify-center w-9 transition-colors hover:bg-[--color-moss-light]"
                       style={{ outline: "none", borderBottom: "0.5px solid var(--color-ink-15)" }}
                     >
@@ -1472,7 +1525,7 @@ function PrioritySection({
                   {/* Snooze */}
                   <div className="group/tip relative flex flex-1">
                     <button
-                      onClick={(e) => { e.stopPropagation(); onSnooze(item.entity_id); }}
+                      onClick={(e) => { e.stopPropagation(); onSnooze(item.entity_id, item.action_type); }}
                       className="flex flex-1 items-center justify-center w-9 transition-colors hover:bg-[--color-gold-light]"
                       style={{ outline: "none" }}
                     >
