@@ -533,7 +533,9 @@ Company accounts. `company_name`, `industry`, `hq_country`, `kk_entity` (KK = Ja
 People at client companies. `name`, `role` (ContactRole), `title`, `notes` (recruiter only — AI never writes here), `relationship_score` (1–5), `bypass_hr_warning` (bool), `is_primary` (bool).
 
 ### `requisitions`
-Open roles. `title`, `client_id`, `salary_min`, `salary_max`, `salary_stretch`, `salary_range_text` (free-text comp description), `location`, `urgency_date` (target close date), `is_open`, `is_backfill`, `hiring_manager_id` (FK to client_contacts), `strategic_context`, `recruiter_notes`, `owner_recruiter_id`, `team_id`.
+Open roles. One requisition is always exactly one seat — a backfill is a new requisition row, never the old one reopened, even for the same title/JD at the same client (confirmed with the user 2026-08-23, not assumed). `title`, `client_id`, `salary_min`, `salary_max`, `salary_stretch`, `salary_range_text` (free-text comp description), `location`, `urgency_date` (target close date), `is_open`, `is_backfill`, `backfill_of_requisition_id` (nullable FK to `requisitions`, set from the "Add job" form when `is_backfill` is checked — migration 049), `hiring_manager_id` (FK to client_contacts), `strategic_context`, `recruiter_notes`, `owner_recruiter_id`, `team_id`.
+
+`is_open` is set to `false` automatically the moment a process on this requisition reaches `Placed` (`useStageChange` in `candidates.$id.tsx`) — a filled role stops appearing in "add to process" pickers and the Jobs open-roles count without anyone remembering to close it. `is_backfill`/`backfill_of_requisition_id` are purely structural today (a link plus a badge); nothing reads them for matching or context yet, and pre-filling a new backfill's JD/salary/conditions from the role it replaces was deliberately not built — those can genuinely differ, so a backfill should start from a clean form.
 
 Intake intelligence (captured at job intake, read by matching and prep handlers): `jd_text`, `jd_url`, `why_role_opened`, `ideal_candidate_notes`, `industry_must_haves`, `japanese_level_required`, `english_level_required`, `age_min`, `age_max`, `open_to_foreign_candidates`, `internal_candidate`, `other_agencies`, `other_agency_names`, `flexibility_notes`, `target_start_date`, `urgency`.
 
@@ -986,6 +988,7 @@ After regeneration, re-append the custom types block from Section 11.
 | `046_schedule_context_refresh_worker.sql` | Schedules the queue worker on `pg_cron` — turns on automatic memory refresh in production |
 | `047_candidate_retrieval.sql` | `candidates.profile_embedding` (pgvector) + `search_text` (pgroonga-indexed generated column) + `match_candidates_hybrid()` (RRF fusion). `requisition_conditions` gets a `dealbreaker` condition_type and a `weight` column |
 | `048_requisition_conditions_recruiter_source.sql` | Adds `'recruiter'` to `requisition_conditions.source`'s allowed values. Pre-existing bug found verifying Wave 2: `ConditionsCard`'s manual-add insert always sent this value, and the check constraint never allowed it — every manual add through that UI had failed since it was written |
+| `049_backfill_requisition_link.sql` | `requisitions.backfill_of_requisition_id` (nullable, self-FK) — structural link from a backfill requisition to the one it replaces |
 
 Note: there is no `031`. Numbering skips it.
 
@@ -1040,6 +1043,7 @@ Do not suggest, scaffold, or partially implement these unless explicitly instruc
 | A graph database (Neo4j, FalkorDB, Neptune) | **Do not build.** Kanri's relationships are already correctly modelled as foreign keys with RLS enforcing team scope on every one of them. A graph database would re-encode that in a second store that must be kept in sync — the same "permanent sync liability" argument that settled the displacement question in Section 1, applied internally. Graphs earn their keep on unbounded-depth traversal over schemas that change shape; Kanri's traversals are shallow and known in advance |
 | An agent framework (LangChain, LangGraph, CrewAI, etc.) | **Do not build.** Kanri's handlers are direct Anthropic SDK calls and are perfectly legible. A framework adds indirection, version churn, and prompt opacity to solve a problem Kanri does not have |
 | Self-hosted model serving (embedding models, cross-encoder rerankers) | **Do not build.** Model weights and GPU inference do not belong in a Vercel serverless function. Call a managed API (Voyage for embeddings) or use Claude itself (it already reranks well when given a bounded candidate set and asked to score with reasons — see `match-candidates.ts`/`advanced-search.ts`) |
+| Backfill intelligence — pulling what's known about who succeeded in a role before into the new backfill's matching/strategic-context prompts | Deferred, not rejected. Structural link (`backfill_of_requisition_id`, migration 049) is built; the AI layer on top is not, because "what made the placement work" isn't tracked well enough yet (no structured signal for early turnover, performance, or why someone left) for the AI to say anything a recruiter couldn't already read off the old requisition. Revisit once outcome capture (Wave 3) exists |
 
 ### Shipped — remove from any "deferred" reasoning
 
