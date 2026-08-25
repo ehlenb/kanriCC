@@ -12,6 +12,7 @@ type Payload = {
   client_id?: string;
   contact_id?: string;
   outlook_web_link?: string;
+  direction?: "inbound" | "outbound";
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -28,6 +29,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     client_id,
     contact_id,
     outlook_web_link,
+    direction,
   } = req.body as Payload;
 
   if (!recruiter_id || !subject || !sent_at) {
@@ -49,11 +51,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!recruiter) return res.json({ error: "Recruiter not found" });
 
   const fullNotes = outlook_web_link ? `View in Outlook: ${outlook_web_link}` : null;
+  // direction defaults to inbound — the add-in's original (read-surface-only)
+  // behavior — so callers that predate the compose-surface extension keep
+  // working unchanged. "email" matches the convention api/send-email.ts
+  // already uses for outbound; "email received" is the pre-existing type.
+  const resolvedDirection = direction ?? "inbound";
 
   const { error } = await supabase.from("interactions").insert({
     recruiter_id,
     team_id: recruiter.team_id,
-    interaction_type: "email received",
+    interaction_type: resolvedDirection === "outbound" ? "email" : "email received",
+    direction: resolvedDirection,
     summary: subject,
     full_notes: fullNotes,
     interacted_at: sent_at,

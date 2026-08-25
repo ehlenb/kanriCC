@@ -130,9 +130,9 @@
     },
     "rules": {
       "offer": {
-        "reason": "Offer out at {{client}}{{lastContact}}.",
-        "lastContactSuffix": " — last contact {{days}}d ago",
-        "action": "Confirm acceptance timeline and manage the close with {{name}}."
+        "reasonWithDays": "{{name}} has been at Offer for {{days}}d at {{client}}.",
+        "reasonNew": "{{name}} just received an offer from {{client}}.",
+        "action": "Begin closing — prepare {{name}} for the possible counteroffer."
       },
       "competing": {
         "reason": "Competing at {{companies}} — {{urgency}}.",

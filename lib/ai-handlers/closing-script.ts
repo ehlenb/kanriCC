@@ -110,15 +110,17 @@ KEY POINTS TO LAND (in this order)
 [3 points sequenced by motivation rank. Bold lead phrase. 2 sentences each. Address the specific company as a match for their ranked motivations.]
 
 COUNTEROFFER DEFENSE
-[Always include this section. The candidate is about to resign — a counteroffer is almost certain. The recruiter's job is to prepare them BEFORE it happens, not after.
+[Always include this section, starting the moment the offer lands — do not wait for the candidate to have resigned or for time to pass. The recruiter's job is to prepare them BEFORE the counteroffer happens, not after.
 
-Frame it around the candidate's specific motivations listed above (use their actual reasons for wanting to move — a salary increase from their current employer does not fix a culture problem, a promotion ceiling, or a desire to work in a more international environment). Do not recite statistics — weave them in naturally if relevant.
+Open by directing the recruiter to ask the candidate a direct hypothetical: how would they feel if their current employer countered with the same package, or even higher, once they hand in notice? Have the recruiter get a real answer out loud, not a reflexive "I'd still leave."
+
+Frame the rest around the candidate's specific motivations listed above (use their actual reasons for wanting to move — a salary increase from their current employer does not fix a culture problem, a promotion ceiling, or a desire to work in a more international environment). Do not recite statistics — weave them in naturally if relevant.
 
 Japan-specific insight to apply: About 80% of candidates who were already actively looking and receive a counteroffer reject it anyway, because the underlying reasons they wanted to leave don't change. The money improves; the environment does not.
 
-One key question to surface: "Ask yourself — why did it take a resignation letter to get this offer?" The recruiter should help the candidate answer this for themselves before the moment arrives.
+A second key question to surface: "Ask yourself — why did it take a resignation letter to get this offer?" The recruiter should help the candidate answer this for themselves before the moment arrives.
 
-Keep this section to 3–4 sentences maximum. Specific to this candidate's motivations, not generic.]
+Keep this section to 4–5 sentences maximum. Specific to this candidate's motivations, not generic.]
 
 SUGGESTED CLOSE
 [One question or statement to move them to yes. Not a script — a direction. 1-2 sentences.]

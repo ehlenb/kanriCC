@@ -33,6 +33,7 @@ type EmailData = {
   body: string;
   sentAt: string;
   webLink: string | null;
+  direction: "inbound" | "outbound";
 };
 
 type AppState =
@@ -57,6 +58,15 @@ function TaskpanePage() {
   const [emailData, setEmailData] = useState<EmailData | null>(null);
   const [match, setMatch] = useState<Match | null>(null);
   const [loggedUrl, setLoggedUrl] = useState<string | null>(null);
+
+  // match-sender.ts runs under the service-role key (bypasses RLS) — team_id
+  // must be threaded through explicitly or a match can leak across teams.
+  // Passed straight into readEmail/matchSender as a plain value (not state)
+  // so there's no race between a state update landing and the fetch firing.
+  async function loadTeamId(userId: string): Promise<string | null> {
+    const { data } = await supabase.from("recruiters").select("team_id").eq("id", userId).single();
+    return data?.team_id ?? null;
+  }
 
   // ── Load Office.js and initialize ──────────────────────────────────────────
   useEffect(() => {
@@ -89,23 +99,40 @@ function TaskpanePage() {
   useEffect(() => {
     if (state !== "reading-email") return;
 
-    void supabase.auth.getSession().then(({ data }) => {
+    void supabase.auth.getSession().then(async ({ data }) => {
       const userId = data.session?.user?.id ?? null;
       if (!userId) {
         setState("unauthenticated");
         return;
       }
       setRecruiterId(userId);
-      readEmail();
+      const tid = await loadTeamId(userId);
+      readEmail(tid);
     });
   }, [state]);
 
-  function readEmail() {
+  function readEmail(tid: string | null) {
     const win = window as any;
     const item = win.Office?.context?.mailbox?.item;
 
     if (!item) {
-      // Dev mode — use dummy data
+      // Dev mode (no Office host) — use dummy data. ?compose=1 in the URL
+      // exercises the compose-surface path without a real Outlook window.
+      const isComposeDev = new URLSearchParams(window.location.search).get("compose") === "1";
+      if (isComposeDev) {
+        setEmailData({
+          subject: "[Dev] Test compose",
+          fromEmail: "recipient@example.com",
+          fromName: "Test Recipient",
+          body: "This is a test compose body for development.",
+          sentAt: new Date().toISOString(),
+          webLink: null,
+          direction: "outbound",
+        });
+        setState("matching");
+        void matchSender("recipient@example.com", tid);
+        return;
+      }
       setEmailData({
         subject: "[Dev] Test email",
         fromEmail: "test@example.com",
@@ -113,32 +140,54 @@ function TaskpanePage() {
         body: "This is a test email body for development.",
         sentAt: new Date().toISOString(),
         webLink: null,
+        direction: "inbound",
       });
       setState("matching");
-      void matchSender("test@example.com");
+      void matchSender("test@example.com", tid);
       return;
     }
 
+    // Read surface always has `item.from` (who sent it); Compose surface
+    // never does (the signed-in user is the sender), so its absence is the
+    // signal. On compose, match against the first recipient instead.
+    const isCompose = !item.from;
     const subject: string = item.subject ?? "(no subject)";
-    const fromEmail: string = item.from?.emailAddress ?? "";
-    const fromName: string = item.from?.displayName ?? fromEmail;
     const sentAt: string = (item.dateTimeCreated as Date | null)?.toISOString() ?? new Date().toISOString();
     const webLink: string | null = (item as any).webLink ?? null;
 
+    let counterpartyEmail: string;
+    let counterpartyName: string;
+    if (isCompose) {
+      const recipients: { emailAddress?: string; displayName?: string }[] = item.to ?? [];
+      counterpartyEmail = recipients[0]?.emailAddress ?? "";
+      counterpartyName = recipients[0]?.displayName ?? counterpartyEmail;
+    } else {
+      counterpartyEmail = item.from?.emailAddress ?? "";
+      counterpartyName = item.from?.displayName ?? counterpartyEmail;
+    }
+
     item.body.getAsync("text" as any, (result: any) => {
       const body: string = result.value ?? "";
-      setEmailData({ subject, fromEmail, fromName, body, sentAt, webLink });
+      setEmailData({
+        subject,
+        fromEmail: counterpartyEmail,
+        fromName: counterpartyName,
+        body,
+        sentAt,
+        webLink,
+        direction: isCompose ? "outbound" : "inbound",
+      });
       setState("matching");
-      void matchSender(fromEmail);
+      void matchSender(counterpartyEmail, tid);
     });
   }
 
-  async function matchSender(fromEmail: string) {
+  async function matchSender(fromEmail: string, tid: string | null) {
     try {
       const resp = await fetch("/api/addin?action=match-sender", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: fromEmail }),
+        body: JSON.stringify({ email: fromEmail, team_id: tid }),
       });
       const json = (await resp.json()) as { match: Match | null; error?: string };
       setMatch(json.match);
@@ -173,6 +222,7 @@ function TaskpanePage() {
       from_email: emailData.fromEmail,
       from_name: emailData.fromName,
       outlook_web_link: emailData.webLink,
+      direction: emailData.direction,
     };
 
     if (match?.type === "candidate") {
@@ -256,7 +306,7 @@ function TaskpanePage() {
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             {/* Email summary */}
             <div style={styles.card}>
-              <p style={styles.label}>From</p>
+              <p style={styles.label}>{emailData.direction === "outbound" ? "To" : "From"}</p>
               <p style={styles.value}>{emailData.fromName}</p>
               <p style={{ ...styles.muted, marginTop: 1 }}>{emailData.fromEmail}</p>
               <p style={{ ...styles.label, marginTop: 10 }}>Subject</p>
