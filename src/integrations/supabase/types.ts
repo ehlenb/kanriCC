@@ -732,6 +732,7 @@ export type Database = {
       interactions: {
         Row: {
           candidate_id: string | null
+          ccm_outcome: string | null
           client_id: string | null
           contact_id: string | null
           direction: string | null
@@ -754,6 +755,7 @@ export type Database = {
         }
         Insert: {
           candidate_id?: string | null
+          ccm_outcome?: string | null
           client_id?: string | null
           contact_id?: string | null
           direction?: string | null
@@ -776,6 +778,7 @@ export type Database = {
         }
         Update: {
           candidate_id?: string | null
+          ccm_outcome?: string | null
           client_id?: string | null
           contact_id?: string | null
           direction?: string | null
@@ -1988,6 +1991,7 @@ export const Constants = {
     Enums: {},
   },
 } as const
+
 // ─── custom app types (preserved across regenerations) ───────────────────────
 
 export type ContactRole =

@@ -56,6 +56,7 @@ import {
   IconTrash,
   IconCopy,
   IconSend,
+  IconUserShare,
   IconVideo,
   IconRobot,
   IconAlertTriangle,
@@ -386,6 +387,30 @@ function CandidateProfile() {
   const [page, setPage] = useState<"timeline" | "notes" | "processes" | "registration">("timeline");
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
+  const [handoffOpen, setHandoffOpen] = useState(false);
+  const [handoffContent, setHandoffContent] = useState<string | null>(null);
+  const [handoffLoading, setHandoffLoading] = useState(false);
+
+  async function generateHandoffPack() {
+    setHandoffOpen(true);
+    setHandoffLoading(true);
+    setHandoffContent(null);
+    try {
+      const resp = await fetch("/api/ai?type=handoff-pack", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entity_type: "candidate", entity_id: id }),
+      });
+      const json = await resp.json() as { content?: string; error?: string };
+      if (json.error) { toast.error("Could not generate handoff pack. Try again."); setHandoffOpen(false); return; }
+      setHandoffContent(json.content ?? "");
+    } catch {
+      toast.error("Could not generate handoff pack. Try again.");
+      setHandoffOpen(false);
+    } finally {
+      setHandoffLoading(false);
+    }
+  }
 
   async function handleDeleteCandidate() {
     setDeleteBusy(true);
@@ -485,6 +510,14 @@ function CandidateProfile() {
           </div>
         </div>
         <button
+          onClick={() => void generateHandoffPack()}
+          className="shrink-0 p-1 mt-0.5"
+          style={{ color: "var(--color-ink-30)" }}
+          title="Generate handoff pack"
+        >
+          <IconUserShare size={14} />
+        </button>
+        <button
           onClick={() => setDeleteOpen(true)}
           className="shrink-0 p-1 mt-0.5"
           style={{ color: "var(--color-ink-30)" }}
@@ -493,6 +526,35 @@ function CandidateProfile() {
           <IconTrash size={14} />
         </button>
       </div>
+
+      <Dialog open={handoffOpen} onOpenChange={setHandoffOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Handoff pack</DialogTitle>
+          </DialogHeader>
+          {handoffLoading ? (
+            <p className="text-[13px]" style={{ color: "var(--color-ink-60)" }}>Generating…</p>
+          ) : (
+            <>
+              <textarea
+                value={handoffContent ?? ""}
+                onChange={(e) => setHandoffContent(e.target.value)}
+                rows={20}
+                className="w-full p-3 text-[13px] leading-relaxed resize-y outline-none"
+                style={{ background: "var(--color-surface)", border: "0.5px solid rgba(26,26,24,0.16)", color: "var(--color-ink)" }}
+              />
+              <DialogFooter>
+                <button
+                  className="ab flex items-center gap-1"
+                  onClick={() => { void navigator.clipboard.writeText(handoffContent ?? ""); toast.success("Copied."); }}
+                >
+                  <IconCopy size={11} /> Copy
+                </button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Page tabs */}
       <div
@@ -2696,6 +2758,34 @@ function useStageChange(candidateId: string, opts?: { candidateName?: string; re
   });
 }
 
+type InterviewHistoryRow = {
+  id: string;
+  interaction_type: string;
+  interacted_at: string;
+  full_notes: string | null;
+  summary: string | null;
+  ccm_outcome: string | null;
+};
+
+function useInterviewHistory(processId: string) {
+  return useQuery({
+    queryKey: ["processes", processId, "interview-history"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("interactions")
+        .select("id, interaction_type, interacted_at, full_notes, summary, ccm_outcome")
+        .eq("process_id", processId)
+        .like("interaction_type", "ccm%")
+        .not("ccm_outcome", "is", null)
+        .order("interacted_at", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as InterviewHistoryRow[];
+    },
+    staleTime: 30_000,
+    retry: 1,
+  });
+}
+
 // ─── pipeline progress strip ──────────────────────────────────────────────────
 
 const PROGRESS_NODES = [
@@ -2918,6 +3008,8 @@ function InterviewPanel({
   const [confirmingClose, setConfirmingClose] = useState(false);
   const [sendDialog, setSendDialog] = useState<{ body: string; to: string; subject: string; candidateId?: string } | null>(null);
   const stageChange = useStageChange(c.id, { candidateName: c.full_name, recruiterId });
+  const { data: interviewHistory } = useInterviewHistory(p.id);
+  const [expandedHistoryId, setExpandedHistoryId] = useState<string | null>(null);
 
   const ccmMatch = /^CCM(\d+)$/.exec(p.stage);
   const ccmNumber = ccmMatch ? parseInt(ccmMatch[1], 10) : null;
@@ -2941,8 +3033,40 @@ function InterviewPanel({
         })
         .eq("id", p.id);
       if (error) throw error;
+
+      // Persist the verdict permanently on this round's interaction row --
+      // processes.ccm_outcome above gets nulled by useStageChange the moment
+      // the process advances to the next CCM round (see that function), so
+      // it can't be the durable record. The interaction row survives.
+      if (ccmNumber !== null && feedbackOutcome !== "pending") {
+        const { data: roundInteraction } = await supabase
+          .from("interactions")
+          .select("id")
+          .eq("process_id", p.id)
+          .eq("interaction_type", `ccm${ccmNumber}`)
+          .order("interacted_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (roundInteraction) {
+          await supabase
+            .from("interactions")
+            .update({ ccm_outcome: feedbackOutcome })
+            .eq("id", roundInteraction.id);
+        }
+      }
+
       void qc.invalidateQueries({ queryKey: ["candidate-profile", c.id] });
+      void qc.invalidateQueries({ queryKey: ["processes", p.id, "interview-history"] });
       toast.success("Feedback saved.");
+
+      // Memory refreshes as a consequence of activity, not a manual step --
+      // this is an UPDATE on an existing interaction row so the automatic
+      // insert-triggered refresh queue never fires for it.
+      void fetch("/api/ai?type=refresh-context", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entity_type: "candidate", entity_id: c.id }),
+      });
     } catch {
       toast.error("Could not save feedback. Try again.");
     } finally {
@@ -3202,6 +3326,52 @@ function InterviewPanel({
               Last saved {relativeTime(p.ccm_feedback_at)}
             </span>
           )}
+        </div>
+      )}
+
+      {/* Interview history — permanent per-round verdicts, survive stage advance */}
+      {interviewHistory && interviewHistory.length > 0 && (
+        <div className="mb-4">
+          <SectionLabel>Interview history</SectionLabel>
+          <div className="space-y-1.5">
+            {interviewHistory.map((row) => {
+              const round = /^ccm(\d+)$/.exec(row.interaction_type)?.[1] ?? "?";
+              const isPass = row.ccm_outcome === "pass";
+              const notes = row.full_notes ?? row.summary ?? "No notes";
+              const expanded = expandedHistoryId === row.id;
+              return (
+                <div key={row.id} className="p-2.5" style={{ background: "var(--color-ink-10)", border: "0.5px solid var(--color-ink-15)" }}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span
+                      className="text-[11px] px-2 py-0.5 font-medium"
+                      style={{
+                        background: isPass ? "var(--color-moss-light)" : "var(--color-danger-bg)",
+                        color: isPass ? "var(--color-moss)" : "var(--color-danger)",
+                      }}
+                    >
+                      CCM{round} · {isPass ? "Pass" : "Fail"}
+                    </span>
+                    <span className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>
+                      {relativeTime(row.interacted_at)}
+                    </span>
+                  </div>
+                  <p
+                    className="text-[12px] leading-relaxed cursor-pointer"
+                    style={{
+                      color: "var(--color-ink-60)",
+                      display: expanded ? "block" : "-webkit-box",
+                      WebkitLineClamp: expanded ? undefined : 2,
+                      WebkitBoxOrient: expanded ? undefined : "vertical",
+                      overflow: expanded ? undefined : "hidden",
+                    }}
+                    onClick={() => setExpandedHistoryId(expanded ? null : row.id)}
+                  >
+                    {notes}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 

@@ -45,7 +45,7 @@ export async function refreshCandidate(entityId: string, triggeredById?: string)
       .eq("is_active", true),
     supabase
       .from("interactions")
-      .select("interaction_type, summary, full_notes, interacted_at, direction")
+      .select("interaction_type, summary, full_notes, interacted_at, direction, ccm_outcome")
       .eq("candidate_id", entityId)
       .order("interacted_at", { ascending: false })
       .limit(30),
@@ -88,11 +88,13 @@ export async function refreshCandidate(entityId: string, triggeredById?: string)
     full_notes: string | null;
     interacted_at: string;
     direction: string | null;
+    ccm_outcome: string | null;
   }) => {
     const weight = categorise(i.interacted_at);
     const date = new Date(i.interacted_at).toLocaleDateString("en-GB");
     const notes = i.full_notes?.slice(0, 300) ?? i.summary ?? "No notes";
-    return `[${weight.toUpperCase()}] ${date} ${i.interaction_type}${i.direction ? ` (${i.direction})` : ""}: ${notes}`;
+    const outcome = i.ccm_outcome ? ` (client verdict: ${i.ccm_outcome.toUpperCase()})` : "";
+    return `[${weight.toUpperCase()}] ${date} ${i.interaction_type}${i.direction ? ` (${i.direction})` : ""}${outcome}: ${notes}`;
   });
 
   const prompt = `
@@ -131,6 +133,7 @@ Write as a senior recruiter summarising what they know about this candidate righ
 Use past tense for history. Use present tense for current state.
 Recency weighting: [CURRENT] interactions = definitive. [RECENT] = relevant context. [BACKGROUND] = background only.
 If a recent interaction contradicts an older one (e.g. salary changed), the recent value wins. Note the change: "Salary expectation updated to X (was Y at registration)."
+A "(client verdict: PASS/FAIL)" tag on a ccmN interaction is the confirmed, settled outcome of that interview round — treat it as fact, not as pending. Do not describe that round's feedback as pending or outstanding once a verdict tag is present.
 Maximum 900 tokens. Be ruthless about what matters.
 Plain English. Short sentences. No bullet lists — use short paragraphs.
 Do not include anything from notes_internal or notes_presentation.

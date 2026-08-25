@@ -31,6 +31,7 @@ import {
 import type { ContactRole } from "@/integrations/supabase/types";
 import {
   IconArrowLeft,
+  IconUserShare,
   IconSparkles,
   IconPhone,
   IconPencil,
@@ -50,6 +51,7 @@ import {
   IconTrash,
   IconSend,
 } from "@tabler/icons-react";
+import { ClientScorecardCard } from "@/components/client/ClientScorecardCard";
 import { ActivityTimeline } from "@/components/shared/ActivityTimeline";
 import { JdViewer } from "@/components/shared/JdViewer";
 import { SendEmailDialog } from "@/components/shared/SendEmailDialog";
@@ -516,6 +518,30 @@ function ClientDetail() {
     watchOut: string;
   } | null>(null);
   const [loadingSnapshot, setLoadingSnapshot] = useState(false);
+  const [handoffOpen, setHandoffOpen] = useState(false);
+  const [handoffContent, setHandoffContent] = useState<string | null>(null);
+  const [handoffLoading, setHandoffLoading] = useState(false);
+
+  async function generateHandoffPack() {
+    setHandoffOpen(true);
+    setHandoffLoading(true);
+    setHandoffContent(null);
+    try {
+      const resp = await fetch("/api/ai?type=handoff-pack", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entity_type: "client", entity_id: id }),
+      });
+      const json = await resp.json() as { content?: string; error?: string };
+      if (json.error) { toast.error("Could not generate handoff pack. Try again."); setHandoffOpen(false); return; }
+      setHandoffContent(json.content ?? "");
+    } catch {
+      toast.error("Could not generate handoff pack. Try again.");
+      setHandoffOpen(false);
+    } finally {
+      setHandoffLoading(false);
+    }
+  }
   const [draftModal, setDraftModal] = useState<{
     title: string;
     content: string;
@@ -708,7 +734,45 @@ function ClientDetail() {
             {t('clients.inactive')}
           </span>
         )}
+        <button
+          onClick={() => void generateHandoffPack()}
+          className="ml-auto flex items-center gap-1 transition-colors"
+          style={{ color: "var(--color-ink-30)" }}
+          title="Generate handoff pack"
+        >
+          <IconUserShare size={14} />
+          Handoff pack
+        </button>
       </div>
+
+      <Dialog open={handoffOpen} onOpenChange={setHandoffOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Handoff pack</DialogTitle>
+          </DialogHeader>
+          {handoffLoading ? (
+            <p className="text-[13px]" style={{ color: "var(--color-ink-60)" }}>Generating…</p>
+          ) : (
+            <>
+              <textarea
+                value={handoffContent ?? ""}
+                onChange={(e) => setHandoffContent(e.target.value)}
+                rows={20}
+                className="w-full p-3 text-[13px] leading-relaxed resize-y outline-none"
+                style={{ background: "var(--color-surface)", border: "0.5px solid rgba(26,26,24,0.16)", color: "var(--color-ink)" }}
+              />
+              <DialogFooter>
+                <button
+                  className="ab flex items-center gap-1"
+                  onClick={() => { void navigator.clipboard.writeText(handoffContent ?? ""); toast.success("Copied."); }}
+                >
+                  <IconCopy size={11} /> Copy
+                </button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Client snapshot */}
       <div
@@ -886,6 +950,7 @@ function ClientDetail() {
               }}
             />
 
+            <ClientScorecardCard clientId={id} />
             <ClientEnrichCard clientId={id} companyName={c.company_name} clientUrl={c.website} />
             <ClientIntelligenceCard
               clientId={id}

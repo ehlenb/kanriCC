@@ -21,6 +21,7 @@ import extractConditions from "../lib/ai-handlers/extract-conditions.js";
 import extractContract from "../lib/ai-handlers/extract-contract.js";
 import extractReqFields from "../lib/ai-handlers/extract-req-fields.js";
 import formatInterviewNotes from "../lib/ai-handlers/format-interview-notes.js";
+import handoffPack from "../lib/ai-handlers/handoff-pack.js";
 import inferStatus from "../lib/ai-handlers/infer-status.js";
 import interviewPrep from "../lib/ai-handlers/interview-prep.js";
 import inviteRecallBot from "../lib/ai-handlers/invite-recall-bot.js";
@@ -65,6 +66,7 @@ const routes: Record<string, Handler> = {
   "extract-contract": extractContract,
   "extract-req-fields": extractReqFields,
   "format-interview-notes": formatInterviewNotes,
+  "handoff-pack": handoffPack,
   "infer-status": inferStatus,
   "interview-prep": interviewPrep,
   "invite-recall-bot": inviteRecallBot,

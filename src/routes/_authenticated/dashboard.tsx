@@ -8,54 +8,22 @@ import { useAuth } from "@/lib/auth-context";
 import { BLANK_CANDIDATE_SEARCH } from "@/routes/_authenticated/candidates";
 import { greetingByHour, todayFormatted, relativeTime } from "@/lib/candidate-utils";
 import { TeamActivityFeed } from "@/components/dashboard/TeamActivityFeed";
+import { CandidateReengagementCard } from "@/components/dashboard/CandidateReengagementCard";
+import {
+  todayStr,
+  stateKey,
+  isVisible,
+  usePriorityActionState,
+  useUpsertPriorityActionState,
+  useDeletePriorityActionState,
+  type PriorityActionStateRow,
+} from "@/hooks/usePriorityActionState";
 import { Skeleton } from "@/components/ui/skeleton";
 import { IconChevronRight, IconSparkles, IconCheck, IconBellOff, IconBriefcase, IconX } from "@tabler/icons-react";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
 });
-
-// ─── priority action state (DB-backed done/snooze) ────────────────────────────
-
-type PriorityActionStateRow = {
-  id: string;
-  entity_id: string;
-  action_type: string;
-  status: "done" | "snoozed";
-  effective_date: string;
-};
-
-function todayStr(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function stateKey(entityId: string, actionType: string): string {
-  return `${entityId}:${actionType}`;
-}
-
-function isVisible(stateByKey: Map<string, PriorityActionStateRow>, entityId: string, actionType: string): boolean {
-  const row = stateByKey.get(stateKey(entityId, actionType));
-  if (!row) return true;
-  const today = todayStr();
-  if (row.status === "done") return row.effective_date !== today;
-  return !(row.effective_date > today);
-}
-
-function usePriorityActionState(recruiterId: string) {
-  return useQuery({
-    queryKey: ["priority-action-state", recruiterId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("priority_action_state")
-        .select("id, entity_id, action_type, status, effective_date")
-        .eq("recruiter_id", recruiterId);
-      if (error) throw error;
-      return (data ?? []) as PriorityActionStateRow[];
-    },
-    staleTime: 30_000,
-    retry: 1,
-  });
-}
 
 // ─── types ───────────────────────────────────────────────────────────────────
 
@@ -648,28 +616,8 @@ function Dashboard() {
   );
   const pipelineRevenue = usePipelineRevenue(recruiterId, flaggedProcessIds);
 
-  const upsertState = useMutation({
-    mutationFn: async (row: { entity_type: string; entity_id: string; action_type: string; status: "done" | "snoozed"; effective_date: string }) => {
-      const { error } = await supabase
-        .from("priority_action_state")
-        .upsert({ recruiter_id: recruiterId, ...row }, { onConflict: "recruiter_id,entity_id,action_type" });
-      if (error) throw error;
-    },
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ["priority-action-state", recruiterId] }),
-  });
-
-  const deleteState = useMutation({
-    mutationFn: async (vars: { entityId: string; actionType: string }) => {
-      const { error } = await supabase
-        .from("priority_action_state")
-        .delete()
-        .eq("recruiter_id", recruiterId)
-        .eq("entity_id", vars.entityId)
-        .eq("action_type", vars.actionType);
-      if (error) throw error;
-    },
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ["priority-action-state", recruiterId] }),
-  });
+  const upsertState = useUpsertPriorityActionState(recruiterId);
+  const deleteState = useDeletePriorityActionState(recruiterId);
 
   const clearAllState = useMutation({
     mutationFn: async () => {
@@ -851,6 +799,12 @@ function Dashboard() {
       {/* Team activity — separate surface from the priority queue above.
           Never mixes teammate items into the personal agenda (CLAUDE.md §5). */}
       <TeamActivityFeed recruiterId={recruiterId} />
+
+      {/* Dormant candidates worth a look — also separate from the priority
+          queue above. Not urgent, so it doesn't compete for ranking with
+          rules 1-6; it's an opportunistic surface, same spirit as team
+          activity just above. */}
+      <CandidateReengagementCard recruiterId={recruiterId} />
     </div>
   );
 }
