@@ -11,6 +11,7 @@ import {
   IconUsers,
   IconBuilding,
   IconBriefcase,
+  IconTrophy,
   IconLogout,
   IconX,
   IconSettings,
@@ -157,6 +158,7 @@ function Sidebar({
     { to: "/candidates", icon: IconUsers, label: t("nav.candidates") },
     { to: "/clients", icon: IconBuilding, label: t("nav.clients") },
     { to: "/jobs", icon: IconBriefcase, label: t("nav.jobs") },
+    { to: "/placements", icon: IconTrophy, label: t("nav.placements") },
     { to: "/settings", icon: IconSettings, label: t("nav.settings") },
   ];
 

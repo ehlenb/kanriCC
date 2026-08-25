@@ -4,6 +4,7 @@
     "candidates": "Candidates",
     "clients": "Clients",
     "jobs": "Jobs",
+    "placements": "Placements",
     "advancedSearch": "Advanced Search",
     "signOut": "Sign out",
     "settings": "Settings"
@@ -582,6 +583,18 @@
     "callFirst": "Call first",
     "draftMessage": "Draft message",
     "saveList": "Save as spec list"
+  },
+  "placements": {
+    "subtitle": "Every candidate placed, across the whole team",
+    "realizedFees": "Realized fees",
+    "placementCount_one": "{{count}} placement",
+    "placementCount_other": "{{count}} placements",
+    "periodAll": "All time",
+    "periodYear": "This year",
+    "periodQuarter": "This quarter",
+    "empty": "No placements in this period.",
+    "emptySub": "Placements you close will show up here with their fee.",
+    "unknownCandidate": "Unknown candidate"
   },
   "activity": {
     "types": {

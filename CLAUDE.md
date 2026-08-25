@@ -670,15 +670,16 @@ Stage badge logic lives exclusively in `stageBadgeVariant()` in `candidate-utils
 | `/dashboard` | `.../dashboard.tsx` | Daily agenda — priority actions for logged-in recruiter |
 | `/candidates` | `.../candidates.tsx` | Candidate list with filters |
 | `/candidates/$id` | `.../candidates.$id.tsx` | Candidate detail (4 tabs) |
-| `/clients` | `.../clients.tsx` | Client list |
+| `/clients` | `.../clients.tsx` | Client list. Also holds the `Clients \| Prospects` toggle (Wave 6) — Prospects has no route of its own, it's a view state inside this same page/component |
 | `/clients/$id` | `.../clients.$id.tsx` | Client detail (5 tabs) |
 | `/jobs` | `.../jobs.tsx` | Open requisitions + revenue forecast |
 | `/jobs/$id` | `.../jobs.$id.tsx` | Single requisition detail |
+| `/placements` | `.../placements.tsx` | Every placement, team-wide, with fee and date — filterable all-time / this year / this quarter, fees totaled for the selected filter |
 | `/settings` | `.../settings.tsx` | Gmail / Outlook OAuth connect + disconnect |
 | `/advanced-search` | `.../advanced-search.tsx` | Three-panel AI candidate search — not a nav item, accessed via candidates page |
 | `/addin/taskpane` | `routes/addin/taskpane.tsx` | Outlook add-in task pane — see Section 24 |
 
-Sidebar nav has five items: Dashboard, Candidates, Clients, Jobs, Settings.
+Sidebar nav has **six** items as of 2026-08-24: Dashboard, Candidates, Clients, Jobs, Placements, Settings. This was five for the whole roadmap (Waves 1–6) — the "five items, added rarely and deliberately" discipline that shaped Wave 6's Ask Kanri (a drawer, not a route) and Prospects (a toggle inside Clients, not a route) is why Placements is the only 6th-item exception: it was explicitly requested by the user, explicitly deferred until every wave was done, and is a real destination page (its own list, its own filter, nothing to nest it inside). Don't treat this as license to add a 7th item lightly — the same bar applies again next time.
 
 ---
 
@@ -1443,9 +1444,9 @@ Sequenced by dependency. Each wave assumes the one above it.
 
 **Wave 6 is complete — the two standing reminders below have been surfaced to the user in chat, per the standing instruction.** They remain here as the durable record.
 
-**Recall.ai note-taker setup gap** — reminder delivered 2026-08-24. See Known Issues below for the detail: `RECALL_API_KEY` still unset, feature never exercised end to end.
+**Recall.ai note-taker setup gap** — reminder delivered 2026-08-24. User's call: leave it as-is, not urgent enough to action now. Deliberately useful to leave visible in its current unconfigured state for demos — the "Invite note-taker" button shows a prospective client the capability exists without needing the API key live, and the user is treating it as a candidate for a higher-tier paid package later rather than a baseline feature. See Known Issues below for the technical detail: `RECALL_API_KEY` still unset, feature never exercised end to end.
 
-**Placements tab** — reminder delivered 2026-08-24. A new sidebar nav item (alongside Dashboard/Candidates/Clients/Jobs/Settings), listing every placement (candidate name, placement fee), filterable by all-time / year / quarter, with fees totaled for the selected filter. `processes.placed_fee_jpy` and `placed_date` already exist and are the data source — a new list view and filter, not new data model. Not built in this session — the user asked to be reminded about it once all waves were done, not for it to be actioned automatically at that point.
+**Placements tab — done (2026-08-24).** Built immediately after the reminder was delivered, at the user's request. `/placements` (Section 13), sidebar's 6th item. Team-wide (not scoped to the logged-in recruiter, unlike the personal priority queue) — deliberately, since realized fees are exactly the shared context the multi-user model exists for and this list is also the number a recruiter would show a prospective client. Filter is three relative windows (all-time / this year / this quarter), matching the app's existing `Period` convention (dashboard.tsx) rather than an arbitrary date-range picker. Fully i18n'd (`placements.*` keys in both locale files), same discipline as the rest of the app. No migration — `processes.placed_fee_jpy` and `placed_date` were the only data source, exactly as scoped when this was first specced.
 
 **Deferred from earlier roadmaps:** Apollo.io / Hunter.io auto-enrichment. Contact enrichment is commodity and lower value than any wave above.
 
@@ -1486,7 +1487,7 @@ This is the one list to check before assuming something was forgotten rather tha
 
 ~~`VOYAGE_API_KEY` is unset~~ — **not true, corrected 2026-08-24 (Wave 6).** The key is set and `candidates.profile_embedding` is populated for all 202 seed candidates — semantic retrieval is live. See the Wave 2 roadmap entry above for the correction. Embedding model choice (Voyage vs. a Japanese-specialist alternative) still was never independently validated on real Kanri notes — that part of this entry stands; revisit if match quality looks off.
 
-**Recall.ai note-taker was never actually finished.** `RECALL_API_KEY` is unset both locally and in Vercel production — nobody has signed up at recall.ai and added a key anywhere. `recall_bot_sessions` has zero rows; the feature has never been exercised end to end. The `APP_URL` half of this was fixed 2026-08-23 (it silently defaulted to an unrelated third-party domain — see that commit), but the feature still cannot be used until a real Recall.ai API key is obtained and added to both `.env` and Vercel. **Deliberately deferred until after the roadmap waves are done** — flag this to the user once Wave 6 is complete; they asked to be reminded then, not before.
+**Recall.ai note-taker was never actually finished.** `RECALL_API_KEY` is unset both locally and in Vercel production — nobody has signed up at recall.ai and added a key anywhere. `recall_bot_sessions` has zero rows; the feature has never been exercised end to end. The `APP_URL` half of this was fixed 2026-08-23 (it silently defaulted to an unrelated third-party domain — see that commit), but the feature still cannot be used until a real Recall.ai API key is obtained and added to both `.env` and Vercel. Reminder delivered to the user 2026-08-24 as promised once Wave 6 closed — **their call was to leave it exactly as it is.** Not urgent, and the unconfigured "Invite note-taker" button is being kept visible on purpose: it demonstrates the capability to prospective clients without needing the integration live, and is being positioned as a higher-tier paid add-on rather than baseline functionality. Revisit only if a real customer conversation requires it live.
 
 ---
 

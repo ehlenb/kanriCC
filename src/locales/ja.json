@@ -4,6 +4,7 @@
     "candidates": "候補者",
     "clients": "クライアント",
     "jobs": "求人",
+    "placements": "成約一覧",
     "advancedSearch": "詳細検索",
     "signOut": "サインアウト",
     "settings": "設定"
@@ -582,6 +583,17 @@
     "callFirst": "優先コール",
     "draftMessage": "メッセージ作成",
     "saveList": "候補者リストとして保存"
+  },
+  "placements": {
+    "subtitle": "チーム全体の成約実績",
+    "realizedFees": "確定手数料",
+    "placementCount_other": "{{count}}件の成約",
+    "periodAll": "全期間",
+    "periodYear": "今年",
+    "periodQuarter": "今四半期",
+    "empty": "この期間の成約はありません。",
+    "emptySub": "成約が確定すると、ここに手数料とともに表示されます。",
+    "unknownCandidate": "候補者不明"
   },
   "activity": {
     "types": {
