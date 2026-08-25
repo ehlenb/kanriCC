@@ -130,9 +130,9 @@
     },
     "rules": {
       "offer": {
-        "reason": "{{client}}へ内定提示済み{{lastContact}}。",
-        "lastContactSuffix": " — 最終連絡 {{days}}日前",
-        "action": "{{name}}さんの承諾タイムラインを確認し、クローズを管理する。"
+        "reasonWithDays": "{{name}}さんは{{client}}からの内定提示後{{days}}日経過。",
+        "reasonNew": "{{name}}さんが{{client}}から内定を受けました。",
+        "action": "クロージングを開始 — {{name}}さんにカウンターオファーへの備えをさせる。"
       },
       "competing": {
         "reason": "{{companies}}で競合中 — {{urgency}}。",

@@ -9,6 +9,7 @@ import { BLANK_CANDIDATE_SEARCH } from "@/routes/_authenticated/candidates";
 import { greetingByHour, todayFormatted, relativeTime } from "@/lib/candidate-utils";
 import { TeamActivityFeed } from "@/components/dashboard/TeamActivityFeed";
 import { CandidateReengagementCard } from "@/components/dashboard/CandidateReengagementCard";
+import { JobChangeSignalCard } from "@/components/dashboard/JobChangeSignalCard";
 import {
   todayStr,
   stateKey,
@@ -39,7 +40,7 @@ type AgendaItem = {
   priority_rank: number;
   client_id?: string;
   candidate_id?: string;
-  competing?: { company_name: string; stage: string | null }[];
+  competing?: { company_name: string; stage: string | null; disclosed_at?: string | null }[];
   placement_milestone?: "day_1" | "two_week" | "one_month" | "three_month" | "long_term";
 };
 
@@ -132,6 +133,24 @@ function compUrgency(
   return "medium";
 }
 
+// Competitive clock: turn a competing_interviews row's stage + disclosed_at
+// into a rough "days remaining" estimate. Arithmetic, not AI — the window
+// widths are a judgment call (Japan CCM-to-offer cycle, Section 10), not a
+// measured constant, so this is presented as "roughly N days," never exact.
+const COMP_WINDOW_OFFER_DAYS = 5;
+const COMP_WINDOW_INTERVIEW_DAYS = 14;
+const COMP_WINDOW_EARLY_DAYS = 21;
+
+function compRemainingDays(stage: string | null, disclosedAt: string | null): number | null {
+  if (!disclosedAt) return null;
+  const s = (stage ?? "").toLowerCase();
+  const hasOffer = s.includes("offer") || s.includes("final") || s.includes("内定");
+  const hasInterview = s.includes("interview") || s.includes("ccm") || s.includes("面接");
+  const windowDays = hasOffer ? COMP_WINDOW_OFFER_DAYS : hasInterview ? COMP_WINDOW_INTERVIEW_DAYS : COMP_WINDOW_EARLY_DAYS;
+  const daysElapsed = Math.floor((Date.now() - new Date(disclosedAt).getTime()) / 86_400_000);
+  return Math.max(0, windowDays - daysElapsed);
+}
+
 // ─── priority actions hook (rule-based, no AI call) ───────────────────────────
 
 function usePriorityActions(recruiterId: string) {
@@ -148,10 +167,45 @@ function usePriorityActions(recruiterId: string) {
       const { data: procs } = await supabase
         .from("processes")
         .select(
-          "id, stage, candidate_id, cv_sent_at, last_activity_at, ccm_feedback_at, ccm_outcome, buy_in_confirmed_at, candidates(id, full_name), requisitions(id, title, clients(id, company_name))"
+          "id, stage, candidate_id, cv_sent_at, offer_date, last_activity_at, ccm_feedback_at, ccm_outcome, buy_in_confirmed_at, candidates(id, full_name), requisitions(id, title, clients(id, company_name))"
         )
         .eq("owner_recruiter_id", recruiterId)
         .not("stage", "in", '("Closed lost","Placed")');
+
+      // Upcoming scheduled meetings (Piece 3: pre-meeting brief surfacing).
+      // Grace window starts 1h in the past so a meeting doesn't vanish from
+      // the list the instant it starts.
+      const { data: upcoming } = await supabase
+        .from("interactions")
+        .select("id, candidate_id, interaction_type, scheduled_at, candidates(id, full_name)")
+        .eq("recruiter_id", recruiterId)
+        .eq("is_future", true)
+        .not("scheduled_at", "is", null)
+        .gte("scheduled_at", new Date(now.getTime() - 3_600_000).toISOString())
+        .lte("scheduled_at", new Date(now.getTime() + 86_400_000).toISOString())
+        .not("candidate_id", "is", null);
+
+      for (const item of (upcoming ?? [])) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const cand = Array.isArray((item as any).candidates) ? (item as any).candidates[0] : (item as any).candidates;
+        const candidateId = item.candidate_id as string;
+        const candidateName = (cand as { full_name?: string } | null)?.full_name ?? "—";
+        const scheduledAt = new Date(item.scheduled_at as string);
+        const minsAway = Math.round((scheduledAt.getTime() - now.getTime()) / 60_000);
+        const when = minsAway <= 0
+          ? "now"
+          : minsAway < 60
+          ? `${minsAway}m`
+          : `${Math.round(minsAway / 60)}h`;
+        actions.push({
+          entity_type: "candidate", entity_id: candidateId,
+          entity_name: candidateName, stage: undefined,
+          candidate_id: candidateId,
+          reason: `Meeting with ${candidateName} in ${when} (${item.interaction_type}).`,
+          suggested_action: "Open pre-call brief.",
+          action_type: "upcoming_meeting", priority_rank: 3,
+        });
+      }
 
       const activeCandidateIds = [
         ...new Set(
@@ -163,17 +217,17 @@ function usePriorityActions(recruiterId: string) {
       ];
 
       // Fetch competing interviews for CCM/Offer candidates
-      const compMap: Record<string, { company_name: string; stage: string | null }[]> = {};
+      const compMap: Record<string, { company_name: string; stage: string | null; disclosed_at: string | null }[]> = {};
       if (activeCandidateIds.length > 0) {
         const { data: competing } = await supabase
           .from("competing_interviews")
-          .select("candidate_id, company_name, stage")
+          .select("candidate_id, company_name, stage, disclosed_at")
           .in("candidate_id", activeCandidateIds)
           .eq("is_active", true);
         for (const c of (competing ?? [])) {
           const cid = c.candidate_id as string;
           if (!compMap[cid]) compMap[cid] = [];
-          compMap[cid].push({ company_name: c.company_name, stage: c.stage });
+          compMap[cid].push({ company_name: c.company_name, stage: c.stage, disclosed_at: c.disclosed_at });
         }
       }
 
@@ -195,15 +249,23 @@ function usePriorityActions(recruiterId: string) {
           ? Math.floor((now.getTime() - lastTouch.getTime()) / 86_400_000)
           : 999;
 
-        // Rule 1: Offer stage — highest priority
+        // Rule 1: Offer stage — highest priority. Closing (counteroffer
+        // defense included) starts on the very next touch after the offer
+        // lands, not after some staleness threshold — waiting for the offer
+        // to sit is the wrong trigger, since a recruiter should never let it
+        // sit. Always dispatches to closing-script rather than a generic
+        // pre-call-briefing.
         if (proc.stage === "Offer") {
+          const daysAtOffer = proc.offer_date ? Math.floor((now.getTime() - new Date(proc.offer_date).getTime()) / 86_400_000) : null;
           actions.push({
             entity_type: "candidate", entity_id: candidateId,
             entity_name: candidateName, process_id: proc.id, stage: proc.stage,
             candidate_id: candidateId, client_id: clientId,
-            reason: t("dashboard.rules.offer.reason", { client: clientName, lastContact: daysSinceTouch < 999 ? t("dashboard.rules.offer.lastContactSuffix", { days: daysSinceTouch }) : "" }),
+            reason: daysAtOffer !== null && daysAtOffer > 0
+              ? t("dashboard.rules.offer.reasonWithDays", { name: firstName, days: daysAtOffer, client: clientName })
+              : t("dashboard.rules.offer.reasonNew", { name: firstName, client: clientName }),
             suggested_action: t("dashboard.rules.offer.action", { name: firstName }),
-            action_type: "pre_call", priority_rank: 1,
+            action_type: "offer_closing", priority_rank: 1,
           });
         }
 
@@ -215,11 +277,22 @@ function usePriorityActions(recruiterId: string) {
           const urgency = compUrgency(proc.stage, competing);
           if (urgency !== "medium") {
             const compList = competing.map((c) => c.company_name).join(", ");
+            // Competitive clock: most urgent (fewest days) across their active
+            // competing interviews, when disclosed_at is known.
+            const remainingDaysList = competing
+              .map((c) => compRemainingDays(c.stage, c.disclosed_at ?? null))
+              .filter((d): d is number => d !== null);
+            const minRemaining = remainingDaysList.length ? Math.min(...remainingDaysList) : null;
+            const clockSuffix = minRemaining === null
+              ? ""
+              : minRemaining === 0
+              ? " That decision window may have already closed."
+              : ` You have roughly ${minRemaining} day${minRemaining === 1 ? "" : "s"}.`;
             actions.push({
               entity_type: "candidate", entity_id: candidateId,
               entity_name: candidateName, process_id: proc.id, stage: proc.stage,
               candidate_id: candidateId, client_id: clientId,
-              reason: t("dashboard.rules.competing.reason", { companies: compList, urgency: urgency === "critical" ? t("dashboard.rules.competing.critical") : t("dashboard.rules.competing.high") }),
+              reason: t("dashboard.rules.competing.reason", { companies: compList, urgency: urgency === "critical" ? t("dashboard.rules.competing.critical") : t("dashboard.rules.competing.high") }) + clockSuffix,
               suggested_action: t("dashboard.rules.competing.action", { name: firstName, client: clientName }),
               action_type: "competing_risk",
               priority_rank: urgency === "critical" ? 2 : 7,
@@ -805,6 +878,12 @@ function Dashboard() {
           rules 1-6; it's an opportunistic surface, same spirit as team
           activity just above. */}
       <CandidateReengagementCard recruiterId={recruiterId} />
+
+      {/* Job-change signals — a placed candidate who now matches a client
+          contact record. Discovery/BD signal, not a pipeline follow-up, so
+          it sits here rather than in the ranked queue (same reasoning as
+          the re-engagement card just above). */}
+      <JobChangeSignalCard recruiterId={recruiterId} />
     </div>
   );
 }
@@ -1312,6 +1391,12 @@ function PrioritySection({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ process_id: item.process_id }),
         });
+      } else if (item.action_type === "offer_closing") {
+        resp = await fetch("/api/ai?type=closing-script", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ process_id: item.process_id }),
+        });
       } else {
         resp = await fetch("/api/ai?type=pre-call-briefing", {
           method: "POST",
@@ -1518,6 +1603,10 @@ function PrioritySection({
                     ? `${t("dashboard.brief.clientChase")} · ${activeBriefItem.entity_name}`
                     : activeBriefItem?.action_type === "competing_risk"
                     ? `${t("dashboard.brief.competingRisk")} · ${activeBriefItem.entity_name}`
+                    : activeBriefItem?.action_type === "offer_closing"
+                    ? `Counteroffer defense · ${activeBriefItem.entity_name}`
+                    : activeBriefItem?.action_type === "upcoming_meeting"
+                    ? `Pre-call brief · ${activeBriefItem.entity_name}`
                     : `${t("dashboard.brief.aiInsights")} · ${activeBriefItem?.entity_name ?? ""}`}
                 </span>
               </div>

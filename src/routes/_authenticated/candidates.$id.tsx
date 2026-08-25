@@ -42,7 +42,6 @@ import {
   IconPhone,
   IconMail,
   IconFileText,
-  IconShield,
   IconMessage,
   IconCurrencyYen,
   IconBolt,
@@ -159,6 +158,7 @@ type Process = {
   buy_in_confirmed_at: string | null;
   not_interested_at: string | null;
   cv_sent_at: string | null;
+  offer_date: string | null;
   placed_date: string | null;
   last_activity_at: string | null;
   ccm_outcome: "pass" | "fail" | "pending" | null;
@@ -339,7 +339,7 @@ function useCandidateProfile(id: string) {
           .select(
             `
             id, stage, coverage_type, ai_snapshot, updated_at,
-            buy_in_confirmed_at, not_interested_at, cv_sent_at, placed_date, last_activity_at,
+            buy_in_confirmed_at, not_interested_at, cv_sent_at, offer_date, placed_date, last_activity_at,
             ccm_outcome, ccm_feedback_notes, ccm_feedback_at,
             placed_fee_jpy, start_date, closed_reason_category, closed_reason,
             requisitions (
@@ -2683,6 +2683,7 @@ function useStageChange(candidateId: string, opts?: { candidateName?: string; re
         last_activity_at: string;
         buy_in_confirmed_at?: string;
         cv_sent_at?: string;
+        offer_date?: string;
         placed_date?: string;
         ccm_outcome?: null;
         ccm_feedback_notes?: null;
@@ -2696,6 +2697,7 @@ function useStageChange(candidateId: string, opts?: { candidateName?: string; re
 
       if (newStage === "Buy-In" && !process.buy_in_confirmed_at) patch.buy_in_confirmed_at = now;
       if (newStage === "CV Sent" && !process.cv_sent_at) patch.cv_sent_at = now;
+      if (newStage === "Offer" && !process.offer_date) patch.offer_date = today;
       if (newStage === "Placed") {
         patch.placed_date = today;
         if (outcome?.placed_fee_jpy !== undefined) patch.placed_fee_jpy = outcome.placed_fee_jpy;
@@ -3468,14 +3470,19 @@ function InterviewPanel({
         );
       })()}
 
-      {/* AI Toolbox */}
+      {/* AI Toolbox — one stage-aware "brief me" action rather than a
+          generic Pre-call briefing button sitting alongside a separate
+          Interview prep button (both were "get me ready for the next
+          conversation," just for different stages; showing both made the
+          recruiter choose between two things that should never compete). */}
       <AIToolbox
         actions={[
-          { key: "briefing", label: "Pre-call briefing", icon: IconPhone, loading: loadingBriefing, onRun: generateBriefing },
+          ccmNumber !== null
+            ? { key: "brief", label: `Interview prep (CCM${ccmNumber})`, icon: IconClipboard, loading: loadingInterviewPrep, onRun: generateInterviewPrep }
+            : { key: "brief", label: "Pre-call briefing", icon: IconPhone, loading: loadingBriefing, onRun: generateBriefing },
           { key: "positioning", label: "Refresh talking points", icon: IconSparkles, loading: loadingPositioning, onRun: generatePositioning },
           { key: "submission", label: "Submission note", icon: IconFileText, loading: loadingSubmission, onRun: generateSubmissionNote },
           { key: "suisenbun", label: "Generate 推薦文", icon: IconCertificate, loading: loadingSuisenbun, onRun: generateSuisenbun },
-          ...(ccmNumber !== null ? [{ key: "prep", label: `Interview prep (CCM${ccmNumber})`, icon: IconClipboard, loading: loadingInterviewPrep, onRun: generateInterviewPrep }] : []),
           ...(p.stage === "Specs Sent" ? [{ key: "specemail", label: "Spec email", icon: IconMail, loading: loadingSpecEmail, onRun: generateSpecEmail }] : []),
           ...(p.ccm_outcome === "fail" ? [{ key: "rejection", label: "Rejection email", icon: IconMail, loading: loadingRejection, onRun: generateRejectionEmail }] : []),
         ]}
@@ -3895,63 +3902,42 @@ function OfferPanel({
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-4 mb-4">
-        {/* Closing risks */}
-        <div>
-          <SectionLabel>Closing risks</SectionLabel>
-          <div className="flex gap-2 mb-1.5 text-[13px]">
-            <span className="mt-1.5 h-[5px] w-[5px] shrink-0 rounded-full" style={{ background: "var(--color-gold)" }} />
-            <span><strong>Pre-close check.</strong> Have you confirmed what they need to say yes?</span>
-          </div>
-          <div className="flex gap-2 mb-1.5 text-[13px]">
-            <span className="mt-1.5 h-[5px] w-[5px] shrink-0 rounded-full" style={{ background: "var(--color-gold)" }} />
-            <span><strong>Sony counteroffer.</strong> Prepare them before they resign.</span>
-          </div>
-          <div className="flex gap-2 mb-1.5 text-[13px]">
-            <span className="mt-1.5 h-[5px] w-[5px] shrink-0 rounded-full" style={{ background: "var(--color-gold)" }} />
-            <span><strong>Family loop.</strong> Has everyone in the decision been informed?</span>
-          </div>
+      {/* Closing risks — a quick pre-flight checklist, not a script. The
+          separate static "Counteroffer defense" quote+stat block that used
+          to sit next to this was removed: it was generic (and had a
+          leftover "Sony" reference hardcoded from old mock data, regardless
+          of the candidate's actual employer), and it duplicated what the
+          Closing script button below now generates dynamically per
+          candidate — the hypothetical question, the resignation framing,
+          and the statistic, all specific to this process. */}
+      <div className="mb-4">
+        <SectionLabel>Closing risks</SectionLabel>
+        <div className="flex gap-2 mb-1.5 text-[13px]">
+          <span className="mt-1.5 h-[5px] w-[5px] shrink-0 rounded-full" style={{ background: "var(--color-gold)" }} />
+          <span><strong>Pre-close check.</strong> Have you confirmed what they need to say yes?</span>
         </div>
-
-        {/* Counteroffer defense */}
-        <div>
-          <SectionLabel>Counteroffer defense</SectionLabel>
-          <div
-            className=" p-3 text-[13px] leading-relaxed mb-2"
-            style={{ background: "var(--color-ink-10)", borderLeft: "2px solid rgba(24,95,165,0.3)" }}
-          >
-            Ask yourself — why did it take a resignation letter to get this? The reasons you decided to move are still there on Monday morning.
-          </div>
-          <p className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>
-            Statistics: 60–80% who accept a counteroffer leave within 6 months. 90% within 12 months.
-          </p>
+        <div className="flex gap-2 mb-1.5 text-[13px]">
+          <span className="mt-1.5 h-[5px] w-[5px] shrink-0 rounded-full" style={{ background: "var(--color-gold)" }} />
+          <span><strong>Counteroffer risk.</strong> Prepare them before they resign.</span>
+        </div>
+        <div className="flex gap-2 mb-1.5 text-[13px]">
+          <span className="mt-1.5 h-[5px] w-[5px] shrink-0 rounded-full" style={{ background: "var(--color-gold)" }} />
+          <span><strong>Family loop.</strong> Has everyone in the decision been informed?</span>
         </div>
       </div>
 
-      {/* Resignation prep */}
-      <SectionLabel>Resignation prep talking points</SectionLabel>
-      <div
-        className=" p-3 text-[13px] leading-relaxed mb-3"
-        style={{ background: "var(--color-ink-10)", borderLeft: "2px solid rgba(24,95,165,0.3)" }}
-      >
-        <p className="mb-2">Keep it short and professional. You do not owe a full explanation.</p>
-        <p className="mb-2">Thank your manager for the experience. Say you have accepted a role that aligns better with where you want to go next.</p>
-        <p>If they ask what it would take to stay — tell them you have made your decision and you are committed to a smooth handover.</p>
-      </div>
-
-      {/* Action buttons */}
+      {/* Action buttons. Resignation prep was removed — the closing script
+          below already covers it: it opens with the counteroffer hypothetical
+          question and carries the "why did it take a resignation letter"
+          framing plus the leave-anyway statistic, so a separate static
+          resignation-prep block was duplicating what the script now does
+          dynamically, per candidate. "Counteroffer prep" was removed too —
+          it called the identical generateClosingScript() as "Closing script"
+          with no distinction, so it was two buttons for one action. */}
       <div className="flex gap-1.5 flex-wrap mt-2">
         <button className="ab" onClick={generateClosingScript} disabled={loadingScript}>
           <IconPhone size={12} />
           {loadingScript ? "Generating…" : "Closing script"}
-        </button>
-        <button className="ab" onClick={() => scriptContent ? undefined : generateClosingScript()} disabled={loadingScript}>
-          <IconShield size={12} />
-          {loadingScript ? "Generating…" : "Counteroffer prep"}
-        </button>
-        <button className="ab">
-          <IconMessage size={12} />
-          Resignation prep
         </button>
         <button className="ab">
           <IconBolt size={12} />
