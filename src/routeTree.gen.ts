@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AddinTaskpaneRouteImport } from './routes/addin/taskpane'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
+import { Route as AuthenticatedPlacementsRouteImport } from './routes/_authenticated/placements'
 import { Route as AuthenticatedJobsRouteImport } from './routes/_authenticated/jobs'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedClientsRouteImport } from './routes/_authenticated/clients'
@@ -45,6 +46,11 @@ const AddinTaskpaneRoute = AddinTaskpaneRouteImport.update({
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedPlacementsRoute = AuthenticatedPlacementsRouteImport.update({
+  id: '/placements',
+  path: '/placements',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedJobsRoute = AuthenticatedJobsRouteImport.update({
@@ -98,6 +104,7 @@ export interface FileRoutesByFullPath {
   '/clients': typeof AuthenticatedClientsRouteWithChildren
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/jobs': typeof AuthenticatedJobsRouteWithChildren
+  '/placements': typeof AuthenticatedPlacementsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/addin/taskpane': typeof AddinTaskpaneRoute
   '/candidates/$id': typeof AuthenticatedCandidatesIdRoute
@@ -112,6 +119,7 @@ export interface FileRoutesByTo {
   '/clients': typeof AuthenticatedClientsRouteWithChildren
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/jobs': typeof AuthenticatedJobsRouteWithChildren
+  '/placements': typeof AuthenticatedPlacementsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/addin/taskpane': typeof AddinTaskpaneRoute
   '/candidates/$id': typeof AuthenticatedCandidatesIdRoute
@@ -128,6 +136,7 @@ export interface FileRoutesById {
   '/_authenticated/clients': typeof AuthenticatedClientsRouteWithChildren
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/jobs': typeof AuthenticatedJobsRouteWithChildren
+  '/_authenticated/placements': typeof AuthenticatedPlacementsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/addin/taskpane': typeof AddinTaskpaneRoute
   '/_authenticated/candidates/$id': typeof AuthenticatedCandidatesIdRoute
@@ -144,6 +153,7 @@ export interface FileRouteTypes {
     | '/clients'
     | '/dashboard'
     | '/jobs'
+    | '/placements'
     | '/settings'
     | '/addin/taskpane'
     | '/candidates/$id'
@@ -158,6 +168,7 @@ export interface FileRouteTypes {
     | '/clients'
     | '/dashboard'
     | '/jobs'
+    | '/placements'
     | '/settings'
     | '/addin/taskpane'
     | '/candidates/$id'
@@ -173,6 +184,7 @@ export interface FileRouteTypes {
     | '/_authenticated/clients'
     | '/_authenticated/dashboard'
     | '/_authenticated/jobs'
+    | '/_authenticated/placements'
     | '/_authenticated/settings'
     | '/addin/taskpane'
     | '/_authenticated/candidates/$id'
@@ -222,6 +234,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof AuthenticatedSettingsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/placements': {
+      id: '/_authenticated/placements'
+      path: '/placements'
+      fullPath: '/placements'
+      preLoaderRoute: typeof AuthenticatedPlacementsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/jobs': {
@@ -325,6 +344,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedClientsRoute: typeof AuthenticatedClientsRouteWithChildren
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedJobsRoute: typeof AuthenticatedJobsRouteWithChildren
+  AuthenticatedPlacementsRoute: typeof AuthenticatedPlacementsRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
 }
 
@@ -334,6 +354,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedClientsRoute: AuthenticatedClientsRouteWithChildren,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedJobsRoute: AuthenticatedJobsRouteWithChildren,
+  AuthenticatedPlacementsRoute: AuthenticatedPlacementsRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
 }
 

@@ -11,16 +11,19 @@ import {
   IconUsers,
   IconBuilding,
   IconBriefcase,
+  IconTrophy,
   IconLogout,
   IconX,
   IconSettings,
+  IconSparkles,
 } from "@tabler/icons-react";
-import { Component, useEffect } from "react";
+import { Component, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { initials } from "@/lib/candidate-utils";
 import { BLANK_CANDIDATE_SEARCH } from "@/routes/_authenticated/candidates";
 import { useTranslation } from "react-i18next";
 import { setLanguage, getLanguage } from "@/i18n";
+import { AskKanriDrawer } from "@/components/shared/AskKanriDrawer";
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
   constructor(props: { children: ReactNode }) {
@@ -69,6 +72,7 @@ export const Route = createFileRoute("/_authenticated")({
 function AuthedShell() {
   const { user, loading, signOut } = useAuth();
   const navigate = useNavigate();
+  const [askKanriOpen, setAskKanriOpen] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/login" });
@@ -93,12 +97,14 @@ function AuthedShell() {
           navigate({ to: "/login" });
         }}
         email={user.email ?? ""}
+        onOpenAskKanri={() => setAskKanriOpen(true)}
       />
       <main className="ml-52 flex-1 min-w-0">
         <ErrorBoundary>
           <Outlet />
         </ErrorBoundary>
       </main>
+      <AskKanriDrawer open={askKanriOpen} onClose={() => setAskKanriOpen(false)} recruiterId={user.id} />
     </div>
   );
 }
@@ -136,9 +142,11 @@ function LanguageToggle() {
 function Sidebar({
   onSignOut,
   email,
+  onOpenAskKanri,
 }: {
   onSignOut: () => void;
   email: string;
+  onOpenAskKanri: () => void;
 }) {
   const loc = useLocation();
   const navigate = useNavigate();
@@ -150,6 +158,7 @@ function Sidebar({
     { to: "/candidates", icon: IconUsers, label: t("nav.candidates") },
     { to: "/clients", icon: IconBuilding, label: t("nav.clients") },
     { to: "/jobs", icon: IconBriefcase, label: t("nav.jobs") },
+    { to: "/placements", icon: IconTrophy, label: t("nav.placements") },
     { to: "/settings", icon: IconSettings, label: t("nav.settings") },
   ];
 
@@ -172,6 +181,16 @@ function Sidebar({
 
       {/* Nav */}
       <nav className="flex-1 px-2 py-1">
+        {/* Ask Kanri — a persistent drawer trigger, not a route, so the
+            5-item nav invariant (CLAUDE.md Section 13) stays intact. */}
+        <button
+          onClick={onOpenAskKanri}
+          className="flex w-full items-center gap-2.5 px-3 py-2 mb-1 text-sm transition-colors"
+          style={{ color: "var(--color-vermillion)", fontWeight: 500 }}
+        >
+          <IconSparkles size={16} />
+          Ask Kanri
+        </button>
         {navItems.map(({ to, icon: Icon, label }) => {
           const active = loc.pathname === to || (to !== "/dashboard" && loc.pathname.startsWith(to));
           return (

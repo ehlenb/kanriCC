@@ -10,6 +10,8 @@ import { greetingByHour, todayFormatted, relativeTime } from "@/lib/candidate-ut
 import { TeamActivityFeed } from "@/components/dashboard/TeamActivityFeed";
 import { CandidateReengagementCard } from "@/components/dashboard/CandidateReengagementCard";
 import { JobChangeSignalCard } from "@/components/dashboard/JobChangeSignalCard";
+import { LapsedClientCard } from "@/components/dashboard/LapsedClientCard";
+import { WeeklyReviewCard } from "@/components/dashboard/WeeklyReviewCard";
 import {
   todayStr,
   stateKey,
@@ -884,6 +886,16 @@ function Dashboard() {
           it sits here rather than in the ranked queue (same reasoning as
           the re-engagement card just above). */}
       <JobChangeSignalCard recruiterId={recruiterId} />
+
+      {/* Lapsed clients — win-back opportunity, same discovery/BD framing as
+          the job-change card just above (Wave 6, piece 5). */}
+      <LapsedClientCard recruiterId={recruiterId} />
+
+      {/* Weekly recruiter review — generated on demand, not on every load
+          (Wave 6, piece 3). Retrospective reference, not a daily action
+          item, so it sits with the other secondary surfaces rather than the
+          ranked queue. */}
+      <WeeklyReviewCard recruiterId={recruiterId} />
     </div>
   );
 }

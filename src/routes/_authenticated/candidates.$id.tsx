@@ -68,6 +68,7 @@ import { LogActivityModal } from "@/components/shared/LogActivityModal";
 import { SendEmailDialog } from "@/components/shared/SendEmailDialog";
 import { LiveCallPanel } from "@/components/shared/LiveCallPanel";
 import { ProcessOutcomeModal } from "@/components/shared/ProcessOutcomeModal";
+import { PostMortemPrompt } from "@/components/shared/PostMortemPrompt";
 
 export const Route = createFileRoute("/_authenticated/candidates/$id")({
   component: CandidateProfile,
@@ -148,6 +149,12 @@ type CompetingInterview = {
   stage: string | null;
   disclosed_at: string | null;
   is_active: boolean;
+};
+type ShokumuKeirekisho = {
+  career_summary: string;
+  roles: Array<{ period: string; company: string; title: string; achievements: string }>;
+  skills: string;
+  self_pr: string;
 };
 type Process = {
   id: string;
@@ -2312,6 +2319,13 @@ function ProcessesPage({
   const [addProcessOpen, setAddProcessOpen] = useState(false);
   const [compensationOpen, setCompensationOpen] = useState(false);
   const [syncingComp, setSyncingComp] = useState(false);
+  // Lifted above ProcessPanel deliberately: the moment a process is saved as
+  // Placed/Closed lost, it's filtered out of `processes` and ProcessPanel
+  // unmounts on the next refetch -- state living inside ProcessPanel (or the
+  // dialog it rendered) would unmount with it before the recruiter ever saw
+  // the post-mortem prompt. Confirmed live: an earlier version of this state
+  // in ProcessPanel silently never showed the dialog.
+  const [postMortem, setPostMortem] = useState<{ processId: string; stage: "Placed" | "Closed lost"; clientId: string | null } | null>(null);
   const qcProcesses = useQueryClient();
 
   async function handleSyncCompFromNotes() {
@@ -2384,6 +2398,15 @@ function ProcessesPage({
           candidateName={c.full_name}
           recruiterId={recruiterId}
           existingReqIds={[]}
+        />
+        <PostMortemPrompt
+          open={postMortem !== null}
+          processId={postMortem?.processId ?? null}
+          stage={postMortem?.stage ?? null}
+          candidateId={c.id}
+          clientId={postMortem?.clientId ?? null}
+          recruiterId={recruiterId}
+          onClose={() => setPostMortem(null)}
         />
       </>
     );
@@ -2461,8 +2484,19 @@ function ProcessesPage({
           motivations={motivations}
           blockers={blockers}
           recruiterId={recruiterId}
+          onOutcomeSaved={(processId, stage, clientId) => setPostMortem({ processId, stage, clientId })}
         />
       )}
+
+      <PostMortemPrompt
+        open={postMortem !== null}
+        processId={postMortem?.processId ?? null}
+        stage={postMortem?.stage ?? null}
+        candidateId={c.id}
+        clientId={postMortem?.clientId ?? null}
+        recruiterId={recruiterId}
+        onClose={() => setPostMortem(null)}
+      />
 
       {/* Compensation card at bottom */}
       <div className="mt-3">
@@ -2883,12 +2917,14 @@ function ProcessPanel({
   motivations,
   blockers,
   recruiterId,
+  onOutcomeSaved,
 }: {
   process: Process;
   candidate: Candidate;
   motivations: Motivation[];
   blockers: Blocker[];
   recruiterId: string;
+  onOutcomeSaved: (processId: string, stage: "Placed" | "Closed lost", clientId: string | null) => void;
 }) {
   const req = p.requisitions;
   const clientName = req?.clients?.company_name ?? "Unknown";
@@ -2956,7 +2992,14 @@ function ProcessPanel({
       ) : p.stage === "Offer" ? (
         <OfferPanel process={p} candidate={c} />
       ) : (
-        <InterviewPanel process={p} candidate={c} motivations={motivations} blockers={blockers} recruiterId={recruiterId} />
+        <InterviewPanel
+          process={p}
+          candidate={c}
+          motivations={motivations}
+          blockers={blockers}
+          recruiterId={recruiterId}
+          onOutcomeSaved={(stage) => onOutcomeSaved(p.id, stage, req?.clients?.id ?? null)}
+        />
       )}
 
       <ProcessOutcomeModal
@@ -2967,9 +3010,10 @@ function ProcessPanel({
         onCancel={() => setPendingStage(null)}
         onConfirm={(outcome) => {
           if (!pendingStage) return;
+          const stage = pendingStage;
           stageChange.mutate(
-            { process: p, newStage: pendingStage, outcome },
-            { onSuccess: () => setPendingStage(null) },
+            { process: p, newStage: stage, outcome },
+            { onSuccess: () => { setPendingStage(null); onOutcomeSaved(p.id, stage, req?.clients?.id ?? null); } },
           );
         }}
       />
@@ -2985,12 +3029,14 @@ function InterviewPanel({
   motivations,
   blockers,
   recruiterId,
+  onOutcomeSaved,
 }: {
   process: Process;
   candidate: Candidate;
   motivations: Motivation[];
   blockers: Blocker[];
   recruiterId: string;
+  onOutcomeSaved?: (stage: "Placed" | "Closed lost") => void;
 }) {
   const { t } = useTranslation();
   const [loadingBriefing, setLoadingBriefing] = useState(false);
@@ -3007,6 +3053,9 @@ function InterviewPanel({
   const [rejectionEmail, setRejectionEmail] = useState<string | null>(null);
   const [loadingSuisenbun, setLoadingSuisenbun] = useState(false);
   const [suisenbunContent, setSuisenbunContent] = useState<string | null>(null);
+  const [loadingShokumu, setLoadingShokumu] = useState(false);
+  const [shokumuDraft, setShokumuDraft] = useState<ShokumuKeirekisho | null>(null);
+  const [exportingShokumu, setExportingShokumu] = useState(false);
   const [confirmingClose, setConfirmingClose] = useState(false);
   const [sendDialog, setSendDialog] = useState<{ body: string; to: string; subject: string; candidateId?: string } | null>(null);
   const stageChange = useStageChange(c.id, { candidateName: c.full_name, recruiterId });
@@ -3206,6 +3255,50 @@ function InterviewPanel({
     }
   }
 
+  async function generateShokumu() {
+    setLoadingShokumu(true);
+    try {
+      const resp = await fetch("/api/ai?type=shokumu-keirekisho", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ candidate_id: c.id }),
+      });
+      const json = await resp.json() as { draft?: ShokumuKeirekisho; error?: string };
+      if (json.error) { toast.error("Could not generate 職務経歴書. Try again."); return; }
+      if (json.draft) setShokumuDraft(json.draft);
+    } catch {
+      toast.error("Could not generate 職務経歴書. Try again.");
+    } finally {
+      setLoadingShokumu(false);
+    }
+  }
+
+  async function exportShokumu() {
+    if (!shokumuDraft) return;
+    setExportingShokumu(true);
+    try {
+      const resp = await fetch("/api/shokumu-keirekisho-export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ candidate_name: c.full_name, ...shokumuDraft }),
+      });
+      const json = await resp.json() as { file_base64?: string; filename?: string; error?: string };
+      if (json.error || !json.file_base64) { toast.error(json.error ?? "Could not export the document. Try again."); return; }
+      const bytes = Uint8Array.from(atob(json.file_base64), (ch) => ch.charCodeAt(0));
+      const blob = new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = json.filename ?? `${c.full_name}_職務経歴書.docx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error("Could not export the document. Try again.");
+    } finally {
+      setExportingShokumu(false);
+    }
+  }
+
   function handleCloseProcess() {
     setConfirmingClose(true);
   }
@@ -3236,7 +3329,7 @@ function InterviewPanel({
         onConfirm={(outcome) => {
           stageChange.mutate(
             { process: p, newStage: "Closed lost", outcome },
-            { onSuccess: () => setConfirmingClose(false) },
+            { onSuccess: () => { setConfirmingClose(false); onOutcomeSaved?.("Closed lost"); } },
           );
         }}
       />
@@ -3436,6 +3529,76 @@ function InterviewPanel({
         </div>
       )}
 
+      {/* 職務経歴書 output */}
+      {shokumuDraft !== null && (
+        <div className="mb-4">
+          <div className="flex items-center justify-between mb-1.5">
+            <p className="sl" style={{ color: "var(--color-indigo)" }}>職務経歴書</p>
+            <button onClick={() => setShokumuDraft(null)} className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>Dismiss</button>
+          </div>
+          <div className="p-3 space-y-3" style={{ background: "var(--color-indigo-light)", border: "0.5px solid rgba(44,62,107,0.25)" }}>
+            <div>
+              <p className="text-[11px] font-medium mb-1" style={{ color: "var(--color-ink-60)" }}>職務要約</p>
+              <textarea
+                value={shokumuDraft.career_summary}
+                onChange={(e) => setShokumuDraft({ ...shokumuDraft, career_summary: e.target.value })}
+                rows={3}
+                className="w-full p-2 text-[13px] leading-relaxed resize-y outline-none"
+                style={{ background: "var(--color-white)", border: "0.5px solid var(--color-ink-15)", color: "var(--color-ink)" }}
+              />
+            </div>
+            {shokumuDraft.roles.map((role, i) => (
+              <div key={i}>
+                <p className="text-[11px] font-medium mb-1" style={{ color: "var(--color-ink-60)" }}>
+                  {role.period} {role.company} {role.title}
+                </p>
+                <textarea
+                  value={role.achievements}
+                  onChange={(e) => {
+                    const roles = [...shokumuDraft.roles];
+                    roles[i] = { ...role, achievements: e.target.value };
+                    setShokumuDraft({ ...shokumuDraft, roles });
+                  }}
+                  rows={3}
+                  className="w-full p-2 text-[13px] leading-relaxed resize-y outline-none"
+                  style={{ background: "var(--color-white)", border: "0.5px solid var(--color-ink-15)", color: "var(--color-ink)" }}
+                />
+              </div>
+            ))}
+            <div>
+              <p className="text-[11px] font-medium mb-1" style={{ color: "var(--color-ink-60)" }}>活かせる経験・知識・技術</p>
+              <textarea
+                value={shokumuDraft.skills}
+                onChange={(e) => setShokumuDraft({ ...shokumuDraft, skills: e.target.value })}
+                rows={2}
+                className="w-full p-2 text-[13px] leading-relaxed resize-y outline-none"
+                style={{ background: "var(--color-white)", border: "0.5px solid var(--color-ink-15)", color: "var(--color-ink)" }}
+              />
+            </div>
+            <div>
+              <p className="text-[11px] font-medium mb-1" style={{ color: "var(--color-ink-60)" }}>自己PR</p>
+              <textarea
+                value={shokumuDraft.self_pr}
+                onChange={(e) => setShokumuDraft({ ...shokumuDraft, self_pr: e.target.value })}
+                rows={3}
+                className="w-full p-2 text-[13px] leading-relaxed resize-y outline-none"
+                style={{ background: "var(--color-white)", border: "0.5px solid var(--color-ink-15)", color: "var(--color-ink)" }}
+              />
+            </div>
+          </div>
+          <div className="flex gap-2 mt-1.5">
+            <button
+              className="ab flex items-center gap-1"
+              style={{ fontSize: 11, padding: "3px 8px" }}
+              onClick={() => void exportShokumu()}
+              disabled={exportingShokumu}
+            >
+              <IconCertificate size={10} /> {exportingShokumu ? "Exporting…" : "Export to Word"}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Positioning talking points — NFAR blocks */}
       <SectionLabel>{t('candidateDetail.intelligence.positioningPoints')}</SectionLabel>
       {(() => {
@@ -3483,6 +3646,7 @@ function InterviewPanel({
           { key: "positioning", label: "Refresh talking points", icon: IconSparkles, loading: loadingPositioning, onRun: generatePositioning },
           { key: "submission", label: "Submission note", icon: IconFileText, loading: loadingSubmission, onRun: generateSubmissionNote },
           { key: "suisenbun", label: "Generate 推薦文", icon: IconCertificate, loading: loadingSuisenbun, onRun: generateSuisenbun },
+          { key: "shokumu", label: "Generate 職務経歴書", icon: IconCertificate, loading: loadingShokumu, onRun: generateShokumu },
           ...(p.stage === "Specs Sent" ? [{ key: "specemail", label: "Spec email", icon: IconMail, loading: loadingSpecEmail, onRun: generateSpecEmail }] : []),
           ...(p.ccm_outcome === "fail" ? [{ key: "rejection", label: "Rejection email", icon: IconMail, loading: loadingRejection, onRun: generateRejectionEmail }] : []),
         ]}
