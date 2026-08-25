@@ -730,14 +730,6 @@ function Dashboard() {
   }
   const m = metrics.data;
 
-  const PERIOD_OPTIONS: { value: Period; label: string }[] = [
-    { value: "week",    label: t("dashboard.period.week") },
-    { value: "30d",     label: t("dashboard.period.30d") },
-    { value: "month",   label: t("dashboard.period.month") },
-    { value: "quarter", label: t("dashboard.period.quarter") },
-    { value: "all",     label: t("dashboard.period.all") },
-  ];
-
   const METRIC_CONFIG: {
     key: MetricKey;
     label: string;
