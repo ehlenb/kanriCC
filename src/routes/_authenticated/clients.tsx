@@ -21,8 +21,9 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { IconSearch, IconPlus, IconSparkles } from "@tabler/icons-react";
-import { initials } from "@/lib/candidate-utils";
+import { IconSearch, IconPlus, IconSparkles, IconTargetArrow } from "@tabler/icons-react";
+import { initials, relativeTime } from "@/lib/candidate-utils";
+import { ProspectDetailPanel, NewProspectDialog } from "@/components/client/ProspectsPane";
 
 export const Route = createFileRoute("/_authenticated/clients")({
   component: ClientsLayout,
@@ -37,6 +38,14 @@ type ClientListItem = {
   created_at: string;
 };
 
+export type ProspectListItem = {
+  id: string;
+  company_name: string;
+  industry: string | null;
+  stage: string;
+  last_contacted_at: string | null;
+};
+
 function ClientsLayout() {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -45,6 +54,9 @@ function ClientsLayout() {
   const navigate = useNavigate();
   const [q, setQ] = useState("");
   const [openNew, setOpenNew] = useState(false);
+  const [view, setView] = useState<"clients" | "prospects">("clients");
+  const [openNewProspect, setOpenNewProspect] = useState(false);
+  const [selectedProspectId, setSelectedProspectId] = useState<string | null>(null);
 
   const { data: clients = [], isLoading } = useQuery({
     queryKey: ["clients", user?.id],
@@ -60,6 +72,19 @@ function ClientsLayout() {
     },
   });
 
+  const { data: prospects = [], isLoading: prospectsLoading } = useQuery({
+    queryKey: ["prospects", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("prospects")
+        .select("id, company_name, industry, stage, last_contacted_at")
+        .order("company_name");
+      if (error) throw error;
+      return data as ProspectListItem[];
+    },
+    enabled: view === "prospects",
+  });
+
   const filtered = useMemo(() => {
     if (!q.trim()) return clients;
     const needle = q.toLowerCase();
@@ -68,17 +93,23 @@ function ClientsLayout() {
     );
   }, [clients, q]);
 
+  const filteredProspects = useMemo(() => {
+    if (!q.trim()) return prospects;
+    const needle = q.toLowerCase();
+    return prospects.filter((p) => p.company_name.toLowerCase().includes(needle));
+  }, [prospects, q]);
+
   const activeId = loc.pathname.split("/clients/")[1];
 
   useEffect(() => {
-    if (loc.pathname === "/clients" && filtered.length > 0) {
+    if (view === "clients" && loc.pathname === "/clients" && filtered.length > 0) {
       navigate({
         to: "/clients/$id",
         params: { id: filtered[0].id },
         replace: true,
       });
     }
-  }, [loc.pathname, filtered, navigate]);
+  }, [loc.pathname, filtered, navigate, view]);
 
   return (
     <div className="flex h-screen">
@@ -94,16 +125,41 @@ function ClientsLayout() {
           style={{ borderBottom: "0.5px solid rgba(26,26,24,0.12)" }}
         >
           <div className="flex items-center justify-between mb-3">
-            <h1 className="text-base font-semibold">{t('clients.title')}</h1>
+            <h1 className="text-base font-semibold">{view === "clients" ? t('clients.title') : "Prospects"}</h1>
             <Button
               size="sm"
               variant="ghost"
-              onClick={() => setOpenNew(true)}
+              onClick={() => (view === "clients" ? setOpenNew(true) : setOpenNewProspect(true))}
               className="-mr-1 h-8 gap-1"
             >
               <IconPlus size={14} />
               New
             </Button>
+          </div>
+          {/* Clients / Prospects toggle (Wave 6, piece 5) — keeps the 5-item
+              sidebar nav invariant intact rather than adding a 6th route. */}
+          <div className="flex mb-3" style={{ border: "0.5px solid var(--color-ink-15)" }}>
+            <button
+              onClick={() => setView("clients")}
+              className="flex-1 text-[12px] font-medium py-1.5"
+              style={{
+                background: view === "clients" ? "var(--color-white)" : "transparent",
+                color: view === "clients" ? "var(--color-ink)" : "var(--color-ink-60)",
+              }}
+            >
+              Clients
+            </button>
+            <button
+              onClick={() => setView("prospects")}
+              className="flex-1 text-[12px] font-medium py-1.5"
+              style={{
+                background: view === "prospects" ? "var(--color-white)" : "transparent",
+                color: view === "prospects" ? "var(--color-ink)" : "var(--color-ink-60)",
+                borderLeft: "0.5px solid var(--color-ink-15)",
+              }}
+            >
+              Prospects
+            </button>
           </div>
           <div className="relative">
             <IconSearch
@@ -114,14 +170,54 @@ function ClientsLayout() {
             <Input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder={t('clients.searchPlaceholder')}
+              placeholder={view === "clients" ? t('clients.searchPlaceholder') : "Search prospects…"}
               className="h-9 pl-8 text-[13px]"
             />
           </div>
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          {isLoading ? (
+          {view === "prospects" ? (
+            prospectsLoading ? (
+              <div className="p-5 text-sm" style={{ color: "#888780" }}>{t('common.loading')}</div>
+            ) : filteredProspects.length === 0 ? (
+              <div className="px-5 py-10 text-center">
+                <p className="text-sm font-medium">No prospects yet.</p>
+                <Button variant="outline" size="sm" className="mt-3" onClick={() => setOpenNewProspect(true)}>
+                  <IconPlus size={14} className="mr-1" />
+                  Add prospect
+                </Button>
+              </div>
+            ) : (
+              filteredProspects.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => setSelectedProspectId(p.id)}
+                  className="block w-full text-left transition-colors"
+                  style={{ borderBottom: "0.5px solid rgba(26,26,24,0.08)" }}
+                >
+                  <div
+                    className="flex items-center gap-3 px-4 py-3.5"
+                    style={{ background: selectedProspectId === p.id ? "rgba(26,26,24,0.05)" : "transparent" }}
+                  >
+                    <div
+                      className="flex h-8 w-8 shrink-0 items-center justify-center text-xs font-medium"
+                      style={{ background: "#eeede8", color: "#1a1a18" }}
+                    >
+                      <IconTargetArrow size={14} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[13px] font-medium">{p.company_name}</p>
+                      <p className="text-xs" style={{ color: "#5f5e5a" }}>
+                        {p.stage}
+                        {p.last_contacted_at ? ` · Last contacted ${relativeTime(p.last_contacted_at)}` : ""}
+                      </p>
+                    </div>
+                  </div>
+                </button>
+              ))
+            )
+          ) : isLoading ? (
             <div className="p-5 text-sm" style={{ color: "#888780" }}>
               {t('common.loading')}
             </div>
@@ -187,7 +283,21 @@ function ClientsLayout() {
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        <Outlet />
+        {view === "prospects" ? (
+          <ProspectDetailPanel
+            prospectId={selectedProspectId}
+            recruiterId={user!.id}
+            onConverted={(clientId) => {
+              qc.invalidateQueries({ queryKey: ["clients"] });
+              qc.invalidateQueries({ queryKey: ["prospects"] });
+              setSelectedProspectId(null);
+              setView("clients");
+              navigate({ to: "/clients/$id", params: { id: clientId } });
+            }}
+          />
+        ) : (
+          <Outlet />
+        )}
       </div>
 
       <NewClientDialog
@@ -197,6 +307,17 @@ function ClientsLayout() {
           qc.invalidateQueries({ queryKey: ["clients"] });
           setOpenNew(false);
           navigate({ to: "/clients/$id", params: { id } });
+        }}
+        recruiterId={user!.id}
+      />
+
+      <NewProspectDialog
+        open={openNewProspect}
+        onClose={() => setOpenNewProspect(false)}
+        onCreated={(id) => {
+          qc.invalidateQueries({ queryKey: ["prospects"] });
+          setOpenNewProspect(false);
+          setSelectedProspectId(id);
         }}
         recruiterId={user!.id}
       />

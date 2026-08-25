@@ -1015,6 +1015,82 @@ export type Database = {
           },
         ]
       }
+      prospects: {
+        Row: {
+          bd_trigger_notes: string | null
+          company_name: string
+          converted_to_client_id: string | null
+          created_at: string
+          id: string
+          industry: string | null
+          last_contacted_at: string | null
+          notes: string | null
+          owner_recruiter_id: string
+          research_notes: string | null
+          source: string | null
+          stage: string
+          team_id: string
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          bd_trigger_notes?: string | null
+          company_name: string
+          converted_to_client_id?: string | null
+          created_at?: string
+          id?: string
+          industry?: string | null
+          last_contacted_at?: string | null
+          notes?: string | null
+          owner_recruiter_id: string
+          research_notes?: string | null
+          source?: string | null
+          stage?: string
+          team_id?: string
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          bd_trigger_notes?: string | null
+          company_name?: string
+          converted_to_client_id?: string | null
+          created_at?: string
+          id?: string
+          industry?: string | null
+          last_contacted_at?: string | null
+          notes?: string | null
+          owner_recruiter_id?: string
+          research_notes?: string | null
+          source?: string | null
+          stage?: string
+          team_id?: string
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prospects_converted_to_client_id_fkey"
+            columns: ["converted_to_client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prospects_owner_recruiter_id_fkey"
+            columns: ["owner_recruiter_id"]
+            isOneToOne: false
+            referencedRelation: "recruiters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prospects_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       recall_bot_sessions: {
         Row: {
           bot_id: string

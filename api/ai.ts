@@ -2,7 +2,9 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 
 import advancedSearch from "../lib/ai-handlers/advanced-search.js";
 import applyCandidateNotes from "../lib/ai-handlers/apply-candidate-notes.js";
+import askKanri from "../lib/ai-handlers/ask-kanri.js";
 import batchCvSend from "../lib/ai-handlers/batch-cv-send.js";
+import bdTriggerCheck from "../lib/ai-handlers/bd-trigger-check.js";
 import callPriority from "../lib/ai-handlers/call-priority.js";
 import ccmFeedbackBrief from "../lib/ai-handlers/ccm-feedback-brief.js";
 import ccmNextStep from "../lib/ai-handlers/ccm-next-step.js";
@@ -29,6 +31,7 @@ import jobSpecMessage from "../lib/ai-handlers/job-spec-message.js";
 import matchCandidates from "../lib/ai-handlers/match-candidates.js";
 import mergeStrategyNotes from "../lib/ai-handlers/merge-strategy-notes.js";
 import placedCheckinMessage from "../lib/ai-handlers/placed-checkin-message.js";
+import placementPostmortem from "../lib/ai-handlers/placement-postmortem.js";
 import polishCallNotes from "../lib/ai-handlers/polish-call-notes.js";
 import positioning from "../lib/ai-handlers/positioning.js";
 import preCallBriefing from "../lib/ai-handlers/pre-call-briefing.js";
@@ -36,18 +39,22 @@ import processTranscript from "../lib/ai-handlers/process-transcript.js";
 import refreshContext from "../lib/ai-handlers/refresh-context.js";
 import rejectionEmail from "../lib/ai-handlers/rejection-email.js";
 import reqStrategicContext from "../lib/ai-handlers/req-strategic-context.js";
+import shokumuKeirekisho from "../lib/ai-handlers/shokumu-keirekisho.js";
 import specEmail from "../lib/ai-handlers/spec-email.js";
 import submissionNote from "../lib/ai-handlers/submission-note.js";
 import suisenbun from "../lib/ai-handlers/suisenbun.js";
 import translate from "../lib/ai-handlers/translate.js";
 import updateClientStrategy from "../lib/ai-handlers/update-client-strategy.js";
+import weeklyReview from "../lib/ai-handlers/weekly-review.js";
 
 type Handler = (req: VercelRequest, res: VercelResponse) => unknown;
 
 const routes: Record<string, Handler> = {
   "advanced-search": advancedSearch,
   "apply-candidate-notes": applyCandidateNotes,
+  "ask-kanri": askKanri,
   "batch-cv-send": batchCvSend,
+  "bd-trigger-check": bdTriggerCheck,
   "call-priority": callPriority,
   "ccm-feedback-brief": ccmFeedbackBrief,
   "ccm-next-step": ccmNextStep,
@@ -74,6 +81,7 @@ const routes: Record<string, Handler> = {
   "match-candidates": matchCandidates,
   "merge-strategy-notes": mergeStrategyNotes,
   "placed-checkin-message": placedCheckinMessage,
+  "placement-postmortem": placementPostmortem,
   "polish-call-notes": polishCallNotes,
   "positioning": positioning,
   "pre-call-briefing": preCallBriefing,
@@ -81,11 +89,13 @@ const routes: Record<string, Handler> = {
   "refresh-context": refreshContext,
   "rejection-email": rejectionEmail,
   "req-strategic-context": reqStrategicContext,
+  "shokumu-keirekisho": shokumuKeirekisho,
   "spec-email": specEmail,
   "submission-note": submissionNote,
   "suisenbun": suisenbun,
   "translate": translate,
   "update-client-strategy": updateClientStrategy,
+  "weekly-review": weeklyReview,
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
