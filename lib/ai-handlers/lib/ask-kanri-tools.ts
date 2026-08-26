@@ -19,13 +19,18 @@
 import { createClient } from "@supabase/supabase-js";
 
 import { retrieveCandidateIds } from "./candidate-retrieval.js";
+import { retrieveInteractions } from "./interaction-retrieval.js";
 
 const supabase = createClient(
   (process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL)!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
-export type ToolCallRecord = { tool: string; label: string };
+// `detail` is optional, per-citation context beyond the tool's single label --
+// interaction search returns several rows in one call, so the drawer needs a
+// date/type/who line per row, not just one label for the whole call. Every
+// other tool still returns a single label as before.
+export type ToolCallRecord = { tool: string; label: string; detail?: string[] };
 
 function fmtYen(n: number | null): string {
   return n ? `¥${(n / 1_000_000).toFixed(1)}M` : "—";
@@ -200,5 +205,70 @@ export async function listPriorityActions(teamId: string, recruiterId: string) {
   return {
     snoozed_count: (data ?? []).length,
     record: { tool: "list_priority_actions", label: "today's queue" } as ToolCallRecord,
+  };
+}
+
+// Interaction retrieval (migration 055, post-Wave-6). Ask Kanri's remaining
+// eight tools can look up an entity's current state but none of them can
+// reach what was actually said -- this is the fix. See
+// interaction-retrieval.ts for why this is lexical-only, no embeddings.
+//
+// Result rows carry a raw candidate_id/client_id from the RPC, not a name --
+// this batch-resolves names for the citation strip so the recruiter sees
+// "candidate call 12 Jun (Masahiko Tanaka)", not a bare interaction id.
+export async function searchInteractions(
+  teamId: string,
+  query: string,
+  opts: { candidateId?: string; clientId?: string; since?: string } = {},
+) {
+  const rows = await retrieveInteractions({
+    teamId,
+    query,
+    candidateId: opts.candidateId,
+    clientId: opts.clientId,
+    since: opts.since,
+    limit: 10,
+  });
+
+  if (rows.length === 0) {
+    return {
+      results: [] as Array<Record<string, unknown>>,
+      record: { tool: "search_interactions", label: query, detail: [] } as ToolCallRecord,
+    };
+  }
+
+  const candidateIds = [...new Set(rows.map((r) => r.candidate_id).filter((id): id is string => !!id))];
+  const clientIds = [...new Set(rows.map((r) => r.client_id).filter((id): id is string => !!id))];
+
+  const [{ data: candidates }, { data: clients }] = await Promise.all([
+    candidateIds.length
+      ? supabase.from("candidates").select("id, full_name").in("id", candidateIds).eq("team_id", teamId)
+      : Promise.resolve({ data: [] as { id: string; full_name: string }[] }),
+    clientIds.length
+      ? supabase.from("clients").select("id, company_name").in("id", clientIds).eq("team_id", teamId)
+      : Promise.resolve({ data: [] as { id: string; company_name: string }[] }),
+  ]);
+
+  const candidateNames = new Map((candidates ?? []).map((c) => [c.id, c.full_name]));
+  const clientNames = new Map((clients ?? []).map((c) => [c.id, c.company_name]));
+
+  const results = rows.map((r) => ({
+    interaction_id: r.id,
+    date: new Date(r.interacted_at).toLocaleDateString("en-GB"),
+    type: r.interaction_type,
+    direction: r.direction,
+    candidate: r.candidate_id ? (candidateNames.get(r.candidate_id) ?? null) : null,
+    client: r.client_id ? (clientNames.get(r.client_id) ?? null) : null,
+    snippet: r.snippet,
+  }));
+
+  const detail = results.map((r) => {
+    const who = r.candidate ?? r.client ?? "unknown";
+    return `${r.type} ${r.date} (${who})`;
+  });
+
+  return {
+    results,
+    record: { tool: "search_interactions", label: query, detail } as ToolCallRecord,
   };
 }

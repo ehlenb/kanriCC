@@ -8,7 +8,16 @@ import { IconX, IconSend2, IconSparkles } from "@tabler/icons-react";
 // over here keeps the 5-item nav invariant intact rather than claiming a 6th
 // item for a feature that isn't a destination page.
 
-type ChatMessage = { role: "user" | "assistant"; content: string; read?: Array<{ tool: string; label: string }> };
+type ReadRecord = { tool: string; label: string; detail?: string[] };
+type ChatMessage = { role: "user" | "assistant"; content: string; read?: ReadRecord[] };
+
+// A record with per-row detail (search_interactions returns several rows in
+// one call) renders each row as its own citation line instead of one bare
+// tool label -- that per-row date/type/who is what makes an answer checkable
+// rather than just attributed to "search_interactions".
+function citationLines(read: ReadRecord[]): string[] {
+  return read.flatMap((r) => (r.detail && r.detail.length > 0 ? r.detail : [r.label]));
+}
 
 export function AskKanriDrawer({
   open,
@@ -44,7 +53,7 @@ export function AskKanriDrawer({
           messages: next.map((m) => ({ role: m.role, content: m.content })),
         }),
       });
-      const json = (await res.json()) as { answer?: string; read?: Array<{ tool: string; label: string }>; error?: string };
+      const json = (await res.json()) as { answer?: string; read?: ReadRecord[]; error?: string };
       setMessages([
         ...next,
         { role: "assistant", content: json.error ?? json.answer ?? "Could not answer that. Try again.", read: json.read },
@@ -99,7 +108,7 @@ export function AskKanriDrawer({
               </div>
               {m.role === "assistant" && m.read && m.read.length > 0 && (
                 <p className="mt-1 font-mono text-[10px] tracking-[0.04em]" style={{ color: "var(--color-ink-30)" }}>
-                  Read: {m.read.map((r) => r.label).join(", ")}
+                  Read: {citationLines(m.read).join(", ")}
                 </p>
               )}
             </div>

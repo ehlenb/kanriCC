@@ -228,6 +228,8 @@ export type Database = {
           address: string | null
           age: number | null
           ai_context: string | null
+          ai_context_correction: string | null
+          ai_context_correction_at: string | null
           ai_context_updated_at: string | null
           availability_date: string | null
           base_is_priority: boolean
@@ -288,6 +290,8 @@ export type Database = {
           address?: string | null
           age?: number | null
           ai_context?: string | null
+          ai_context_correction?: string | null
+          ai_context_correction_at?: string | null
           ai_context_updated_at?: string | null
           availability_date?: string | null
           base_is_priority?: boolean
@@ -348,6 +352,8 @@ export type Database = {
           address?: string | null
           age?: number | null
           ai_context?: string | null
+          ai_context_correction?: string | null
+          ai_context_correction_at?: string | null
           ai_context_updated_at?: string | null
           availability_date?: string | null
           base_is_priority?: boolean
@@ -528,6 +534,8 @@ export type Database = {
       clients: {
         Row: {
           ai_context: string | null
+          ai_context_correction: string | null
+          ai_context_correction_at: string | null
           ai_context_updated_at: string | null
           company_name: string
           contract_signed: boolean
@@ -554,6 +562,8 @@ export type Database = {
         }
         Insert: {
           ai_context?: string | null
+          ai_context_correction?: string | null
+          ai_context_correction_at?: string | null
           ai_context_updated_at?: string | null
           company_name: string
           contract_signed?: boolean
@@ -580,6 +590,8 @@ export type Database = {
         }
         Update: {
           ai_context?: string | null
+          ai_context_correction?: string | null
+          ai_context_correction_at?: string | null
           ai_context_updated_at?: string | null
           company_name?: string
           contract_signed?: boolean
@@ -747,6 +759,7 @@ export type Database = {
           recruiter_id: string
           requisition_id: string | null
           scheduled_at: string | null
+          search_text: string | null
           summary: string | null
           team_id: string | null
           transcript_raw: string | null
@@ -770,6 +783,7 @@ export type Database = {
           recruiter_id: string
           requisition_id?: string | null
           scheduled_at?: string | null
+          search_text?: string | null
           summary?: string | null
           team_id?: string | null
           transcript_raw?: string | null
@@ -793,6 +807,7 @@ export type Database = {
           recruiter_id?: string
           requisition_id?: string | null
           scheduled_at?: string | null
+          search_text?: string | null
           summary?: string | null
           team_id?: string | null
           transcript_raw?: string | null
@@ -1916,6 +1931,27 @@ export type Database = {
       pgroonga_wal_truncate:
         | { Args: never; Returns: number }
         | { Args: { indexname: unknown }; Returns: number }
+      search_interactions: {
+        Args: {
+          p_candidate_id?: string
+          p_client_id?: string
+          p_limit?: number
+          p_since?: string
+          p_team_id: string
+          query_text: string
+        }
+        Returns: {
+          candidate_id: string
+          client_id: string
+          direction: string
+          id: string
+          interacted_at: string
+          interaction_type: string
+          recruiter_id: string
+          score: number
+          snippet: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

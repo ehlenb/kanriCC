@@ -35,6 +35,8 @@ Use the tools to look up real records before answering -- never guess or invent 
 
 Be direct. Plain English, short sentences. No preamble like "Let me check" or "Based on the data". Never use: straightforward, genuinely, honestly, leverage (as a verb), utilize. No em dashes.
 
+If a question is about something a candidate or client actually said (a call, an email, a meeting), use search_interactions rather than guessing from a profile summary -- it searches the real notes, not a reconciled summary. Cite the date when you answer from it.
+
 You only answer questions -- you cannot change a candidate's stage, log an interaction, send an email, or take any action. If asked to do something rather than answer something, say you can only look things up right now, not act.`;
 
 const TOOL_DEFS: Tool[] = [
@@ -90,6 +92,20 @@ const TOOL_DEFS: Tool[] = [
     description: "How many items the caller currently has snoozed on their own dashboard priority queue.",
     input_schema: { type: "object", properties: {} },
   },
+  {
+    name: "search_interactions",
+    description: "Search the actual timeline of calls, emails, and meetings for what was said -- not a summary. Use this for questions about a specific statement, date, or conversation. Optionally scope to one candidate or client id.",
+    input_schema: {
+      type: "object",
+      properties: {
+        query: { type: "string" },
+        candidate_id: { type: "string" },
+        client_id: { type: "string" },
+        since: { type: "string", description: "ISO date -- only interactions on or after this date" },
+      },
+      required: ["query"],
+    },
+  },
 ];
 
 async function runTool(name: string, input: Record<string, unknown>, teamId: string, recruiterId: string): Promise<{ result: unknown; record: ToolCallRecord }> {
@@ -129,6 +145,14 @@ async function runTool(name: string, input: Record<string, unknown>, teamId: str
     case "list_priority_actions": {
       const r = await tools.listPriorityActions(teamId, recruiterId);
       return { result: { snoozed_count: r.snoozed_count }, record: r.record };
+    }
+    case "search_interactions": {
+      const r = await tools.searchInteractions(teamId, input.query as string, {
+        candidateId: input.candidate_id as string | undefined,
+        clientId: input.client_id as string | undefined,
+        since: input.since as string | undefined,
+      });
+      return { result: r.results, record: r.record };
     }
     default:
       return { result: { error: `unknown tool ${name}` }, record: { tool: name, label: "unknown" } };
