@@ -25,7 +25,7 @@ export async function refreshCandidate(entityId: string, triggeredById?: string)
     supabase
       .from("candidates")
       .select(
-        "recruiter_id, full_name, current_company, current_title, japanese_level, english_level, candidate_status, current_base, current_total, expected_total_min, expected_total_max, base_is_priority, base_minimum, notice_period_months, notes_personality, notes_pitch, notes_closing, notes_interview",
+        "recruiter_id, full_name, current_company, current_title, japanese_level, english_level, candidate_status, current_base, current_total, expected_total_min, expected_total_max, base_is_priority, base_minimum, notice_period_months, notes_personality, notes_pitch, notes_closing, notes_interview, ai_context_correction, ai_context_correction_at",
       )
       .eq("id", entityId)
       .single(),
@@ -72,6 +72,8 @@ export async function refreshCandidate(entityId: string, triggeredById?: string)
     notes_pitch: string | null;
     notes_closing: string | null;
     notes_interview: string | null;
+    ai_context_correction: string | null;
+    ai_context_correction_at: string | null;
   };
 
   const now = Date.now();
@@ -119,6 +121,8 @@ ${c.notes_personality ? `Personality: ${c.notes_personality.slice(0, 200)}` : ""
 ${c.notes_pitch ? `Pitch notes: ${c.notes_pitch.slice(0, 200)}` : ""}
 ${c.notes_closing ? `Closing intelligence: ${c.notes_closing.slice(0, 200)}` : ""}
 
+${c.ai_context_correction ? `RECRUITER CORRECTION (stated ${new Date(c.ai_context_correction_at ?? Date.now()).toLocaleDateString("en-GB")} -- ground truth for what it covers, unless a specific interaction dated after that explicitly says otherwise): ${c.ai_context_correction}` : ""}
+
 Interaction history (recency-weighted):
 ${interactionLines.join("\n")}
 `.trim();
@@ -134,6 +138,7 @@ Use past tense for history. Use present tense for current state.
 Recency weighting: [CURRENT] interactions = definitive. [RECENT] = relevant context. [BACKGROUND] = background only.
 If a recent interaction contradicts an older one (e.g. salary changed), the recent value wins. Note the change: "Salary expectation updated to X (was Y at registration)."
 A "(client verdict: PASS/FAIL)" tag on a ccmN interaction is the confirmed, settled outcome of that interview round — treat it as fact, not as pending. Do not describe that round's feedback as pending or outstanding once a verdict tag is present.
+A RECRUITER CORRECTION, if present, is a fact the recruiter has stated directly — not a generated summary. Preserve it in your output as stated. Only treat it as superseded if a specific interaction dated after the correction explicitly states something different for that same fact; do not let it be silently dropped just because it is not repeated in recent interactions.
 Maximum 900 tokens. Be ruthless about what matters.
 Plain English. Short sentences. No bullet lists — use short paragraphs.
 Do not include anything from notes_internal or notes_presentation.
@@ -183,7 +188,7 @@ export async function refreshClient(entityId: string, triggeredById?: string) {
     supabase
       .from("clients")
       .select(
-        "recruiter_id, company_name, japan_team_size, japan_role_in_group, years_in_japan, employee_japanese_pct, strategy_notes, is_active, contract_signed, kk_entity",
+        "recruiter_id, company_name, japan_team_size, japan_role_in_group, years_in_japan, employee_japanese_pct, strategy_notes, is_active, contract_signed, kk_entity, ai_context_correction, ai_context_correction_at",
       )
       .eq("id", entityId)
       .single(),
@@ -212,6 +217,8 @@ export async function refreshClient(entityId: string, triggeredById?: string) {
     is_active: boolean;
     contract_signed: boolean;
     kk_entity: string | null;
+    ai_context_correction: string | null;
+    ai_context_correction_at: string | null;
   };
 
   const now = Date.now();
@@ -245,6 +252,8 @@ ${(contacts ?? []).map((c: { name: string; title: string | null; role: string; r
 
 ${cl.strategy_notes ? `Strategy notes: ${cl.strategy_notes.slice(0, 400)}` : ""}
 
+${cl.ai_context_correction ? `RECRUITER CORRECTION (stated ${new Date(cl.ai_context_correction_at ?? Date.now()).toLocaleDateString("en-GB")} -- ground truth for what it covers, unless a specific interaction dated after that explicitly says otherwise): ${cl.ai_context_correction}` : ""}
+
 Interaction history (recency-weighted):
 ${interactionLines.join("\n")}
 `.trim();
@@ -258,6 +267,7 @@ ${interactionLines.join("\n")}
 Write as a senior recruiter summarising their knowledge of this client account.
 Use past tense for history. Use present tense for current state.
 Recency weighting: [CURRENT] interactions = definitive. [RECENT] = relevant context. [BACKGROUND] = background only.
+A RECRUITER CORRECTION, if present, is a fact the recruiter has stated directly — not a generated summary. Preserve it in your output as stated. Only treat it as superseded if a specific interaction dated after the correction explicitly states something different for that same fact; do not let it be silently dropped just because it is not repeated in recent interactions.
 Cover: relationship status, hiring patterns, key contacts and their stance, any open or recurring needs, risks.
 Maximum 900 tokens. Be ruthless about what matters.
 Plain English. Short sentences. No bullet lists — short paragraphs.

@@ -5509,6 +5509,9 @@ function CandidateIntelligenceCard({
   const qc = useQueryClient();
   const [expanded, setExpanded] = useState(!!aiContext);
   const [refreshing, setRefreshing] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(aiContext ?? "");
+  const [saving, setSaving] = useState(false);
 
   async function refresh() {
     setRefreshing(true);
@@ -5522,6 +5525,44 @@ function CandidateIntelligenceCard({
       toast.success("Candidate intelligence refreshed.");
     } catch { toast.error("Refresh failed. Try again."); }
     finally { setRefreshing(false); }
+  }
+
+  // Correcting this note is not the same as regenerating it. The next
+  // automatic refresh (fired by the next interaction logged, which is a
+  // normal frequent action) fully regenerates ai_context from raw
+  // interactions -- a plain in-place edit would be silently discarded the
+  // moment that happens. ai_context_correction is a durable, dated fact that
+  // refresh-context.ts feeds into every future regeneration as an
+  // authoritative input, so the correction survives. Saving fires an
+  // explicit refresh (this is an UPDATE, not an INSERT, so the automatic
+  // pgmq trigger never sees it) so the recruiter sees the reconciled note
+  // reflect their correction immediately, not after the next logged call.
+  async function saveCorrection() {
+    if (draft === (aiContext ?? "")) { setEditing(false); return; }
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from("candidates")
+        .update({
+          ai_context: draft,
+          ai_context_correction: draft,
+          ai_context_correction_at: new Date().toISOString(),
+        })
+        .eq("id", candidateId);
+      if (error) throw error;
+      setEditing(false);
+      void qc.invalidateQueries({ queryKey: ["candidate-profile", candidateId] });
+      toast.success("Correction saved.");
+      void fetch("/api/ai?type=refresh-context", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entity_type: "candidate", entity_id: candidateId }),
+      }).then(() => qc.invalidateQueries({ queryKey: ["candidate-profile", candidateId] }));
+    } catch {
+      toast.error("Could not save correction. Try again.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -5543,8 +5584,23 @@ function CandidateIntelligenceCard({
       </button>
       {expanded && (
         <div className="px-4 pb-4">
-          {aiContext ? (
-            <p className="text-[13px] leading-relaxed whitespace-pre-wrap mb-3" style={{ color: "var(--color-ink)" }}>
+          {editing ? (
+            <textarea
+              className="w-full text-[13px] leading-relaxed mb-3"
+              style={{ color: "var(--color-ink)", minHeight: 120 }}
+              value={draft}
+              autoFocus
+              disabled={saving}
+              onChange={(e) => setDraft(e.target.value)}
+              onBlur={() => void saveCorrection()}
+            />
+          ) : aiContext ? (
+            <p
+              className="text-[13px] leading-relaxed whitespace-pre-wrap mb-3 cursor-text"
+              style={{ color: "var(--color-ink)" }}
+              onClick={() => { setDraft(aiContext); setEditing(true); }}
+              title="Click to correct"
+            >
               {aiContext}
             </p>
           ) : (

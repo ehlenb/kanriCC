@@ -1,0 +1,21 @@
+-- Migration 057: give priority_action_state.team_id a real column default
+--
+-- priority_action_state (migration 051) uses the same set_team_id_from_recruiter()
+-- BEFORE INSERT trigger as candidates/clients/requisitions/processes, but never
+-- got the column-level DEFAULT that migration 011 gave those four tables
+-- specifically so the Supabase type generator would see team_id as optional
+-- on Insert. Without a default, the generator can only see "NOT NULL, no
+-- default" and marks the column required -- even though the trigger already
+-- fills it in and the app never passes it. This is why the same manual
+-- hand-correction to types.ts (documented in the Wave 4 session log, and
+-- repeated during the post-audit interaction-retrieval work) keeps
+-- recurring after every type regeneration.
+--
+-- This is the same fix migration 011 already applied to the other four
+-- tables, just extended to the one table that fell through that pattern.
+-- Metadata-only change: no table rewrite, no data touched, the trigger
+-- keeps running exactly as before (a DEFAULT only fills the value in if the
+-- INSERT statement omits it; the BEFORE INSERT trigger still runs after and
+-- produces the same result it always has).
+
+ALTER TABLE public.priority_action_state ALTER COLUMN team_id SET DEFAULT public.current_team_id();

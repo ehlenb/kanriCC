@@ -202,7 +202,7 @@ NEVER use: straightforward, genuinely, honestly, leverage (as a verb), utilize. 
       supabase
         .from("clients")
         .select(
-          "company_name, industry, japan_team_size, japan_role_in_group, years_in_japan, employee_japanese_pct, strategy_notes, status, ai_context",
+          "company_name, japan_team_size, japan_role_in_group, years_in_japan, employee_japanese_pct, strategy_notes, status, ai_context",
         )
         .eq("id", resolvedEntityId)
         .single(),
@@ -227,7 +227,6 @@ NEVER use: straightforward, genuinely, honestly, leverage (as a verb), utilize. 
 
   const cl = client as {
     company_name: string;
-    industry: string | null;
     japan_team_size: string | null;
     japan_role_in_group: string | null;
     years_in_japan: number | null;

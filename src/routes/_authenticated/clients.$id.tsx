@@ -4353,6 +4353,9 @@ function ClientIntelligenceCard({
   const qc = useQueryClient();
   const [expanded, setExpanded] = useState(!!aiContext);
   const [refreshing, setRefreshing] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(aiContext ?? "");
+  const [saving, setSaving] = useState(false);
 
   const relTime = (iso: string | null) => {
     if (!iso) return null;
@@ -4380,6 +4383,42 @@ function ClientIntelligenceCard({
     finally { setRefreshing(false); }
   }
 
+  // Same reasoning as CandidateIntelligenceCard's saveCorrection: a plain
+  // in-place edit to ai_context is discarded by the next automatic refresh
+  // (fired on the next interaction logged). ai_context_correction is a
+  // durable, dated fact refresh-context.ts feeds into every future
+  // regeneration, so the correction survives. This is an UPDATE, not an
+  // INSERT, so the automatic pgmq trigger never sees it -- fire an explicit
+  // refresh so the recruiter sees the reconciled note reflect the correction
+  // immediately.
+  async function saveCorrection() {
+    if (draft === (aiContext ?? "")) { setEditing(false); return; }
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from("clients")
+        .update({
+          ai_context: draft,
+          ai_context_correction: draft,
+          ai_context_correction_at: new Date().toISOString(),
+        })
+        .eq("id", clientId);
+      if (error) throw error;
+      setEditing(false);
+      void qc.invalidateQueries({ queryKey: ["client", clientId] });
+      toast.success("Correction saved.");
+      void fetch("/api/ai?type=refresh-context", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entity_type: "client", entity_id: clientId }),
+      }).then(() => qc.invalidateQueries({ queryKey: ["client", clientId] }));
+    } catch {
+      toast.error("Could not save correction. Try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <div className=" overflow-hidden" style={{ background: "var(--color-white)", border: "0.5px solid var(--color-ink-15)" }}>
       <button className="w-full flex items-center gap-2 px-4 py-3 text-left" onClick={() => setExpanded((v) => !v)}>
@@ -4392,8 +4431,25 @@ function ClientIntelligenceCard({
       </button>
       {expanded && (
         <div className="px-4 pb-4">
-          {aiContext ? (
-            <p className="text-[13px] leading-relaxed whitespace-pre-wrap mb-3" style={{ color: "var(--color-ink)" }}>{aiContext}</p>
+          {editing ? (
+            <textarea
+              className="w-full text-[13px] leading-relaxed mb-3"
+              style={{ color: "var(--color-ink)", minHeight: 120 }}
+              value={draft}
+              autoFocus
+              disabled={saving}
+              onChange={(e) => setDraft(e.target.value)}
+              onBlur={() => void saveCorrection()}
+            />
+          ) : aiContext ? (
+            <p
+              className="text-[13px] leading-relaxed whitespace-pre-wrap mb-3 cursor-text"
+              style={{ color: "var(--color-ink)" }}
+              onClick={() => { setDraft(aiContext); setEditing(true); }}
+              title="Click to correct"
+            >
+              {aiContext}
+            </p>
           ) : (
             <p className="text-[13px] mb-3" style={{ color: "var(--color-ink-30)" }}>
               No intelligence summary yet. Click refresh to generate one from the account history.
