@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
 import { decryptToken } from "../lib/oauth-handlers/token-crypto.js";
+import { refreshOutlookToken } from "../lib/oauth-handlers/outlook-token.js";
 
 type Attachment = { path: string; filename: string };
 type ResolvedAttachment = { filename: string; contentType: string; base64: string };
@@ -26,28 +27,6 @@ function mimeFromName(name: string): string {
   if (ext === "docx") return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
   if (ext === "doc") return "application/msword";
   return "application/octet-stream";
-}
-
-async function refreshOutlookToken(refreshToken: string): Promise<string> {
-  const tenantId = process.env.OUTLOOK_TENANT_ID ?? "common";
-  const resp = await fetch(
-    `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        refresh_token: refreshToken,
-        client_id: process.env.OUTLOOK_CLIENT_ID!,
-        client_secret: process.env.OUTLOOK_CLIENT_SECRET!,
-        grant_type: "refresh_token",
-        scope:
-          "https://graph.microsoft.com/Mail.Send https://graph.microsoft.com/User.Read offline_access",
-      }),
-    }
-  );
-  const data = (await resp.json()) as { access_token?: string; error_description?: string };
-  if (!data.access_token) throw new Error(data.error_description ?? "Outlook token refresh failed");
-  return data.access_token;
 }
 
 async function sendViaOutlook(

@@ -10,12 +10,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  const { data } = await supabase
-    .from("recruiter_oauth_tokens")
-    .select("provider, email")
-    .eq("recruiter_id", recruiter_id)
-    .eq("provider", "outlook");
+  const [{ data }, { data: inbound }] = await Promise.all([
+    supabase
+      .from("recruiter_oauth_tokens")
+      .select("provider, email")
+      .eq("recruiter_id", recruiter_id)
+      .eq("provider", "outlook"),
+    supabase
+      .from("outlook_inbound_state")
+      .select("recruiter_id")
+      .eq("recruiter_id", recruiter_id)
+      .maybeSingle(),
+  ]);
 
   const row = (data ?? [])[0];
-  return res.json({ outlook: row ? { email: row.email as string } : null });
+  return res.json({
+    outlook: row ? { email: row.email as string, inbound_ready: !!inbound } : null,
+  });
 }

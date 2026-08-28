@@ -15,7 +15,7 @@ export const Route = createFileRoute("/_authenticated/settings")({
 });
 
 type OAuthStatus = {
-  outlook: { email: string } | null;
+  outlook: { email: string; inbound_ready?: boolean } | null;
 };
 
 function SettingsPage() {
@@ -145,9 +145,16 @@ function SettingsPage() {
                     Checking…
                   </p>
                 ) : status.outlook ? (
-                  <p className="text-[11px] flex items-center gap-1" style={{ color: "var(--color-moss)" }}>
-                    <IconCheck size={11} /> Connected as {status.outlook.email}
-                  </p>
+                  <>
+                    <p className="text-[11px] flex items-center gap-1" style={{ color: "var(--color-moss)" }}>
+                      <IconCheck size={11} /> Connected as {status.outlook.email}
+                    </p>
+                    {status.outlook.inbound_ready === false && (
+                      <p className="text-[11px] mt-0.5" style={{ color: "var(--color-gold)" }}>
+                        Reconnect to enable automatic inbound-email capture.
+                      </p>
+                    )}
+                  </>
                 ) : (
                   <p className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>
                     Not connected

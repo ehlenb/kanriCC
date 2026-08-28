@@ -1,11 +1,13 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
 import processContextRefreshQueue from "../lib/job-handlers/process-context-refresh-queue.js";
+import pollOutlookInbound from "../lib/job-handlers/poll-outlook-inbound.js";
 
 type Handler = (req: VercelRequest, res: VercelResponse) => unknown;
 
 const routes: Record<string, Handler> = {
   "process-refresh-queue": processContextRefreshQueue,
+  "poll-outlook-inbound": pollOutlookInbound,
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
