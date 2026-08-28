@@ -22,6 +22,7 @@ export async function refreshCandidate(entityId: string, triggeredById?: string)
     { data: blockers },
     { data: competing },
     { data: interactions },
+    { data: buyInProcs },
   ] = await Promise.all([
     supabase
       .from("candidates")
@@ -50,6 +51,11 @@ export async function refreshCandidate(entityId: string, triggeredById?: string)
       .eq("candidate_id", entityId)
       .order("interacted_at", { ascending: false })
       .limit(30),
+    supabase
+      .from("processes")
+      .select("stage, buy_in_confirmed_at, buy_in_method, requisitions ( title, clients ( company_name ) )")
+      .eq("candidate_id", entityId)
+      .not("stage", "in", '("Closed lost","Placed")'),
   ]);
 
   if (!candidate) throw new Error("Candidate not found");
@@ -117,6 +123,14 @@ ${(blockers ?? []).map((b: { theme: string; detail: string | null; is_risk: bool
 
 Active competing interviews:
 ${(competing ?? []).length === 0 ? "None disclosed." : (competing ?? []).map((ci: { company_name: string; stage: string | null }) => `- ${ci.company_name}${ci.stage ? ` (${ci.stage})` : ""}`).join("\n")}
+
+Buy-in status per active process:
+${(buyInProcs ?? []).length === 0 ? "No active processes." : (buyInProcs ?? []).map((bp: { stage: string; buy_in_confirmed_at: string | null; buy_in_method: string | null; requisitions: { title: string | null; clients: { company_name: string | null } | null } | null }) => {
+  const role = `${bp.requisitions?.title ?? "role"}${bp.requisitions?.clients?.company_name ? ` at ${bp.requisitions.clients.company_name}` : ""}`;
+  return bp.buy_in_confirmed_at
+    ? `- ${role}: buy-in confirmed ${new Date(bp.buy_in_confirmed_at).toLocaleDateString("en-GB")}${bp.buy_in_method ? ` via ${bp.buy_in_method}` : ""} (stage ${bp.stage})`
+    : `- ${role}: buy-in NOT recorded (stage ${bp.stage})`;
+}).join("\n")}
 
 ${c.notes_personality ? `Personality: ${c.notes_personality.slice(0, 200)}` : ""}
 ${c.notes_pitch ? `Pitch notes: ${c.notes_pitch.slice(0, 200)}` : ""}

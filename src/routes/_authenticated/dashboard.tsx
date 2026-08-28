@@ -169,7 +169,7 @@ function usePriorityActions(recruiterId: string) {
       const { data: procs } = await supabase
         .from("processes")
         .select(
-          "id, stage, candidate_id, cv_sent_at, offer_date, last_activity_at, ccm_feedback_at, ccm_outcome, buy_in_confirmed_at, candidates(id, full_name), requisitions(id, title, clients(id, company_name))"
+          "id, stage, candidate_id, cv_sent_at, offer_date, last_activity_at, ccm_feedback_at, ccm_outcome, buy_in_confirmed_at, buy_in_interaction_id, candidates(id, full_name), requisitions(id, title, clients(id, company_name))"
         )
         .eq("owner_recruiter_id", recruiterId)
         .not("stage", "in", '("Closed lost","Placed")');
@@ -329,6 +329,18 @@ function usePriorityActions(recruiterId: string) {
               action_type: "follow_up", priority_rank: 20,
             });
           }
+        }
+
+        // Buy-in recorded but the process is still parked at Specs Sent.
+        if (proc.stage === "Specs Sent" && proc.buy_in_interaction_id) {
+          actions.push({
+            entity_type: "candidate", entity_id: candidateId,
+            entity_name: candidateName, process_id: proc.id, stage: proc.stage,
+            candidate_id: candidateId, client_id: clientId,
+            reason: `Buy-in is recorded for ${firstName} but the process is still at Specs Sent.`,
+            suggested_action: `Advance ${firstName} to Buy-In.`,
+            action_type: "advance_buy_in", priority_rank: 45,
+          });
         }
 
         // Rule 5: Buy-In stalled > 7 days

@@ -260,7 +260,7 @@ Return exactly this JSON structure:
       }),
       supabase
         .from("processes")
-        .select("stage, cv_sent_at")
+        .select("stage, cv_sent_at, buy_in_interaction_id")
         .eq("id", process_id)
         .single(),
     ]);
@@ -328,7 +328,8 @@ ${JSON.stringify({
     };
 
     // Side effects: log interaction, advance stage
-    const proc = processData.data as { stage: string; cv_sent_at: string | null } | null;
+    const proc = processData.data as { stage: string; cv_sent_at: string | null; buy_in_interaction_id: string | null } | null;
+    const buyInMissing = !proc?.buy_in_interaction_id;
     const now = new Date().toISOString();
 
     const sideEffects: Promise<unknown>[] = [
@@ -364,7 +365,7 @@ ${JSON.stringify({
       body: JSON.stringify({ entity_type: "candidate", entity_id: candidate_id }),
     }).catch(() => {});
 
-    return res.status(200).json(result);
+    return res.status(200).json({ ...result, buy_in_missing: buyInMissing });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Submission package generation failed";
     return res.status(200).json({ error: message });

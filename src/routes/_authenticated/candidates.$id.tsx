@@ -164,6 +164,7 @@ type Process = {
   ai_snapshot: string | null;
   updated_at: string;
   buy_in_confirmed_at: string | null;
+  buy_in_interaction_id: string | null;
   not_interested_at: string | null;
   cv_sent_at: string | null;
   offer_date: string | null;
@@ -347,7 +348,7 @@ function useCandidateProfile(id: string) {
           .select(
             `
             id, stage, coverage_type, ai_snapshot, updated_at,
-            buy_in_confirmed_at, not_interested_at, cv_sent_at, offer_date, placed_date, last_activity_at,
+            buy_in_confirmed_at, buy_in_interaction_id, not_interested_at, cv_sent_at, offer_date, placed_date, last_activity_at,
             ccm_outcome, ccm_feedback_notes, ccm_feedback_at,
             placed_fee_jpy, start_date, closed_reason_category, closed_reason,
             requisitions (
@@ -2931,6 +2932,7 @@ function ProcessPanel({
   const clientName = req?.clients?.company_name ?? "Unknown";
   const [justAdvanced, setJustAdvanced] = useState(false);
   const [pendingStage, setPendingStage] = useState<"Placed" | "Closed lost" | null>(null);
+  const [cvSentWarn, setCvSentWarn] = useState(false);
   const stageChange = useStageChange(c.id, {
     candidateName: c.full_name,
     recruiterId,
@@ -2975,6 +2977,8 @@ function ProcessPanel({
             if (newStage === p.stage) return;
             if (newStage === "Placed" || newStage === "Closed lost") {
               setPendingStage(newStage);
+            } else if (newStage === "CV Sent" && !p.buy_in_interaction_id) {
+              setCvSentWarn(true);
             } else {
               stageChange.mutate({ process: p, newStage });
             }
@@ -3002,6 +3006,27 @@ function ProcessPanel({
           onOutcomeSaved={(stage) => onOutcomeSaved(p.id, stage, req?.clients?.id ?? null)}
         />
       )}
+
+      <Dialog open={cvSentWarn} onOpenChange={(v) => { if (!v) setCvSentWarn(false); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="font-display text-base">No buy-in logged</DialogTitle>
+          </DialogHeader>
+          <p className="text-[13px] py-2" style={{ color: "var(--color-ink-60)" }}>
+            No buy-in is recorded for {c.full_name} on {req?.title ?? "this role"}. Log the buy-in
+            activity on the timeline, or send the CV anyway.
+          </p>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" size="sm" onClick={() => setCvSentWarn(false)}>Log it first</Button>
+            <Button
+              size="sm"
+              onClick={() => { setCvSentWarn(false); stageChange.mutate({ process: p, newStage: "CV Sent" }); }}
+            >
+              Send anyway
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <ProcessOutcomeModal
         open={pendingStage !== null}
@@ -3046,6 +3071,7 @@ function InterviewPanel({
   const [positioning, setPositioning] = useState<string | null>(p.ai_snapshot);
   const [loadingSubmission, setLoadingSubmission] = useState(false);
   const [submissionPackage, setSubmissionPackage] = useState<import("@/integrations/supabase/types").SubmissionPackage | null>(null);
+  const [submissionBuyInMissing, setSubmissionBuyInMissing] = useState(false);
   const [loadingInterviewPrep, setLoadingInterviewPrep] = useState(false);
   const [interviewPrep, setInterviewPrep] = useState<{ candidate_email: string; recruiter_prep_note: string } | null>(null);
   const [loadingSpecEmail, setLoadingSpecEmail] = useState(false);
@@ -3169,9 +3195,10 @@ function InterviewPanel({
           process_id: p.id,
         }),
       });
-      const json = await resp.json() as import("@/integrations/supabase/types").SubmissionPackage & { error?: string };
+      const json = await resp.json() as import("@/integrations/supabase/types").SubmissionPackage & { error?: string; buy_in_missing?: boolean };
       if (json.error) { toast.error("Could not generate submission package. Try again."); return; }
       setSubmissionPackage(json);
+      setSubmissionBuyInMissing(!!json.buy_in_missing);
     } finally {
       setLoadingSubmission(false);
     }
@@ -3742,6 +3769,7 @@ function InterviewPanel({
           candidateName={c.full_name}
           candidateId={c.id}
           clientId={p.requisitions?.clients?.id}
+          buyInMissing={submissionBuyInMissing}
           onClose={() => setSubmissionPackage(null)}
         />
       )}
