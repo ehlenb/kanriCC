@@ -2,6 +2,8 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";
 
+import { cleanAiText } from "../../lib/ai-handlers/lib/sanitize-ai-text.js";
+
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -26,18 +28,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       max_tokens: 1024,
       system: `You are a professional translator specializing in Japanese business and recruitment content.
 Translate the provided text to ${targetName}.
-Return only the translated text — no explanation, no preamble, no quotes around the result.
-Preserve formatting: keep line breaks and **bold** markers exactly as they appear.
+Return only the translated text. No explanation, no preamble, no quotes around the result.
+Preserve line breaks. Write plain text: no Markdown, no ** markers, no em dashes.
 Use natural professional tone appropriate for Japan's business culture.
 If the text is already in ${targetName}, return it unchanged.`,
       messages: [{ role: "user", content: notes.trim() }],
     });
 
-    const translated = message.content
-      .filter((b): b is Anthropic.TextBlock => b.type === "text")
-      .map((b) => b.text)
-      .join("")
-      .trim();
+    const translated = cleanAiText(
+      message.content
+        .filter((b): b is Anthropic.TextBlock => b.type === "text")
+        .map((b) => b.text)
+        .join("")
+        .trim(),
+    );
 
     const supabase = createClient(
       process.env.VITE_SUPABASE_URL!,

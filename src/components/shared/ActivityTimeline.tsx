@@ -40,7 +40,9 @@ export type TimelineInteraction = {
   client_id?: string | null;
   candidate_id?: string | null;
   contact_id?: string | null;
+  requisition_id?: string | null;
   primary_party?: string | null;
+  is_buy_in?: boolean | null;
   // joined display data
   clients?: { id: string; company_name: string } | null;
   candidates?: { id: string; full_name: string } | null;
@@ -68,6 +70,7 @@ const ICON: Record<string, React.ElementType> = {
   meeting:               IconCalendar,
   "interview scheduled": IconCalendar,
   "job spec sent":       IconFileText,
+  "email job spec sent": IconMail,
   "linkedin message":    IconMessage,
   "cv sent":             IconFileText,
   other:                 IconClipboard,
@@ -81,6 +84,7 @@ const COLOR: Record<string, { bg: string; fg: string }> = {
   meeting:               { bg: "var(--color-moss-light)",   fg: "#3b6d11" },
   "interview scheduled": { bg: "var(--color-indigo-light)", fg: "var(--color-indigo)" },
   "job spec sent":       { bg: "#fef3e2",                   fg: "#974c00" },
+  "email job spec sent": { bg: "#fef3e2",                   fg: "#974c00" },
   "linkedin message":    { bg: "var(--color-indigo-light)", fg: "var(--color-indigo)" },
   "cv sent":             { bg: "var(--color-moss-light)",   fg: "#3b6d11" },
   other:                 { bg: "var(--color-ink-10)",       fg: "var(--color-ink-30)" },
@@ -181,6 +185,8 @@ function UpcomingEntry({
     summary: item.summary,
     client_id: item.client_id,
     contact_id: item.contact_id,
+    requisition_id: item.requisition_id,
+    is_buy_in: item.is_buy_in,
   };
 
   if (hidden) return null;
@@ -299,6 +305,8 @@ function InteractionEntry({
     summary: item.summary,
     client_id: item.client_id,
     contact_id: item.contact_id,
+    requisition_id: item.requisition_id,
+    is_buy_in: item.is_buy_in,
   };
 
   function handleDelete() {
@@ -374,6 +382,9 @@ function InteractionEntry({
             <span className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>
               {fmtDate(item.interacted_at)}
             </span>
+            {item.is_buy_in && (
+              <Chip bg="var(--color-moss-light)" fg="var(--color-moss)">Buy-in</Chip>
+            )}
           </div>
 
           {/* Row 2: context chips — who/re: */}
@@ -463,6 +474,15 @@ function InteractionEntry({
             );
           })()}
 
+          {perspective === "candidate" && !item.is_buy_in && !item.is_future && (
+            <button
+              onClick={() => setEditOpen(true)}
+              className="mt-1.5 text-[11px] underline"
+              style={{ color: "var(--color-ink-30)" }}
+            >
+              Mark as buy-in
+            </button>
+          )}
         </div>
       </div>
     </div>

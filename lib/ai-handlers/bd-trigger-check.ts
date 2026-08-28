@@ -16,6 +16,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
+import { cleanAiText } from "./lib/sanitize-ai-text.js";
+
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 const supabase = createClient(
@@ -48,11 +50,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       messages: [{ role: "user", content: `Company: "${prospect.company_name}".${urlHint} Any recent BD-relevant signals?` }],
     });
 
-    const answer = message.content
-      .filter((b) => b.type === "text")
-      .map((b) => (b.type === "text" ? b.text : ""))
-      .join(" ")
-      .trim();
+    const answer = cleanAiText(
+      message.content
+        .filter((b) => b.type === "text")
+        .map((b) => (b.type === "text" ? b.text : ""))
+        .join(" ")
+        .trim(),
+    );
 
     if (!answer) return res.status(200).json({ error: "No signals found. Try again later." });
 

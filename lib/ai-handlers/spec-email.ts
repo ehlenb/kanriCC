@@ -114,18 +114,21 @@ ${r.jd_text ? `JD excerpt:\n${r.jd_text.slice(0, 800)}` : ""}
     model: "claude-haiku-4-5-20251001",
     max_tokens: 800,
     thinking: { type: "disabled" },
-    system: `You are writing a candidate outreach email and talking points for a recruiter in Japan. The recruiter will send this to the candidate to pitch a role before buy-in is secured.
+    system: `You are writing a candidate outreach email and talking points for a recruiter in Japan. The recruiter is sending this to the candidate to share the role and ask whether they are interested, before submitting them to the client.
 
 Rules:
+- Write a short, specific subject line. Name the company or the role hook. Not "Job Opportunity".
 - The email must be bespoke. Reference the candidate's specific background.
 - Connect their top-ranked motivation to the role's strongest matching point. Motivation rank 1 drives the opening.
+- End by asking whether they want to hear more or would like their profile put forward.
 - 150 words maximum for the email. Conversational, not a template.
-- Talking points: 3 bullets. Key highlights only. Not a script — the recruiter uses these if calling instead of emailing.
+- Talking points: 3 bullets. Key highlights only. Not a script. The recruiter uses these if calling instead of emailing.
 - NEVER use: straightforward, genuinely, honestly, leverage (as a verb), utilize. No em dashes.
-- Frame the role as an opportunity worth considering — not a must-apply.
+- Frame the role as an opportunity worth considering, not a must-apply.
 
-Return valid JSON only — no markdown fences, no explanation:
+Return valid JSON only, no markdown fences, no explanation:
 {
+  "subject": string,
   "email": string,
   "talking_points": [string, string, string]
 }`,
@@ -136,7 +139,7 @@ Return valid JSON only — no markdown fences, no explanation:
   const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
 
   try {
-    const parsed = JSON.parse(cleaned) as { email: string; talking_points: string[] };
+    const parsed = JSON.parse(cleaned) as { subject?: string; email: string; talking_points: string[] };
     return res.status(200).json(parsed);
   } catch {
     return res.status(200).json({ error: "Parse failed", raw });

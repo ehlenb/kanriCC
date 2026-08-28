@@ -2,6 +2,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
+import { cleanAiText } from "./lib/sanitize-ai-text.js";
+
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 const supabase = createClient(
@@ -73,11 +75,13 @@ Rules:
     messages: [{ role: "user", content: prompt }],
   });
 
-  const text = message.content.find((b) => b.type === "text")?.text.trim() ?? "";
-  if (!text) return res.status(200).json({ error: "Could not update strategy notes. Try again." });
+  const raw = message.content.find((b) => b.type === "text")?.text.trim() ?? "";
+  if (!raw) return res.status(200).json({ error: "Could not update strategy notes. Try again." });
 
   // Model signalled nothing useful to add
-  if (text === "UNCHANGED") return res.status(200).json({ unchanged: true });
+  if (raw === "UNCHANGED") return res.status(200).json({ unchanged: true });
+
+  const text = cleanAiText(raw);
 
   // Save directly — no preview step
   const { error: saveError } = await supabase

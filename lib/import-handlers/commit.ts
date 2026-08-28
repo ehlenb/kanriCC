@@ -20,7 +20,7 @@ const VALID_CONTACT_ROLES = ["hiring_manager", "hr_gatekeeper", "ta_coordinator"
 const VALID_CANDIDATE_SOURCES = ["linkedin", "bizreach", "doda", "referral", "inbound", "other"];
 const VALID_INTERACTION_TYPES = [
   "call", "email", "email received", "meeting", "note",
-  "job spec sent", "linkedin message", "interview scheduled", "cv sent", "other",
+  "job spec sent", "email job spec sent", "linkedin message", "interview scheduled", "cv sent", "other",
   "ccm1", "ccm2", "ccm3", "ccm4", "ccm5", "ccm6",
 ];
 const VALID_PRIMARY_PARTIES = ["candidate", "client"];

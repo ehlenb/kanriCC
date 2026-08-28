@@ -70,6 +70,7 @@ type ProcessCard = {
   coverage_type: string;
   candidate_id: string;
   candidate_name: string;
+  buy_in: boolean;
 };
 
 type MatchResult = {
@@ -154,7 +155,7 @@ function useProcesses(requisitionId: string) {
     queryFn: async (): Promise<ProcessCard[]> => {
       const { data, error } = await supabase
         .from("processes")
-        .select("id, stage, last_activity_at, coverage_type, candidate_id, candidates ( full_name )")
+        .select("id, stage, last_activity_at, coverage_type, candidate_id, buy_in_interaction_id, candidates ( full_name )")
         .eq("requisition_id", requisitionId);
       if (error) throw error;
       return (data ?? []).map((p) => {
@@ -166,6 +167,7 @@ function useProcesses(requisitionId: string) {
           coverage_type: p.coverage_type,
           candidate_id: p.candidate_id,
           candidate_name: (cand as { full_name?: string } | null)?.full_name ?? "—",
+          buy_in: p.buy_in_interaction_id != null,
         };
       });
     },
@@ -883,6 +885,14 @@ function PipelinePanel({
                     </p>
                   )}
                 </div>
+                {p.buy_in && p.stage !== "Buy-In" && (
+                  <span
+                    className="text-[10px] font-mono px-1.5 py-0.5 shrink-0"
+                    style={{ background: "var(--color-moss-light)", color: "var(--color-moss)" }}
+                  >
+                    BUY-IN
+                  </span>
+                )}
                 <StageBadge stage={p.stage} />
               </button>
             ))}

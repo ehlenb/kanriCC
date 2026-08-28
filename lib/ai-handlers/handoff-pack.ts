@@ -98,7 +98,7 @@ async function buildCandidateHandoff(entityId: string): Promise<string> {
       .limit(30),
     supabase
       .from("processes")
-      .select("stage, coverage_type, requisitions ( title, clients ( company_name, ai_context ) )")
+      .select("stage, coverage_type, buy_in_confirmed_at, buy_in_method, requisitions ( title, clients ( company_name, ai_context ) )")
       .eq("candidate_id", entityId)
       .not("stage", "in", '("Placed","Closed lost")'),
   ]);
@@ -130,6 +130,8 @@ async function buildCandidateHandoff(entityId: string): Promise<string> {
   type ProcessRow = {
     stage: string;
     coverage_type: string;
+    buy_in_confirmed_at: string | null;
+    buy_in_method: string | null;
     requisitions: { title: string; clients: { company_name: string; ai_context: string | null } | null } | null;
   };
   const procs = (processes ?? []) as unknown as ProcessRow[];
@@ -140,7 +142,10 @@ async function buildCandidateHandoff(entityId: string): Promise<string> {
         .map((p) => {
           const req = p.requisitions;
           const client = req?.clients;
-          return `- ${req?.title ?? "Unknown role"} at ${client?.company_name ?? "Unknown client"} — stage ${p.stage} (coverage: ${p.coverage_type})
+          const buyIn = p.buy_in_confirmed_at
+            ? `buy-in confirmed ${new Date(p.buy_in_confirmed_at).toLocaleDateString("en-GB")}${p.buy_in_method ? ` via ${p.buy_in_method}` : ""}`
+            : "buy-in NOT recorded";
+          return `- ${req?.title ?? "Unknown role"} at ${client?.company_name ?? "Unknown client"} — stage ${p.stage} (coverage: ${p.coverage_type}; ${buyIn})
 ${client?.ai_context ? `  Client account context: ${client.ai_context}` : "  No reconciled client context on file yet."}`;
         })
         .join("\n\n");

@@ -108,7 +108,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const { data: proc } = await supabase
         .from("processes")
         .select(
-          "stage, requisitions ( title, requisition_conditions ( condition_text, condition_type, priority_rank ) )",
+          "stage, buy_in_confirmed_at, buy_in_method, requisitions ( title, requisition_conditions ( condition_text, condition_type, priority_rank ) )",
         )
         .eq("id", process_id)
         .single();
@@ -116,6 +116,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (proc) {
         const p = proc as {
           stage: string;
+          buy_in_confirmed_at: string | null;
+          buy_in_method: string | null;
           requisitions: {
             title: string;
             requisition_conditions: Array<{ condition_text: string; condition_type: string; priority_rank: number }>;
@@ -125,7 +127,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           .filter((c) => c.condition_type === "must_have")
           .map((c) => `- ${c.condition_text}`)
           .join("\n");
-        processContext = `\nActive process: ${p.requisitions?.title ?? "—"} (${p.stage})\n${mustHave ? `Must-have conditions:\n${mustHave}` : ""}`;
+        const buyIn = p.buy_in_confirmed_at
+          ? `Buy-in: confirmed ${new Date(p.buy_in_confirmed_at).toLocaleDateString("en-GB")}${p.buy_in_method ? ` via ${p.buy_in_method}` : ""}`
+          : "Buy-in: not recorded";
+        processContext = `\nActive process: ${p.requisitions?.title ?? "—"} (${p.stage})\n${buyIn}\n${mustHave ? `Must-have conditions:\n${mustHave}` : ""}`;
       }
     }
 

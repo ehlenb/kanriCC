@@ -2,8 +2,9 @@ import { useState, useEffect } from "react";
 import { createFileRoute, useSearch, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-context";
-import { IconMail, IconBrandGmail, IconCheck, IconX, IconPlugConnected } from "@tabler/icons-react";
+import { IconMail, IconCheck, IconX, IconPlugConnected } from "@tabler/icons-react";
 import { ImportWizard } from "@/components/shared/ImportWizard";
+import { EmailTemplatesSection } from "@/components/settings/EmailTemplatesSection";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   component: SettingsPage,
@@ -14,8 +15,7 @@ export const Route = createFileRoute("/_authenticated/settings")({
 });
 
 type OAuthStatus = {
-  gmail: { email: string } | null;
-  outlook: { email: string } | null;
+  outlook: { email: string; inbound_ready?: boolean } | null;
 };
 
 function SettingsPage() {
@@ -23,9 +23,8 @@ function SettingsPage() {
   const search = useSearch({ from: "/_authenticated/settings" });
   const navigate = useNavigate();
 
-  const [status, setStatus] = useState<OAuthStatus>({ gmail: null, outlook: null });
+  const [status, setStatus] = useState<OAuthStatus>({ outlook: null });
   const [loadingStatus, setLoadingStatus] = useState(true);
-  const [connectingGmail, setConnectingGmail] = useState(false);
   const [connectingOutlook, setConnectingOutlook] = useState(false);
   const [disconnecting, setDisconnecting] = useState<string | null>(null);
 
@@ -43,55 +42,33 @@ function SettingsPage() {
     }
   }
 
-  // Handle OAuth callback code in URL
+  // Handle the Outlook OAuth callback code in the URL
   useEffect(() => {
-    if (!search.code || !search.state || !user?.id) return;
-
-    const provider = search.state; // "gmail" or "outlook"
-    const endpoint =
-      provider === "gmail" ? "/api/oauth/gmail-exchange" : "/api/oauth/outlook-exchange";
+    if (!search.code || !user?.id) return;
 
     void (async () => {
-      const resp = await fetch(endpoint, {
+      const resp = await fetch("/api/oauth?action=outlook-exchange", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code: search.code, recruiter_id: user.id }),
       });
       const data = (await resp.json()) as { email?: string; error?: string };
       if (data.error) {
-        toast.error(`Could not connect ${provider}. Try again.`);
+        toast.error("Could not connect Outlook. Try again.");
       } else {
-        toast.success(
-          `${provider === "gmail" ? "Gmail" : "Outlook"} connected: ${data.email ?? ""}`
-        );
+        toast.success(`Outlook connected: ${data.email ?? ""}`);
         await fetchStatus();
       }
       // Clear OAuth params from URL
       void navigate({ to: "/settings", search: {}, replace: true });
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search.code, search.state, user?.id]);
+  }, [search.code, user?.id]);
 
   useEffect(() => {
     void fetchStatus();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
-
-  async function connectGmail() {
-    setConnectingGmail(true);
-    try {
-      const resp = await fetch("/api/oauth?action=gmail-connect");
-      const data = (await resp.json()) as { url?: string; error?: string };
-      if (data.error || !data.url) {
-        toast.error("Gmail OAuth is not configured on this server.");
-        return;
-      }
-      window.location.href = data.url;
-    } catch {
-      toast.error("Could not start Gmail connection.");
-      setConnectingGmail(false);
-    }
-  }
 
   async function connectOutlook() {
     setConnectingOutlook(true);
@@ -109,16 +86,16 @@ function SettingsPage() {
     }
   }
 
-  async function disconnect(provider: string) {
+  async function disconnect() {
     if (!user?.id) return;
-    setDisconnecting(provider);
+    setDisconnecting("outlook");
     try {
       await fetch("/api/oauth?action=disconnect", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ provider, recruiter_id: user.id }),
+        body: JSON.stringify({ provider: "outlook", recruiter_id: user.id }),
       });
-      toast.success(`${provider === "gmail" ? "Gmail" : "Outlook"} disconnected.`);
+      toast.success("Outlook disconnected.");
       await fetchStatus();
     } catch {
       toast.error("Could not disconnect. Try again.");
@@ -149,52 +126,6 @@ function SettingsPage() {
         </p>
 
         <div className="space-y-4">
-          {/* Gmail */}
-          <div
-            className="flex items-center justify-between p-4"
-            style={{ border: "0.5px solid var(--color-ink-15)", background: "var(--color-ink-05)" }}
-          >
-            <div className="flex items-center gap-3">
-              <IconBrandGmail size={18} style={{ color: "#EA4335" }} />
-              <div>
-                <p className="text-[13px] font-medium">Gmail</p>
-                {loadingStatus ? (
-                  <p className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>
-                    Checking…
-                  </p>
-                ) : status.gmail ? (
-                  <p className="text-[11px] flex items-center gap-1" style={{ color: "var(--color-moss)" }}>
-                    <IconCheck size={11} /> Connected as {status.gmail.email}
-                  </p>
-                ) : (
-                  <p className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>
-                    Not connected
-                  </p>
-                )}
-              </div>
-            </div>
-            {status.gmail ? (
-              <button
-                className="btn btn-ghost btn-sm flex items-center gap-1"
-                onClick={() => void disconnect("gmail")}
-                disabled={disconnecting === "gmail"}
-                style={{ color: "var(--color-ink-60)" }}
-              >
-                <IconX size={12} />
-                {disconnecting === "gmail" ? "Disconnecting…" : "Disconnect"}
-              </button>
-            ) : (
-              <button
-                className="btn btn-outline btn-sm flex items-center gap-1.5"
-                onClick={() => void connectGmail()}
-                disabled={connectingGmail}
-              >
-                <IconPlugConnected size={13} />
-                {connectingGmail ? "Connecting…" : "Connect Gmail"}
-              </button>
-            )}
-          </div>
-
           {/* Outlook */}
           <div
             className="flex items-center justify-between p-4"
@@ -214,9 +145,16 @@ function SettingsPage() {
                     Checking…
                   </p>
                 ) : status.outlook ? (
-                  <p className="text-[11px] flex items-center gap-1" style={{ color: "var(--color-moss)" }}>
-                    <IconCheck size={11} /> Connected as {status.outlook.email}
-                  </p>
+                  <>
+                    <p className="text-[11px] flex items-center gap-1" style={{ color: "var(--color-moss)" }}>
+                      <IconCheck size={11} /> Connected as {status.outlook.email}
+                    </p>
+                    {status.outlook.inbound_ready === false && (
+                      <p className="text-[11px] mt-0.5" style={{ color: "var(--color-gold)" }}>
+                        Reconnect to enable automatic inbound-email capture.
+                      </p>
+                    )}
+                  </>
                 ) : (
                   <p className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>
                     Not connected
@@ -227,7 +165,7 @@ function SettingsPage() {
             {status.outlook ? (
               <button
                 className="btn btn-ghost btn-sm flex items-center gap-1"
-                onClick={() => void disconnect("outlook")}
+                onClick={() => void disconnect()}
                 disabled={disconnecting === "outlook"}
                 style={{ color: "var(--color-ink-60)" }}
               >
@@ -252,6 +190,8 @@ function SettingsPage() {
           in your Sent folder.
         </p>
       </div>
+
+      <EmailTemplatesSection />
 
       <div className="mt-6">
         <ImportWizard />

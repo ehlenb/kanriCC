@@ -53,6 +53,8 @@ These rules override everything else. No exceptions.
 ### AI Output Rules
 - NEVER use these words in any AI prompt or generated output: `straightforward`, `genuinely`, `honestly`, `leverage` (as a verb), `utilize`
 - NEVER use em dashes (`—`) in AI-generated text or prompts
+- No Markdown in recruiter-facing AI output: no `**bold**`, no `#` headings, no backticks. The design system forbids bold body copy, and several surfaces render AI text raw (textareas, plain `<div>`s), so the markup just shows literally and reads as clutter. Section headers are plain-text labels on their own line.
+- **This is enforced centrally, not per prompt.** `lib/ai-handlers/lib/sanitize-ai-text.ts` (`cleanAiText` / `deepCleanStrings`) scrubs `**`/`__`/backticks/`#` headings and normalises em/en dashes. `api/ai.ts` wraps `res.json` so every dispatched handler's output is scrubbed on the way out; the two standalone `api/ai/*.ts` handlers call `cleanAiText` directly. A handler that **persists** model prose (`refresh-context` → `ai_context`, `update-client-strategy` → `strategy_notes`, `bd-trigger-check` → `bd_trigger_notes`, `translate-interaction` → `full_notes_translated`) must call `cleanAiText` before the DB write so stored text is clean on later reads. New handlers get the response-path scrub for free; only add a call if you write model text to the database.
 - All AI output must be written in plain, clear English. Non-native English speakers are the primary audience. Short sentences. No jargon.
 - `candidates.notes_internal` — AI **never reads this field under any circumstance**
 - `candidates.notes_presentation` — AI **never reads, generates, or modifies this field**
@@ -209,7 +211,7 @@ src/
   styles.css        # Design tokens as CSS custom properties
 lib/                # ← all server-side handler logic
   ai-handlers/      # 39 AI handlers
-  oauth-handlers/   # Gmail + Microsoft Graph connect/exchange/status/disconnect
+  oauth-handlers/   # Microsoft Graph (Outlook) connect/exchange/status/disconnect + token-crypto
   import-handlers/  # CSV import: suggest-mapping, commit, rollback, history
   addin-handlers/   # Outlook add-in: match-sender, log-email
   webhook-handlers/ # Recall.ai transcript webhook
@@ -568,7 +570,7 @@ Tab color by `coverage_type`:
 - `uncovered` → red (`tab-uncovered`) — competitor agency or no agency coverage
 
 ### `interactions`
-Activity log — calls, emails, meetings. `candidate_id` (nullable), `client_id` (nullable), `contact_id` (nullable FK to client_contacts — which specific contact was involved), `primary_party` ('candidate' | 'client' — who you were speaking with), `interaction_type` (call/email/meeting/note/job spec sent/linkedin message/other), `summary`, `full_notes`, `interacted_at`, `recruiter_id` (who logged it), `team_id`.
+Activity log — calls, emails, meetings. `candidate_id` (nullable), `client_id` (nullable), `contact_id` (nullable FK to client_contacts — which specific contact was involved), `primary_party` ('candidate' | 'client' — who you were speaking with), `interaction_type` (call/email/email received/meeting/note/job spec sent/email job spec sent/linkedin message/cv sent/ccm1-6/other — full list in the latest constraint migration; `commit.ts` keeps a hardcoded copy in sync), `summary`, `full_notes`, `interacted_at`, `recruiter_id` (who logged it), `team_id`.
 
 Also on `interactions`: `requisition_id` (nullable — links activity to a specific job), `process_id` (nullable), `direction` (inbound/outbound), `is_future` + `scheduled_at` (upcoming events render above the past feed), `transcript_raw`, `full_notes_translated` + `translated_lang` (cached JP/EN translation), `triggers_context_refresh` (marks an interaction as significant enough to rebuild entity memory), `ccm_outcome` ('pass' | 'fail', nullable — the permanent per-round verdict on a `ccmN` interaction row; `processes.ccm_outcome` is only the current round's mutable working state and gets nulled on advance, so this is the durable record, see migration 053).
 
@@ -675,7 +677,7 @@ Stage badge logic lives exclusively in `stageBadgeVariant()` in `candidate-utils
 | `/jobs` | `.../jobs.tsx` | Open requisitions + revenue forecast |
 | `/jobs/$id` | `.../jobs.$id.tsx` | Single requisition detail |
 | `/placements` | `.../placements.tsx` | Every placement, team-wide, with fee and date — filterable all-time / this year / this quarter, fees totaled for the selected filter |
-| `/settings` | `.../settings.tsx` | Gmail / Outlook OAuth connect + disconnect |
+| `/settings` | `.../settings.tsx` | Outlook OAuth connect + disconnect; email templates management |
 | `/advanced-search` | `.../advanced-search.tsx` | Three-panel AI candidate search — not a nav item, accessed via candidates page |
 | `/addin/taskpane` | `routes/addin/taskpane.tsx` | Outlook add-in task pane — see Section 24 |
 
@@ -742,7 +744,7 @@ src/hooks/                  ← One concern per hook. Currently empty.
 | `StageBadge` | Colored pill for pipeline stages — always use, never inline |
 | `ActivityTimeline` | Unified feed for candidate and client pages. Handles upcoming events, cross-link chips, contact filtering, translation |
 | `LogActivityModal` | Unified log-activity dialog. Exports `interactionTypeLabel(type, primaryParty)` |
-| `SendEmailDialog` | Send via connected Gmail/Outlook. Editable To/Subject; body read-only (edit the draft first) |
+| `SendEmailDialog` | Send via connected Outlook. Editable To/Subject; body read-only (edit the draft first). The candidate page uses the richer `EmailComposerDialog` instead |
 | `ImportWizard` | CSV import with column mapping and rollback |
 | `JdViewer` | Job description viewer |
 | `LiveCallPanel` | In-call panel |
@@ -924,6 +926,8 @@ Before adding another one-shot handler, read the Architecture Rules in Section 2
 
 Both patterns silently broke or truncated most AI features in August 2026. Do not regress them.
 
+**One documented exception to rule 1: `ask-kanri.ts`.** It is a multi-turn tool-use loop, not a one-shot handler, and plans which tools to chain materially better with `thinking: { type: "adaptive" }` on. It is safe because it already satisfies rule 2 (locates text with `.content.find`, never `content[0]`) and echoes full `response.content` back each turn. The first `describe` block in the test skips this file explicitly; the second (`content[0]`) still covers it. Any other handler still fails the test without disabled thinking.
+
 Current model split (recounted 2026-08-24, Wave 6): 29 handlers on `claude-sonnet-5`, 16 on `claude-haiku-4-5-20251001`, both in `lib/ai-handlers/`. `invite-recall-bot.ts` calls neither — it only creates a Recall.ai bot session, no Claude call at all. `lib/export-handlers/shokumu-keirekisho-docx.ts` also calls neither — pure `.docx` formatting, not counted in the endpoint total's model split for that reason.
 
 ## 19. Supabase
@@ -1016,6 +1020,14 @@ After regeneration, re-append the custom types block from Section 11.
 | `052_rls_performance_indexes.sql` | Adds `team_id` indexes on 11 tables; rewrites the 24 RLS policies that called bare `auth.uid()` to `(select auth.uid())` (Supabase advisor `auth_rls_initplan` fix) — see Section 5 note |
 | `053_interaction_ccm_outcome.sql` | `interactions`: ADD `ccm_outcome` ('pass' \| 'fail', nullable) — the permanent per-round CCM verdict, since `processes.ccm_outcome` is a single mutable slot wiped on stage advance |
 | `054_prospects.sql` | New `prospects` table (Wave 6) — agency BD pipeline, team-scoped RLS mirroring `clients`, `team_id`/`owner_recruiter_id`/`converted_to_client_id` indexes from the start |
+| `055_interaction_retrieval.sql` | `interactions.search_text` generated column + pgroonga index — lexical interaction search for Ask Kanri's `search_interactions` tool |
+| `056_ai_context_correction.sql` | `candidates`/`clients`: ADD `ai_context_correction` + `ai_context_correction_at` — recruiter override that `refresh-context` treats as ground truth |
+| `057_priority_action_state_team_id_default.sql` | `priority_action_state.team_id` inline `DEFAULT current_team_id()` (was trigger-only) |
+| `058_email_job_spec_interaction_type.sql` | `interactions_interaction_type_check`: ADD `'email job spec sent'` — logged when the recruiter emails the JD + spec to a candidate for buy-in (candidate-page Email composer, "Email Job Spec" mode). Distinct from `'job spec sent'` |
+| `059_email_templates.sql` | New `email_templates` table — recruiter-authored reusable subject/body for the candidate-page Email composer. `category` ('job_spec'\|'client'\|'general'), `visibility` ('team'\|'private'), RLS mirroring `candidate_lists` (team-read + author-write), `team_id` inline default + indexes, `set_updated_at` trigger |
+| `060_drop_gmail_provider.sql` | Gmail removed from the platform — deletes any `provider = 'gmail'` rows (none existed) and tightens `recruiter_oauth_tokens_provider_check` to `CHECK (provider = 'outlook')` |
+| `061_buy_in_tracking.sql` | Structured buy-in: `interactions.is_buy_in` (+ `graph_message_id` for the Outlook poller), `processes.buy_in_interaction_id` + `buy_in_method`, trigger `trg_sync_process_buy_in` that derives `processes.buy_in_*` from the earliest `is_buy_in` interaction (repurposing `buy_in_confirmed_at`), and the `outlook_inbound_state` table (poller cursor, RLS `recruiter_id = auth.uid()`) |
+| `062_outlook_inbound_cron.sql` | `pg_cron` every 2 min → `util.poll_outlook_inbound()` → `pg_net` POST to `/api/jobs?type=poll-outlook-inbound` (reuses the migration-044 Vault secrets `app_base_url` / `internal_job_secret`) |
 
 Note: there is no `031`. Numbering skips it.
 
@@ -1076,7 +1088,7 @@ Do not suggest, scaffold, or partially implement these unless explicitly instruc
 
 | Feature | Shipped |
 |---|---|
-| Email sending from Kanri (Gmail + Outlook OAuth) | June 2026. `api/send-email.ts`, `/settings`, `SendEmailDialog` |
+| Email sending from Kanri (Outlook OAuth) | June 2026. `api/send-email.ts`, `/settings`, `SendEmailDialog` / `EmailComposerDialog`. Gmail was removed 2026-08-26 (see session log) — Outlook only |
 | Call auto-logging via Recall.ai | June 2026. Migration 030, `api/webhooks/recall.ts` |
 | Full EN/JP i18n toggle | June 2026 |
 | CSV import with rollback | See Section 24 |
@@ -1136,9 +1148,9 @@ Built by `npm run build`, which copies `dist/index.html` to `dist/addin/taskpane
 
 ### OAuth (`lib/oauth-handlers/`)
 
-Gmail and Microsoft Graph connect / exchange / status / disconnect. Refresh tokens are AES-256-CBC encrypted at rest (`recruiter_oauth_tokens`, migration 029). `encryptToken` / `decryptToken` are exported from `gmail-exchange.ts` and reused by the Outlook path and by `api/send-email.ts`.
+Microsoft Graph (Outlook) connect / exchange / status / disconnect, dispatched by `api/oauth.ts` via `?action=`. **Outlook is the only email provider** — Gmail was removed 2026-08-26 (`recruiter_oauth_tokens.provider` is now `CHECK (provider = 'outlook')`, migration 060). Refresh tokens are AES-256-CBC encrypted at rest (`recruiter_oauth_tokens`, migration 029). `encryptToken` / `decryptToken` live in `lib/oauth-handlers/token-crypto.ts` (provider-neutral; was `gmail-exchange.ts` before the removal), used by `outlook-exchange.ts` and `api/send-email.ts`.
 
-Environment: `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `OUTLOOK_CLIENT_ID`, `OUTLOOK_CLIENT_SECRET`, optional `OAUTH_REDIRECT_BASE` (default `http://localhost:5173`) and `OAUTH_ENCRYPTION_KEY` (32 chars; falls back to a dev key if unset).
+Environment: `OUTLOOK_CLIENT_ID`, `OUTLOOK_CLIENT_SECRET`, optional `OUTLOOK_TENANT_ID` (default `common`), `OAUTH_REDIRECT_BASE` (default `http://localhost:5173`) and `OAUTH_ENCRYPTION_KEY` (32 chars; falls back to a dev key if unset — must be stable across environments or stored tokens fail to decrypt).
 
 ### Web research
 
@@ -1412,6 +1424,74 @@ Active development resumed June 2026. All sessions below are committed and pushe
 
 ---
 
+**Ask Kanri — focused capability + cost pass (2026-08-26)**
+
+Prompted by a real user session: the recruiter asked Ask Kanri "which roles have the highest probability of closing this quarter?" and got a bare stage-count table plus a "furthest-along candidate is your best bet" heuristic, then a request to hand over IDs. Root cause was a tool gap, not the model — the only pipeline tool, `getPipelineSummary`, returns `{ stage: count }` and nothing else, so a "which roles" question was unanswerable. Investigated whether the model could just reason over the DB directly (it cannot: ten hand-written query tools, no model-authored SQL per Section 2, and the DB is far larger than any context window — retrieval quality is the ceiling). Scoped deliberately as a probe, not a commitment to a bigger "analytical partner" build, because per-question cost is already low ($0.01–0.11 at Sonnet 5 pricing) and the blocker is lack of usage evidence.
+
+- **New tool `list_pipeline`** (`lib/ai-handlers/lib/ask-kanri-tools.ts`, def + dispatch in `ask-kanri.ts`) — one row per active process (excludes Placed / Closed lost) with candidate, role, client, stage, buy-in/CV-sent/offer dates, `notice_period_months`, active-competing-interview count, days since last activity, and salary band. Modeled on `getPipelineSummary`'s team scoping (`owner_recruiter_id` + `candidates.team_id`). No migration — every field already existed. This is a new tool on the existing agentic surface, which Section 2 / Section 18 prefer over a new one-shot endpoint (Architecture Rule 2 satisfied, not triggered).
+- **Adaptive thinking on `ask-kanri.ts`** — flipped `thinking: { type: "disabled" }` to `{ type: "adaptive" }` and bumped `max_tokens` 1200 → 4000. A multi-step tool-use loop plans which tools to chain much better with thinking on, and this handler was already safe for it (locates text via `.content.find`, echoes full `response.content` back each turn). Added the one documented carve-out to `tests/ai-handlers-structure.test.ts`'s first `describe` block and a note in Section 18. Test count 90 → 89 as a result; the second `describe` still covers `ask-kanri.ts`.
+- **System prompt** — three paragraphs: write plain text with no Markdown (the drawer renders raw text, so `**bold**` was showing literally) and no em dashes; use `list_pipeline` for which/rank/prioritise questions and name specifics; reason explicitly about stated time windows; for single-number lookups that have a dedicated screen (billings → Placements tab, open-role counts → Jobs tab) give the short answer or point at the tab rather than burn a tool chain. A `cleanText()` guardrail in the handler also strips `**`/`__` and normalises em/en dashes to hyphens before the answer returns, since sonnet-5 still slips them in despite the instruction.
+- **Cost hygiene** — prompt caching on the static prefix (`cache_control` on the last `TOOL_DEFS` entry + a `system` content-block breakpoint) and one structured `console.log` line per question (`tag: "ask-kanri"`, recruiter/team, iterations, tools called, token counts) for Vercel log drains. No table yet — this is to see what recruiters actually ask before deciding on a bigger build.
+- Verified live against the real dev API (which is exactly what `AskKanriDrawer` POSTs to): the original question now calls `list_pipeline`, leads with "No offers out right now, so nothing is a near-lock," names real roles/candidates/clients, and reasons about staleness and stage depth against the quarter. `notice_period_months` flows through (null across all seed pipeline candidates — the model reports that plainly rather than inventing). "Billings in 2024" deflects to the Placements tab with `read: []`. Token log line emits per call; `cache_read_input_tokens` non-zero from iteration 2. `npm test` 89/89, `npm run typecheck` unchanged (same 3 pre-existing `candidates.$id.tsx` errors).
+- **Deferred, revisit in 2–4 weeks with the token-log data:** quota planner (blocked on a product decision — where do quota targets live), richer `search_candidates` rows for one-pass multi-constraint vetting, any open-ended analytical build.
+
+**Platform-wide AI output scrub — Markdown and em dashes (2026-08-26)**
+
+Same session, follow-on: the user reported the `**bold**` markup showing literally "all across the platform" (handoff pack, dashboard briefs, Ask Kanri). Root cause: `claude-sonnet-5` reaches for Markdown and em dashes regardless of prompt instructions, and several surfaces render AI text raw. Fixing it in ~48 prompts and hoping for compliance is not reliable, so it is now enforced centrally.
+
+- New `lib/ai-handlers/lib/sanitize-ai-text.ts` — `cleanAiText(s)` strips `**`/`__`/backticks/`#` headings and normalises em dashes to ` - ` and en dashes to `-` (ranges like `¥9M–¥14M` become `¥9M-¥14M`). Deliberately conservative: single `_` (snake_case) and single `*` are left alone. `deepCleanStrings(body)` walks an arbitrary response object since handler shapes vary (`{ content }`, `{ points: [] }`, nested `result`).
+- `api/ai.ts` wraps `res.json` with `deepCleanStrings` before dispatch — all 45 routed handlers covered in one place, dev (`scripts/dev-api.ts` loads `api/ai.ts`) and prod. `ask-kanri.ts`'s own local `cleanText` from earlier this session was removed in favour of this.
+- Standalone `api/ai/polish-notes.ts` and `api/ai/translate-interaction.ts` call `cleanAiText` directly (not routed through `api/ai.ts`). Both of their prompts previously *asked* for `**bold**` headers — reworded to plain-text labels.
+- DB-write handlers call `cleanAiText` before persisting: `refresh-context.ts` (`ai_context`, all 3 entity branches), `update-client-strategy.ts` (`strategy_notes`), `bd-trigger-check.ts` (`bd_trigger_notes`), `translate-interaction.ts` (`full_notes_translated`). `placement-postmortem.ts` needs none — it returns the text (scrubbed by the wrapper) and the frontend inserts what it received.
+- Frontend: `dashboard.tsx`'s `renderMd` had a `**` → `<strong fontWeight:600>` split (also a design-system violation — max weight 500 for body emphasis). Simplified to bullet layout + blank-line spacing only, since input is now `**`-free. `WeeklyReviewCard.tsx` and `ActivityTimeline.tsx` have similar `**` branches left in place — they degrade to plain rendering harmlessly once input is clean, and both also render user-typed text, so not touched.
+- Section 2 AI Output Rules updated with the no-Markdown rule and where enforcement lives. Verified live: handoff-pack, pre-call-briefing, and Ask Kanri outputs all return zero `**` / em / en dashes; salary ranges render as `¥15.6M-¥18.6M`. `npm test` 89/89, `npm run typecheck` unchanged (same 3 pre-existing `candidates.$id.tsx` errors).
+
+**Email sending was broken app-wide + candidate-page Email composer, Phase 1 (2026-08-26)**
+
+The user reported "Could not send email. Try again." Root cause was **not** OAuth: `api/send-email.ts` imported `decryptToken` from `./oauth/gmail-exchange.js`, but the OAuth handlers were moved to `lib/oauth-handlers/` in a past refactor (`api/oauth.ts` was updated, this one import was missed). `api/oauth/` does not exist, so the handler crashed with module-not-found on **every** send since that refactor - every Send button in the app (rejection email, spec email, job spec, batch CV send, submission package). Fixed the import path. Also: moved `decryptToken` inside the try/catch, added `console.error("[send-email]", provider, msg)`, and made a genuine token/decrypt failure return "Reconnect {provider} in Settings" which `SendEmailDialog` now surfaces instead of the generic retry toast. Verified with a live send through the connected Outlook account (to an RFC-2606 `@example.com` address - no delivery); returned `{ ok: true }`.
+
+Then Phase 1 of the candidate-page email rework (plan: `.claude/plans/i-used-the-ask-immutable-pumpkin.md`):
+- Migration 058: `'email job spec sent'` added to `interactions_interaction_type_check`; registered in `commit.ts` `VALID_INTERACTION_TYPES`, `LogActivityModal` (`ALL_TYPES` + `CANDIDATE_TYPES`), `ActivityTimeline` icon/colour maps (reuses the `job spec sent` amber palette), and `activity.types.email_job_spec_sent` in both locales. `activity.types.email` already renders as "Email Sent".
+- Candidate Timeline pill relabelled **"Job spec" → "Email"** (`candidateDetail.actions.email`, `IconMail`); it now opens the new `src/components/candidate/EmailComposerDialog.tsx` instead of a bare `SendEmailDialog`. The other 6 `SendEmailDialog` callers are untouched.
+- `EmailComposerDialog` has three modes: **Plain** (free email to candidate → `interaction_type: "email"`), **Email Job Spec** (required job picker → auto-links client; JD-attach checkbox only when `requisitions.jd_url` is set; AI draft via `spec-email`; logs `"email job spec sent"` cross-linked to candidate + requisition + client), **Email Client** (job or client + contact picker, candidate never a recipient but the row carries `candidate_id`; CV-attach with variant choice from `cv_url`/`cv_url_jp_rireki`/`cv_url_jp_shokumu`; AI draft menu reusing `batch-cv-send` + `client-draft`; `primary_party: "client"`). Composer i18n is deferred to Phase 2.
+- `api/send-email.ts` gained attachment support: `SendPayload` takes `attachments: [{ path, filename }]` (storage paths in the `resumes` bucket), downloaded server-side via the service-role key, sent as Gmail `multipart/mixed` parts or Graph `fileAttachment` entries. Also now writes `contact_id`, `requisition_id`, `direction` (default `"outbound"`), and honours a `primary_party` override on the logged interaction. `SendEmailDialog.tsx` is unchanged - all new fields are optional.
+- `lib/ai-handlers/spec-email.ts` output contract extended to `{ subject, email, talking_points }` (was no subject); prompt reframed to "asking the candidate for interest/buy-in before submitting them". Still one `messages.create`, thinking disabled - structural test stays green. **No new AI endpoint** - `spec-email` extended, `batch-cv-send`/`client-draft` reused as-is (Architecture Rule 2 satisfied).
+- Verified at the API layer (browser is behind a login wall): `spec-email` returns a real subject; a `.docx` from the `resumes` bucket sends through Graph with `{ ok: true }`; the logged `interactions` row for both job_spec and client modes carries the correct `interaction_type` / `direction` / `primary_party` / `candidate_id` / `client_id` / `contact_id` / `requisition_id`. All diagnostic rows deleted. `npm test` 89/89; `npm run typecheck` clean (same 3 pre-existing `candidates.$id.tsx` errors). `get_advisors` unchanged (constraint-only migration).
+**Phase 2 — email templates (2026-08-26)**
+
+- Migration 059: `email_templates` table (`category` job_spec/client/general, `visibility` team/private, RLS mirroring `candidate_lists` - team-read, author-write - `team_id` inline default + indexes, `set_updated_at` trigger). Types were added to `src/integrations/supabase/types.ts` by a **surgical hand-insert** of just the `email_templates` block (alphabetical position, between `competing_interviews` and `import_batch_items`), not a whole-file regen - the MCP generator output is one 76k-char line and past whole-file regens have caused uncommitted regressions (Wave 4 piece 2).
+- New `src/hooks/useEmailTemplates.ts` - `useEmailTemplates` query (`["email-templates"]`) + `useCreate/Update/DeleteEmailTemplate` mutations. Second file in `src/hooks/`.
+- `EmailComposerDialog` gained a template `<Select>` (filtered by mode: job_spec -> job_spec+general, client -> client+general, plain -> general) that fills subject+body on pick, plus a "Save as template" inline form (name + team/private toggle).
+- New `src/components/settings/EmailTemplatesSection.tsx` - grouped list, inline edit form, delete via a confirm `Dialog` (not `window.confirm`), edit/delete gated to `created_by === user.id` in the UI (RLS enforces server-side). Rendered in `settings.tsx` between the email-connections card and `ImportWizard`.
+- **i18n deferred, deliberately:** the entire email surface it sits in - `SendEmailDialog`, the Phase 1 composer, and most of `settings.tsx` itself ("Email connections", "Connect Gmail", ...) - is hardcoded English. Half-i18n-ing only the template strings would be inconsistent. This surface should get one i18n pass together, later.
+- Verified: migration applied; `get_advisors` unchanged (RLS present, no new findings); direct DB test confirmed insert/update (`updated_at` trigger bumps), the `category` CHECK, and delete; `npm test` 89/89; `npm run typecheck` clean (same 3 pre-existing `candidates.$id.tsx` errors); frontend builds with no console errors. The composer template dropdown / save-as-template / Settings CRUD UI itself was not click-tested (dev login wall) - the data layer and build are proven.
+
+**Structured candidate buy-in tracking + Outlook inbound auto-capture (2026-08-27)**
+
+Buy-in (candidate consent to be submitted for a specific role — 職業安定法, CLAUDE.md §12) was tracked only as `processes.stage = 'Buy-In'`, stamped on stage *entry*, with inconsistent meaning across the app and almost no readers. Replaced with a deliberate per-interaction flag. Spec built with the user against the Robert Walters workflow (buy-in comes on a received email / call / meeting, previously marked by editing the activity text to say "Buy in"). Foundation for the upcoming **CV Workbench** feature, which needs a fast accurate per-(candidate × job) buy-in signal. Plan: `.claude/plans/i-used-the-ask-immutable-pumpkin.md`.
+
+- **Migration 061**: `interactions.is_buy_in` (checkbox-set only, never text-scanned), `interactions.graph_message_id` (poller dedup), `processes.buy_in_interaction_id` + `buy_in_method`, trigger `trg_sync_process_buy_in` (derives `processes.buy_in_*` from the earliest `is_buy_in` interaction linked to the process — `buy_in_confirmed_at` is now this, not stage-entry time; existing values untouched), and `outlook_inbound_state`. Trigger verified: mark stamps, delete/unmark clears, stage never touched.
+- **Capture** (`src/lib/buy-in.ts` — `resolveOrCreateProcess` / `markInteractionBuyIn` / `unmarkInteractionBuyIn`): `LogActivityModal` candidate context gained a Client → (Contact + Open Job) cascade and a "Candidate gave buy-in for this role" checkbox — any activity type, enabled once a job is picked. Marking resolves the `(candidate, job)` process, creating one at "Buy-In" if none exists; an existing process **at "Specs Sent" auto-advances one hop to "Buy-In"** (never further, never touches a process already past Buy-In or terminal — the user reversed the earlier "no auto-advance" call after seeing the jobs pipeline). The fully-linked interaction shows on the candidate / client / contact / job timelines. `/jobs/$id` pipeline rows also carry a "BUY-IN" chip when a buy-in is recorded but the process sits below Buy-In stage. `ActivityTimeline` shows a "Buy-in" chip and a "Mark as buy-in" action (reuses the edit modal's cascade). `email received` added to `CANDIDATE_TYPES`.
+- **Consumers**: soft "no buy-in logged" warning on stage → CV Sent and on `submission-note` (warn only, records nothing on override — the user's call, no `buy_in_waived_at`). Dashboard `advance_buy_in` nudge for a buy-in recorded while still at Specs Sent. Client Jobs "Buy-in secured" list filters on `buy_in_interaction_id` not stage. `refresh-context` / `pre-call-briefing` / `handoff-pack` prompts carry per-process buy-in status.
+- **Part B — Outlook inbound poller**: OAuth scope gains `Mail.Read` (`lib/oauth-handlers/outlook-token.ts`, shared by connect / exchange / `send-email` / poller). `refreshOutlookToken` defaults to the send-only scope subset so pre-`Mail.Read` tokens keep sending; the poller requests the full scope and skips a mailbox until it is reconnected (`outlook_inbound_state` row is created by `outlook-exchange` on connect, `last_polled_at = now()` → **no backfill**). Migration 062 `pg_cron` (every 2 min) → `lib/job-handlers/poll-outlook-inbound.ts`: per connected mailbox, Graph `/inbox/messages?$filter=receivedDateTime gt {last}`, sender resolved via the extracted team-scoped `matchSenderEmail` (shared with the add-in's `match-sender`, service-role + explicit `team_id` filter per §2), matched senders logged as `email received` interactions (dedup on `graph_message_id`, known-senders-only, **no AI** — the recruiter marks buy-in). `/settings` shows "Reconnect to enable inbound-email capture" until the state row exists.
+- Verified so far: migrations applied; `get_advisors` clean on the new tables; trigger behaviour; poll handler 401s without the secret and skips cleanly for a stateless mailbox; a live outbound send still returns `{ ok: true }` after the token-scope refactor. `npm test` 89/89; `npm run typecheck` unchanged (same 3 pre-existing `candidates.$id.tsx` errors). **Not yet exercised** (needs the user to reconnect Outlook for `Mail.Read`, and the login wall): the capture UI end to end, and a real inbound email → interaction.
+- On branch `feat/ai-scrub-email-outlook` as five commits (`buy-in: ...` ×4 + this doc entry). Nothing pushed; migrations 058–062 are live on the DB.
+
+**Gmail removed from the platform (2026-08-26)**
+
+User decision: Outlook is the only email integration. Removed:
+- Handlers `lib/oauth-handlers/gmail-connect.ts` + `gmail-exchange.ts` (deleted). The `encryptToken` / `decryptToken` helpers that lived in `gmail-exchange.ts` moved to a new provider-neutral `lib/oauth-handlers/token-crypto.ts`; `outlook-exchange.ts` and `api/send-email.ts` import from there now.
+- `api/oauth.ts`: dropped the `gmail-connect` / `gmail-exchange` routes.
+- `api/send-email.ts`: removed `refreshGmailToken`, `sendViaGmail`, `wrap76` (Gmail-multipart only), and the provider branch - it now always refreshes + sends via Outlook. Provider lookup filters `provider = 'outlook'`. Error copy is Outlook-specific. Along the way fixed a latent bug: the Settings OAuth **callback** hit `/api/oauth/outlook-exchange` (path form), which never resolved (`api/oauth.ts` is a `?action=` dispatcher and `vercel.json` rewrites unmatched paths to the SPA) - now `?action=outlook-exchange`, consistent with every other call in the file.
+- `lib/oauth-handlers/status.ts`: returns `{ outlook }` only (was `{ gmail, outlook }`).
+- `settings.tsx`: removed the Gmail card, `connectGmail`, `connectingGmail`, `status.gmail`, `IconBrandGmail`, simplified `OAuthStatus` and the callback effect.
+- Toast strings in `SendEmailDialog.tsx` + `EmailComposerDialog.tsx`: "Connect Gmail or Outlook" -> "Connect Outlook".
+- `.env`: dropped `GMAIL_CLIENT_ID` / `GMAIL_CLIENT_SECRET` (both were already empty). **Prod:** remove them from Vercel too, and delete the Google Cloud OAuth app.
+- Migration 060: `recruiter_oauth_tokens.provider` -> `CHECK (provider = 'outlook')` (0 gmail rows existed).
+- Verified: `npm test` 89/89; `npm run typecheck` unchanged (3 pre-existing `candidates.$id.tsx` errors); a live Outlook send still returns `{ ok: true }`; `/api/oauth?action=status` returns `{"outlook":{...}}`; Settings page builds with no console errors. Historical session-log entries below still mention Gmail - left as the record of what was true then.
+
+---
+
 ### Strategy review — August 2026 (decisions in force)
 
 A full discovery and competitive review was run on 2026-08-23. Findings, the 34-opportunity scoring matrix, and the competitive analysis live in `docs/kanri-memory-thesis.html`. The decisions below are settled and should not be re-derived each session.
@@ -1479,7 +1559,7 @@ This is the one list to check before assuming something was forgotten rather tha
 - **Cross-client / hiring-manager rejection pattern learning.** `client-rejection-diagnosis.ts` reasons over one requisition at a time; a client-level or firm-level rollup was scoped out of the Wave 4 piece 1 scorecard because every client but one had 0–2 real rejections — not enough for Claude to characterize a pattern without inventing one. Revisit once a client's real terminal-outcome count clears the same ≥3 threshold the scorecard itself uses. Building it earlier by inflating mock data was considered and rejected (2026-08-24) — it would validate the feature against a data shape real customers won't have for months, defeating the point of the gating.
 - **`requisition_conditions`-based interview debrief scoring** (score each CCM round against must-have/dealbreaker criteria). Scoped out of Wave 4 piece 2 for the same reason as above: 3 rows total across 1 of 28 requisitions. Revisit once that table has real adoption — which is itself a separate, pre-existing gap (nothing drives recruiters to populate it today).
 
-**Gmail inbound polling.** Wave 5 shipped two-way email logging for Outlook only (compose-surface extension to the existing add-in — no new OAuth scope needed, since Office.js runs inside Outlook itself under the add-in's existing `ReadItem` permission). Gmail has no equivalent in-client add-in surface, so inbound Gmail capture needs a genuinely different mechanism: a new `gmail.readonly` OAuth scope (current scope is send-only, `gmail.send`), every already-connected recruiter reconnecting once the scope changes, and new polling infrastructure (no Gmail push/webhook setup exists, so this would mean a `pg_cron`-driven poller, following the same pattern as the migration-044 context-refresh queue). Sized as its own follow-up rather than folded into Wave 5 — the user chose "Outlook first, defer Gmail" when asked, given the OAuth reconsent and new-infra cost relative to what Outlook needed.
+~~**Gmail inbound polling.**~~ **Moot — Gmail was removed from the platform entirely on 2026-08-26** (user decision: Outlook is the only integration). All Gmail OAuth handlers, the `sendViaGmail` path, the Settings Gmail card, and the `GMAIL_*` env vars are gone; `recruiter_oauth_tokens.provider` is constrained to `'outlook'` (migration 060). Inbound email capture, if ever wanted, is now an Outlook-only question. See the 2026-08-26 session-log entry.
 
 **Deferred pending a second real use case (the fix is a second caller, not more data):**
 - **AI-drafted re-engagement / check-in message** for dormant candidates surfaced by the Wave 4 piece 3 database re-engagement engine. Every existing message-drafting handler (`placed-checkin-message`, `job-spec-message`, `spec-email`, `batch-cv-send`) is anchored to a process, requisition, or placement milestone that a dormant, never-progressed candidate doesn't have — building this cleanly needs its own handler, not an extension. Unlike the two items above, this one has no data-volume blocker — it's buildable now whenever it's prioritized.

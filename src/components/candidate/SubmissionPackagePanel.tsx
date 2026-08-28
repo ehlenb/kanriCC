@@ -12,12 +12,14 @@ export function SubmissionPackagePanel({
   candidateName,
   candidateId,
   clientId,
+  buyInMissing,
   onClose,
 }: {
   pkg: SubmissionPackage;
   candidateName: string;
   candidateId?: string;
   clientId?: string;
+  buyInMissing?: boolean;
   onClose: () => void;
 }) {
   const [emailBody, setEmailBody] = useState(pkg.email.body);
@@ -79,6 +81,16 @@ export function SubmissionPackagePanel({
       className="mt-4  p-5 space-y-5"
       style={{ background: "#fff", border: "0.5px solid rgba(26,26,24,0.12)" }}
     >
+      {buyInMissing && (
+        <div
+          className="text-[12px] px-3 py-2"
+          style={{ background: "var(--color-gold-light)", color: "var(--color-gold)", border: "0.5px solid var(--color-gold)" }}
+        >
+          No buy-in is recorded for {candidateName} on this role. Log the buy-in activity on the
+          timeline before sending, unless you have verbal consent.
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <p className="text-[13px] font-medium">Submission package — review before sending</p>
         <div className="flex gap-2">

@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
-import { encryptToken } from "./gmail-exchange.js";
+import { encryptToken } from "./token-crypto.js";
+import { OUTLOOK_SCOPE } from "./outlook-token.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") return res.json({ error: "Method not allowed" });
@@ -27,8 +28,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         client_secret: clientSecret,
         redirect_uri: redirectUri,
         grant_type: "authorization_code",
-        scope:
-          "https://graph.microsoft.com/Mail.Send https://graph.microsoft.com/User.Read offline_access",
+        scope: OUTLOOK_SCOPE,
       }),
     }
   );
@@ -77,6 +77,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         updated_at: new Date().toISOString(),
       },
       { onConflict: "recruiter_id,provider" }
+    );
+
+  // Reset the inbound poll cursor to now -- the poller ingests only mail
+  // received after (re)connection (migration 061).
+  await supabase
+    .from("outlook_inbound_state")
+    .upsert(
+      { recruiter_id, team_id: rec.team_id, delta_link: null, last_polled_at: new Date().toISOString() },
+      { onConflict: "recruiter_id" },
     );
 
   return res.json({ email });

@@ -12,6 +12,7 @@ import i18n from "@/i18n";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
+import { markInteractionBuyIn, unmarkInteractionBuyIn } from "@/lib/buy-in";
 import {
   Dialog,
   DialogContent,
@@ -54,6 +55,7 @@ const ALL_TYPES = [
   "note",
   "meeting",
   "job spec sent",
+  "email job spec sent",
   "linkedin message",
   "cv sent",
   "ccm1", "ccm2", "ccm3", "ccm4", "ccm5", "ccm6",
@@ -65,9 +67,9 @@ const ALL_TYPES = [
 // or "meeting" with the appropriate primary_party.
 const CANDIDATE_TYPES: readonly string[] = [
   "candidate_call", "client_call", "candidate_meeting", "client_meeting",
-  "email", "note",
+  "email", "email received", "note",
   "ccm1", "ccm2", "ccm3", "ccm4", "ccm5", "ccm6",
-  "job spec sent", "linkedin message", "other",
+  "job spec sent", "email job spec sent", "linkedin message", "other",
 ];
 const CLIENT_TYPES: readonly string[] = [
   "client_call", "candidate_call", "client_meeting", "candidate_meeting",
@@ -135,6 +137,8 @@ export type EditableInteraction = {
   summary?: string | null;
   client_id?: string | null;
   contact_id?: string | null;
+  requisition_id?: string | null;
+  is_buy_in?: boolean | null;
 };
 
 export function LogActivityModal({
@@ -196,8 +200,11 @@ export function LogActivityModal({
     }
   }
 
-  // Candidate-specific: optional client cross-link
+  // Candidate-specific: optional client cross-link, then contact + job cascade
   const [crossClientId, setCrossClientId] = useState<string | null>(null);
+  const [crossContactId, setCrossContactId] = useState<string | null>(null);
+  const [crossReqId, setCrossReqId] = useState<string | null>(null);
+  const [isBuyIn, setIsBuyIn] = useState(false);
 
   // Client-specific: optional contact selector and linked job
   const [contactId, setContactId] = useState<string | null>(
@@ -222,6 +229,9 @@ export function LogActivityModal({
         setNotes(existingEntry.full_notes ?? existingEntry.summary ?? "");
         setCrossClientId(existingEntry.client_id ?? null);
         setContactId(existingEntry.contact_id ?? null);
+        setCrossContactId(existingEntry.contact_id ?? null);
+        setCrossReqId(existingEntry.requisition_id ?? null);
+        setIsBuyIn(!!existingEntry.is_buy_in);
         setLinkedReqId(null);
       } else {
         setTiming("past");
@@ -231,6 +241,9 @@ export function LogActivityModal({
         setScheduledTime("10:00");
         setNotes("");
         setCrossClientId(null);
+        setCrossContactId(null);
+        setCrossReqId(null);
+        setIsBuyIn(false);
         setContactId(
           context.type === "client" ? (context.initialContactId ?? null) : null
         );
@@ -255,6 +268,37 @@ export function LogActivityModal({
     staleTime: 30_000,
     retry: 1,
     enabled: open && context.type === "candidate",
+  });
+
+  // Candidate context: contacts + open jobs for the chosen cross-linked client
+  const { data: crossContacts } = useQuery({
+    queryKey: ["client-contacts-for", crossClientId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("client_contacts")
+        .select("id, name")
+        .eq("client_id", crossClientId!)
+        .order("is_primary", { ascending: false });
+      return (data ?? []) as { id: string; name: string }[];
+    },
+    staleTime: 30_000,
+    retry: 1,
+    enabled: open && context.type === "candidate" && !!crossClientId,
+  });
+  const { data: crossReqs } = useQuery({
+    queryKey: ["client-open-reqs-for", crossClientId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("requisitions")
+        .select("id, title")
+        .eq("client_id", crossClientId!)
+        .eq("is_open", true)
+        .order("title");
+      return (data ?? []) as { id: string; title: string }[];
+    },
+    staleTime: 30_000,
+    retry: 1,
+    enabled: open && context.type === "candidate" && !!crossClientId,
   });
 
   function handleTimingChange(v: "past" | "upcoming") {
@@ -297,9 +341,19 @@ export function LogActivityModal({
           ? (crossClientId ? derivedCandidateParty : "candidate")
           : derivedClientParty,
         client_id: context.type === "candidate" ? (crossClientId || null) : undefined,
-        contact_id: context.type === "client" ? (contactId || null) : undefined,
+        contact_id: context.type === "candidate" ? (crossContactId || null) : (contactId || null),
+        requisition_id: context.type === "candidate" ? (crossReqId || null) : undefined,
       };
       const { error } = await supabase.from("interactions").update(patch).eq("id", existingEntry.id);
+      if (!error && context.type === "candidate") {
+        try {
+          if (isBuyIn && crossReqId) {
+            await markInteractionBuyIn({ interactionId: existingEntry.id, candidateId: context.id, requisitionId: crossReqId, recruiterId: user.id });
+          } else if (existingEntry.is_buy_in && !isBuyIn) {
+            await unmarkInteractionBuyIn(existingEntry.id);
+          }
+        } catch { toast.error("Saved, but could not update buy-in."); }
+      }
       setSaving(false);
       if (error) { toast.error("Failed to save changes."); return; }
       toast.success("Activity updated.");
@@ -327,6 +381,8 @@ export function LogActivityModal({
             summary: summary.trim(),
             full_notes: notes.trim() || null,
             client_id: crossClientId || null,
+            contact_id: crossContactId || null,
+            requisition_id: crossReqId || null,
             primary_party: crossClientId ? derivedCandidateParty : "candidate",
           }
         : {
@@ -350,8 +406,13 @@ export function LogActivityModal({
       return;
     }
 
-    toast.success(isFuture ? "Upcoming event saved." : "Activity logged.");
     const newId = inserted?.[0]?.id as string | undefined;
+    if (newId && context.type === "candidate" && isBuyIn && crossReqId) {
+      try {
+        await markInteractionBuyIn({ interactionId: newId, candidateId: context.id, requisitionId: crossReqId, recruiterId: user.id });
+      } catch { toast.error("Logged, but could not record buy-in."); }
+    }
+    toast.success(isFuture ? "Upcoming event saved." : "Activity logged.");
     if (newId && notes.trim()) {
       void fetch("/api/ai/translate-interaction", {
         method: "POST",
@@ -531,10 +592,71 @@ export function LogActivityModal({
               </Select>
               {crossClientId && (
                 <p className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>
-                  This activity will appear on both timelines.
+                  This activity will appear on the candidate, client, contact, and job timelines.
                 </p>
               )}
             </div>
+          )}
+
+          {/* ── Candidate context: contact + job cascade (once a client is picked) ── */}
+          {context.type === "candidate" && crossClientId && (
+            <>
+              <div className="space-y-1.5">
+                <Label className="text-[12px]">Client contact (optional)</Label>
+                <Select
+                  value={crossContactId ?? "__none__"}
+                  onValueChange={(v) => setCrossContactId(v === "__none__" ? null : v)}
+                >
+                  <SelectTrigger className="h-8 text-[13px]">
+                    <SelectValue placeholder="Which contact…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__" className="text-[13px]">No specific contact</SelectItem>
+                    {(crossContacts ?? []).map((ct) => (
+                      <SelectItem key={ct.id} value={ct.id} className="text-[13px]">{ct.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-[12px]">Job (optional)</Label>
+                <Select
+                  value={crossReqId ?? "__none__"}
+                  onValueChange={(v) => {
+                    const next = v === "__none__" ? null : v;
+                    setCrossReqId(next);
+                    if (!next) setIsBuyIn(false);
+                  }}
+                >
+                  <SelectTrigger className="h-8 text-[13px]">
+                    <SelectValue placeholder="Which open role…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__" className="text-[13px]">No job</SelectItem>
+                    {(crossReqs ?? []).map((r) => (
+                      <SelectItem key={r.id} value={r.id} className="text-[13px]">{r.title}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <label
+                className="flex items-center gap-2 text-[13px]"
+                style={{ color: crossReqId ? "var(--color-ink)" : "var(--color-ink-30)" }}
+              >
+                <input
+                  type="checkbox"
+                  checked={isBuyIn}
+                  disabled={!crossReqId}
+                  onChange={(e) => setIsBuyIn(e.target.checked)}
+                />
+                Candidate gave buy-in for this role
+              </label>
+              {!crossReqId && (
+                <p className="text-[11px]" style={{ color: "var(--color-ink-30)" }}>
+                  Pick the job this buy-in is for.
+                </p>
+              )}
+            </>
           )}
 
           {/* ── Client context: contact selector shown for client calls ── */}

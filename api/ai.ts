@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
+import { deepCleanStrings } from "../lib/ai-handlers/lib/sanitize-ai-text.js";
 import advancedSearch from "../lib/ai-handlers/advanced-search.js";
 import applyCandidateNotes from "../lib/ai-handlers/apply-candidate-notes.js";
 import askKanri from "../lib/ai-handlers/ask-kanri.js";
@@ -104,6 +105,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const fn = routes[type];
   if (!fn) return res.status(404).json({ error: `Unknown AI type: ${type}` });
+
+  // Scrub Markdown noise / em dashes out of every handler's text output in one
+  // place (see lib/ai-handlers/lib/sanitize-ai-text.ts). Handlers still call
+  // res.json themselves; this just intercepts the payload first.
+  const sendJson = res.json.bind(res);
+  res.json = ((body: unknown) => sendJson(deepCleanStrings(body))) as VercelResponse["json"];
 
   return fn(req, res);
 }

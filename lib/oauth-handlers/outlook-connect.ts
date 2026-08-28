@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { OUTLOOK_SCOPE } from "./outlook-token.js";
 
 export default function handler(req: VercelRequest, res: VercelResponse) {
   const clientId = process.env.OUTLOOK_CLIENT_ID;
@@ -13,7 +14,7 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
     client_id: clientId,
     redirect_uri: redirectUri,
     response_type: "code",
-    scope: "https://graph.microsoft.com/Mail.Send https://graph.microsoft.com/User.Read offline_access",
+    scope: OUTLOOK_SCOPE,
     state: "outlook",
     response_mode: "query",
   });
