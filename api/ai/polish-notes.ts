@@ -1,6 +1,8 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import Anthropic from "@anthropic-ai/sdk";
 
+import { cleanAiText } from "../../lib/ai-handlers/lib/sanitize-ai-text.js";
+
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -20,7 +22,7 @@ Rules:
 - Fix grammar, spelling, and punctuation
 - Remove filler words and repetition
 - Break the notes into short paragraphs by topic (company context, role details, hiring process, next steps, etc.)
-- Use bold text (e.g. **Company Context**, **Role**, **Process**, **Next Steps**) to introduce each paragraph where it makes sense — never use # or ## markdown headings
+- Introduce each paragraph with a short plain-text label on its own line (e.g. Company Context, Role, Process, Next Steps) followed by the paragraph. No Markdown: no **, no #, no backticks, no em dashes
 - Each paragraph should be 2-5 sentences max
 - Write in plain past tense
 - Output only the formatted notes, nothing else`,
@@ -33,5 +35,5 @@ Rules:
     .join(" ")
     .trim();
 
-  return res.status(200).json({ polished: text });
+  return res.status(200).json({ polished: cleanAiText(text) });
 }

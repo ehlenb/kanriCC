@@ -1210,28 +1210,24 @@ type BriefState = {
 
 // ─── markdown renderer (bold + bullets only, no library) ─────────────────────
 
+// AI output is plain text (Markdown is scrubbed server-side in
+// lib/ai-handlers/lib/sanitize-ai-text.ts), so this only needs to lay out
+// bullet lines and blank-line spacing -- no inline bold parsing.
 function renderMd(text: string): React.ReactNode[] {
   return text.split("\n").map((line, li) => {
     const trimmed = line.trimStart();
     const isBullet = trimmed.startsWith("• ") || trimmed.startsWith("- ");
-    const content = isBullet ? trimmed.slice(2) : line;
-
-    const parts = content.split(/\*\*(.+?)\*\*/g).map((seg, si) =>
-      si % 2 === 1
-        ? <strong key={si} style={{ fontWeight: 600, color: "var(--color-ink)" }}>{seg}</strong>
-        : seg,
-    );
 
     if (isBullet) {
       return (
         <div key={li} className="flex gap-2 mt-1">
           <span style={{ color: "var(--color-ink-30)", flexShrink: 0, marginTop: 1 }}>•</span>
-          <span>{parts}</span>
+          <span>{trimmed.slice(2)}</span>
         </div>
       );
     }
     if (!line.trim()) return <div key={li} className="h-3" />;
-    return <div key={li} className="mt-1">{parts}</div>;
+    return <div key={li} className="mt-1">{line}</div>;
   });
 }
 

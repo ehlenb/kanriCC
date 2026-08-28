@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
 import { embedText, toVectorLiteral } from "../embeddings.js";
+import { cleanAiText } from "./lib/sanitize-ai-text.js";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -148,7 +149,7 @@ NEVER use: straightforward, genuinely, honestly, leverage (as a verb), utilize. 
     messages: [{ role: "user", content: prompt }],
   });
 
-  const contextText = message.content.find((b) => b.type === "text")?.text ?? "";
+  const contextText = cleanAiText(message.content.find((b) => b.type === "text")?.text ?? "");
   const tokensUsed = message.usage.output_tokens;
 
   // Embedding input mirrors the fields in the prompt above (identity, skills,
@@ -276,7 +277,7 @@ NEVER use: straightforward, genuinely, honestly, leverage (as a verb), utilize. 
     messages: [{ role: "user", content: prompt }],
   });
 
-  const contextText = message.content.find((b) => b.type === "text")?.text ?? "";
+  const contextText = cleanAiText(message.content.find((b) => b.type === "text")?.text ?? "");
   const tokensUsed = message.usage.output_tokens;
 
   await Promise.all([
@@ -366,7 +367,7 @@ NEVER use: straightforward, genuinely, honestly, leverage (as a verb), utilize. 
     messages: [{ role: "user", content: prompt }],
   });
 
-  const contextText = message.content.find((b) => b.type === "text")?.text ?? "";
+  const contextText = cleanAiText(message.content.find((b) => b.type === "text")?.text ?? "");
   const tokensUsed = message.usage.output_tokens;
 
   await Promise.all([
