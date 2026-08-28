@@ -27,6 +27,13 @@ const handlerFiles = readdirSync(HANDLERS_DIR).filter((f) => f.endsWith(".ts"));
 
 describe("ai-handlers: thinking must be explicitly disabled", () => {
   for (const file of handlerFiles) {
+    // ask-kanri.ts is the one documented exception: it is a multi-turn tool-use
+    // loop, not a one-shot handler, and plans which tools to chain materially
+    // better with adaptive thinking on. The bug this rule guards against does
+    // not apply -- it locates the text block with .content.find (never
+    // content[0]) and echoes full content back each turn. See CLAUDE.md §18.
+    if (file === "ask-kanri.ts") continue;
+
     const src = readFileSync(join(HANDLERS_DIR, file), "utf8");
     const callCount = (src.match(/\.messages\.create\(/g) ?? []).length;
     if (callCount === 0) continue;

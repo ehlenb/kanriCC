@@ -136,6 +136,73 @@ export async function getPipelineSummary(teamId: string, recruiterId: string) {
   };
 }
 
+// One row per active process, with the detail needed to reason about which deals
+// can realistically close and where attention should go -- candidate, role,
+// client, stage, the stage-transition dates, notice period, active competing
+// interviews, and how stale the process is. `get_pipeline_summary` only counts by
+// stage; this is the tool for "which roles", "what should I focus on", and any
+// ranking or prioritisation question. Terminal stages (Placed / Closed lost) are
+// dropped -- filtered in JS, same as `getClientScorecard` does with its rows.
+type Embed<T> = T | T[] | null;
+function one<T>(v: Embed<T>): T | null {
+  return Array.isArray(v) ? (v[0] ?? null) : (v ?? null);
+}
+function many<T>(v: Embed<T>): T[] {
+  return Array.isArray(v) ? v : v ? [v] : [];
+}
+
+export async function listPipeline(teamId: string, recruiterId: string) {
+  const { data } = await supabase
+    .from("processes")
+    .select(
+      "stage, buy_in_confirmed_at, cv_sent_at, offer_date, last_activity_at, " +
+        "candidates!inner ( full_name, notice_period_months, team_id, competing_interviews ( stage, is_active ) ), " +
+        "requisitions!inner ( title, salary_min, salary_max, clients!inner ( company_name ) )",
+    )
+    .eq("owner_recruiter_id", recruiterId)
+    .eq("candidates.team_id", teamId);
+
+  const now = Date.now();
+  const items = (data ?? [])
+    .filter((row) => row.stage !== "Placed" && row.stage !== "Closed lost")
+    .map((row) => {
+      const cand = one<{
+        full_name: string;
+        notice_period_months: number | null;
+        competing_interviews: Embed<{ stage: string | null; is_active: boolean }>;
+      }>(row.candidates);
+      const req = one<{
+        title: string;
+        salary_min: number | null;
+        salary_max: number | null;
+        clients: Embed<{ company_name: string }>;
+      }>(row.requisitions);
+      return {
+        candidate: cand?.full_name ?? null,
+        role: req?.title ?? null,
+        client: one(req?.clients ?? null)?.company_name ?? null,
+        stage: row.stage,
+        notice_period_months: cand?.notice_period_months ?? null,
+        competing_interviews_active: many(cand?.competing_interviews ?? null).filter(
+          (c) => c.is_active,
+        ).length,
+        buy_in_confirmed_at: row.buy_in_confirmed_at,
+        cv_sent_at: row.cv_sent_at,
+        offer_date: row.offer_date,
+        days_since_last_activity: row.last_activity_at
+          ? Math.floor((now - new Date(row.last_activity_at).getTime()) / 86_400_000)
+          : null,
+        salary_min: req?.salary_min ?? null,
+        salary_max: req?.salary_max ?? null,
+      };
+    });
+
+  return {
+    items,
+    record: { tool: "list_pipeline", label: "your active pipeline" } as ToolCallRecord,
+  };
+}
+
 export async function getClientScorecard(teamId: string, clientId: string) {
   const { data: client } = await supabase
     .from("clients")
