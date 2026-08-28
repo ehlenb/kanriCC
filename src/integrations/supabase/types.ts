@@ -671,6 +671,60 @@ export type Database = {
           },
         ]
       }
+      email_templates: {
+        Row: {
+          body: string
+          category: string
+          created_at: string
+          created_by: string
+          id: string
+          name: string
+          subject: string | null
+          team_id: string
+          updated_at: string
+          visibility: string
+        }
+        Insert: {
+          body: string
+          category: string
+          created_at?: string
+          created_by: string
+          id?: string
+          name: string
+          subject?: string | null
+          team_id?: string
+          updated_at?: string
+          visibility?: string
+        }
+        Update: {
+          body?: string
+          category?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          name?: string
+          subject?: string | null
+          team_id?: string
+          updated_at?: string
+          visibility?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_templates_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "recruiters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_templates_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       import_batch_items: {
         Row: {
           batch_id: string

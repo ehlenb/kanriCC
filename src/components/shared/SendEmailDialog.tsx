@@ -82,7 +82,9 @@ export function SendEmailDialog({
       const json = (await resp.json()) as { ok?: boolean; error?: string };
       if (json.error) {
         if (json.error.includes("No email provider")) {
-          toast.error("Connect Gmail or Outlook in Settings before sending.");
+          toast.error("Connect Outlook in Settings before sending.");
+        } else if (/reconnect|no longer valid|connection/i.test(json.error)) {
+          toast.error(json.error);
         } else {
           toast.error("Could not send email. Try again.");
         }

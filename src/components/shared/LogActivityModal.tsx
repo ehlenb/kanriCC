@@ -54,6 +54,7 @@ const ALL_TYPES = [
   "note",
   "meeting",
   "job spec sent",
+  "email job spec sent",
   "linkedin message",
   "cv sent",
   "ccm1", "ccm2", "ccm3", "ccm4", "ccm5", "ccm6",
@@ -67,7 +68,7 @@ const CANDIDATE_TYPES: readonly string[] = [
   "candidate_call", "client_call", "candidate_meeting", "client_meeting",
   "email", "note",
   "ccm1", "ccm2", "ccm3", "ccm4", "ccm5", "ccm6",
-  "job spec sent", "linkedin message", "other",
+  "job spec sent", "email job spec sent", "linkedin message", "other",
 ];
 const CLIENT_TYPES: readonly string[] = [
   "client_call", "candidate_call", "client_meeting", "candidate_meeting",

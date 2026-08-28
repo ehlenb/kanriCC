@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
-import { encryptToken } from "./gmail-exchange.js";
+import { encryptToken } from "./token-crypto.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") return res.json({ error: "Method not allowed" });

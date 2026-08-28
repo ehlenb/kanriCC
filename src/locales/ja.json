@@ -291,6 +291,7 @@
     },
     "actions": {
       "logActivity": "活動を記録",
+      "email": "メール",
       "pasteTranscript": "会話を貼り付け",
       "generateBrief": "ブリーフを生成",
       "editComp": "報酬を編集",
@@ -608,6 +609,7 @@
       "note": "メモ",
       "job_spec_sent": "求人票送付",
       "jobSpecSent": "求人票送付",
+      "email_job_spec_sent": "求人票メール送付",
       "linkedin_message": "LinkedInメッセージ",
       "linkedinMessage": "LinkedInメッセージ",
       "other": "その他",

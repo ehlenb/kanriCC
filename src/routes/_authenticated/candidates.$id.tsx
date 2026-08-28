@@ -63,6 +63,7 @@ import {
 } from "@tabler/icons-react";
 import { TranscriptPanel } from "@/components/candidate/TranscriptPanel";
 import { SubmissionPackagePanel } from "@/components/candidate/SubmissionPackagePanel";
+import { EmailComposerDialog } from "@/components/candidate/EmailComposerDialog";
 import { ActivityTimeline } from "@/components/shared/ActivityTimeline";
 import { LogActivityModal } from "@/components/shared/LogActivityModal";
 import { SendEmailDialog } from "@/components/shared/SendEmailDialog";
@@ -3048,7 +3049,7 @@ function InterviewPanel({
   const [loadingInterviewPrep, setLoadingInterviewPrep] = useState(false);
   const [interviewPrep, setInterviewPrep] = useState<{ candidate_email: string; recruiter_prep_note: string } | null>(null);
   const [loadingSpecEmail, setLoadingSpecEmail] = useState(false);
-  const [specEmail, setSpecEmail] = useState<{ email: string; talking_points: string[] } | null>(null);
+  const [specEmail, setSpecEmail] = useState<{ subject?: string; email: string; talking_points: string[] } | null>(null);
   const [loadingRejection, setLoadingRejection] = useState(false);
   const [rejectionEmail, setRejectionEmail] = useState<string | null>(null);
   const [loadingSuisenbun, setLoadingSuisenbun] = useState(false);
@@ -3206,10 +3207,10 @@ function InterviewPanel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ candidate_id: c.id, requisition_id: p.requisitions.id }),
       });
-      const json = await resp.json() as { email?: string; talking_points?: string[]; error?: string };
+      const json = await resp.json() as { subject?: string; email?: string; talking_points?: string[]; error?: string };
       if (json.error) { toast.error("Could not generate spec email. Try again."); return; }
       if (json.email && json.talking_points) {
-        setSpecEmail({ email: json.email, talking_points: json.talking_points });
+        setSpecEmail({ subject: json.subject, email: json.email, talking_points: json.talking_points });
       }
     } catch {
       toast.error("Could not generate spec email. Try again.");
@@ -3691,7 +3692,7 @@ function InterviewPanel({
             <button
               className="btn btn-accent btn-sm flex items-center gap-1"
               style={{ fontSize: 11, padding: "3px 8px" }}
-              onClick={() => setSendDialog({ body: specEmail.email, to: c.email ?? "", subject: p.requisitions?.title ?? "Opportunity", candidateId: c.id })}
+              onClick={() => setSendDialog({ body: specEmail.email, to: c.email ?? "", subject: specEmail.subject ?? p.requisitions?.title ?? "Opportunity", candidateId: c.id })}
             >
               <IconSend size={10} /> Send
             </button>
@@ -4557,7 +4558,7 @@ function CandidateTimelineTab({
   const [showTranscript, setShowTranscript] = useState(false);
   const [showInviteBot, setShowInviteBot] = useState(false);
   const [showCall, setShowCall] = useState(false);
-  const [showJobSpec, setShowJobSpec] = useState(false);
+  const [showComposer, setShowComposer] = useState(false);
 
   const totalCount = interactions.length;
   const upcomingCount = interactions.filter((i) => i.is_future).length;
@@ -4583,9 +4584,10 @@ function CandidateTimelineTab({
           </button>
           <button
             className="ab flex items-center gap-1"
-            onClick={() => setShowJobSpec(true)}
+            onClick={() => setShowComposer(true)}
           >
-            Job spec
+            <IconMail size={12} />
+            {t('candidateDetail.actions.email')}
           </button>
           <button
             className="ab flex items-center gap-1"
@@ -4631,15 +4633,12 @@ function CandidateTimelineTab({
         }}
       />
 
-      <SendEmailDialog
-        open={showJobSpec}
-        onClose={() => setShowJobSpec(false)}
-        defaultTo={email ?? ""}
-        defaultSubject="Job Opportunity"
-        body=""
-        bodyEditable
+      <EmailComposerDialog
+        open={showComposer}
+        onClose={() => setShowComposer(false)}
         candidateId={candidateId}
-        interactionType="job spec sent"
+        candidateName={candidateName}
+        candidateEmail={email ?? ""}
         onSent={() => {
           void queryClient.invalidateQueries({ queryKey: ["candidate-profile", candidateId] });
         }}

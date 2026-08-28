@@ -13,16 +13,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { data } = await supabase
     .from("recruiter_oauth_tokens")
     .select("provider, email")
-    .eq("recruiter_id", recruiter_id);
+    .eq("recruiter_id", recruiter_id)
+    .eq("provider", "outlook");
 
-  const result: Record<string, { email: string } | null> = {
-    gmail: null,
-    outlook: null,
-  };
-
-  for (const row of data ?? []) {
-    result[row.provider as string] = { email: row.email as string };
-  }
-
-  return res.json(result);
+  const row = (data ?? [])[0];
+  return res.json({ outlook: row ? { email: row.email as string } : null });
 }

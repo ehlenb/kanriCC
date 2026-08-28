@@ -291,6 +291,7 @@
     },
     "actions": {
       "logActivity": "Log activity",
+      "email": "Email",
       "pasteTranscript": "Paste transcript",
       "generateBrief": "Generate brief",
       "editComp": "Edit compensation",
@@ -609,6 +610,7 @@
       "note": "Note",
       "job_spec_sent": "Job spec sent",
       "jobSpecSent": "Job spec sent",
+      "email_job_spec_sent": "Email job spec sent",
       "linkedin_message": "LinkedIn message",
       "linkedinMessage": "LinkedIn message",
       "other": "Other",
