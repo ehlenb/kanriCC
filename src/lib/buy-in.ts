@@ -15,12 +15,19 @@ export async function resolveOrCreateProcess(opts: {
 
   const { data: existing } = await supabase
     .from("processes")
-    .select("id")
+    .select("id, stage")
     .eq("candidate_id", candidateId)
     .eq("requisition_id", requisitionId)
     .limit(1)
     .maybeSingle();
-  if (existing?.id) return existing.id;
+  if (existing?.id) {
+    // Recording buy-in advances a still-pitching process one hop. Never skips
+    // further and never touches a process already past Buy-In or terminal.
+    if (existing.stage === "Specs Sent") {
+      await supabase.from("processes").update({ stage: "Buy-In" }).eq("id", existing.id);
+    }
+    return existing.id;
+  }
 
   // No process yet: create one at "Buy-In" -- we have consent, no CV sent.
   const { data: created, error } = await supabase
