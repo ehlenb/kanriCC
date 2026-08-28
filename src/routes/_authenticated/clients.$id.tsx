@@ -107,6 +107,8 @@ type PipelineProcess = {
   updated_at: string;
   cv_sent_at: string | null;
   ccm_outcome: string | null;
+  buy_in_interaction_id: string | null;
+  buy_in_method: string | null;
   candidates: { id: string; full_name: string; full_name_japanese: string | null; current_title: string | null } | null;
 };
 
@@ -215,7 +217,7 @@ function useClientDetail(id: string) {
             `id, title, salary_min, salary_max, salary_stretch, salary_range_text, location, urgency_date, is_open, is_backfill,
              interview_rounds, hiring_manager_id, why_role_opened, strategic_context, recruiter_notes, jd_url, jd_text,
              processes (
-               id, stage, coverage_type, updated_at, cv_sent_at, ccm_outcome,
+               id, stage, coverage_type, updated_at, cv_sent_at, ccm_outcome, buy_in_interaction_id, buy_in_method,
                candidates ( id, full_name, full_name_japanese, current_title )
              )`,
           )
@@ -224,7 +226,7 @@ function useClientDetail(id: string) {
         supabase
           .from("interactions")
           .select(
-            "id, recruiter_id, interaction_type, summary, full_notes, full_notes_translated, translated_lang, interacted_at, candidate_id, contact_id, requisition_id, primary_party, candidates(id, full_name), client_contacts(id, name)",
+            "id, recruiter_id, interaction_type, summary, full_notes, full_notes_translated, translated_lang, interacted_at, candidate_id, contact_id, requisition_id, is_buy_in, primary_party, candidates(id, full_name), client_contacts(id, name)",
           )
           .eq("client_id", id)
           .order("interacted_at", { ascending: false })
@@ -2489,7 +2491,9 @@ function JobDetailPanel({
   const [cvSendLoading, setCvSendLoading] = useState(false);
   const [cvSendDialogOpen, setCvSendDialogOpen] = useState(false);
 
-  const buyInProcesses = req.processes.filter((p) => p.stage === "Buy-In" && p.candidates);
+  // "Buy-in secured" = a recorded buy-in for this role, regardless of current
+  // stage (a CV-Sent or CCM process still legitimately shows here).
+  const buyInProcesses = req.processes.filter((p) => p.buy_in_interaction_id != null && p.candidates);
 
   function toggleSelected(id: string) {
     setSelectedIds((prev) => {

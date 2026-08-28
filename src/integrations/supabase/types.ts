@@ -804,9 +804,11 @@ export type Database = {
           direction: string | null
           full_notes: string | null
           full_notes_translated: string | null
+          graph_message_id: string | null
           id: string
           interacted_at: string
           interaction_type: string
+          is_buy_in: boolean
           is_future: boolean
           primary_party: string | null
           process_id: string | null
@@ -852,9 +854,11 @@ export type Database = {
           direction?: string | null
           full_notes?: string | null
           full_notes_translated?: string | null
+          graph_message_id?: string | null
           id?: string
           interacted_at?: string
           interaction_type?: string
+          is_buy_in?: boolean
           is_future?: boolean
           primary_party?: string | null
           process_id?: string | null
@@ -920,6 +924,48 @@ export type Database = {
           },
         ]
       }
+      outlook_inbound_state: {
+        Row: {
+          created_at: string
+          delta_link: string | null
+          last_polled_at: string
+          recruiter_id: string
+          team_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          delta_link?: string | null
+          last_polled_at?: string
+          recruiter_id: string
+          team_id?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          delta_link?: string | null
+          last_polled_at?: string
+          recruiter_id?: string
+          team_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "outlook_inbound_state_recruiter_id_fkey"
+            columns: ["recruiter_id"]
+            isOneToOne: true
+            referencedRelation: "recruiters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outlook_inbound_state_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       priority_action_state: {
         Row: {
           action_type: string
@@ -976,6 +1022,8 @@ export type Database = {
           ai_snapshot: string | null
           ai_snapshot_updated_at: string | null
           buy_in_confirmed_at: string | null
+          buy_in_interaction_id: string | null
+          buy_in_method: string | null
           candidate_id: string
           ccm_feedback_at: string | null
           ccm_feedback_notes: string | null
@@ -1003,6 +1051,8 @@ export type Database = {
           ai_snapshot?: string | null
           ai_snapshot_updated_at?: string | null
           buy_in_confirmed_at?: string | null
+          buy_in_interaction_id?: string | null
+          buy_in_method?: string | null
           candidate_id: string
           ccm_feedback_at?: string | null
           ccm_feedback_notes?: string | null
@@ -1030,6 +1080,8 @@ export type Database = {
           ai_snapshot?: string | null
           ai_snapshot_updated_at?: string | null
           buy_in_confirmed_at?: string | null
+          buy_in_interaction_id?: string | null
+          buy_in_method?: string | null
           candidate_id?: string
           ccm_feedback_at?: string | null
           ccm_feedback_notes?: string | null
